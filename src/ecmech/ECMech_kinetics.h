@@ -38,7 +38,7 @@ inline
 void
 evalGdot(
                           real8 & gdot,
-                          bool  & l_act
+                          bool  & l_act,
                           real8 & dgdot_dtau,  // wrt resolved shear stress
                           real8 & dgdot_dg,    // wrt slip system strength
 #if MORE_DERIVS
@@ -49,9 +49,9 @@ evalGdot(
 #endif
                           real8   gIn,
                           real8   tau,
-                          rael8   mu,
+                          real8   mu,
 #if MORE_DERIVS
-                          rael8   tK,
+                          real8   tK,
 #endif
                          ) const
            

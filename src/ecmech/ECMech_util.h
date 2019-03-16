@@ -3,8 +3,10 @@
 #ifndef ECMECH_UTIL_H
 #define ECMECH_UTIL_H
 
-#include "ECMech_const.h"
 #include <cmath>
+
+#include "ECMech_const.h"
+#include "RAJA/RAJA.hpp"
 
 //
 // maybe replace this macro with RAJA::View machinery at some point
@@ -37,13 +39,13 @@ inline void vecsVAdiagB( real8* const v,
 template< int n >
 inline real8 vecsyadotb( const real8* const a,
                          const real8* const b) {
-   y = 0.0 ;
+   real8 y = 0.0 ;
    for (int i=0; i<n; ++i) { y+= a[i] * b[i]; }
    return y ;
 }
 
 template< int n >
-inline real8* vecNorm( const real8* const v ){
+inline real8 vecNorm( const real8* const v ){
    real8 retval = 0.0 ;
    for (int i=0; i<n; ++i) { retval += v[i]*v[i]; }
    retval = sqrt(retval) ;
@@ -222,7 +224,7 @@ inline void skewToVeccp( real8* const veccp, // (WVEC)
     veccp[2] = W[ECMECH_NN_INDX(1,0,ecmech::ndim)] ;
 }
 
-inline real8 trace3( real8* const A // (DIMS,DIMS)
+inline real8 trace3( const real8* const A // (DIMS,DIMS)
                      ) {
    real8 trace =
       A[ECMECH_NN_INDX(0,0,ecmech::ndim)] +
@@ -233,10 +235,21 @@ inline real8 trace3( real8* const A // (DIMS,DIMS)
 }
 
 // trace_to_vecds_s(vecds_s, dkk)
-inline real8 traceToVecdsS(dkk) {
-   vecds_s = sqr3i * dkk ;
+inline real8 traceToVecdsS(real8 dkk) {
+   real8 vecds_s = sqr3i * dkk ;
    return vecds_s ;
 }
+
+inline void symmToVecd( real8* const vecd, // (TVEC)
+                        const real8* const A // (DIMS,DIMS)
+                        )
+{
+    vecd[0] = sqr2i * (A[ECMECH_NN_INDX(0,0,ecmech::ndim)] - A[ECMECH_NN_INDX(1,1,ecmech::ndim)]) ;
+    vecd[1] = sqr6i * (two * A[ECMECH_NN_INDX(2,2,ecmech::ndim)] - A[ECMECH_NN_INDX(0,0,ecmech::ndim)] - A[ECMECH_NN_INDX(1,1,ecmech::ndim)]) ; // = sqr6i * (3*A33 - Akk) = sqr3b2 * (A33 - Akk/3) = sqr3b2 * Adev33
+    vecd[2] = sqr2 * A[ECMECH_NN_INDX(1,0,ecmech::ndim)] ;
+    vecd[3] = sqr2 * A[ECMECH_NN_INDX(2,0,ecmech::ndim)] ;
+    vecd[4] = sqr2 * A[ECMECH_NN_INDX(2,1,ecmech::ndim)] ;
+}       
 
 /**
     ! symmetric (non-deviatoric) matrix to vecds representation
@@ -248,18 +261,7 @@ inline void symmToVecds( real8* const vecds, // (SVEC)
 {
    symmToVecd(vecds, A) ;
    real8 Akk = trace3(A) ;
-   vecds[iSvecS] = tracetoVecdsS(Akk) ;
-}       
-
-inline void symmToVecd( real8* const vecd, // (TVEC)
-                        const real8* const A // (DIMS,DIMS)
-                        )
-{
-    vecd[0] = sqr2i * (A[ECMECH_NN_INDX(0,0,ecmech::ndim)] - A[ECMECH_NN_INDX(1,1,ecmech::ndim)]) ;
-    vecd[1] = sqr6i * (two * A[ECMECH_NN_INDX(2,2,ecmech::ndim)] - A[ECMECH_NN_INDX(0,0,ecmech::ndim)] - A[ECMECH_NN_INDX(1,1,ecmech::ndim)]) ; // = sqr6i * (3*A33 - Akk) = sqr3b2 * (A33 - Akk/3) = sqr3b2 * Adev33
-    vecd[2] = sqr2 * A[ECMECH_NN_INDX(1,0,ecmech::ndim)] ;
-    vecd[3] = sqr2 * A[ECMECH_NN_INDX(2,0,ecmech::ndim)] ;
-    vecd[4] = sqr2 * A[ECMECH_NN_INDX(2,1,ecmech::ndim)] ;
+   vecds[iSvecS] = traceToVecdsS(Akk) ;
 }       
 
 inline void matToPQ( real8* const P_vecd,  // ntvec
@@ -287,9 +289,9 @@ inline void matToPQ( real8* const P_vecd,  // ntvec
 inline void inv_to_quat(real8* const quat,
                         const real8* const inv) {
    real8 a = inv[0] * 0.5 ;
-   q[0] = cos(a) ;
+   quat[0] = cos(a) ;
    a = sin(a) ;
-   vecsVXA<nwvec>(&(quat[1]), a, &(inv[1])) ;
+   vecsVxa<nwvec>(&(quat[1]), a, &(inv[1])) ;
 }
 
 inline void emap_to_quat(real8* const quat,
@@ -298,7 +300,7 @@ inline void emap_to_quat(real8* const quat,
    inv[0] = vecNorm<emapdim>(emap) ;
    if ( inv[0] > idp_tiny_sqrt ) {
       real8 invInv = 1.0 / inv[0] ;
-      vecsVXA<emapdim>(&(inv[1]), invInv, emap) ;
+      vecsVxa<emapdim>(&(inv[1]), invInv, emap) ;
    } // else, emap is effectively zero, so axis does not matter
    inv_to_quat(quat, inv);
 }
@@ -386,31 +388,31 @@ inline void get_rot_mat_vecd( real8* const qr5x5_raw, // ntvec * ntvec
 //     ! if do not want to assume (c31**2+c32**2+c33**2=1)
 //     qr5x5(1, 1)  =  c33 * c33 - onehalf * (c31 * c31 + c32 * c32)
    
-    qr5x5(0, 0)  =  onehalf * (c11 * c11 - c12 * c12 - c21 * c21 + c22 * c22)
-    qr5x5(0, 1)  =  sqr3 * onehalf * (c13 * c13 - c23 * c23)
-    qr5x5(0, 2)  =  c11 * c12 - c21 * c22
-    qr5x5(0, 3)  =  c11 * c13 - c21 * c23
-    qr5x5(0, 4)  =  c12 * c13 - c22 * c23
-    qr5x5(1, 0)  =  sqr3 * onehalf * (c31 * c31 - c32 * c32)
-    qr5x5(1, 1)  =  thrhalf * c33 * c33 - onehalf
-    qr5x5(1, 2)  =  sqr3 * c31 * c32
-    qr5x5(1, 3)  =  sqr3 * c31 * c33
-    qr5x5(1, 4)  =  sqr3 * c32 * c33
-    qr5x5(2, 0)  =  c11 * c21 - c12 * c22
-    qr5x5(2, 1)  =  sqr3 * c13 * c23
-    qr5x5(2, 2)  =  c11 * c22 + c12 * c21
-    qr5x5(2, 3)  =  c11 * c23 + c13 * c21
-    qr5x5(2, 4)  =  c12 * c23 + c13 * c22
-    qr5x5(3, 0)  =  c11 * c31 - c12 * c32
-    qr5x5(3, 1)  =  sqr3 * c13 * c33
-    qr5x5(3, 2)  =  c11 * c32 + c12 * c31
-    qr5x5(3, 3)  =  c11 * c33 + c13 * c31
-    qr5x5(3, 4)  =  c12 * c33 + c13 * c32
-    qr5x5(4, 0)  =  c21 * c31 - c22 * c32
-    qr5x5(4, 1)  =  sqr3 * c23 * c33
-    qr5x5(4, 2)  =  c21 * c32 + c22 * c31
-    qr5x5(4, 3)  =  c21 * c33 + c23 * c31
-    qr5x5(4, 4)  =  c22 * c33 + c23 * c32
+    qr5x5(0, 0)  =  onehalf * (c11 * c11 - c12 * c12 - c21 * c21 + c22 * c22) ;
+    qr5x5(0, 1)  =  sqr3 * onehalf * (c13 * c13 - c23 * c23) ;
+    qr5x5(0, 2)  =  c11 * c12 - c21 * c22 ;
+    qr5x5(0, 3)  =  c11 * c13 - c21 * c23 ;
+    qr5x5(0, 4)  =  c12 * c13 - c22 * c23 ;
+    qr5x5(1, 0)  =  sqr3 * onehalf * (c31 * c31 - c32 * c32) ;
+    qr5x5(1, 1)  =  thrhalf * c33 * c33 - onehalf ;
+    qr5x5(1, 2)  =  sqr3 * c31 * c32 ;
+    qr5x5(1, 3)  =  sqr3 * c31 * c33 ;
+    qr5x5(1, 4)  =  sqr3 * c32 * c33 ;
+    qr5x5(2, 0)  =  c11 * c21 - c12 * c22 ;
+    qr5x5(2, 1)  =  sqr3 * c13 * c23 ;
+    qr5x5(2, 2)  =  c11 * c22 + c12 * c21 ;
+    qr5x5(2, 3)  =  c11 * c23 + c13 * c21 ;
+    qr5x5(2, 4)  =  c12 * c23 + c13 * c22 ;
+    qr5x5(3, 0)  =  c11 * c31 - c12 * c32 ;
+    qr5x5(3, 1)  =  sqr3 * c13 * c33 ;
+    qr5x5(3, 2)  =  c11 * c32 + c12 * c31 ;
+    qr5x5(3, 3)  =  c11 * c33 + c13 * c31 ;
+    qr5x5(3, 4)  =  c12 * c33 + c13 * c32 ;
+    qr5x5(4, 0)  =  c21 * c31 - c22 * c32 ;
+    qr5x5(4, 1)  =  sqr3 * c23 * c33 ;
+    qr5x5(4, 2)  =  c21 * c32 + c22 * c31 ;
+    qr5x5(4, 3)  =  c21 * c33 + c23 * c31 ;
+    qr5x5(4, 4)  =  c22 * c33 + c23 * c32 ;
 
 }
 
@@ -487,65 +489,6 @@ inline void M35_d_AAoB_dA( real8* const M35, // nwvec * ntvec
  */
 
 /**
-    ! modeled after eval_d_dxi in evptl_util_mod;
-    ! for fully implicit only;
-    ! everything in reference constituent frame
-    ! 
-    ! dDapp derivatives are all through lattice rotations, so just TVEC rows instead of SVEC -- trace of applied D does not change with rotation
- */
-inline void eval_d_dxi_impl_quat( real8* const dC_quat_dxi_T, // (WVEC,QDIM_p)
-                                  // real8* const dC_matx_dxi, // (DIMS,DIMS,WVEC)
-                                  real8* const dDapp_dxi,   // dDapp_dxi(TVEC, WVEC)
-                                  real8* const dWapp_dxi,   // dWapp_dxi(WVEC, WVEC)
-                                  const real8* const d_vecds_sm, // (SVEC)
-                                  const real8* const w_vec_sm, // (WVEC)
-                                  const real8* const xi, // (WVEC)
-                                  const real8* const Cn_quat, // (QDIM_p)
-                                  const real8* const C_matx, // (DIMS,DIMS)
-                                  const real8* const C_quat, // (QDIM_p)
-                                  const real8* const A_quat, // (QDIM_p)
-                                  ) {
-
-   // working with quats, so do not call eval_d_cA_dxi(dc_dxi, dA_dxi, xi, c_n)
-   //
-   {
-      real8 dA_quat_dxi_T[ ecmech::ndim * ecmech::qdim ] ; // (QDIM_p,DIMS)^T
-      dquat_demap_T(dA_quat_dxi_T, xi) ;
-
-      // can get away with these three calls as quat_prod is bilinear in the input arguments
-      //
-      quat_prod( &(dC_quat_dxi_T[ecmech::qdim*0]), Cn_quat, &(dA_quat_dxi_T[ecmech::qdim*0]) ) ;
-      quat_prod( &(dC_quat_dxi_T[ecmech::qdim*1]), Cn_quat, &(dA_quat_dxi_T[ecmech::qdim*1]) ) ;
-      quat_prod( &(dC_quat_dxi_T[ecmech::qdim*2]), Cn_quat, &(dA_quat_dxi_T[ecmech::qdim*2]) ) ;
-   }
-   // now have dC_quat_dxi
-
-   real8 dC_matx_dxi[ (ecmech::ndim * ecmech::ndim) * ecmech::nwvec ] ; // (DIMS,DIMS,WVEC)
-   {
-      real8 dCmatx_dq[ (ecmech::ndim * ecmech::ndim) * ecmech::qdim ] ; // (DIMS,DIMS,QDIM_p)
-      // get dC_matx_dxi
-      d_quat_to_tensor(dCmatx_dq, C_quat) ;
-      vecsMABT< ndim*ndim, nwvec, qdim >( dC_matx_dxi, dCmatx_dq, dC_quat_dxi_T ) ; // vecsMABT because _T on dC_quat_dxi_T
-   }
-    
-   {
-      real8 dD_dC_matx[ ecmech::ntvec * (ecmech::ndim * ecmech::ndim) ] ;
-      d_rot_mat_vecd_latop(dD_dC_matx, C_matx, d_vecds_sm) ;
-      //
-      vecsMAB< ntvec, nwvec, ndim*ndim >( dDapp_dxi, dD_dC_matx, dC_matx_dxi ) ;
-      // dDapp_dxi(SVEC,:) = zero
-   }
-
-   {
-      real8 dW_dC_matx[ ecmech::nwvec * (ecmech::ndim * ecmech::ndim) ] ; // (WVEC,DIMS,DIMS)
-      d_rot_mat_wveccp_latop(dW_dC_matx, C_matx, w_vec_sm) ;
-      //
-      vecsMAB< nwvec, nwvec, ndim*ndim >( dWapp_dxi, dW_dC_matx, dC_matx_dxi ) ;
-   }
-
-}
-
-/**
    ! derivative of quaternion parameters with respect to exponential map
    ! parameters
  */
@@ -581,7 +524,7 @@ inline void dquat_demap_T( real8* const dqdeT_raw, // (EMAPDIM_p,QDIM_p)
       na = emap[0]*theta_inv; nb = emap[1]*theta_inv; nc = emap[2]*theta_inv;
    }
    //
-   real8 halfcthh = DCOS(theta*onehalf)*onehalf ;
+   real8 halfcthh = cos(theta*onehalf)*onehalf ;
    //
    // now have: halfsthh, sthhbyth, halfcthh, theta, na, nb, nc
 
@@ -628,58 +571,58 @@ inline void d_quat_to_tensor(real8* const dcdq_raw, // (DIMS,DIMS,QDIM_p)
     RAJA::View< real8, RAJA::Layout<3> > dcdq(dcdq_raw, ecmech::ndim, ecmech::ndim, ecmech::qdim) ;
     
     // c(1,1) = x1sq+x2sq-x3sq-x4sq
-    dcdq(0,0,0) =  tqa
-    dcdq(0,0,1) =  tqb
-    dcdq(0,0,2) = -tqc
-    dcdq(0,0,3) = -tqd
+    dcdq(0,0,0) =  tqa ;
+    dcdq(0,0,1) =  tqb ;
+    dcdq(0,0,2) = -tqc ;
+    dcdq(0,0,3) = -tqd ;
 
     // c(0,1) = two*(x1x2-x0x3)
-    dcdq(0,1,0) = -tqd
-    dcdq(0,1,1) =  tqc
-    dcdq(0,1,2) =  tqb
-    dcdq(0,1,3) = -tqa
+    dcdq(0,1,0) = -tqd ;
+    dcdq(0,1,1) =  tqc ;
+    dcdq(0,1,2) =  tqb ;
+    dcdq(0,1,3) = -tqa ;
 
     // c(0,2) = two*(x1x3+x0x2)
-    dcdq(0,2,0) =  tqc
-    dcdq(0,2,1) =  tqd
-    dcdq(0,2,2) =  tqa
-    dcdq(0,2,3) =  tqb
+    dcdq(0,2,0) =  tqc ;
+    dcdq(0,2,1) =  tqd ;
+    dcdq(0,2,2) =  tqa ;
+    dcdq(0,2,3) =  tqb ;
 
     // c(1,0) = two*(x1x2+x0x3)
-    dcdq(1,0,0) =  tqd
-    dcdq(1,0,1) =  tqc
-    dcdq(1,0,2) =  tqb
-    dcdq(1,0,3) =  tqa
+    dcdq(1,0,0) =  tqd ;
+    dcdq(1,0,1) =  tqc ;
+    dcdq(1,0,2) =  tqb ;
+    dcdq(1,0,3) =  tqa ;
 
     // c(1,1) = x0sq-x1sq+x2sq-x3sq
-    dcdq(1,1,0) =  tqa
-    dcdq(1,1,1) = -tqb
-    dcdq(1,1,2) =  tqc
-    dcdq(1,1,3) = -tqd
+    dcdq(1,1,0) =  tqa ;
+    dcdq(1,1,1) = -tqb ;
+    dcdq(1,1,2) =  tqc ;
+    dcdq(1,1,3) = -tqd ;
 
     // c(1,2) = two*(x2x3-x0x1)
-    dcdq(1,2,0) = -tqb
-    dcdq(1,2,1) = -tqa
-    dcdq(1,2,2) =  tqd
-    dcdq(1,2,3) =  tqc
+    dcdq(1,2,0) = -tqb ;
+    dcdq(1,2,1) = -tqa ;
+    dcdq(1,2,2) =  tqd ;
+    dcdq(1,2,3) =  tqc ;
 
     // c(2,0) = two*(x1x3-x0x2)
-    dcdq(2,0,0) = -tqc
-    dcdq(2,0,1) =  tqd
-    dcdq(2,0,2) = -tqa
-    dcdq(2,0,3) =  tqb
+    dcdq(2,0,0) = -tqc ;
+    dcdq(2,0,1) =  tqd ;
+    dcdq(2,0,2) = -tqa ;
+    dcdq(2,0,3) =  tqb ;
 
     // c(2,1) = two*(x2x3+x0x1)
-    dcdq(2,1,0) =  tqb
-    dcdq(2,1,1) =  tqa
-    dcdq(2,1,2) =  tqd
-    dcdq(2,1,3) =  tqc
+    dcdq(2,1,0) =  tqb ;
+    dcdq(2,1,1) =  tqa ;
+    dcdq(2,1,2) =  tqd ;
+    dcdq(2,1,3) =  tqc ;
 
     // c(2,2) = x0sq-x1sq-x2sq+x3sq
-    dcdq(2,2,0) =  tqa
-    dcdq(2,2,1) = -tqb
-    dcdq(2,2,2) = -tqc
-    dcdq(2,2,3) =  tqd
+    dcdq(2,2,0) =  tqa ;
+    dcdq(2,2,1) = -tqb ;
+    dcdq(2,2,2) = -tqc ;
+    dcdq(2,2,3) =  tqd ;
 
 }
 
@@ -800,9 +743,68 @@ inline void d_rot_mat_wveccp_latop( real8* const dvdc_raw, // (WVEC,DIMS,DIMS)
 
 } // d_rot_mat_wveccp_latop
 
+/**
+    ! modeled after eval_d_dxi in evptl_util_mod;
+    ! for fully implicit only;
+    ! everything in reference constituent frame
+    ! 
+    ! dDapp derivatives are all through lattice rotations, so just TVEC rows instead of SVEC -- trace of applied D does not change with rotation
+ */
+inline void eval_d_dxi_impl_quat( real8* const dC_quat_dxi_T, // (WVEC,QDIM_p)
+                                  // real8* const dC_matx_dxi, // (DIMS,DIMS,WVEC)
+                                  real8* const dDapp_dxi,   // dDapp_dxi(TVEC, WVEC)
+                                  real8* const dWapp_dxi,   // dWapp_dxi(WVEC, WVEC)
+                                  const real8* const d_vecds_sm, // (SVEC)
+                                  const real8* const w_vec_sm, // (WVEC)
+                                  const real8* const xi, // (WVEC)
+                                  const real8* const Cn_quat, // (QDIM_p)
+                                  const real8* const C_matx, // (DIMS,DIMS)
+                                  const real8* const C_quat, // (QDIM_p)
+                                  const real8* const A_quat // (QDIM_p)
+                                  ) {
+
+   // working with quats, so do not call eval_d_cA_dxi(dc_dxi, dA_dxi, xi, c_n)
+   //
+   {
+      real8 dA_quat_dxi_T[ ecmech::ndim * ecmech::qdim ] ; // (QDIM_p,DIMS)^T
+      dquat_demap_T(dA_quat_dxi_T, xi) ;
+
+      // can get away with these three calls as quat_prod is bilinear in the input arguments
+      //
+      quat_prod( &(dC_quat_dxi_T[ecmech::qdim*0]), Cn_quat, &(dA_quat_dxi_T[ecmech::qdim*0]) ) ;
+      quat_prod( &(dC_quat_dxi_T[ecmech::qdim*1]), Cn_quat, &(dA_quat_dxi_T[ecmech::qdim*1]) ) ;
+      quat_prod( &(dC_quat_dxi_T[ecmech::qdim*2]), Cn_quat, &(dA_quat_dxi_T[ecmech::qdim*2]) ) ;
+   }
+   // now have dC_quat_dxi
+
+   real8 dC_matx_dxi[ (ecmech::ndim * ecmech::ndim) * ecmech::nwvec ] ; // (DIMS,DIMS,WVEC)
+   {
+      real8 dCmatx_dq[ (ecmech::ndim * ecmech::ndim) * ecmech::qdim ] ; // (DIMS,DIMS,QDIM_p)
+      // get dC_matx_dxi
+      d_quat_to_tensor(dCmatx_dq, C_quat) ;
+      vecsMABT< ndim*ndim, nwvec, qdim >( dC_matx_dxi, dCmatx_dq, dC_quat_dxi_T ) ; // vecsMABT because _T on dC_quat_dxi_T
+   }
+    
+   {
+      real8 dD_dC_matx[ ecmech::ntvec * (ecmech::ndim * ecmech::ndim) ] ;
+      d_rot_mat_vecd_latop(dD_dC_matx, C_matx, d_vecds_sm) ;
+      //
+      vecsMAB< ntvec, nwvec, ndim*ndim >( dDapp_dxi, dD_dC_matx, dC_matx_dxi ) ;
+      // dDapp_dxi(SVEC,:) = zero
+   }
+
+   {
+      real8 dW_dC_matx[ ecmech::nwvec * (ecmech::ndim * ecmech::ndim) ] ; // (WVEC,DIMS,DIMS)
+      d_rot_mat_wveccp_latop(dW_dC_matx, C_matx, w_vec_sm) ;
+      //
+      vecsMAB< nwvec, nwvec, ndim*ndim >( dWapp_dxi, dW_dC_matx, dC_matx_dxi ) ;
+   }
+
+}
+
 inline void
 d_rot_mat_vecd_smop( real8* const dvdc_raw, // (TVEC,DIMS,DIMS)
-                     const real8* const C, // (DIMS, DIMS)
+                     const real8* const c, // (DIMS, DIMS)
                      const real8* const vec_lat // (TVEC)
                      ) 
 {
@@ -884,7 +886,7 @@ qr6x6_pre_mul( real8* const M_out, // 6xn
 
    for (int iM=0; iM<ecmech::ntvec; ++iM ) { // only up to ntvec on purpose !
       for (int jM=0; jM<n; ++jM) {
-         ijM = ECMECH_NM_INDX(iM,jM,ecmech::nsvec,n) ;
+         int ijM = ECMECH_NM_INDX(iM,jM,ecmech::nsvec,n) ;
          M_out[ijM] = 0.0 ;
          for (int pTvec=0; pTvec<ecmech::ntvec; ++pTvec) { 
             if (l_T) {
@@ -897,7 +899,7 @@ qr6x6_pre_mul( real8* const M_out, // 6xn
       }
    }
    for (int jM=0; jM<n; ++jM) {
-      ijM = ECMECH_NM_INDX(iSvecS,jM,ecmech::nsvec,n) ;
+      int ijM = ECMECH_NM_INDX(iSvecS,jM,ecmech::nsvec,n) ;
       M_out[ijM] = M_in[ijM] ;
    }
    

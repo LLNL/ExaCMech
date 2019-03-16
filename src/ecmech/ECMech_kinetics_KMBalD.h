@@ -3,7 +3,9 @@
 #ifndef ECMECH_KINETICS_KMBALD_H
 #define ECMECH_KINETICS_KMBALD_H
 
-#include "ECMech_const.h"
+#include <cassert>
+
+#include "ECMech_core.h"
 
 namespace ecmech {
 
@@ -47,7 +49,7 @@ public:
    void setParams( const real8* const params ) {
 
       int iParam = 0 ;
-      _mu     = params[iParam++] ;
+      _mu_ref = params[iParam++] ;
       _tK_ref = params[iParam++] ;
       _c_1    = params[iParam++] ;
       _tau_a  = params[iParam++] ;
@@ -70,7 +72,7 @@ public:
       // plaw_from_elawRef
       //
       //    pl%xm = getMtsxmEffective(pl, mu_ref, T_ref)
-      real8 xm = one / (two * ((_c_1 / tK_ref) * mu_ref * _p * _q)) ;
+      real8 xm = one / (two * ((_c_1 / _tK_ref) * _mu_ref * _p * _q)) ;
       //
       //    CALL fill_power_law(pl)
       // xmm  = xm - one ;
@@ -89,7 +91,7 @@ private:
    const int _nslip ; // could template on this if there were call to do so
 
    // parameters
-   real8 _mu ; // may evetually set for current conditions
+   real8 _mu_ref ; // may evetually set for current conditions
    real8 _tK_ref ;
    real8 _tau_a ; // if withGAthermal the is Peierls barrier
    real8 _p ; // only used if pOne is false
@@ -105,7 +107,7 @@ private:
 
    // current values
    real8 _g ;
-   real8 _gam_r, gam_w ;
+   real8 _gam_w, _gam_r ;
    real8 _c_t ;
 
 public:
@@ -150,7 +152,7 @@ evalGdots( real8* const gdot,
       this->evalGdot( gdot[iSlip], l_act, dgdot_dtau[iSlip], dgdot_dg[iSlip],
                       _g, // gss%h(islip)
                       tau[iSlip],
-                      _mu // gss%ctrl%mu(islip)
+                      _mu_ref // gss%ctrl%mu(islip)
                       ) ;
    }
 }
@@ -204,8 +206,8 @@ get_mts_dG(real8 &exp_arg,
       else {
         real8 temp = pow( fabs(q_arg), _q ) ;
         mts_dfac = mts_dfac * 
-           pl%q * temp / fabs(q_arg) ; // always positive
-        pq_fac = std:copysign( temp, q_arg ) ;
+           _q * temp / fabs(q_arg) ; // always positive
+        pq_fac = std::copysign( temp, q_arg ) ;
       }
    }
 
@@ -221,7 +223,7 @@ inline
 void
 evalGdot(
                           real8 & gdot,
-                          bool  & l_act
+                          bool  & l_act,
                           real8 & dgdot_dtau,  // wrt resolved shear stress
                           real8 & dgdot_dg,    // wrt slip system strength
 #if MORE_DERIVS
@@ -232,9 +234,10 @@ evalGdot(
 #endif
                           real8   gIn,
                           real8   tau,
-                          rael8   mu,
+                          real8   mu
 #if MORE_DERIVS
-                          rael8   tK,
+                          ,
+                          real8   tK
 #endif
                          ) const
 {
@@ -427,7 +430,7 @@ evalGdot(
          dgdot_dg = - temp * dgdot_r + dgdot_dg ; // opposite sign as signed gdot
       }
 #if MORE_DERIVS
-      dgdot_dgamr =   temp * (gdot_r / pl%gam_r) ;
+      dgdot_dgamr =   temp * (gdot_r / _gam_r) ;
       dgdot_dtK   = dgdot_dtK + temp * dgdotr_dtK ;
 #endif
    }
@@ -436,7 +439,7 @@ evalGdot(
    
 } // evalGdot
 
-} // class KineticsKMBalD
+}; // class KineticsKMBalD
 
 } // namespace ecmech
 

@@ -1,7 +1,7 @@
 // -*-c++-*-
 
 #include "ECMech_slipgeom.h"
-#include "ECMech_port.h"
+#include "ECMech_util.h"
 
 namespace ecmech {
 
@@ -27,7 +27,7 @@ fillFromMS( real8* const P, // ntvec * nslip
          P[ECMECH_NM_INDX(iTvec,iSlip,ecmech::ntvec,nslip)] = P_vecd[iTvec] ;
       }
       for ( int iWvec = 0; iWvec < ecmech::nwvec; ++iWvec ) {
-         Q[ECMECH_NM_INDX(iWvec,iSlip,ecmech::nwvec,nslip)] = Q_vecd[iWvec] ;
+         Q[ECMECH_NM_INDX(iWvec,iSlip,ecmech::nwvec,nslip)] = Q_veccp[iWvec] ;
       }
 
    }
@@ -74,8 +74,6 @@ SlipGeomFCCA::SlipGeomFCCA()
    fillFromMS( this->_P_ref_vec, this->_Q_ref_vec,
                mVecs, sVecs, this->nslip ) ;
       
-}
+};
 
 } // namespace ecmech
-
-#endif  // ECMECH_SLIPGEOM_H

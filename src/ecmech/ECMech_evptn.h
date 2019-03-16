@@ -3,11 +3,12 @@
 #ifndef ECMECH_EVPTN_H
 #define ECMECH_EVPTN_H
 
+#include <cassert>
+
+#include "ECMech_core.h"
 #include "ECMech_util.h"
 
 #include "RAJA/RAJA.hpp"
-
-...*** // FAIL macro
 
 namespace ecmech {
 
@@ -20,6 +21,30 @@ namespace ecmech {
 class ThermoElastNCubic
 {
 public:
+   static const int nParams = 3 ;
+   
+   // constructor and destructor
+   __ecmech_hdev__
+   inline ThermoElastNCubic() {};
+   inline ~ThermoElastNCubic() {};
+   
+   __ecmech_hdev__
+   inline void setParams( const real8* const params ) {
+      
+      int iParam = 0 ;
+      real8 c11 = params[iParam++] ;
+      real8 c12 = params[iParam++] ;
+      real8 c44 = params[iParam++] ;
+      assert( iParam == nParams ) ;
+      
+      _K_diag[0] = c11-c12 ;
+      _K_diag[1] = c11-c12 ;
+      _K_diag[2] = two*c44 ;
+      _K_diag[3] = two*c44 ;
+      _K_diag[4] = two*c44 ;
+      // _K_vecds_s = c11+two*c12 ; // not used
+      
+   }
    
    __ecmech_hdev__
    inline void eval( real8* const T_vecds,
@@ -34,7 +59,7 @@ public:
       real8 Ts_bulk = -sqr3 * J * p_EOS ;
 
       vecsVAdiagB<ntvec>( T_vecds, _K_diag, Ee_vecds ) ;
-      T_vecds[iSvecS] = Ts_bulk ; // cem%K_vecds_s * Ee_vecds(SVEC)
+      T_vecds[iSvecS] = Ts_bulk ; // _K_vecds_s * Ee_vecds(SVEC)
    }
 
    /**
@@ -52,8 +77,8 @@ public:
                             int q) const {
       for ( int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec ) {
          real8 dTdepsThis = _K_diag[iTvec] * a_V_ri ;
-         for ( int iQ=0; iQ < _slipGeom::nslip; ++iQ ) {
-            P[ECMECH_NM_INDEX(iTvec,iQ,ecmech::ntvec,q)] = dTdepsThis * A[ECMECH_NM_INDX(iTvec,iQ,ecmech::ntvec,q)] ;
+         for ( int iQ=0; iQ < q; ++iQ ) {
+            P[ECMECH_NM_INDX(iTvec,iQ,ecmech::ntvec,q)] = dTdepsThis * A[ECMECH_NM_INDX(iTvec,iQ,ecmech::ntvec,q)] ;
          }
       }
    }
@@ -64,7 +89,7 @@ public:
                           real8 detVi )
    {
       for ( int iSvec = 0; iSvec < ecmech::nsvec; ++iSvec ) {      
-         sigC_vecds[iSvec] = detVi * T_vecds[iSvec] ;
+         sigC_vecds_lat[iSvec] = detVi * T_vecds[iSvec] ;
       }
    }
    
@@ -102,12 +127,10 @@ public:
       
    }
    
-   ...*** ; // other methods
-   ...*** ; // params
-   
 private :
    real8 _K_diag[ecmech::ntvec] ;
-}
+   // real8 _K_vecds_s ; // not used 
+};
 
 
 template< class SlipGeom, class Kinetics, class ThermoElastN >
@@ -156,10 +179,10 @@ EvptnUpdstProblem(SlipGeom& slipGeom,
 }
 
 __ecmech_hdev__
-bool computeRJ( real8* const r,
-                real8* const J,
+bool computeRJ( real8* const resid,
+                real8* const Jacobian,
                 const real8* const x ) {
-   bool doComputeJ = (J != NULL) ;
+   bool doComputeJ = (Jacobian != NULL) ;
       
    if ( doComputeJ ) {
 
@@ -167,13 +190,13 @@ bool computeRJ( real8* const r,
       // entries in the midst of other things later
       //
       for ( int ijJ=0; ijJ<_nXnDim; ++ijJ ) {
-         J[ijJ] = 0.0;
+         Jacobian[ijJ] = 0.0;
       }
          
    }
    //
    for ( int iR=0; iR<nDimSys; ++iR ) {
-      r[iR] = 0.0 ;
+      resid[iR] = 0.0 ;
    }
 
    // int nh = _kinetics::nH ; ...
@@ -239,24 +262,24 @@ bool computeRJ( real8* const r,
    real8 T_vecds[ecmech::nsvec];
    _thermoElastN.eval(T_vecds, Ee_vecds, _tK, _p_EOS, _eVref) ;
    //
-   real8 taua[_slipGeom::nslip] = {0.0} ; // crys%tmp4_slp
-   real8 gdot[_slipGeom::nslip] = {0.0} ; // crys%tmp1_slp
-   real8 dgdot_dtau[_slipGeom::nslip] = {0.0} ; // crys%tmp2_slp
-   real8 dgdot_dg[_slipGeom::nslip] = {0.0} ; // crys%tmp3_slp
+   real8 taua[SlipGeom::nslip] = {0.0} ; // crys%tmp4_slp
+   real8 gdot[SlipGeom::nslip] = {0.0} ; // crys%tmp1_slp
+   real8 dgdot_dtau[SlipGeom::nslip] = {0.0} ; // crys%tmp2_slp
+   real8 dgdot_dg[SlipGeom::nslip] = {0.0} ; // crys%tmp3_slp
    real8 pl_vecd[ecmech::ntvec] = {0.0} ;
    real8 pl_wvec[ecmech::nwvec] = {0.0} ; // \pcDhat
-   if ( _slipGeom::nslip > 0 ) {
+   if ( SlipGeom::nslip > 0 ) {
       
       //  resolve stress onto slip systems
       // CALL resolve_tau_a_n(crys%tmp4_slp, s_meas%T_vecds, crys)
-      vecsVaTM< ntvec, _slipGeom::nslip >( taua, T_vecds, _slipGeom.getP() ) ;
+      vecsVaTM< ntvec, SlipGeom::nslip >( taua, T_vecds, _slipGeom.getP() ) ;
       //
       // CALL plaw_eval(pl_vecd, pl_wvec, gss, crys, tK, ierr)
       _kinetics.evalGdots( gdot, dgdot_dtau, dgdot_dg, taua ) ;
       //
       // CALL sum_slip_def(pl_vecd, pl_wvec, crys%tmp1_slp, crys) ;
-      vecsVMa< ntvec, _slipGeom::nslip >( pl_vecd, _slipGeom.getP(), gdot ) ;
-      vecsVMa< nwvec, _slipGeom::nslip >( pl_wvec, _slipGeom.getQ(), gdot ) ;
+      vecsVMa< ntvec, SlipGeom::nslip >( pl_vecd, _slipGeom.getP(), gdot ) ;
+      vecsVMa< nwvec, SlipGeom::nslip >( pl_wvec, _slipGeom.getQ(), gdot ) ;
    }
    //
    // // shrate_l%gdot => crys%tmp1_slp
@@ -286,16 +309,16 @@ bool computeRJ( real8* const r,
    }
 
    _dp_dis_rate_contrib = zero ;
-   if ( _slipGeom::nslip > 0 ) {
+   if ( SlipGeom::nslip > 0 ) {
       // CALL calc_pl_dis(dp_dis_rate_contrib, crys%tmp4_slp, crys%tmp1_slp, detV%ri)
-      _dp_dis_rate_contrib = _detV_ri * vecsyadotb< _slipGeom::nslip >( taua, gdot ) ;
+      _dp_dis_rate_contrib = _detV_ri * vecsyadotb< SlipGeom::nslip >( taua, gdot ) ;
    }
 
    // // need shrate%eff instead
    // // CALL calc_pl_eff(dp_def_rate_contrib, pl_vecd, detV%ri)
    // CALL setup_ss_shrate_vals(shrate_l, crys%tmp1_slp, zero, .TRUE.)
    _shrate_eff_contrib = 0.0 ;
-   for ( int iSlip=0; iSlip < _slipGeom::nslip; ++iSlip ) {
+   for ( int iSlip=0; iSlip < SlipGeom::nslip; ++iSlip ) {
       _shrate_eff_contrib += fabs(gdot[iSlip]) ;
    }
     
@@ -315,23 +338,23 @@ bool computeRJ( real8* const r,
       // 
       real8 dpl_deps_symm[ ecmech::ntvec * ecmech::ntvec ] = {0.0} ;
       real8 dpl_deps_skew[ ecmech::nwvec * ecmech::ntvec ] = {0.0} ;
-      if ( _slipGeom::nslip > 0 ) {
+      if ( SlipGeom::nslip > 0 ) {
          
          // CALL elawn_T_dif(s_meas, e_vecd_f, crys%elas, tK, a_V, &
          //                  & p_EOS, eVref, crys%i_eos_model, crys%eos_const, &
          //                  & dpEOS_dtK, .FALSE., .FALSE., .FALSE.)
          // CALL eval_dtaua_deps_n(dtaua_deps, s_meas%dT_deps, crys)
          //
-         real8 dtaua_deps[ ecmech::ntvec * _slipGeom::nslip ] ;
-         _thermoElastN.multDTDepsT( dtaua_deps, _slipGeom.getP(), _a_V_ri, _slipGeom::nslip ) ;
+         real8 dtaua_deps[ ecmech::ntvec * SlipGeom::nslip ] ;
+         _thermoElastN.multDTDepsT( dtaua_deps, _slipGeom.getP(), _a_V_ri, SlipGeom::nslip ) ;
          
          // CALL plaw_eval_dif_sn(TVEC, &
          //                       & dpl_deps_symm, dpl_deps_skew, dgdot_deps, &
          //                       & dtaua_deps, gss, crys, s_meas, .FALSE.)
-         real8 dgdot_deps[ ecmech::ntvec * _slipGeom::nslip ] = {0.0} ;
+         real8 dgdot_deps[ ecmech::ntvec * SlipGeom::nslip ] = {0.0} ;
          for ( int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec ) {
-            for ( int iSlip=0; iSlip < _slipGeom::nslip; ++iSlip ) {
-               int ijThis = ECMECH_NM_INDX(iTvec,iSlip,ecmech::ntvec,_slipGeom::nslip) ;
+            for ( int iSlip=0; iSlip < SlipGeom::nslip; ++iSlip ) {
+               int ijThis = ECMECH_NM_INDX(iTvec,iSlip,ecmech::ntvec,SlipGeom::nslip) ;
                dgdot_deps[ijThis] = dgdot_dtau[iSlip] * dtaua_deps[ijThis] ;
             }
          }
@@ -343,8 +366,8 @@ bool computeRJ( real8* const r,
          //          & crys%Q_ref_vec(:,islip) * dgdot_deps(i_TVEC,islip)
          //   END DO
          // END DO
-         vecsMABT<        ntvec, _slipGeom::nslip >(dpl_deps_symm, _slipGeom.getP(), dgdot_deps) ;
-         vecsMABT< nwvec, ntvec, _slipGeom::nslip >(dpl_deps_skew, _slipGeom.getQ(), dgdot_deps) ;
+         vecsMABT<        ntvec, SlipGeom::nslip >(dpl_deps_symm, _slipGeom.getP(), dgdot_deps) ;
+         vecsMABT< nwvec, ntvec, SlipGeom::nslip >(dpl_deps_skew, _slipGeom.getQ(), dgdot_deps) ;
          
       }
       //
@@ -360,7 +383,7 @@ bool computeRJ( real8* const r,
       // d(B_S)/d(e_vecd_f)
       //
       {
-         RAJA::View< real8, RAJA::Layout<JDIM> > jacob_ee(J, nDimSys, nDimSys) ;
+         RAJA::View< real8, RAJA::Layout<JDIM> > jacob_ee(Jacobian, nDimSys, nDimSys) ;
          
          // dislocation plasticity;
          // first contribution; overwrite
@@ -384,9 +407,9 @@ bool computeRJ( real8* const r,
       //
       // jacob_er = -dDsm_dxi(:,:)
       {
-         RAJA::OffsetLayout<JDIM> layout = RAJA::make_offset_layout<JDIM>({{ 0 , -_i_sub_r }}, {{nDimSys-1, -i_sub_r+nDimSys-1}});
-         RAJA::View<real8, RAJA::OffsetLayout<JDIM> > jacob_er(J, layout);
-         for ( int jWvec=0; jWvec<ecmech::wtvec; ++jWvec) {
+         RAJA::OffsetLayout<JDIM> layout = RAJA::make_offset_layout<JDIM>({{ 0 , -_i_sub_r }}, {{nDimSys-1, -_i_sub_r+nDimSys-1}});
+         RAJA::View<real8, RAJA::OffsetLayout<JDIM> > jacob_er(Jacobian, layout);
+         for ( int jWvec=0; jWvec<ecmech::nwvec; ++jWvec) {
             for ( int iTvec=0; iTvec<ecmech::ntvec; ++iTvec) {
                // could also make dDsm_dxi into a RAJA view, but not really needed
                jacob_er(iTvec,jWvec) = -dDsm_dxi[ ECMECH_NM_INDX(iTvec,jWvec,ecmech::ntvec,ecmech::nwvec) ] ;
@@ -397,8 +420,8 @@ bool computeRJ( real8* const r,
       // d(B_xi)/d(e_vecds_f)
       //
       {
-         RAJA::OffsetLayout<JDIM> layout = RAJA::make_offset_layout<JDIM>({{ -_i_sub_r , 0 }}, {{ -i_sub_r+nDimSys-1, nDimSys-1 }});
-         RAJA::View<real8, RAJA::OffsetLayout<JDIM> > jacob_re(J, layout);
+         RAJA::OffsetLayout<JDIM> layout = RAJA::make_offset_layout<JDIM>({{ -_i_sub_r , 0 }}, {{ -_i_sub_r+nDimSys-1, nDimSys-1 }});
+         RAJA::View<real8, RAJA::OffsetLayout<JDIM> > jacob_re(Jacobian, layout);
 
          real8 A_edot_M35[ecmech::nwvec * ecmech::ntvec] ;
          M35_d_AAoB_dA( A_edot_M35, edot_vecd ) ;
@@ -408,9 +431,9 @@ bool computeRJ( real8* const r,
          for ( int iWvec = 0; iWvec < ecmech::nwvec; ++iWvec ) {
             for ( int jTvec = 0; jTvec < ecmech::ntvec; ++jTvec ) {
 
-               ijWT = ECMECH_NM_INDX(iWvec,jTvec,ecmech::nwvec,ecmech::ntvec) ;
+               int ijWT = ECMECH_NM_INDX(iWvec,jTvec,ecmech::nwvec,ecmech::ntvec) ;
                jacob_re(iWvec,jTvec) =
-                  _dt * dpl_deps_skew[ijWT] - de_ee_fac * ( A_e_M35[ijWT] * _dt_ri - A_edot_M35[ijWT] ) ;
+                  _dt * dpl_deps_skew[ijWT] - dt_ee_fac * ( A_e_M35[ijWT] * _dt_ri - A_edot_M35[ijWT] ) ;
             }
          }
       }
@@ -418,12 +441,12 @@ bool computeRJ( real8* const r,
       // d(B_xi)/d(xi_f)
       // 
       {
-         RAJA::OffsetLayout<JDIM> layout = RAJA::make_offset_layout<JDIM>({{ -_i_sub_r , -_i_sub_r }}, {{ -i_sub_r+nDimSys-1, -i_sub_r+nDimSys-1 }});
-         RAJA::View<real8, RAJA::OffsetLayout<JDIM> > jacob_rr(J, layout);
+         RAJA::OffsetLayout<JDIM> layout = RAJA::make_offset_layout<JDIM>({{ -_i_sub_r , -_i_sub_r }}, {{ -_i_sub_r+nDimSys-1, -_i_sub_r+nDimSys-1 }});
+         RAJA::View<real8, RAJA::OffsetLayout<JDIM> > jacob_rr(Jacobian, layout);
 
          for ( int iWvec = 0; iWvec < ecmech::nwvec; ++iWvec ) {
             for ( int jWvec = 0; jWvec < ecmech::nwvec; ++jWvec ) {
-               ijWW = ECMECH_NN_INDX(iWvec,jWvec,ecmech::nwvec) ;               
+               int ijWW = ECMECH_NN_INDX(iWvec,jWvec,ecmech::nwvec) ;               
                jacob_rr(iWvec,jWvec) = - _dt * dWsm_dxi[ijWW] ;
             }
             jacob_rr(iWvec,iWvec) += one ;
@@ -465,12 +488,12 @@ bool computeRJ( real8* const r,
             // SYSTEM
             //
             real8 pfrac_sys[ _nXnDim ] ;
-            for ( int iNXN=0; int iNXN<_nXnDim; ++iNXN ) {
-               pfrac_sys[iNXN] = J[iNXN] ;
+            for ( int iNXN=0; iNXN<_nXnDim; ++iNXN ) {
+               pfrac_sys[iNXN] = Jacobian[iNXN] ;
             }
             int err = SNLS_LUP_SolveX(pfrac_sys, pfrac_rhs_T, nDimSys, nRHS) ;
             if ( err != 0 ) {
-               FAIL("error from SNLS_LUP_SolveX") ;
+               ECMECH_FAIL(__func__,"error from SNLS_LUP_SolveX") ;
             }
 
          } // eval_mtan_pfrac_r
@@ -479,7 +502,7 @@ bool computeRJ( real8* const r,
          real8 dC_quat_dI[ ecmech::qdim * nRHS ] ;
          for ( int ii_I=0; ii_I<nRHS; ++ii_I ) {
             for ( int ii_Q=0; ii_Q<ecmech::qdim; ++ii_Q) {
-               iiQI = ECMECH_NM_INDX(ii_Q,ii_I,ecmech::qdim,nRHS) ;
+               int iiQI = ECMECH_NM_INDX(ii_Q,ii_I,ecmech::qdim,nRHS) ;
                dC_quat_dI[iiQI] = 0.0 ;
                for ( int ii_W=0; ii_W<ecmech::nwvec; ++ii_W ) {
                   // dC_quat_dI[iiQI] += dC_quat_dxi_T(ii_W,ii_Q) * dxi_dI(ii_W,ii_I)
@@ -508,7 +531,7 @@ bool computeRJ( real8* const r,
          }
          //
          // CALL qr6x6_pre_mul(mtan_sI, temp_M6I, qr5x5_ls, UB_I, .FALSE.)
-         qr6x6_pre_mul<nRHS,false>(mtan_sI, temp_M6I, qr5x5_ls) ; // UB_I=nRHS
+         qr6x6_pre_mul<nRHS,false>(_mtan_sI, temp_M6I, qr5x5_ls) ; // UB_I=nRHS
          // SUBROUTINE qr6x6_pre_mul(M_out, M_in, qr5x5, n, l_T)
          
          //
@@ -537,12 +560,12 @@ bool computeRJ( real8* const r,
          }
          //
          real8 dsigClat_dI[ ecmech::ntvec * nRHS ] ;
-         vecsMAB< ntvec, nRHS, qdim >( dsigCLat_dI, dsigClat_dCquat, dCn_quat_dI ) ;
+         vecsMAB< ntvec, nRHS, qdim >( dsigClat_dI, dsigClat_dCquat, dC_quat_dI ) ;
          //
          for ( int ii_T = 0; ii_T < ecmech::ntvec; ++ii_T ) {            
             for ( int ii_I=0; ii_I<nRHS; ++ii_I ) {
                // NOTE : only looping over ntvec, but mtan_sI is nsvec in the first dimension
-               mtan_sI[ECMECH_NM_INDX(ii_T,ii_I,ecmech::nsvec,nRHS)] += dsigClat_dI[ECMECH_NM_INDX(ii_T,ii_I,ecmech::ntvec,nRHS)] ;
+               _mtan_sI[ECMECH_NM_INDX(ii_T,ii_I,ecmech::nsvec,nRHS)] += dsigClat_dI[ECMECH_NM_INDX(ii_T,ii_I,ecmech::ntvec,nRHS)] ;
             }
          }
 
@@ -556,15 +579,15 @@ bool computeRJ( real8* const r,
             // Jacobian(i_sub_e:i_sup_e,i_sub_e:i_sup_e) = jacob_ee * epsdot_scale_inv  * e_scale ! resid, x
             scaleFactorJ = _epsdot_scale_inv  * _e_scale ;
             for ( int jJ=0; jJ<_i_sub_r; ++jJ) { // <=_i_sup_e
-               ijJ = ECMECH_NN_INDX(iJ,jJ,nDimSys) ;
-               J[ ijJ ] *= scaleFactorJ ;
+               int ijJ = ECMECH_NN_INDX(iJ,jJ,nDimSys) ;
+               Jacobian[ ijJ ] *= scaleFactorJ ;
             }
 
             // Jacobian(i_sub_e:i_sup_e,i_sub_r:i_sup_r) = jacob_er * epsdot_scale_inv  * r_scale           
             scaleFactorJ = _epsdot_scale_inv  * _r_scale ;
             for ( int jJ=_i_sub_r; jJ<nDimSys; ++jJ) { // <_i_sup_r
-               ijJ = ECMECH_NN_INDX(iJ,jJ,nDimSys) ;
-               J[ ijJ ] *= scaleFactorJ ;
+               int ijJ = ECMECH_NN_INDX(iJ,jJ,nDimSys) ;
+               Jacobian[ ijJ ] *= scaleFactorJ ;
             }
             
          }
@@ -573,15 +596,15 @@ bool computeRJ( real8* const r,
             // Jacobian(i_sub_r:i_sup_r,i_sub_e:i_sup_e) = jacob_re * rotincr_scale_inv * e_scale           
             scaleFactorJ = _rotincr_scale_inv * _e_scale ;
             for ( int jJ=0; jJ<_i_sub_r; ++jJ) { // <=_i_sup_e
-               ijJ = ECMECH_NN_INDX(iJ,jJ,nDimSys) ;
-               J[ ijJ ] *= scaleFactorJ ;
+               int ijJ = ECMECH_NN_INDX(iJ,jJ,nDimSys) ;
+               Jacobian[ ijJ ] *= scaleFactorJ ;
             }
 
             // Jacobian(i_sub_r:i_sup_r,i_sub_r:i_sup_r) = jacob_rr * rotincr_scale_inv * r_scale           
             scaleFactorJ = _rotincr_scale_inv * _r_scale ;
             for ( int jJ=_i_sub_r; jJ<nDimSys; ++jJ) { // <_i_sup_r
-               ijJ = ECMECH_NN_INDX(iJ,jJ,nDimSys) ;
-               J[ ijJ ] *= scaleFactorJ ;
+               int ijJ = ECMECH_NN_INDX(iJ,jJ,nDimSys) ;
+               Jacobian[ ijJ ] *= scaleFactorJ ;
             }
             
          }

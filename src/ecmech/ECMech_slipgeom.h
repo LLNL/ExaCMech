@@ -3,6 +3,8 @@
 #ifndef ECMECH_SLIPGEOM_H
 #define ECMECH_SLIPGEOM_H
 
+#include "ECMech_core.h"
+
 namespace ecmech {
 
 class SlipGeomFCCA
@@ -21,7 +23,7 @@ private:
    real8 _P_ref_vec[ ecmech::ntvec * nslip ] ;
    real8 _Q_ref_vec[ ecmech::nwvec * nslip ] ;
 
-}
+};
 
 } // namespace ecmech
 

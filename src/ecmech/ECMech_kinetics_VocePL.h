@@ -1,9 +1,11 @@
 // -*-c++-*-
 
-#ifndef ECMECH_KINETICS_KMBALD_H
-#define ECMECH_KINETICS_KMBALD_H
+#ifndef ECMECH_KINETICS_VOCEPL_H
+#define ECMECH_KINETICS_VOCEPL_H
 
-#include "ECMech_const.h"
+#include <cassert>
+
+#include "ECMech_core.h"
 
 namespace ecmech {
 
@@ -23,7 +25,7 @@ public:
    KineticsVocePL(int nslip) : _nslip(nslip) {};
 
    __ecmech_hdev__
-   void setParams( const real8* const params ) {
+   inline void setParams( const real8* const params ) {
 
       int iParam = 0 ;
       _mu     = params[iParam++] ;
@@ -38,8 +40,8 @@ public:
       // xMp1 = xnn + one
       //
       //    CALL set_t_min_max(pl)
-      _t_min = pow(ecmech::gam_ratio_min, xm) ;
-      _t_max = pow(ecmech::gam_ratio_ovf, xm) ;
+      _t_min = pow(ecmech::gam_ratio_min, _xm) ;
+      _t_max = pow(ecmech::gam_ratio_ovf, _xm) ;
        
    };
    
@@ -99,7 +101,7 @@ inline
 void
 evalGdot(
                           real8 & gdot,
-                          bool  & l_act
+                          bool  & l_act,
                           real8 & dgdot_dtau,  // wrt resolved shear stress
                           real8 & dgdot_dg,    // wrt slip system strength
 #if MORE_DERIVS
@@ -110,9 +112,10 @@ evalGdot(
 #endif
                           real8   gIn,
                           real8   tau,
-                          rael8   mu,
+                          real8   mu
 #if MORE_DERIVS
-                          rael8   tK,
+                          ,
+                          real8   tK
 #endif
                          ) const
 {
@@ -149,7 +152,7 @@ evalGdot(
 
          real8 abslog = log(at) ;
          real8 blog = _xn * abslog ;
-         rela8 temp = _gdot_w * exp(blog) ; 
+         real8 temp = _gam_w * exp(blog) ; 
 
          gdot = temp * t_frac ;
 
@@ -176,8 +179,8 @@ evalGdot(
    
 } // evalGdot
 
-} // class KineticsVocePL
+}; // class KineticsVocePL
 
 } // namespace ecmech
 
-#endif  // ECMECH_KINETICS_KMBALD_H
+#endif  // ECMECH_KINETICS_VOCEPL_H
