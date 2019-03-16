@@ -63,6 +63,12 @@ private:
 public:
 
 __ecmech_hdev__
+inline real8 getFixedRefRate() const
+{
+   return _gam_w ;
+}
+
+__ecmech_hdev__
 inline
 void
 setVals( real8 p,

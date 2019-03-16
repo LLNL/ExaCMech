@@ -8,6 +8,8 @@
 #include "ECMech_core.h"
 #include "ECMech_util.h"
 
+#include "SNLS_lup_solve.h"
+
 #include "RAJA/RAJA.hpp"
 
 namespace ecmech {
@@ -146,13 +148,11 @@ EvptnUpdstProblem(SlipGeom& slipGeom,
                   Kinetics& kinetics,
                   ThermoElastN& thermoElastN,
                   real8 dt, 
-                  const real8* const e_vecd_n,
                   real8 detV, real8 eVref, real8 p_EOS, real8 tK,
+                  const real8* const e_vecd_n,
                   const real8* const Cn_quat,
-                  const real8* const d_vecds_sm,
-                  const real8* const w_veccp_sm,
-                  real8 epsdot_scale_inv, real8 rotincr_scale_inv,
-                  real8 e_scale, real8 r_scale
+                  const real8* const d_vecd_sm, // okay to pass d_vecds_sm, but d_vecd_sm[iSvecS] is not used
+                  const real8* const w_veccp_sm
                   ) 
    : _slipGeom(slipGeom),
      _kinetics(kinetics),
@@ -163,12 +163,8 @@ EvptnUpdstProblem(SlipGeom& slipGeom,
      _eVref(eVref),
      _p_EOS(p_EOS),
      _tK(tK),
-     _epsdot_scale_inv(epsdot_scale_inv),
-     _rotincr_scale_inv(rotincr_scale_inv),
-     _e_scale(e_scale),
-     _r_scale(r_scale),
      _Cn_quat(Cn_quat),
-     _d_vecds_sm(d_vecds_sm), // vel_grad_sm%d_vecds
+     _d_vecd_sm(d_vecd_sm), // vel_grad_sm%d_vecds
      _w_veccp_sm(w_veccp_sm), // vel_grad_sm%w_veccp
      _mtan_sI(nullptr)
 {
@@ -176,6 +172,17 @@ EvptnUpdstProblem(SlipGeom& slipGeom,
    _detV_ri = 1.0 / _detV ;
    _a_V = pow(detV, onethird) ;
    _a_V_ri = 1.0 / _a_V ;
+
+   real8 adots_ref = _kinetics.getFixedRefRate() ;
+   real8 eff = vecNorm< ntvec >( _d_vecd_sm ) ; // do not worry about factor of sqrt(twothird)
+   if (eff < epsdot_scl_nzeff*adots_ref ) {
+      _epsdot_scale_inv = one / adots_ref ;
+   } else {
+      _epsdot_scale_inv = fmin( one / eff, 1e6 * _dt ) ;
+   }
+   //
+   _rotincr_scale_inv = _dt_ri * _epsdot_scale_inv ;
+   
 }
 
 __ecmech_hdev__
@@ -206,9 +213,9 @@ bool computeRJ( real8* const resid,
    //
    // e_vecd_f is end-of-step
    real8 e_vecd_f[ntvec] ;
-   vecsVaplusb<ntvec>( e_vecd_f, &(x[_i_sub_e]), _e_vecd_n ) ;
+   vecsVapb<ntvec>( e_vecd_f, &(x[_i_sub_e]), _e_vecd_n ) ;
    //
-   real8* xi_f = &(x[_i_sub_r]) ;
+   const real8* const xi_f = &(x[_i_sub_r]) ;
    //
    // not done in EvpC :
    // 	CALL exp_map_cpvec(A, xi_f)
@@ -228,7 +235,7 @@ bool computeRJ( real8* const resid,
    //
    // CALL matt_x_vec_5(qr5x5_ls, vel_grad_sm%d_vecds(1:TVEC), d_vecd_lat)
    real8 d_vecd_lat[ecmech::ntvec] ;
-   vecsVMTa<ntvec>(d_vecd_lat, qr5x5_ls, _d_vecds_sm) ;
+   vecsVMTa<ntvec>(d_vecd_lat, qr5x5_ls, _d_vecd_sm) ;
    // d_vecds_lat(SVEC) = vel_grad_sm%d_vecds(SVEC)
    //
    // // CALL rot_mat_vecd(A, qr5x5_A)
@@ -377,7 +384,7 @@ bool computeRJ( real8* const resid,
       real8 dDsm_dxi[ ecmech::ntvec*ecmech::nwvec ] ;
       real8 dWsm_dxi[ ecmech::nwvec*ecmech::nwvec ] ;
       eval_d_dxi_impl_quat( dC_quat_dxi_T, dDsm_dxi, dWsm_dxi,
-                            _d_vecds_sm, _w_veccp_sm, 
+                            _d_vecd_sm, _w_veccp_sm, 
                             xi_f, _Cn_quat, C_matx, C_quat, A_quat) ;
 
       // d(B_S)/d(e_vecd_f)
@@ -577,14 +584,14 @@ bool computeRJ( real8* const resid,
          for ( int iJ=0; iJ<_i_sub_r; ++iJ) {
             
             // Jacobian(i_sub_e:i_sup_e,i_sub_e:i_sup_e) = jacob_ee * epsdot_scale_inv  * e_scale ! resid, x
-            scaleFactorJ = _epsdot_scale_inv  * _e_scale ;
+            scaleFactorJ = _epsdot_scale_inv  * ecmech::e_scale ;
             for ( int jJ=0; jJ<_i_sub_r; ++jJ) { // <=_i_sup_e
                int ijJ = ECMECH_NN_INDX(iJ,jJ,nDimSys) ;
                Jacobian[ ijJ ] *= scaleFactorJ ;
             }
 
             // Jacobian(i_sub_e:i_sup_e,i_sub_r:i_sup_r) = jacob_er * epsdot_scale_inv  * r_scale           
-            scaleFactorJ = _epsdot_scale_inv  * _r_scale ;
+            scaleFactorJ = _epsdot_scale_inv  * ecmech::r_scale ;
             for ( int jJ=_i_sub_r; jJ<nDimSys; ++jJ) { // <_i_sup_r
                int ijJ = ECMECH_NN_INDX(iJ,jJ,nDimSys) ;
                Jacobian[ ijJ ] *= scaleFactorJ ;
@@ -594,14 +601,14 @@ bool computeRJ( real8* const resid,
          for ( int iJ=_i_sub_r; iJ<nDimSys; ++iJ) {
 
             // Jacobian(i_sub_r:i_sup_r,i_sub_e:i_sup_e) = jacob_re * rotincr_scale_inv * e_scale           
-            scaleFactorJ = _rotincr_scale_inv * _e_scale ;
+            scaleFactorJ = _rotincr_scale_inv * ecmech::e_scale ;
             for ( int jJ=0; jJ<_i_sub_r; ++jJ) { // <=_i_sup_e
                int ijJ = ECMECH_NN_INDX(iJ,jJ,nDimSys) ;
                Jacobian[ ijJ ] *= scaleFactorJ ;
             }
 
             // Jacobian(i_sub_r:i_sup_r,i_sub_r:i_sup_r) = jacob_rr * rotincr_scale_inv * r_scale           
-            scaleFactorJ = _rotincr_scale_inv * _r_scale ;
+            scaleFactorJ = _rotincr_scale_inv * ecmech::r_scale ;
             for ( int jJ=_i_sub_r; jJ<nDimSys; ++jJ) { // <_i_sup_r
                int ijJ = ECMECH_NN_INDX(iJ,jJ,nDimSys) ;
                Jacobian[ ijJ ] *= scaleFactorJ ;
@@ -625,11 +632,10 @@ private:
    real8 _dt_ri, _a_V_ri, _detV_ri ;
 
    real8 _epsdot_scale_inv, _rotincr_scale_inv ;
-   real8 _e_scale, _r_scale ;
 
    const real8* const _e_vecd_n ;
    const real8* const _Cn_quat ;
-   const real8* const _d_vecds_sm ;
+   const real8* const _d_vecd_sm ; // d_vecds_sm would be fine too -- but do not use _d_vecd_sm[iSvecS];
    const real8* const _w_veccp_sm ;
    
    static const int _nXnDim = nDimSys * nDimSys ;

@@ -23,9 +23,9 @@
 namespace ecmech {
 
 template< int n >
-inline void vecsVaplusb( real8* const v,
-                         const real8* const a,
-                         const real8* const b) {
+inline void vecsVapb( real8* const v,
+                      const real8* const a,
+                      const real8* const b) {
    for (int i=0; i<n; ++i) { v[i] = a[i] + b[i]; }
 }
 
@@ -754,7 +754,7 @@ inline void eval_d_dxi_impl_quat( real8* const dC_quat_dxi_T, // (WVEC,QDIM_p)
                                   // real8* const dC_matx_dxi, // (DIMS,DIMS,WVEC)
                                   real8* const dDapp_dxi,   // dDapp_dxi(TVEC, WVEC)
                                   real8* const dWapp_dxi,   // dWapp_dxi(WVEC, WVEC)
-                                  const real8* const d_vecds_sm, // (SVEC)
+                                  const real8* const d_vecd_sm, // (TVEC), or (SVEC) is fine too
                                   const real8* const w_vec_sm, // (WVEC)
                                   const real8* const xi, // (WVEC)
                                   const real8* const Cn_quat, // (QDIM_p)
@@ -787,7 +787,7 @@ inline void eval_d_dxi_impl_quat( real8* const dC_quat_dxi_T, // (WVEC,QDIM_p)
     
    {
       real8 dD_dC_matx[ ecmech::ntvec * (ecmech::ndim * ecmech::ndim) ] ;
-      d_rot_mat_vecd_latop(dD_dC_matx, C_matx, d_vecds_sm) ;
+      d_rot_mat_vecd_latop(dD_dC_matx, C_matx, d_vecd_sm) ;
       //
       vecsMAB< ntvec, nwvec, ndim*ndim >( dDapp_dxi, dD_dC_matx, dC_matx_dxi ) ;
       // dDapp_dxi(SVEC,:) = zero

@@ -113,6 +113,17 @@ private:
 public:
 
 /**
+ * @brief need to have done setVals
+ */
+__ecmech_hdev__
+inline
+real8
+getFixedRefRate() const
+{
+   return _gam_w + _gam_r ;
+}
+
+/**
  * @brief Akin to hs_to_gss, power_law_tdep_vals, and plaw_from_hs
  *
  * Could eventually bring in additional pressure and temperature dependence through the dependence of _mu on such ;

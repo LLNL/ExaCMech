@@ -87,6 +87,13 @@ const real8 gam_ratio_ovffx=1.0e45 ;
 const real8 gam_ratio_ovf=1.0e60 ; // HUGE(idp_eps)*1.0d-10
 const real8 ln_gam_ratio_ovf=138.15 ;
 
+// as in evptn and evptnconst
+const real8 st_toler = 1.0e-11 ;
+const real8 epsdot_scl_nzeff = idp_eps_sqrt ;
+const real8 e_scale = 5e-4 ;
+const real8 r_scale = 0.01 ;
+const int st_max_iter = 200 ;
+   
 }  // (namespace ecmech)
 
 #endif  // __ECMECH_CONST_H__
