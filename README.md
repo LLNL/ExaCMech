@@ -34,6 +34,8 @@ Dependencies:
   - https://github.com/LLNL/blt
 * snls -- required
   - https://github.com/LLNL/SNLS
+* raja -- required
+  - https://github.com/LLNL/RAJA
 
 TESTING
 ======
