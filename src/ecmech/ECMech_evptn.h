@@ -206,8 +206,6 @@ bool computeRJ( real8* const resid,
       resid[iR] = 0.0 ;
    }
 
-   // int nh = _kinetics::nH ; ...
-
    //////////////////////////////
    //  PULL VALUES out of x
    //
