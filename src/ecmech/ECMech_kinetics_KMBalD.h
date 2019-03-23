@@ -4,6 +4,7 @@
 #define ECMECH_KINETICS_KMBALD_H
 
 #include <cassert>
+#include <cmath>
 
 #include "ECMech_core.h"
 
@@ -196,7 +197,7 @@ get_mts_dG(real8 &exp_arg,
       }
       else {
          p_func = pow( fabs(t_frac), _p) ;
-         p_func = std::copysign(p_func, t_frac) ;
+         p_func = copysign(p_func, t_frac) ;
          mts_dfac = mts_dfac * 
             _p * p_func / t_frac ; // always positive
       }
@@ -218,7 +219,7 @@ get_mts_dG(real8 &exp_arg,
         real8 temp = pow( fabs(q_arg), _q ) ;
         mts_dfac = mts_dfac * 
            _q * temp / fabs(q_arg) ; // always positive
-        pq_fac = std::copysign( temp, q_arg ) ;
+        pq_fac = copysign( temp, q_arg ) ;
       }
    }
 
@@ -325,15 +326,15 @@ evalGdot(
       if ( withGAthermal ) {
          dgdot_dg =  zero ;
       } else {
-         dgdot_dg = -std::copysign(dgdot_r, tau) ;
+         dgdot_dg = -copysign(dgdot_r, tau) ;
       }
 #if MORE_DERIVS
       dgdot_dmu   =  zero ;
       dgdot_dgamo =  zero ;
-      dgdot_dtK   =  std::copysign(dgdotr_dtK, tau) ;
-      dgdot_dgamr =  std::copysign(gdot, tau) / _gam_r ;
+      dgdot_dtK   =  copysign(dgdotr_dtK, tau) ;
+      dgdot_dgamr =  copysign(gdot, tau) / _gam_r ;
 #endif
-      gdot   = std::copysign(gdot,tau) ;
+      gdot   = copysign(gdot,tau) ;
 
       l_act = true ;
       return ;
@@ -404,7 +405,7 @@ evalGdot(
       real8 blog = _xn * abslog ;
       real8 temp = (_gam_w * gdot_w_pl_scaling) * exp(blog) ;
 
-      real8 gdot_w_pl = temp * at_0 ; // not signed ! std::copysign(at_0,tau) 
+      real8 gdot_w_pl = temp * at_0 ; // not signed ! copysign(at_0,tau) 
       gdot_w = gdot_w + gdot_w_pl ;
 
       real8 contrib = temp * _xnn * g_i ;
@@ -423,7 +424,7 @@ evalGdot(
       real8 gdwdiv2 = one/(gdot_w*gdot_w) ;
       dgdot_dtau  = (gdot*gdot)*( dgdot_w*gdwdiv2 + dgdot_r*gdrdiv2 ) ;
       //
-      real8 temp  =   gdot * std::copysign(gdot,tau) * gdwdiv2 ;
+      real8 temp  =   gdot * copysign(gdot,tau) * gdwdiv2 ;
       // neglect difference in at_0 versus t_frac for dgdot_dg evaluation
       if ( withGAthermal ) {
          dgdot_dg = - temp * dgdot_w ;  // opposite sign as signed gdot
@@ -436,7 +437,7 @@ evalGdot(
       dgdot_dtK   =   temp * dgdotw_dtK ;
 #endif
       //
-      temp        =   gdot * std::copysign(gdot,tau) * gdrdiv2 ;
+      temp        =   gdot * copysign(gdot,tau) * gdrdiv2 ;
       if ( withGAthermal ) {
          dgdot_dg = - temp * dgdot_r + dgdot_dg ; // opposite sign as signed gdot
       }
@@ -446,7 +447,7 @@ evalGdot(
 #endif
    }
 
-   gdot   = std::copysign(gdot,tau) ;
+   gdot   = copysign(gdot,tau) ;
    
 } // evalGdot
 

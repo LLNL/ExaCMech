@@ -4,6 +4,7 @@
 #define ECMECH_KINETICS_VOCEPL_H
 
 #include <cassert>
+#include <cmath>
 
 #include "ECMech_core.h"
 
@@ -151,7 +152,7 @@ evalGdot(
          // ierr = IERR_OVF_p 
          // set gdot big, evpp may need this for recovery
          gdot = ecmech::gam_ratio_ovffx * _gam_w ; 
-         gdot = std::copysign(gdot, tau) ;
+         gdot = copysign(gdot, tau) ;
          // do not set any of deriviatives (they are, in truth, zero)
       }
       else {
