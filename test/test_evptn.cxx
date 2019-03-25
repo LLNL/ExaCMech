@@ -12,15 +12,17 @@ int main(int argc, char *argv[])
    // some convenience stuff
    using namespace ecmech ;
 #if KIN_KMBAL
-   typedef EvptnUpdstProblem< SlipGeomFCCA, KineticsKMBalD<false,false,false>, ThermoElastNCubic > EvptnUpsdtProblem_FCCA ;
+   // typedef KineticsKMBalD<true,false,false> KinType  ;
+   typedef KineticsKMBalD<false,false,false> KinType  ;
 #else
-   typedef EvptnUpdstProblem< SlipGeomFCCA, KineticsVocePL, ThermoElastNCubic > EvptnUpsdtProblem_FCCA ;
+   typedef KineticsVocePL KinType ;
 #endif   
+   typedef EvptnUpdstProblem< SlipGeomFCCA, KinType, ThermoElastNCubic > EvptnUpsdtProblem_FCCA ;
    
    ecmech::SlipGeomFCCA slipGeom ;
 
 #if KIN_KMBAL
-   ecmech::KineticsKMBalD<false,false,false> kinetics(slipGeom.nslip) ;
+   KinType kinetics(slipGeom.nslip) ;
    {
       real8
          mu     = 1.0,
@@ -38,7 +40,7 @@ int main(int argc, char *argv[])
       kinetics.setParams( params ) ;
    }
 #else
-   ecmech::KineticsVocePL kinetics(slipGeom.nslip) ;
+   KinType kinetics(slipGeom.nslip) ;
    {
       real8 mu = 1.0, xm = 0.01, gam_w = 1.0 ; 
       real8 params[kinetics.nParams] = { mu, xm, gam_w } ;
