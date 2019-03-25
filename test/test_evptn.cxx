@@ -3,27 +3,54 @@
 #include "ECMech_evptn.h"
 #include "ECMech_kinetics.h"
 #include "ECMech_slipgeom.h"
+#include "ECMech_util.h"
+
+#define KIN_KMBAL 1
 
 int main(int argc, char *argv[])
 {
    // some convenience stuff
    using namespace ecmech ;
-   typedef EvptnUpdstProblem< SlipGeomFCCA, KineticsVocePL, ThermoElastNCubic > EvptnUpsdtProblem_FCCAVocePl ; 
+#if KIN_KMBAL
+   typedef EvptnUpdstProblem< SlipGeomFCCA, KineticsKMBalD<false,false,false>, ThermoElastNCubic > EvptnUpsdtProblem_FCCA ;
+#else
+   typedef EvptnUpdstProblem< SlipGeomFCCA, KineticsVocePL, ThermoElastNCubic > EvptnUpsdtProblem_FCCA ;
+#endif   
    
    ecmech::SlipGeomFCCA slipGeom ;
 
+#if KIN_KMBAL
+   ecmech::KineticsKMBalD<false,false,false> kinetics(slipGeom.nslip) ;
+   {
+      real8
+         mu     = 1.0,
+         tK_ref = 300.,
+         c_1    = 20000.,
+         tau_a  = 0.004,
+         p      = 0.28,
+         q      = 1.34,
+         gam_wo = 20.,
+         gam_ro = 1e3,
+         wrD    = 0.02,
+         go     = 10e-5,
+         s      = 5e-5 ;
+      real8 params[kinetics.nParams] = { mu, tK_ref, c_1, tau_a, p, q, gam_wo, gam_ro, wrD, go, s } ;
+      kinetics.setParams( params ) ;
+   }
+#else
    ecmech::KineticsVocePL kinetics(slipGeom.nslip) ;
    {
-      real8 mu = 1.0, xm = 0.1, gam_w = 1.0 ; 
+      real8 mu = 1.0, xm = 0.01, gam_w = 1.0 ; 
       real8 params[kinetics.nParams] = { mu, xm, gam_w } ;
       kinetics.setParams( params ) ;
    }
+#endif   
 
    ecmech::ThermoElastNCubic elastN ;
    {
       real8 c11 = 300e-2, c12 = 100e-2, c44 = 100e-2 ;
       real8 params[elastN.nParams] = { c11, c12, c44 } ;
-      kinetics.setParams( params ) ;
+      elastN.setParams( params ) ;
    }
 
    //////////////////////////////
@@ -34,7 +61,7 @@ int main(int argc, char *argv[])
       kinetics.setVals( p, tK, h_state );
    }
 
-   real8 dt = 1e-3 ;
+   real8 dt = 1e-1 ;
    real8 detV = 1.0 ;
    real8 eVref = 0.0 ;
    real8 e_vecd_n[ecmech::ntvec] = {0.0} ;
@@ -42,13 +69,13 @@ int main(int argc, char *argv[])
    real8 d_vecd_sm[ecmech::ntvec] = {0.0, 1.0, 0.0, 0.0, 0.0} ;
    real8 w_veccp_sm[ecmech::nwvec] = {0.0, 0.0, 0.5} ;
    
-   EvptnUpsdtProblem_FCCAVocePl prob(slipGeom, kinetics, elastN,
+   EvptnUpsdtProblem_FCCA prob(slipGeom, kinetics, elastN,
                                      dt,
                                      detV, eVref, p, tK,
                                      e_vecd_n, Cn_quat,
                                      d_vecd_sm, w_veccp_sm ) ;
    
-   snls::SNLSTrDlDenseG<EvptnUpsdtProblem_FCCAVocePl> solver(prob) ;
+   snls::SNLSTrDlDenseG<EvptnUpsdtProblem_FCCA> solver(prob) ;
    
    snls::TrDeltaControl deltaControl ;
    deltaControl._deltaInit = 1e0 ;
@@ -68,6 +95,9 @@ int main(int argc, char *argv[])
    if ( status != snls::converged ){
       ECMECH_FAIL(__func__,"Solver failed to converge!");
    }
-   std::cout << "Function evaluations: " << solver.getNFEvals() << "\n";    
+   std::cout << "Function evaluations: " << solver.getNFEvals() << std::endl ;
+
+   std::cout << "Slip system shearing rates : " ;
+   printVec<slipGeom.nslip>(prob.getGdot(), std::cout) ;
    
 }

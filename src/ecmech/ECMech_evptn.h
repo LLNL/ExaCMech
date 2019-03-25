@@ -186,10 +186,11 @@ EvptnUpdstProblem(SlipGeom& slipGeom,
 }
 
 __ecmech_hdev__
+inline
 bool computeRJ( real8* const resid,
                 real8* const Jacobian,
                 const real8* const x ) {
-   bool doComputeJ = (Jacobian != NULL) ;
+   bool doComputeJ = (Jacobian != nullptr) ;
       
    if ( doComputeJ ) {
 
@@ -207,13 +208,17 @@ bool computeRJ( real8* const resid,
    }
 
    //////////////////////////////
-   //  PULL VALUES out of x
+   //  PULL VALUES out of x, with scalings
    //
+   real8 edot_vecd[ecmech::ntvec] ;
+   vecsVxa<ntvec>( edot_vecd, ecmech::e_scale, &(x[_i_sub_e]) ) ; // edot_vecd is now the delta, _not_ yet edot_vecd
    // e_vecd_f is end-of-step
    real8 e_vecd_f[ntvec] ;
-   vecsVapb<ntvec>( e_vecd_f, &(x[_i_sub_e]), _e_vecd_n ) ;
+   vecsVapb<ntvec>( e_vecd_f, edot_vecd, _e_vecd_n ) ;
+   vecsVsa<ntvec>( edot_vecd, _dt_ri ) ; // _now_ edot_vecd has edot_vecd
    //
-   const real8* const xi_f = &(x[_i_sub_r]) ;
+   real8 xi_f[nwvec] ;
+   vecsVxa<nwvec>( xi_f, ecmech::r_scale, &(x[_i_sub_r]) ) ;
    //
    // not done in EvpC :
    // 	CALL exp_map_cpvec(A, xi_f)
@@ -242,9 +247,6 @@ bool computeRJ( real8* const resid,
    // CALL matt_x_vec_3(qr3x3_ls, vel_grad_sm%w_veccp, w_vec_lat)
    real8 w_vec_lat[ecmech::nwvec] ; // assumes nwvec = ndim
    vecsVMTa<ndim>(w_vec_lat, C_matx, _w_veccp_sm) ;
-   //
-   real8 edot_vecd[ecmech::ntvec] ;
-   vecsVxa<ntvec>( edot_vecd, _dt_ri, &(x[_i_sub_e]) ) ;
 
    //////////////////////////////
    // CALCULATIONS
@@ -268,7 +270,6 @@ bool computeRJ( real8* const resid,
    _thermoElastN.eval(T_vecds, Ee_vecds, _tK, _p_EOS, _eVref) ;
    //
    real8 taua[SlipGeom::nslip] = {0.0} ; // crys%tmp4_slp
-   real8 gdot[SlipGeom::nslip] = {0.0} ; // crys%tmp1_slp
    real8 dgdot_dtau[SlipGeom::nslip] = {0.0} ; // crys%tmp2_slp
    real8 dgdot_dg[SlipGeom::nslip] = {0.0} ; // crys%tmp3_slp
    real8 pl_vecd[ecmech::ntvec] = {0.0} ;
@@ -280,11 +281,11 @@ bool computeRJ( real8* const resid,
       vecsVaTM< ntvec, SlipGeom::nslip >( taua, T_vecds, _slipGeom.getP() ) ;
       //
       // CALL plaw_eval(pl_vecd, pl_wvec, gss, crys, tK, ierr)
-      _kinetics.evalGdots( gdot, dgdot_dtau, dgdot_dg, taua ) ;
+      _kinetics.evalGdots( _gdot, dgdot_dtau, dgdot_dg, taua ) ;
       //
       // CALL sum_slip_def(pl_vecd, pl_wvec, crys%tmp1_slp, crys) ;
-      vecsVMa< ntvec, SlipGeom::nslip >( pl_vecd, _slipGeom.getP(), gdot ) ;
-      vecsVMa< nwvec, SlipGeom::nslip >( pl_wvec, _slipGeom.getQ(), gdot ) ;
+      vecsVMa< ntvec, SlipGeom::nslip >( pl_vecd, _slipGeom.getP(), _gdot ) ;
+      vecsVMa< nwvec, SlipGeom::nslip >( pl_wvec, _slipGeom.getQ(), _gdot ) ;
    }
    //
    // // shrate_l%gdot => crys%tmp1_slp
@@ -316,7 +317,7 @@ bool computeRJ( real8* const resid,
    _dp_dis_rate_contrib = zero ;
    if ( SlipGeom::nslip > 0 ) {
       // CALL calc_pl_dis(dp_dis_rate_contrib, crys%tmp4_slp, crys%tmp1_slp, detV%ri)
-      _dp_dis_rate_contrib = _detV_ri * vecsyadotb< SlipGeom::nslip >( taua, gdot ) ;
+      _dp_dis_rate_contrib = _detV_ri * vecsyadotb< SlipGeom::nslip >( taua, _gdot ) ;
    }
 
    // // need shrate%eff instead
@@ -324,7 +325,7 @@ bool computeRJ( real8* const resid,
    // CALL setup_ss_shrate_vals(shrate_l, crys%tmp1_slp, zero, .TRUE.)
    _shrate_eff_contrib = 0.0 ;
    for ( int iSlip=0; iSlip < SlipGeom::nslip; ++iSlip ) {
-      _shrate_eff_contrib += fabs(gdot[iSlip]) ;
+      _shrate_eff_contrib += fabs(_gdot[iSlip]) ;
    }
     
    //////////////////////////////////////////////////////////////////////
@@ -617,8 +618,14 @@ bool computeRJ( real8* const resid,
       } // SCALING
   
    } // doComputeJ
+
+   return true ;
    
 } // computeRJ
+
+__ecmech_hdev__
+inline
+const real8* getGdot() const { return _gdot; };
    
 private:
    
@@ -631,6 +638,8 @@ private:
 
    real8 _epsdot_scale_inv, _rotincr_scale_inv ;
 
+   real8 _gdot[SlipGeom::nslip] ; // crys%tmp1_slp
+   
    const real8* const _e_vecd_n ;
    const real8* const _Cn_quat ;
    const real8* const _d_vecd_sm ; // d_vecds_sm would be fine too -- but do not use _d_vecd_sm[iSvecS];

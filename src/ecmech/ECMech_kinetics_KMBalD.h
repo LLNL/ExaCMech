@@ -177,7 +177,7 @@ inline
 void
 get_mts_dG(real8 &exp_arg,
            real8 &mts_dfac,
-           real8 c_e, real8 denom_i, real8 t_frac) {
+           real8 c_e, real8 denom_i, real8 t_frac) const {
 
    mts_dfac = c_e * denom_i ;
 

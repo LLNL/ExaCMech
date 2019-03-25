@@ -5,6 +5,15 @@
 
 #include <cmath>
 
+#ifdef DEBUG
+#ifdef __cuda_host_only__
+#include <iostream>
+#include <string>
+#include <sstream>
+#include <iomanip>
+#endif
+#endif
+
 #include "ECMech_const.h"
 #include "RAJA/RAJA.hpp"
 
@@ -56,6 +65,12 @@ inline void vecsVxa( real8* const v,
                      real8 x,
                      const real8* const a) {
    for (int i=0; i<n; ++i) { v[i] = x * a[i]; }
+}
+
+template< int n >
+inline void vecsVsa( real8* const a,
+                     real8 s) {
+   for (int i=0; i<n; ++i) { a[i] = s * a[i]; }
 }
 
 /**
@@ -904,6 +919,30 @@ qr6x6_pre_mul( real8* const M_out, // 6xn
    }
    
 } // qr6x6_pre_mul
+
+#ifdef __cuda_host_only__
+template< int n >
+inline void
+printVec(const real8* const y, std::ostream & oss ) {
+   oss << std::setprecision(14) ;
+   for ( int iX=0; iX<n; ++iX) {
+      oss << y[iX] << " " ;
+   }
+   oss << std::endl ;
+}
+
+template< int n >
+inline void
+printMat(const real8* const A, std::ostream & oss ) {
+   oss << std::setprecision(14) ;
+   for ( int iX=0; iX<n; ++iX) {
+      for ( int jX=0; jX<n; ++jX) {
+         oss << A[ECMECH_NN_INDX(iX,jX,n)] << " " ;
+      }
+      oss << std::endl ;
+   } 
+}
+#endif
 
 } // namespace ecmech
 
