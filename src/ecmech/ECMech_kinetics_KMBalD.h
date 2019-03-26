@@ -133,7 +133,7 @@ getFixedRefRate() const
 __ecmech_hdev__
 inline
 void
-setVals( real8 p,
+setVals( real8 , // p, not used
          real8 tK,
          const real8* const h_state
          )
@@ -306,7 +306,7 @@ evalGdot(
          temp = exp(-exp_arg) ;
          gdot_r = _gam_r * (one - temp) ;
       }
-      real8 dgdot_r = _gam_r * temp / _wrD ;
+      dgdot_r = _gam_r * temp / _wrD ;
 #if MORE_DERIVS
       real8 dgdotr_dtK ;
       if ( withGAthermal ) { 

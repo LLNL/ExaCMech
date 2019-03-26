@@ -58,6 +58,7 @@ inline real8 vecNorm( const real8* const v ){
    real8 retval = 0.0 ;
    for (int i=0; i<n; ++i) { retval += v[i]*v[i]; }
    retval = sqrt(retval) ;
+   return retval ;
 }
 
 template< int n >
@@ -718,7 +719,7 @@ inline void d_rot_mat_vecd_latop( real8* const dvdc_raw, // (TVEC,DIMS,DIMS)
     ! dvdc(i,k,l) = \pfrac{(Qw_ji W_j)}{C_kl}
  */
 inline void d_rot_mat_wveccp_latop( real8* const dvdc_raw, // (WVEC,DIMS,DIMS)
-                                    const real8* const c, // (DIMS, DIMS)
+                                    // const real8* const c, // (DIMS, DIMS) // not used
                                     const real8* const cmv3w // (WVEC) // vec_sm(WVEC)
                                     )
 {
@@ -774,8 +775,8 @@ inline void eval_d_dxi_impl_quat( real8* const dC_quat_dxi_T, // (WVEC,QDIM_p)
                                   const real8* const xi, // (WVEC)
                                   const real8* const Cn_quat, // (QDIM_p)
                                   const real8* const C_matx, // (DIMS,DIMS)
-                                  const real8* const C_quat, // (QDIM_p)
-                                  const real8* const A_quat // (QDIM_p)
+                                  const real8* const C_quat // (QDIM_p)
+                                  // const real8* const A_quat // (QDIM_p) // not used
                                   ) {
 
    // working with quats, so do not call eval_d_cA_dxi(dc_dxi, dA_dxi, xi, c_n)
@@ -810,7 +811,8 @@ inline void eval_d_dxi_impl_quat( real8* const dC_quat_dxi_T, // (WVEC,QDIM_p)
 
    {
       real8 dW_dC_matx[ ecmech::nwvec * (ecmech::ndim * ecmech::ndim) ] ; // (WVEC,DIMS,DIMS)
-      d_rot_mat_wveccp_latop(dW_dC_matx, C_matx, w_vec_sm) ;
+      d_rot_mat_wveccp_latop(dW_dC_matx, // C_matx,
+                             w_vec_sm) ;
       //
       vecsMAB< nwvec, nwvec, ndim*ndim >( dWapp_dxi, dW_dC_matx, dC_matx_dxi ) ;
    }
@@ -895,9 +897,6 @@ qr6x6_pre_mul( real8* const M_out, // 6xn
                const real8* const qr5x5 // 5x5
                )
 {
-
-   real8 vec_in [ecmech::ntvec] ;
-   real8 vec_out[ecmech::ntvec] ;
 
    for (int iM=0; iM<ecmech::ntvec; ++iM ) { // only up to ntvec on purpose !
       for (int jM=0; jM<n; ++jM) {

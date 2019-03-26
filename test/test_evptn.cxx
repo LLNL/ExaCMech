@@ -7,7 +7,9 @@
 
 #define KIN_KMBAL 1
 
-int main(int argc, char *argv[])
+int main(int , // argc,
+         char ** // *argv[]
+         )
 {
    // some convenience stuff
    using namespace ecmech ;

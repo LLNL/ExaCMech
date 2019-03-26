@@ -72,8 +72,8 @@ inline real8 getFixedRefRate() const
 __ecmech_hdev__
 inline
 void
-setVals( real8 p,
-         real8 tK,
+setVals( real8 , // p, not currently used
+         real8 , // tK, not currently used
          const real8* const h_state
          )
 {
@@ -119,7 +119,7 @@ evalGdot(
 #endif
                           real8   gIn,
                           real8   tau,
-                          real8   mu
+                          real8   // mu, not currently used
 #if MORE_DERIVS
                           ,
                           real8   tK
@@ -140,7 +140,7 @@ evalGdot(
 #endif
    l_act = false ;
 
-   real8 g_i = one / _g ; // assume have checked _g>0 elsewhere
+   real8 g_i = one / gIn ; // assume have checked gIn>0 elsewhere
    real8 t_frac = tau * g_i ; // has sign of tau
    real8 at = fabs(t_frac) ;
 

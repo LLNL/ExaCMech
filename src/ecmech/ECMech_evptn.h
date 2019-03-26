@@ -158,11 +158,11 @@ EvptnUpdstProblem(SlipGeom& slipGeom,
      _kinetics(kinetics),
      _thermoElastN(thermoElastN),
      _dt(dt), 
-     _e_vecd_n(e_vecd_n),
      _detV(detV),
      _eVref(eVref),
      _p_EOS(p_EOS),
      _tK(tK),
+     _e_vecd_n(e_vecd_n),
      _Cn_quat(Cn_quat),
      _d_vecd_sm(d_vecd_sm), // vel_grad_sm%d_vecds
      _w_veccp_sm(w_veccp_sm), // vel_grad_sm%w_veccp
@@ -384,7 +384,7 @@ bool computeRJ( real8* const resid,
       real8 dWsm_dxi[ ecmech::nwvec*ecmech::nwvec ] ;
       eval_d_dxi_impl_quat( dC_quat_dxi_T, dDsm_dxi, dWsm_dxi,
                             _d_vecd_sm, _w_veccp_sm, 
-                            xi_f, _Cn_quat, C_matx, C_quat, A_quat) ;
+                            xi_f, _Cn_quat, C_matx, C_quat ) ;
 
       // d(B_S)/d(e_vecd_f)
       //
