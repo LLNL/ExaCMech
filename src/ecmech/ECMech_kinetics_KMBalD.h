@@ -6,8 +6,6 @@
 #include <cassert>
 #include <cmath>
 
-#include "ECMech_core.h"
-
 #ifdef __cuda_host_only__
 #include <string>
 #include <vector>
@@ -45,32 +43,34 @@ class KineticsKMBalD
 {
 public:
    static const int nH = 1 ;
-   static const int nParams = 11 ;
+   static const int nParams = 11 + 4 + nH ;
    static const int nVals = 4 ;
-
+   static const int nEvolVals = 2 ;
+   
    // constructor
    __ecmech_hdev__
    KineticsKMBalD(int nslip) : _nslip(nslip) {};
 
    __ecmech_hdev__
-   void setParams( const real8* const params ) {
+   void setParams( const std::vector<real8> & params // const real8* const params
+                   ) {
 
-      int iParam = 0 ;
+      std::vector<real8>::const_iterator parsIt = params.begin();
 
       //////////////////////////////
       // power-law stuff
       
-      _mu_ref = params[iParam++] ;
-      _tK_ref = params[iParam++] ;
-      _c_1    = params[iParam++] ;
-      _tau_a  = params[iParam++] ;
-      _p      = params[iParam++] ;
-      _q      = params[iParam++] ;
-      _gam_wo = params[iParam++] ;
-      _gam_ro = params[iParam++] ;
-      _wrD    = params[iParam++] ;
-      _go     = params[iParam++] ;
-      _s      = params[iParam++] ;
+      _mu_ref = *parsIt; ++parsIt;
+      _tK_ref = *parsIt; ++parsIt;
+      _c_1    = *parsIt; ++parsIt;
+      _tau_a  = *parsIt; ++parsIt;
+      _p      = *parsIt; ++parsIt;
+      _q      = *parsIt; ++parsIt;
+      _gam_wo = *parsIt; ++parsIt;
+      _gam_ro = *parsIt; ++parsIt;
+      _wrD    = *parsIt; ++parsIt;
+      _go     = *parsIt; ++parsIt;
+      _s      = *parsIt; ++parsIt;
 
       if ( pOne ) {
          assert(_p == one);
@@ -97,15 +97,21 @@ public:
       //////////////////////////////
       // Kocks-Mecking stuff
 
-      ECMECH_FAIL(__func__,"not yet implemented") ; // ...*** ; 
+      _k1      = *parsIt; ++parsIt;
+      _k2o     = *parsIt; ++parsIt;
+      _ninv    = *parsIt; ++parsIt;
+      _gamma_o = *parsIt; ++parsIt;
 
       //////////////////////////////
       // nH
 
-      _hdn_init  = params[iParam++] ;
+      _hdn_init  = *parsIt; ++parsIt;
+
+      _hdn_min   = 1e-4*_hdn_init ;
 
       //////////////////////////////
       
+      int iParam = parsIt - params.begin();
       assert( iParam == nParams );
       
    };
@@ -148,11 +154,11 @@ private:
    //////////////////////////////
    // Kocks-Mecking stuff
 
-   // ...*** 
+   real8 _k1, _k2o, _ninv, _gamma_o ;
 
    //////////////////////////////
    
-   real8 _hdn_init ;
+   real8 _hdn_init, _hdn_min ;
    
 public:
 
@@ -498,6 +504,77 @@ evalGdot(
    gdot   = copysign(gdot,tau) ;
    
 } // evalGdot
+
+__ecmech_hdev__
+inline
+void
+updateH( real8* const hs_n,
+         const real8* const hs_o,
+         real8 dt,
+         const real8* const gdot )
+{
+
+   // do not yet both with l_overdriven and setting-to-saturation machinery as in Fortran coding
+   
+   // update is done on log(h) -- h treated as a nomralized (unitless) dislocation density
+   real8 log_hs_n ;
+   real8 log_hs_o = log(fmax(hs_o[0],_hdn_min)) ;
+   updateH1<KineticsKMBalD>(this,
+                            log_hs_n, log_hs_o, dt, gdot) ;
+   hs_n[0] = exp(log_hs_n) ;
+   
+}
+
+__ecmech_hdev__
+inline
+void
+getEvolVals( real8* const evolVals,
+             const real8* const gdot
+             ) const
+{
+   // recompute effective shear rate here versus using a stored value
+   real8 shrate_eff = vecsssumabs_n(gdot, _nslip) ; // could switch to template if template class on _nslip
+
+   real8 k2 = _k2o ;
+   if ( shrate_eff > ecmech::idp_tiny_sqrt ) {
+      k2 = _k2o * pow((_gamma_o/shrate_eff), _ninv) ;
+   }
+
+   evolVals[0] = shrate_eff ;
+   evolVals[1] = k2 ;
+}
+
+__ecmech_hdev__
+inline
+void
+getSdot1( real8 &sdot,
+          real8 &dsdot_ds,
+          real8 h,
+          const real8* const evolVals) const
+{
+
+   real8 shrate_eff = evolVals[0] ;
+   real8 k2         = evolVals[1] ;
+
+   // IF (PRESENT(dfdtK)) THEN
+   //   dfdtK(1) = zero
+   // END IF
+
+   // sdot = 0.0 ;
+   // dsdot_ds = 0.0 ;
+   //
+   // if ( shrate_eff <= zero ) {
+   //    // do not get any evolution, and will get errors if proceed with calculations below
+   // }
+   // else {
+      real8 temp_hs_a = exp(-onehalf * h) ;
+      real8 temp1 = _k1 * temp_hs_a - k2 ;
+      sdot = temp1 * shrate_eff ;
+      // dfdshr = temp1 + _ninv * k2 ;
+      dsdot_ds = (-_k1 * onehalf * temp_hs_a) * shrate_eff ;
+   // }
+   
+}
 
 }; // class KineticsKMBalD
 

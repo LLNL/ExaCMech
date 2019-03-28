@@ -9,12 +9,21 @@ else()
     list(APPEND ECMECH_TEST_DEPENDS ecmech_shared snls_shared)
 endif()
 
-blt_add_executable(NAME       test_evptn
+blt_add_executable(NAME       test_evptn_0
                    SOURCES    test_evptn.cxx
+                   DEFINES    KIN_TYPE=0
                    OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
                    DEPENDS_ON ${ECMECH_TEST_DEPENDS})
-blt_add_test(NAME    test_evptn
-             COMMAND test_evptn)
+blt_add_test(NAME    test_evptn_0
+             COMMAND test_evptn_0)
+
+blt_add_executable(NAME       test_evptn_1
+                   SOURCES    test_evptn.cxx
+                   DEFINES    KIN_TYPE=1
+                   OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
+                   DEPENDS_ON ${ECMECH_TEST_DEPENDS})
+blt_add_test(NAME    test_evptn_1
+             COMMAND test_evptn_1)
 
 blt_add_executable(NAME       test_hardening
                    SOURCES    test_hardening.cxx

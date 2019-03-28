@@ -1,20 +1,25 @@
 #include "SNLS_TrDLDenseG.h"
 
 #include "ECMech_evptn.h"
-#include "ECMech_evptn_cases.h"
+#include "ECMech_cases.h"
 #include "ECMech_kinetics.h"
 #include "ECMech_slipgeom.h"
 #include "ECMech_util.h"
 
-#define KIN_KMBAL 1
+#ifndef KIN_TYPE
+#define KIN_TYPE 1
+#endif
 
-int main(int , // argc,
-         char ** // *argv[]
-         )
+int main(int argc, char *argv[])
 {
+   int outputLevel = 1 ;
+   if ( argc > 1 ) {
+      outputLevel = atoi(argv[1]) ;
+   }
+   
    // some convenience stuff
    using namespace ecmech ;
-#if KIN_KMBAL
+#if KIN_TYPE
    typedef Kin_KMBalD_FFF KinType  ;
    typedef EvptnUpsdtProblem_FCC_B Prob ;
    typedef EvptnSolver_FCC_B Solver ;
@@ -26,31 +31,12 @@ int main(int , // argc,
    
    ecmech::SlipGeomFCC slipGeom ;
 
-#if KIN_KMBAL
+#if KIN_TYPE
    KinType kinetics(slipGeom.nslip) ;
-   {
-      real8
-         mu     = 1.0,
-         tK_ref = 300.,
-         c_1    = 20000.,
-         tau_a  = 0.004,
-         p      = 0.28,
-         q      = 1.34,
-         gam_wo = 20.,
-         gam_ro = 1e3,
-         wrD    = 0.02,
-         go     = 10e-5,
-         s      = 5e-5 ;
-      real8 params[kinetics.nParams] = { mu, tK_ref, c_1, tau_a, p, q, gam_wo, gam_ro, wrD, go, s } ;
-      kinetics.setParams( params ) ;
-   }
+#include "setup_kin_KMBalD_FFF.h"
 #else
    KinType kinetics(slipGeom.nslip) ;
-   {
-      real8 mu = 1.0, xm = 0.01, gam_w = 1.0 ; 
-      real8 params[kinetics.nParams] = { mu, xm, gam_w } ;
-      kinetics.setParams( params ) ;
-   }
+#include "setup_kin_VocePL.h"
 #endif   
 
    ecmech::ThermoElastNCubic elastN ;
@@ -86,7 +72,6 @@ int main(int , // argc,
    {
       int maxIter = 100 ;
       real8 tolerance = 1e-10 ;
-      int outputLevel = 10 ;
       solver.setupSolver(maxIter, tolerance, &deltaControl, outputLevel) ;
    }
    
