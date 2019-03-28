@@ -54,6 +54,19 @@ inline real8 vecsyadotb( const real8* const a,
 }
 
 template< int n >
+inline real8 vecsssumabs( const real8* const a) {
+   real8 s = 0.0 ;
+   for (int i=0; i<n; ++i) { s+= fabs(a[i]); }
+   return s ;
+}
+
+inline real8 vecsssumabs_n( const real8* const a, int n) {
+   real8 s = 0.0 ;
+   for (int i=0; i<n; ++i) { s+= fabs(a[i]); }
+   return s ;
+}
+
+template< int n >
 inline real8 vecNorm( const real8* const v ){
    real8 retval = 0.0 ;
    for (int i=0; i<n; ++i) { retval += v[i]*v[i]; }

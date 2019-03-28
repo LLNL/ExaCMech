@@ -1,0 +1,196 @@
+#ifndef ECMech_matModelBase_include
+#define ECMech_matModelBase_include
+
+//#include <iostream>
+#include <string>
+#include <vector>
+
+#include "ECMech_core.h"
+
+namespace ecmech {
+
+typedef void (*ECMechWarnFailFunc)(const char*, const char*, int);
+
+// **************** //
+// Class Definition //
+// **************** //
+
+class matModelBase
+{
+ protected:
+  bool  _complete;
+  
+  // constructor
+  matModelBase() : _complete(false), _rho0(-1.0) {};
+
+ public:
+  virtual ~matModelBase() {};
+
+  virtual void initFromParams(const std::vector<int>         & opts,
+                              const std::vector<real8>       & pars,
+                              const std::vector<std::string> & strs ) ;
+  
+  virtual void getParams(std::vector<int>         & opts,
+                         std::vector<real8>       & pars,
+                         std::vector<std::string> & strs ) const=0;
+
+  /**
+   * @brief log parameters, including history information; more human-readable than getParams output
+   */
+  virtual void logParameters( std::ostringstream & oss ) ;
+
+  /**
+   * @brief Request response information for a group of host-code
+   * points. The stress and history variables are updated over finite
+   * time step of size dt.
+   *
+   * For arguments tha are of length x*nPassed, indexing is fastest along x
+   *
+   * The interface is always for 3D deformation -- in 2D some of the
+   * deformation rate (defRateV) and spin (spinV) will be zero. For
+   * anisotropic materials, the stress response can still be fully
+   * populated with non-zeros. If the stress is used to encode state
+   * for the given material model (which depends on the details of the
+   * implementation), then all stress components should still be
+   * stored even in 2D.
+   *
+   * Deviatoric stress and history variables are generally updated in
+   * a first-order time integration (implicit; eg,
+   * backward-Euler). Equation of state may be done either third-order
+   * or first-order. When closed-form analytic ODE solutions are
+   * available, some of the model implementations use that closed-form
+   * solution for the state update. But those solutions assumes a
+   * constant value of some arguments over the time step.
+   *
+   * This interface may not therefore be compatible with certain
+   * integration schemes that want an instantaneous rate of evolution
+   * for state variables and stress components. The library is meant
+   * for operating over a finite time step size dt. Although it is
+   * possible to do things like make two getResponse type calls to
+   * evaluate at both the half-step and full-step dt.
+   *
+   * @param[in] nPassed : Number of host-code points passed
+   *
+   * @param[in] dt : Time step size
+   *
+   * @param[in] curTime : Current simulation time
+   *
+   * @param[in] defRateV : Components of the deformation rate (symmetric part of the velocity gradient)
+   *	length nsvp*nPassed
+   *	Voigt ordering
+   *	first six components are the deviatoric part (zero trace)
+   *	along nsvp :
+   *		[dxx, dyy, dzz, dyz, dxz, dxy, vdov]
+   *	for vdov, see volRatio; but note that sometimes other expressions are used for vdov;
+   *  	for example in implicit global time stepping
+   *
+   * @param[in] spinV : Components of the spin (skew part of the velocity gradient)
+   *	length ndim*nPassed
+   *	Voigt ordering
+   *		wxx = (L32-L23)/2
+   *		wyy = (L13-L31)/2
+   *		wzz = (L21-L12)/2
+   *	along ndim :
+   *		[wxx, wyy, wzz]
+   *
+   * @param volRatio[in] : information about volume evolution
+   *	length nvr*nPassed
+   *	along nvr :
+   *		[vOld, vNew, vdov, delv]
+   *	vOld -- relative volume at beginning of time step 
+   *	vNew -- relative volume at end of time step
+   *	vdov = delv / (dt * 0.5*(vNew+vOld)) -- volumetric strain rate
+   *	delv = vNew - vOld -- increment in relative volume
+   *
+   * @param eIntV[in,out] : Internal energy per reference volume
+   *	length ne*nPassed
+   *	along ne :
+   *		[eTotal, cold, eQ, etherms, ?, ?, deltrh, ?, deltz, eMelt]
+   *	on input, all but the eTotal (first entry) should be zero, and eTotal is beginning-of-step;
+   *	on output, eTotal is updated to end-of-step
+   *
+   * @param stressSvecPV[in,out] : Cauchy stress components
+   *	length nsvp*nPassed
+   *	first six components are the deviatoric part (zero trace)
+   *	along nsvp :
+   *		[sx, sy, sz, tyz, txz, txy, p]
+   *	beginning-of-step on input, end-of-step on output
+   *
+   * @param histV[in,out] : History (eg, state) variables
+   *	length nHist*nPassed if hIndx is NULL
+   *	along nHist : order is as indicated by getHistInfo
+   *	beginning-of-step on input, end-of-step on output
+   *
+   * @param tkelvV[out] : end-of-step temperature
+   *	length nPassed
+   *
+   * @param elemLenV[in] : characteristic element length
+   * 	length nPassed
+   *
+   * @param sddV[out] : other output quantities
+   *	length nsdd*nPassed
+   *	along nsdd, index by i_sdd_* (eg, i_sdd_gmod)
+   *
+   * @param mtanSDV[out] : tangent stiffness
+   *	length nsvec*nsvec*nPassed
+   *
+   * @param hIndx[in] : index array for histV, or NULL for close-packed
+   *	length nPassed, or NULL
+   *    pass a negative value for a host-code point that is to be 'skipped'
+   *
+   * @param nHist[in] : number of history variables
+   *	should be consistent with results from getHistInfo
+   */
+
+  virtual void getResponse(const real8  & dt          , 
+                           const real8  & curTime     ,
+                           const real8  * defRateV    ,      
+                           const real8  * spinV       ,         
+                           const real8  * volRatioV   ,     
+                                 real8  * eIntV       ,         
+                                 real8  * stressSvecPV,  
+                                 real8  * histV       ,         
+                                 real8  * tkelvV      ,        
+                           const real8  * elemLenV    ,      
+                                 real8  * sddV        ,          
+                                 real8  * mtanSDV     ,      
+                           const int    & nHist       ,     
+                           const int    & nPassed      ) const ;
+
+  /**
+   * @brief
+   * Get the history variable information.
+   */
+  virtual void getHistInfo(std::vector<std::string> & histNames,
+                           std::vector<real8>       & initVals,
+                           std::vector<bool>        & plot,
+                           std::vector<bool>        & state) const = 0;
+  /**
+   * @brief
+   * Get number of history variables
+   */
+  virtual int getNumHist( ) const = 0 ;
+
+  /**
+   * @brief Get the reference density
+   */
+  virtual real8 getRhoRef() const ;
+
+
+  /**
+   * @brief
+   * May end up requiring this to be called before the model may be used; and probably want to redefine this
+   */
+  virtual void complete() {_complete = true;};
+
+  /**
+   * @brief
+   * Return whether or not complete has been called
+   */
+  virtual bool isComplete() {return _complete;};
+
+};
+
+} // ecmech namespace
+
+#endif // ECMech_matModelBase_include

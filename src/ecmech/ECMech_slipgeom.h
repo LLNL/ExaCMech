@@ -7,14 +7,14 @@
 
 namespace ecmech {
 
-class SlipGeomFCCA
+class SlipGeomFCC
 {
 public:
    
    static const int nslip = 12 ;
    // constructor and destructor
-   __ecmech_hdev__  SlipGeomFCCA();
-   __ecmech_hdev__ ~SlipGeomFCCA(){};
+   __ecmech_hdev__  SlipGeomFCC();
+   __ecmech_hdev__ ~SlipGeomFCC(){};
 
    __ecmech_hdev__ inline const real8* getP() const { return _P_ref_vec; } ;
    __ecmech_hdev__ inline const real8* getQ() const { return _Q_ref_vec; } ;

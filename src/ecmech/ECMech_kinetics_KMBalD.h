@@ -8,6 +8,11 @@
 
 #include "ECMech_core.h"
 
+#ifdef __cuda_host_only__
+#include <string>
+#include <vector>
+#endif
+
 namespace ecmech {
 
 /**
@@ -41,6 +46,7 @@ class KineticsKMBalD
 public:
    static const int nH = 1 ;
    static const int nParams = 11 ;
+   static const int nVals = 4 ;
 
    // constructor
    __ecmech_hdev__
@@ -50,6 +56,10 @@ public:
    void setParams( const real8* const params ) {
 
       int iParam = 0 ;
+
+      //////////////////////////////
+      // power-law stuff
+      
       _mu_ref = params[iParam++] ;
       _tK_ref = params[iParam++] ;
       _c_1    = params[iParam++] ;
@@ -61,7 +71,6 @@ public:
       _wrD    = params[iParam++] ;
       _go     = params[iParam++] ;
       _s      = params[iParam++] ;
-      assert( iParam == nParams );
 
       if ( pOne ) {
          assert(_p == one);
@@ -84,17 +93,47 @@ public:
       //    CALL set_t_min_max(pl)
       _t_min = pow(ecmech::gam_ratio_min, xm) ;
       _t_max = pow(ecmech::gam_ratio_ovf, xm) ;
-       
+
+      //////////////////////////////
+      // Kocks-Mecking stuff
+
+      ECMECH_FAIL(__func__,"not yet implemented") ; // ...*** ; 
+
+      //////////////////////////////
+      // nH
+
+      _hdn_init  = params[iParam++] ;
+
+      //////////////////////////////
+      
+      assert( iParam == nParams );
+      
    };
+   
+#ifdef __cuda_host_only__
+   __ecmech_host__
+   void getHistInfo(std::vector<std::string> & names,
+                    std::vector<real8>       & init,
+                    std::vector<bool>        & plot,
+                    std::vector<bool>        & state) {
+      names.push_back("rho_dd") ;
+      init.push_back(_hdn_init) ;
+      plot.push_back(true) ;
+      state.push_back(true) ;
+   }
+#endif
    
 private:
 
    const int _nslip ; // could template on this if there were call to do so
 
+   //////////////////////////////
+   // MTS-like stuff
+   
    // parameters
    real8 _mu_ref ; // may evetually set for current conditions
    real8 _tK_ref ;
-   real8 _tau_a ; // if withGAthermal the is Peierls barrier
+   real8 _tau_a ; // if withGAthermal then is Peierls barrier
    real8 _p ; // only used if pOne is false
    real8 _q ; // only used if qOne is false
    real8 _gam_ro ;
@@ -106,22 +145,24 @@ private:
    // derived from parameters
    real8 _t_max, _t_min, _xn, _xnn ;
 
-   // current values
-   real8 _g ;
-   real8 _gam_w, _gam_r ;
-   real8 _c_t ;
+   //////////////////////////////
+   // Kocks-Mecking stuff
 
+   // ...*** 
+
+   //////////////////////////////
+   
+   real8 _hdn_init ;
+   
 public:
 
-/**
- * @brief need to have done setVals
- */
 __ecmech_hdev__
 inline
 real8
-getFixedRefRate() const
+getFixedRefRate(const real8* const vals) const
 {
-   return _gam_w + _gam_r ;
+   
+   return vals[1]+vals[2] ; // _gam_w + _gam_r ;
 }
 
 /**
@@ -133,20 +174,21 @@ getFixedRefRate() const
 __ecmech_hdev__
 inline
 void
-setVals( real8 , // p, not used
+getVals( real8* const vals,
+         real8 , // p, not used
          real8 tK,
          const real8* const h_state
-         )
+         ) const
 {
-   _c_t = _c_1 / tK ;
+   vals[3] = _c_1 / tK ; // _c_t
    real8 sqrtDDens = exp(onehalf * h_state[0]) ;
-   _g = _go + _s * sqrtDDens ;
-   _gam_w = _gam_wo / sqrtDDens ;
-   _gam_r = _gam_ro * sqrtDDens * sqrtDDens ;
+   vals[0] = _go + _s * sqrtDDens ; // _gAll
+   vals[1] = _gam_wo / sqrtDDens ; // _gam_w
+   vals[2] = _gam_ro * sqrtDDens * sqrtDDens ; // _gam_r
    if ( withGAthermal ) {
       assert(_tau_a > 0) ;
    } else {
-      assert(_g > zero);
+      assert(vals[0] > zero);
    }
 }
 
@@ -156,13 +198,14 @@ void
 evalGdots( real8* const gdot,
            real8* const dgdot_dtau,
            real8* const dgdot_dg,
-           const real8* const tau
+           const real8* const tau,
+           const real8* const vals
            ) const
 {
    for ( int iSlip=0; iSlip<this->_nslip; ++iSlip ) {
       bool l_act ;
       this->evalGdot( gdot[iSlip], l_act, dgdot_dtau[iSlip], dgdot_dg[iSlip],
-                      _g, // gss%h(islip)
+                      vals,
                       tau[iSlip],
                       _mu_ref // gss%ctrl%mu(islip)
                       ) ;
@@ -244,7 +287,7 @@ evalGdot(
                           real8 & dgdot_dgamr, // wrt reference rate for drag limited part
                           real8 & dgdot_dtK,   // wrt temperature, with other arguments fixed
 #endif
-                          real8   gIn,
+                          const real8* const vals,
                           real8   tau,
                           real8   mu
 #if MORE_DERIVS
@@ -255,6 +298,11 @@ evalGdot(
 {
    static const real8 gdot_w_pl_scaling = 10.0 ;
    static const real8 one = 1.0, zero=0.0 ;
+
+   real8 gIn   = vals[0] ;
+   real8 gam_w = vals[1] ;
+   real8 gam_r = vals[2] ;
+   real8 c_t   = vals[3] ;
 
    // zero things so that can more easily just return if inactive
    gdot = zero ;
@@ -299,20 +347,20 @@ evalGdot(
       }
       else if (exp_arg < idp_eps_sqrt) {
          // linear expansion is cheaper and more accurate
-         gdot_r = _gam_r * exp_arg ;
+         gdot_r = gam_r * exp_arg ;
          temp = one - exp_arg ; // still use temp below as approximation to exp(-fabs(tau)/_wrD)
       }
       else { 
          temp = exp(-exp_arg) ;
-         gdot_r = _gam_r * (one - temp) ;
+         gdot_r = gam_r * (one - temp) ;
       }
-      dgdot_r = _gam_r * temp / _wrD ;
+      dgdot_r = gam_r * temp / _wrD ;
 #if MORE_DERIVS
       real8 dgdotr_dtK ;
       if ( withGAthermal ) { 
-         dgdotr_dtK = -_gam_r * temp * exp_arg * _wrDT / _wrD ;
+         dgdotr_dtK = -gam_r * temp * exp_arg * _wrDT / _wrD ;
       } else {
-         dgdotr_dtK = -_gam_r * temp * fabs(tau) * _wrDT / (_wrD * _wrD) ;
+         dgdotr_dtK = -gam_r * temp * fabs(tau) * _wrDT / (_wrD * _wrD) ;
       }
 #endif
    }
@@ -332,7 +380,7 @@ evalGdot(
       dgdot_dmu   =  zero ;
       dgdot_dgamo =  zero ;
       dgdot_dtK   =  copysign(dgdotr_dtK, tau) ;
-      dgdot_dgamr =  copysign(gdot, tau) / _gam_r ;
+      dgdot_dgamr =  copysign(gdot, tau) / gam_r ;
 #endif
       gdot   = copysign(gdot,tau) ;
 
@@ -346,7 +394,7 @@ evalGdot(
    //
    // calculate thermally activated kinetics
    {
-      real8 c_e = _c_t * mu ;
+      real8 c_e = c_t * mu ;
       //
       real8 t_frac = (fabs(tau) - gAth) * g_i ;
       real8 exp_arg, mts_dfac ;
@@ -367,7 +415,7 @@ evalGdot(
       // !END IF
       // ! do not need to check the above condition because have pegged the MTS part of the kinetics
       // 
-      gdot_w = _gam_w * exp(exp_arg) ;
+      gdot_w = gam_w * exp(exp_arg) ;
       dgdot_w = mts_dfac * gdot_w ;
       if ( !withGAthermal ) {
          dgdot_wg = dgdot_w * t_frac ;
@@ -383,14 +431,14 @@ evalGdot(
       // 
       if ( exp_arg_m > ln_gam_ratio_min ) {
          // non-vanishing contribution from balancing MTS-like kinetics
-         real8 gdot_w_m = _gam_w * exp(exp_arg_m) ;
+         real8 gdot_w_m = gam_w * exp(exp_arg_m) ;
          gdot_w = gdot_w - gdot_w_m ;
          real8 contrib = mts_dfac_m * gdot_w_m ;
          dgdot_w = dgdot_w - contrib ; // sign used to be the other way, but suspect that was a bug
          if ( !withGAthermal ) {
             dgdot_wg = dgdot_wg - contrib * t_frac_m ;
          }
-         if ( fabs(gdot_w/_gam_w) < gam_ratio_min ) {
+         if ( fabs(gdot_w/gam_w) < gam_ratio_min ) {
             // effectively zero from roundoff
             l_act = false ;
             return ;
@@ -403,7 +451,7 @@ evalGdot(
 
       real8 abslog = log(at_0) ;
       real8 blog = _xn * abslog ;
-      real8 temp = (_gam_w * gdot_w_pl_scaling) * exp(blog) ;
+      real8 temp = (gam_w * gdot_w_pl_scaling) * exp(blog) ;
 
       real8 gdot_w_pl = temp * at_0 ; // not signed ! copysign(at_0,tau) 
       gdot_w = gdot_w + gdot_w_pl ;
@@ -432,7 +480,7 @@ evalGdot(
          dgdot_dg = - temp * dgdot_wg ; // opposite sign as signed gdot
       }
 #if MORE_DERIVS
-      dgdot_dgamo =   temp * (gdot_w / _gam_w) ;
+      dgdot_dgamo =   temp * (gdot_w / gam_w) ;
       dgdot_dmu   =   temp * dgdotw_dmu ;
       dgdot_dtK   =   temp * dgdotw_dtK ;
 #endif
@@ -442,7 +490,7 @@ evalGdot(
          dgdot_dg = - temp * dgdot_r + dgdot_dg ; // opposite sign as signed gdot
       }
 #if MORE_DERIVS
-      dgdot_dgamr =   temp * (gdot_r / _gam_r) ;
+      dgdot_dgamr =   temp * (gdot_r / gam_r) ;
       dgdot_dtK   = dgdot_dtK + temp * dgdotr_dtK ;
 #endif
    }

@@ -88,7 +88,7 @@ public:
    __ecmech_hdev__
    inline void getCauchy( real8* const sigC_vecds_lat,
                           const real8* const T_vecds,
-                          real8 detVi )
+                          real8 detVi ) const
    {
       for ( int iSvec = 0; iSvec < ecmech::nsvec; ++iSvec ) {      
          sigC_vecds_lat[iSvec] = detVi * T_vecds[iSvec] ;
@@ -144,11 +144,12 @@ static const int nDimSys = ecmech::ntvec + ecmech::nwvec ;
 
 // constructor
 __ecmech_hdev__
-EvptnUpdstProblem(SlipGeom& slipGeom,
-                  Kinetics& kinetics,
-                  ThermoElastN& thermoElastN,
+EvptnUpdstProblem(const SlipGeom& slipGeom,
+                  const Kinetics& kinetics,
+                  const ThermoElastN& thermoElastN,
                   real8 dt, 
                   real8 detV, real8 eVref, real8 p_EOS, real8 tK,
+                  const real8* const h_state,
                   const real8* const e_vecd_n,
                   const real8* const Cn_quat,
                   const real8* const d_vecd_sm, // okay to pass d_vecds_sm, but d_vecd_sm[iSvecS] is not used
@@ -162,6 +163,7 @@ EvptnUpdstProblem(SlipGeom& slipGeom,
      _eVref(eVref),
      _p_EOS(p_EOS),
      _tK(tK),
+     _h_state(h_state), 
      _e_vecd_n(e_vecd_n),
      _Cn_quat(Cn_quat),
      _d_vecd_sm(d_vecd_sm), // vel_grad_sm%d_vecds
@@ -173,7 +175,9 @@ EvptnUpdstProblem(SlipGeom& slipGeom,
    _a_V = pow(detV, onethird) ;
    _a_V_ri = 1.0 / _a_V ;
 
-   real8 adots_ref = _kinetics.getFixedRefRate() ;
+   _kinetics.getVals(_kin_vals, _p_EOS, _tK, _h_state) ;
+   
+   real8 adots_ref = _kinetics.getFixedRefRate(_kin_vals) ;
    real8 eff = vecNorm< ntvec >( _d_vecd_sm ) ; // do not worry about factor of sqrt(twothird)
    if (eff < epsdot_scl_nzeff*adots_ref ) {
       _epsdot_scale_inv = one / adots_ref ;
@@ -281,7 +285,7 @@ bool computeRJ( real8* const resid,
       vecsVaTM< ntvec, SlipGeom::nslip >( taua, T_vecds, _slipGeom.getP() ) ;
       //
       // CALL plaw_eval(pl_vecd, pl_wvec, gss, crys, tK, ierr)
-      _kinetics.evalGdots( _gdot, dgdot_dtau, dgdot_dg, taua ) ;
+      _kinetics.evalGdots( _gdot, dgdot_dtau, dgdot_dg, taua, _kin_vals ) ;
       //
       // CALL sum_slip_def(pl_vecd, pl_wvec, crys%tmp1_slp, crys) ;
       vecsVMa< ntvec, SlipGeom::nslip >( pl_vecd, _slipGeom.getP(), _gdot ) ;
@@ -323,10 +327,7 @@ bool computeRJ( real8* const resid,
    // // need shrate%eff instead
    // // CALL calc_pl_eff(dp_def_rate_contrib, pl_vecd, detV%ri)
    // CALL setup_ss_shrate_vals(shrate_l, crys%tmp1_slp, zero, .TRUE.)
-   _shrate_eff_contrib = 0.0 ;
-   for ( int iSlip=0; iSlip < SlipGeom::nslip; ++iSlip ) {
-      _shrate_eff_contrib += fabs(_gdot[iSlip]) ;
-   }
+   _shrate_eff_contrib = vecsssumabs<SlipGeom::nslip>(_gdot) ;
     
    //////////////////////////////////////////////////////////////////////
    // JACOBIAN, fixed hardness and temperature
@@ -629,9 +630,9 @@ const real8* getGdot() const { return _gdot; };
    
 private:
    
-   SlipGeom &_slipGeom ;
-   Kinetics &_kinetics ;
-   ThermoElastN &_thermoElastN ;
+   const SlipGeom &_slipGeom ;
+   const Kinetics &_kinetics ;
+   const ThermoElastN &_thermoElastN ;
 
    real8 _dt, _detV, _eVref, _p_EOS, _tK, _a_V ;
    real8 _dt_ri, _a_V_ri, _detV_ri ;
@@ -639,7 +640,10 @@ private:
    real8 _epsdot_scale_inv, _rotincr_scale_inv ;
 
    real8 _gdot[SlipGeom::nslip] ; // crys%tmp1_slp
-   
+
+   real8 _kin_vals[Kinetics::nVals] ;
+
+   const real8* const _h_state ;
    const real8* const _e_vecd_n ;
    const real8* const _Cn_quat ;
    const real8* const _d_vecd_sm ; // d_vecds_sm would be fine too -- but do not use _d_vecd_sm[iSvecS];

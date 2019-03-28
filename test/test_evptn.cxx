@@ -1,6 +1,7 @@
 #include "SNLS_TrDLDenseG.h"
 
 #include "ECMech_evptn.h"
+#include "ECMech_evptn_cases.h"
 #include "ECMech_kinetics.h"
 #include "ECMech_slipgeom.h"
 #include "ECMech_util.h"
@@ -14,14 +15,16 @@ int main(int , // argc,
    // some convenience stuff
    using namespace ecmech ;
 #if KIN_KMBAL
-   // typedef KineticsKMBalD<true,false,false> KinType  ;
-   typedef KineticsKMBalD<false,false,false> KinType  ;
+   typedef Kin_KMBalD_FFF KinType  ;
+   typedef EvptnUpsdtProblem_FCC_B Prob ;
+   typedef EvptnSolver_FCC_B Solver ;
 #else
    typedef KineticsVocePL KinType ;
+   typedef EvptnUpsdtProblem_FCC_A Prob ;
+   typedef EvptnSolver_FCC_A Solver ;
 #endif   
-   typedef EvptnUpdstProblem< SlipGeomFCCA, KinType, ThermoElastNCubic > EvptnUpsdtProblem_FCCA ;
    
-   ecmech::SlipGeomFCCA slipGeom ;
+   ecmech::SlipGeomFCC slipGeom ;
 
 #if KIN_KMBAL
    KinType kinetics(slipGeom.nslip) ;
@@ -60,10 +63,7 @@ int main(int , // argc,
    //////////////////////////////
    
    real8 p = 0.0, tK = 300.0 ;
-   {
-      real8 h_state[kinetics.nH] = { 100e-5 } ;
-      kinetics.setVals( p, tK, h_state );
-   }
+   real8 h_state[kinetics.nH] = { 100e-5 } ;
 
    real8 dt = 1e-1 ;
    real8 detV = 1.0 ;
@@ -73,14 +73,14 @@ int main(int , // argc,
    real8 d_vecd_sm[ecmech::ntvec] = {0.0, 1.0, 0.0, 0.0, 0.0} ;
    real8 w_veccp_sm[ecmech::nwvec] = {0.0, 0.0, 0.5} ;
    
-   EvptnUpsdtProblem_FCCA prob(slipGeom, kinetics, elastN,
-                                     dt,
-                                     detV, eVref, p, tK,
-                                     e_vecd_n, Cn_quat,
-                                     d_vecd_sm, w_veccp_sm ) ;
+   Prob prob(slipGeom, kinetics, elastN,
+             dt,
+             detV, eVref, p, tK,
+             h_state, e_vecd_n, Cn_quat,
+             d_vecd_sm, w_veccp_sm ) ;
    
-   snls::SNLSTrDlDenseG<EvptnUpsdtProblem_FCCA> solver(prob) ;
-   
+   Solver solver(prob) ;
+
    snls::TrDeltaControl deltaControl ;
    deltaControl._deltaInit = 1e0 ;
    {

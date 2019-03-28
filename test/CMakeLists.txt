@@ -16,3 +16,10 @@ blt_add_executable(NAME       test_evptn
 blt_add_test(NAME    test_evptn
              COMMAND test_evptn)
 
+blt_add_executable(NAME       test_hardening
+                   SOURCES    test_hardening.cxx
+                   OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
+                   DEPENDS_ON ${ECMECH_TEST_DEPENDS})
+blt_add_test(NAME    test_hardening
+             COMMAND test_hardening)
+

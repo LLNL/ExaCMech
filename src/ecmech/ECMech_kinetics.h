@@ -12,7 +12,7 @@ __ecmech_hdev__
 Kinetics(int nslip) : _nslip(nslip) {};
 
 __ecmech_hdev__
-inline real8 getFixedRefRate() const
+inline real8 getFixedRefRate(const real8* const vals) const
 
 __ecmech_hdev__
 void setParams( const real8* const params ) ;
@@ -22,10 +22,11 @@ void setParams( const real8* const params ) ;
 __ecmech_hdev__
 inline
 void
-setVals( real8 p,
+getVals( real8* const vals,
+         real8 p,
          real8 tK,
          const real8* const h_state
-         )
+         ) const
 
 __ecmech_hdev__
 inline
@@ -33,7 +34,8 @@ void
 evalGdots( real8* const gdot,
            real8* const dgdot_dtau,
            real8* const dgdot_dg,
-           const real8* const tau
+           const real8* const tau,
+           const real8* const vals
            ) const
 
 __ecmech_hdev__

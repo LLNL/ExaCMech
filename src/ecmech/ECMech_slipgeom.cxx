@@ -35,7 +35,7 @@ fillFromMS( real8* const P, // ntvec * nslip
    
 // constructor
 __ecmech_hdev__
-SlipGeomFCCA::SlipGeomFCCA()
+SlipGeomFCC::SlipGeomFCC()
 {
 
    //   m = (/ sqr3i, sqr3i, sqr3i /)
