@@ -45,6 +45,7 @@ inline void vecsVAdiagB( real8* const v,
    for (int i=0; i<n; ++i) { v[i] = a[i] * b[i]; }
 }
 
+// standard vector inner product
 template< int n >
 inline real8 vecsyadotb( const real8* const a,
                          const real8* const b) {
@@ -81,10 +82,19 @@ inline void vecsVxa( real8* const v,
    for (int i=0; i<n; ++i) { v[i] = x * a[i]; }
 }
 
+/*
+ * scale vector in place
+ */
 template< int n >
 inline void vecsVsa( real8* const a,
                      real8 s) {
    for (int i=0; i<n; ++i) { a[i] = s * a[i]; }
+}
+
+template< int n >
+inline void vecsVNormalize( real8* const v ){
+   real8 s = vecNorm<n>(v) ;
+   vecsVsa<n>(v, s) ;
 }
 
 /**
@@ -130,6 +140,21 @@ inline void vecsVMa( real8* const p,
       p[iN] = 0.0 ;
       for (int iQ=0; iQ<q; ++iQ) {
          p[iN] += M[ECMECH_NM_INDX(iN,iQ,n,q)] * a[iQ] ;
+      }
+   }
+}
+
+/**
+ * @brief square matrix times vector
+ */
+template< int n  >
+inline void vecsVMa( real8* const p,
+                      const real8* const M,
+                      const real8* const a) {
+   for (int iN=0; iN<n; ++iN) {
+      p[iN] = 0.0 ;
+      for (int jN=0; jN<n; ++jN) {
+         p[iN] += M[ECMECH_NN_INDX(iN,jN,n)] * a[jN] ;
       }
    }
 }
@@ -269,6 +294,13 @@ inline real8 traceToVecdsS(real8 dkk) {
    return vecds_s ;
 }
 
+// 
+inline real8 vecd_Deff(const real8* const vecd) {
+   real8 retval = vecNorm<ecmech::ntvec>(vecd) ;
+   retval = sqr2b3 * retval ;
+   return retval ;
+}
+
 inline void symmToVecd( real8* const vecd, // (TVEC)
                         const real8* const A // (DIMS,DIMS)
                         )
@@ -278,7 +310,24 @@ inline void symmToVecd( real8* const vecd, // (TVEC)
     vecd[2] = sqr2 * A[ECMECH_NN_INDX(1,0,ecmech::ndim)] ;
     vecd[3] = sqr2 * A[ECMECH_NN_INDX(2,0,ecmech::ndim)] ;
     vecd[4] = sqr2 * A[ECMECH_NN_INDX(2,1,ecmech::ndim)] ;
-}       
+}
+
+/*
+ * see setup_vel_grad_svec_kk and svec_kk_to_vecds in Fortran
+ *
+ * svec_kk[6] is not accessed, so it need not be there
+ */
+inline void svecToVecd( real8* const vecd, // (TVEC)
+                        const real8* const svec_kk // (SVEC[+1])
+                        )
+{
+   vecd[0] = sqr2i * (svec_kk[0] - svec_kk[1]) ;
+   vecd[1] = sqr3b2 * svec_kk[2] ;
+   vecd[2] = sqr2 * svec_kk[5] ;
+   vecd[3] = sqr2 * svec_kk[4] ;
+   vecd[4] = sqr2 * svec_kk[3] ;
+   // vecds[5] = traceToVecdsS( svec_kk[6] ) ;
+}
 
 /**
     ! symmetric (non-deviatoric) matrix to vecds representation
@@ -291,6 +340,39 @@ inline void symmToVecds( real8* const vecds, // (SVEC)
    symmToVecd(vecds, A) ;
    real8 Akk = trace3(A) ;
    vecds[iSvecS] = traceToVecdsS(Akk) ;
+}       
+
+inline real8 vecsInnerSvecDev( const real8* const stressSvec,
+                               const real8* const dSvec ) {
+   real8 retval = 
+      stressSvec[0] * dSvec[0] +
+      stressSvec[1] * dSvec[1] +
+      stressSvec[2] * dSvec[2] +
+      two * (
+      stressSvec[3] * dSvec[3] +
+      stressSvec[4] * dSvec[4] +
+      stressSvec[5] * dSvec[5] ) ;
+   return retval ;
+}
+
+// SUBROUTINE vecds_to_symm(A, vecds)
+inline void vecdsToSvecP( real8* const svecp, // (SVEC+1)
+                          const real8* const vecds // (SVEC)
+                          )
+{
+   
+   svecp[iSvecP] = -sqr3i * vecds[iSvecS] ; // -Akk_by_3
+   
+   real8 t1 = sqr2i * vecds[0] ;
+   real8 t2 = sqr6i * vecds[1] ;
+   //
+   svecp[0] =    t1 - t2 ;        // 11'
+   svecp[1] =   -t1 - t2 ;        // 22'
+   svecp[2] = sqr2b3 * vecds[1] ; // 33'
+   svecp[3] = sqr2i  * vecds[4] ; // 23
+   svecp[4] = sqr2i  * vecds[3] ; // 31
+   svecp[5] = sqr2i  * vecds[2] ; // 12
+
 }       
 
 inline void matToPQ( real8* const P_vecd,  // ntvec
@@ -931,6 +1013,56 @@ qr6x6_pre_mul( real8* const M_out, // 6xn
    }
    
 } // qr6x6_pre_mul
+
+template< bool l_ddsdde_gamma >
+inline void
+mtan_conv_sd_svec(real8* const mtanSD_raw,
+                  const real8* const mtanSD_vecds_raw) {
+   real8 C_raw[ecmech::nsvec2] ;
+   real8 t1_vec[ecmech::nsvec], t2_vec[ecmech::nsvec], t3_vec[ecmech::nsvec] ;
+
+   RAJA::View< real8, RAJA::Layout<2> > mtanSD(mtanSD_raw, ecmech::nsvec, ecmech::nsvec) ;   
+   RAJA::View< real8, RAJA::Layout<2> > mtanSD_vecds(mtanSD_vecds_raw, ecmech::nsvec, ecmech::nsvec) ;   
+   RAJA::View< real8, RAJA::Layout<2> > C(C_raw, ecmech::nsvec, ecmech::nsvec) ;   
+
+   // mtanSD = T . mtanSD_vecds . T^{-1}
+
+   // C = T . mtanSD_vecds
+   // C(i,:) = T(i,k) . mtanSD_vecds(k,:) -- sum over k
+   //
+   for ( int jSvec=0; jSvec<ecmech::nsvec; ++jSvec ) { t3_vec[jSvec] = sqr3i * mtanSD_vecds(iSvecS,jSvec) ; }
+   for ( int jSvec=0; jSvec<ecmech::nsvec; ++jSvec ) { t1_vec[jSvec] = sqr2i * mtanSD_vecds(     0,jSvec) ; }
+   for ( int jSvec=0; jSvec<ecmech::nsvec; ++jSvec ) { t2_vec[jSvec] = sqr6i * mtanSD_vecds(     1,jSvec) ; }
+   //
+   for ( int jSvec=0; jSvec<ecmech::nsvec; ++jSvec ) { C(0,jSvec) =    t1_vec[jSvec] - t2_vec[jSvec] + t3_vec[jSvec] ; }
+   for ( int jSvec=0; jSvec<ecmech::nsvec; ++jSvec ) { C(1,jSvec) =   -t1_vec[jSvec] - t2_vec[jSvec] + t3_vec[jSvec] ; }
+   for ( int jSvec=0; jSvec<ecmech::nsvec; ++jSvec ) { C(2,jSvec) =   sqr2b3 * mtanSD_vecds(1,jSvec) + t3_vec[jSvec] ; }
+   for ( int jSvec=0; jSvec<ecmech::nsvec; ++jSvec ) { C(3,jSvec) =    sqr2i * mtanSD_vecds(4,jSvec) ; }
+   for ( int jSvec=0; jSvec<ecmech::nsvec; ++jSvec ) { C(4,jSvec) =    sqr2i * mtanSD_vecds(3,jSvec) ; }
+   for ( int jSvec=0; jSvec<ecmech::nsvec; ++jSvec ) { C(5,jSvec) =    sqr2i * mtanSD_vecds(2,jSvec) ; }
+
+   // mtanSD = C . T^{-1}
+   // mtanSD(:,j) = C(:,k) . [T^{-1}](k,j) -- sum over k
+   //
+   for ( int jSvec=0; jSvec<ecmech::nsvec; ++jSvec ) { t3_vec[jSvec] = C(jSvec,iSvecS) * sqr3i ; }
+   for ( int jSvec=0; jSvec<ecmech::nsvec; ++jSvec ) { t1_vec[jSvec] = C(jSvec,     0) * sqr2i ; }
+   for ( int jSvec=0; jSvec<ecmech::nsvec; ++jSvec ) { t2_vec[jSvec] = C(jSvec,     1) * sqr6i ; }
+   //
+   for ( int jSvec=0; jSvec<ecmech::nsvec; ++jSvec ) { mtanSD(jSvec,0) =  t1_vec[jSvec] - t2_vec[jSvec] + t3_vec[jSvec] ; }
+   for ( int jSvec=0; jSvec<ecmech::nsvec; ++jSvec ) { mtanSD(jSvec,1) = -t1_vec[jSvec] - t2_vec[jSvec] + t3_vec[jSvec] ; }
+   for ( int jSvec=0; jSvec<ecmech::nsvec; ++jSvec ) { mtanSD(jSvec,2) =           sqr2b3 * C(jSvec,1)  + t3_vec[jSvec] ; }
+   if ( l_ddsdde_gamma ) {
+      // extra factor of 1/2 for shear deformation transformation
+      for ( int jSvec=0; jSvec<ecmech::nsvec; ++jSvec ) { mtanSD(jSvec,3) =  C(jSvec,4) * sqr2i ; }
+      for ( int jSvec=0; jSvec<ecmech::nsvec; ++jSvec ) { mtanSD(jSvec,4) =  C(jSvec,3) * sqr2i ; }
+      for ( int jSvec=0; jSvec<ecmech::nsvec; ++jSvec ) { mtanSD(jSvec,5) =  C(jSvec,2) * sqr2i ; }
+   } else {
+      for ( int jSvec=0; jSvec<ecmech::nsvec; ++jSvec ) { mtanSD(jSvec,3) =  C(jSvec,4) * sqr2 ; }
+      for ( int jSvec=0; jSvec<ecmech::nsvec; ++jSvec ) { mtanSD(jSvec,4) =  C(jSvec,3) * sqr2 ; }
+      for ( int jSvec=0; jSvec<ecmech::nsvec; ++jSvec ) { mtanSD(jSvec,5) =  C(jSvec,2) * sqr2 ; }
+   }
+   
+} // mtan_conv_sd_svec
 
 #ifdef __cuda_host_only__
 template< int n >

@@ -124,9 +124,6 @@ class matModelBase
    * @param tkelvV[out] : end-of-step temperature
    *	length nPassed
    *
-   * @param elemLenV[in] : characteristic element length
-   * 	length nPassed
-   *
    * @param sddV[out] : other output quantities
    *	length nsdd*nPassed
    *	along nsdd, index by i_sdd_* (eg, i_sdd_gmod)
@@ -151,7 +148,6 @@ class matModelBase
                                  real8  * stressSvecPV,  
                                  real8  * histV       ,         
                                  real8  * tkelvV      ,        
-                           const real8  * elemLenV    ,      
                                  real8  * sddV        ,          
                                  real8  * mtanSDV     ,      
                            const int    & nHist       ,     

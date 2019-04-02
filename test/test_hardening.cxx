@@ -3,11 +3,13 @@
 #include "ECMech_kinetics.h"
 #include "ECMech_cases.h"
 
-int main(int , // argc,
-         char ** // *argv[]
-         )
+int main(int argc, char *argv[])
 {
-   // some convenience stuff
+   int outputLevel = 1 ;
+   if ( argc > 1 ) {
+      outputLevel = atoi(argv[1]) ;
+   }
+
    using namespace ecmech ;
 
    const int nslip = 12 ;
@@ -25,11 +27,11 @@ int main(int , // argc,
          std::vector<bool>        state ;
          kinetics.getHistInfo( names, init, plot, state ) ;
       }
-      real8 hs_n[kinetics.nH] ;
-      kinetics.updateH( hs_n, &(init[0]), dt, gdot ) ;
+      real8 hs_u[kinetics.nH] ;
+      kinetics.updateH( hs_u, &(init[0]), dt, gdot, outputLevel ) ;
    
       std::cout << "Updated hardness state : " ;
-      printVec<kinetics.nH>(hs_n, std::cout) ;
+      printVec<kinetics.nH>(hs_u, std::cout) ;
    }
    
    {
@@ -43,11 +45,11 @@ int main(int , // argc,
          std::vector<bool>        state ;
          kinetics.getHistInfo( names, init, plot, state ) ;
       }
-      real8 hs_n[kinetics.nH] ;
-      kinetics.updateH( hs_n, &(init[0]), dt, gdot ) ;
+      real8 hs_u[kinetics.nH] ;
+      kinetics.updateH( hs_u, &(init[0]), dt, gdot, outputLevel ) ;
    
       std::cout << "Updated hardness state : " ;
-      printVec<kinetics.nH>(hs_n, std::cout) ;
+      printVec<kinetics.nH>(hs_u, std::cout) ;
    }
    
 }

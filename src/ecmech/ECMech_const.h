@@ -26,7 +26,7 @@ namespace ecmech
 
 const int nsvp         =  7  ;
 const int ndim         =  3  ;
-const int ne           =  2  ;
+const int ne           =  1  ;
 const int nsvec        =  6  ;
 const int nsvec2       = 36  ;
 const int nvr          =  4  ;
@@ -38,6 +38,7 @@ const int invdim       =  4  ;
 const int emapdim      =  3  ;
 
 const int iSvecS       =  nsvec-1  ; // index like SVEC in F90 coding
+const int iSvecP       =  nsvec  ;
 
 // indexing into array of outputs 
 const int i_sdd_bulk   = 0  ;
@@ -45,8 +46,8 @@ const int i_sdd_gmod   = 1  ;
 const int nsdd         = 2  ;
 
 const int i_ne_total   = 0 ;
-const int i_ne_cold    = 1 ;
-// const int i_ne_melt    = I_NE_MELT ; // no -- do not require this as an output -- generally not needed
+// const int i_ne_cold    = ? ; // generally not needed
+// const int i_ne_melt    = ? ; // generally not needed
 
 const int info_level_info      = ECMECH_INFO_LEVEL_INFO     ;
 const int info_level_warn      = ECMECH_INFO_LEVEL_WARN     ;

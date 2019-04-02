@@ -6,10 +6,8 @@
 #include <cassert>
 #include <cmath>
 
-#ifdef __cuda_host_only__
 #include <string>
 #include <vector>
-#endif
 
 namespace ecmech {
 
@@ -508,20 +506,22 @@ evalGdot(
 __ecmech_hdev__
 inline
 void
-updateH( real8* const hs_n,
+updateH( real8* const hs_u,
          const real8* const hs_o,
          real8 dt,
-         const real8* const gdot )
+         const real8* const gdot,
+         int outputLevel = 0 )
 {
 
    // do not yet both with l_overdriven and setting-to-saturation machinery as in Fortran coding
    
    // update is done on log(h) -- h treated as a nomralized (unitless) dislocation density
-   real8 log_hs_n ;
+   real8 log_hs_u ;
    real8 log_hs_o = log(fmax(hs_o[0],_hdn_min)) ;
    updateH1<KineticsKMBalD>(this,
-                            log_hs_n, log_hs_o, dt, gdot) ;
-   hs_n[0] = exp(log_hs_n) ;
+                            log_hs_u, log_hs_o, dt, gdot,
+                            outputLevel) ;
+   hs_u[0] = exp(log_hs_u) ;
    
 }
 

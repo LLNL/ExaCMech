@@ -239,15 +239,17 @@ evalGdot(
 __ecmech_hdev__
 inline
 void
-updateH( real8* const hs_n,
+updateH( real8* const hs_u,
          const real8* const hs_o,
          real8 dt,
-         const real8* const gdot )
+         const real8* const gdot,
+         int outputLevel = 0  )
 {
-   real8 hs_n_1 ;
+   real8 hs_u_1 ;
    updateH1<KineticsVocePL>(this,
-                            hs_n_1, hs_o[0], dt, gdot) ;
-   hs_n[0] = hs_n_1 ;
+                            hs_u_1, hs_o[0], dt, gdot,
+                            outputLevel) ;
+   hs_u[0] = hs_u_1 ;
 }
 
 __ecmech_hdev__

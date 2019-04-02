@@ -7,12 +7,20 @@
 
 #include "ECMech_core.h"
 #include "ECMech_util.h"
+#include "ECMech_eosSimple.h"
 
 #include "SNLS_lup_solve.h"
 
 #include "RAJA/RAJA.hpp"
 
 namespace ecmech {
+
+   const int evptn_numHistAux = 2 ; // effective shearing rate, accumulated shear
+   //
+   const int evptn_iHistLbA = 0 ;
+   const int evptn_iHistLbE = evptn_numHistAux ;
+   const int evptn_iHistLbQ = evptn_numHistAux + ecmech::ntvec ;
+   const int evptn_iHistLbH = evptn_numHistAux + ecmech::ntvec + ecmech::qdim ; 
 
 /**
  * for cubic cyrstal symmetry
@@ -27,7 +35,7 @@ public:
    
    // constructor and destructor
    __ecmech_hdev__
-   inline ThermoElastNCubic() {};
+   inline ThermoElastNCubic() : _K_bulkMod(-1.0), _K_gmod(-1.0) {};
    inline ~ThermoElastNCubic() {};
    
    __ecmech_hdev__
@@ -44,7 +52,9 @@ public:
       _K_diag[2] = two*c44 ;
       _K_diag[3] = two*c44 ;
       _K_diag[4] = two*c44 ;
-      // _K_vecds_s = c11+two*c12 ; // not used
+      real8 K_vecds_s = c11+two*c12 ;
+      _K_bulkMod = onethird * K_vecds_s ;
+      _K_gmod = (two*c11-two*c12+six*c44)*0.2 ; // average of _K_diag entries
       
    }
    
@@ -65,7 +75,7 @@ public:
    }
 
    /**
-    * dT_deps[0:ntvec-1,:]^T * A, for non-square A[ntvec,q] (with q likely being nSlip)
+    * dT_deps[0:ntvec-1,:]^T * A, for non-square A[ntvec,p] (with p likely being nSlip)
     * so that even if T_vecds[iSvecS] depends on Ee_vecds, that is not in the result
     *
     * combines calls to elawn_T_dif and eval_dtaua_deps_n
@@ -73,14 +83,14 @@ public:
     * for cubic, dT_deps is diag(K_diag * a_V%ri) (symmetric) ; dT_deps[iSvecS,:] = 0
     */
    __ecmech_hdev__
-   inline void multDTDepsT( real8* const P, // ntvec*q
-                            const real8* const A, // ntvec*q
+   inline void multDTDepsT( real8* const P, // ntvec*p
+                            const real8* const A, // ntvec*p
                             real8 a_V_ri,
-                            int q) const {
+                            int p) const {
       for ( int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec ) {
          real8 dTdepsThis = _K_diag[iTvec] * a_V_ri ;
-         for ( int iQ=0; iQ < q; ++iQ ) {
-            P[ECMECH_NM_INDX(iTvec,iQ,ecmech::ntvec,q)] = dTdepsThis * A[ECMECH_NM_INDX(iTvec,iQ,ecmech::ntvec,q)] ;
+         for ( int iP=0; iP < p; ++iP ) {
+            P[ECMECH_NM_INDX(iTvec,iP,ecmech::ntvec,p)] = dTdepsThis * A[ECMECH_NM_INDX(iTvec,iP,ecmech::ntvec,p)] ;
          }
       }
    }
@@ -103,9 +113,12 @@ public:
     * because in general distorational deformation can produce
     * pressure -- for example in materials with hexagonal symmetry,
     * even if it does not happen in cubic symmetry
+    *
+    * NOTE : M6[nsvec,nsvec] with nsvec in the second dimension
+    * (instead of ntvec) to make things easier elsewhere
     */
    __ecmech_hdev__
-   inline void multCauchyDif( real8* const M65,
+   inline void multCauchyDif( real8* const M6,
                               const real8* const A,
                               real8 detVi,
                               real8 a_V_ri
@@ -120,18 +133,40 @@ public:
       for ( int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec ) {
          real8 vFact = detVi * a_V_ri * _K_diag[iTvec] ;
          for ( int jTvec = 0; jTvec < ecmech::ntvec; ++jTvec ) {
-            M65[ECMECH_NM_INDX(iTvec,jTvec,ecmech::nsvec,ecmech::ntvec)] = vFact * A[ECMECH_NN_INDX(iTvec,jTvec,ecmech::ntvec)] ;
+            M6[ECMECH_NN_INDX(iTvec,jTvec,ecmech::nsvec)] = vFact * A[ECMECH_NN_INDX(iTvec,jTvec,ecmech::ntvec)] ;
          }
       }
       for ( int jTvec = 0; jTvec < ecmech::ntvec; ++jTvec ) {
-         M65[ECMECH_NM_INDX(iSvecS,jTvec,ecmech::nsvec,ecmech::ntvec)] = 0.0 ;
+         M6[ECMECH_NN_INDX(iSvecS,jTvec,ecmech::nsvec)] = 0.0 ;
+      }
+      for ( int iSvec = 0; iSvec < ecmech::nsvec; ++iSvec ) {
+         M6[ECMECH_NN_INDX(iSvec,iSvecS,ecmech::nsvec)] = 0.0 ;
       }
       
    }
    
+   __ecmech_hdev__
+   inline real8 getBulkMod( ) const {
+      if ( _K_bulkMod <= 0.0 ) {
+         ECMECH_FAIL(__func__,"bulk modulus negative -- not initialized?") ;
+      }
+      return _K_bulkMod ;
+   }
+  
+   __ecmech_hdev__
+   inline real8 getGmod( real8 , // tK
+                         real8 , // p_EOS
+                         real8   // eVref
+                         ) const {
+      if ( _K_gmod <= 0.0 ) {
+         ECMECH_FAIL(__func__,"effective shear modulus negative -- not initialized?") ;
+      }
+      return _K_gmod ;
+   }
+  
 private :
    real8 _K_diag[ecmech::ntvec] ;
-   // real8 _K_vecds_s ; // not used 
+   real8 _K_bulkMod, _K_gmod ;
 };
 
 
@@ -187,6 +222,89 @@ EvptnUpdstProblem(const SlipGeom& slipGeom,
    //
    _rotincr_scale_inv = _dt_ri * _epsdot_scale_inv ;
    
+}
+
+__ecmech_hdev__
+inline
+void provideMTan(real8* mtan_sI ) { _mtan_sI = mtan_sI ; }
+   
+__ecmech_hdev__
+inline
+void clearMTan( ) { _mtan_sI = nullptr ; }
+   
+__ecmech_hdev__
+inline
+real8 getDtRi() const { return _dt_ri ; }
+   
+__ecmech_hdev__
+inline
+real8 getShrateEff() const { return _shrate_eff_contrib ; }
+   
+__ecmech_hdev__
+inline
+real8 getDisRate() const { return _dp_dis_rate_contrib ; }
+   
+/*
+ * NOTES :
+ *	() should be equivalent to what happens in computeRJ
+ *	() not necessarily safe if e_vecd is the same memory as _e_vecd_n or quat is the same as _Cn_quat
+ */
+__ecmech_hdev__
+inline
+void stateFromX( real8* const e_vecd,
+                 real8* const quat,
+                 const real8* const x ) {
+
+   real8 e_vecd_delta[ecmech::ntvec] ;
+   vecsVxa<ntvec>( e_vecd_delta, ecmech::e_scale, &(x[_i_sub_e]) ) ;
+   vecsVapb<ntvec>( e_vecd, e_vecd_delta, _e_vecd_n ) ;
+
+   real8 xi_f[nwvec] ;
+   vecsVxa<nwvec>( xi_f, ecmech::r_scale, &(x[_i_sub_r]) ) ;
+   //
+   real8 A_quat[ecmech::qdim] ;
+   emap_to_quat(A_quat, xi_f) ;
+   //
+   // real8 C_quat[ecmech::qdim] ;
+   // get_c_quat(C_quat, A_quat, _Cn_quat) ;
+   // std::copy(C_quat, C_quat+ecmech:qdim, quat) ;
+   get_c_quat(quat, A_quat, _Cn_quat) ;   
+}
+
+__ecmech_hdev__
+inline
+void elastNEtoT( real8* const T_vecds, // nsvec
+                 const real8* const e_vecd_f // ntvec
+                 ) {
+
+   // // do not need to use elaw_T_BT here as T and BT are the same
+   //
+   // specialize to cem%l_lin_lnsd
+   // CALL elawn_T(s_meas, e_vecd_f, crys%elas, tK, .TRUE., a_V, &
+   //      & p_EOS, eVref, crys%i_eos_model, crys%eos_const &
+   //      &)
+   real8 Ee_vecds[ecmech::nsvec];
+   vecsVxa<ntvec>(Ee_vecds, _a_V_ri, e_vecd_f) ;
+   // // tr_Ee = three * DLOG(a_V%r)
+   // // CALL trace_to_vecds_s(s_meas%Ee_vecds(SVEC), tr_Ee)
+   Ee_vecds[iSvecS] = sqr3 * log(_a_V) ; // could go into constructor
+   //
+   // // Kirchhoff stress from Ee_vecds
+   //    CALL elawn_lin_op(s_meas%T_vecds, s_meas%Ee_vecds, cem, tK, &
+   //         & p_EOS, eVref, i_eos_model, eos_const)
+   _thermoElastN.eval(T_vecds, Ee_vecds, _tK, _p_EOS, _eVref) ;
+
+}
+
+__ecmech_hdev__
+inline
+void elastNEtoC( real8* const C_vecds, // nsvec
+                 const real8* const e_vecd_f // ntvec
+                 ) {
+   real8 T_vecds[ecmech::nsvec];
+   this->elastNEtoT( T_vecds, e_vecd_f ) ;
+   _thermoElastN.getCauchy( C_vecds, T_vecds, _detV_ri ) ;
+
 }
 
 __ecmech_hdev__
@@ -255,23 +373,8 @@ bool computeRJ( real8* const resid,
    //////////////////////////////
    // CALCULATIONS
 
-   // // do not need to use elaw_T_BT here as T and BT are the same
-   //
-   // specialize to cem%l_lin_lnsd
-   // CALL elawn_T(s_meas, e_vecd_f, crys%elas, tK, .TRUE., a_V, &
-   //      & p_EOS, eVref, crys%i_eos_model, crys%eos_const &
-   //      &)
-   real8 Ee_vecds[ecmech::nsvec];
-   vecsVxa<ntvec>(Ee_vecds, _a_V_ri, e_vecd_f) ;
-   // // tr_Ee = three * DLOG(a_V%r)
-   // // CALL trace_to_vecds_s(s_meas%Ee_vecds(SVEC), tr_Ee)
-   Ee_vecds[iSvecS] = sqr3 * log(_a_V) ; // could go into constructor
-   //
-   // // Kirchhoff stress from Ee_vecds
-   //    CALL elawn_lin_op(s_meas%T_vecds, s_meas%Ee_vecds, cem, tK, &
-   //         & p_EOS, eVref, i_eos_model, eos_const)
    real8 T_vecds[ecmech::nsvec];
-   _thermoElastN.eval(T_vecds, Ee_vecds, _tK, _p_EOS, _eVref) ;
+   this->elastNEtoT( T_vecds, e_vecd_f ) ;
    //
    real8 taua[SlipGeom::nslip] = {0.0} ; // crys%tmp4_slp
    real8 dgdot_dtau[SlipGeom::nslip] = {0.0} ; // crys%tmp2_slp
@@ -461,11 +564,9 @@ bool computeRJ( real8* const resid,
       }
 
       if ( _mtan_sI ) { // l_eval_derivs
+         //
          // material tangent, do before scaling of Jacobian
          // eval_mtan()
-         for (int iiST=0; iiST<ecmech::nsvec*ecmech::ntvec; ++iiST) {
-            _mtan_sI[iiST] = 0.0 ;
-         }
 
          // must solve a set of systems to get needed partial derivatives
 
@@ -523,7 +624,8 @@ bool computeRJ( real8* const resid,
          
          // contribution through e
          //
-         real8 temp_M6I[ ecmech::nsvec*nRHS ] ; // (SVEC,UB_I)
+         // real8 temp_M6I[ ecmech::nsvec*nRHS ] ; // (SVEC,UB_I)
+         real8 temp_M6[ ecmech::nsvec2 ] ; // (SVEC,UB_I)
          // dsigClat_def(:,:) = detVi * s_meas%dT_deps(:,:)
          // temp_M6I = MATMUL(dsigClat_def(:,1:TVEC), de_dI(:,:))
          {
@@ -534,12 +636,12 @@ bool computeRJ( real8* const resid,
                   de_dI[ECMECH_NM_INDX(iTvec,jTvec,ecmech::ntvec,nRHS)] = pfrac_rhs_T[ECMECH_NM_INDX(jTvec,iTvec,nRHS,nDimSys)] ;
                }
             }
-            _thermoElastN.multCauchyDif(temp_M6I, de_dI, _detV_ri, _a_V_ri )  ;
+            _thermoElastN.multCauchyDif(temp_M6, de_dI, _detV_ri, _a_V_ri )  ;
          }
          //
          // CALL qr6x6_pre_mul(mtan_sI, temp_M6I, qr5x5_ls, UB_I, .FALSE.)
-         qr6x6_pre_mul<nRHS,false>(_mtan_sI, temp_M6I, qr5x5_ls) ; // UB_I=nRHS
-         // SUBROUTINE qr6x6_pre_mul(M_out, M_in, qr5x5, n, l_T)
+         // UB_I=nRHS ; but here do nsvec instead of nRHS so that there is less monkeying with memory later
+         qr6x6_pre_mul<nsvec,false>(_mtan_sI, temp_M6, qr5x5_ls) ; 
          
          //
          // dxi_dI has already been folded into dC_quat_dI;
@@ -572,7 +674,7 @@ bool computeRJ( real8* const resid,
          for ( int ii_T = 0; ii_T < ecmech::ntvec; ++ii_T ) {            
             for ( int ii_I=0; ii_I<nRHS; ++ii_I ) {
                // NOTE : only looping over ntvec, but mtan_sI is nsvec in the first dimension
-               _mtan_sI[ECMECH_NM_INDX(ii_T,ii_I,ecmech::nsvec,nRHS)] += dsigClat_dI[ECMECH_NM_INDX(ii_T,ii_I,ecmech::ntvec,nRHS)] ;
+               _mtan_sI[ECMECH_NN_INDX(ii_T,ii_I,ecmech::nsvec)] += dsigClat_dI[ECMECH_NM_INDX(ii_T,ii_I,ecmech::ntvec,nRHS)] ;
             }
          }
 
@@ -660,6 +762,214 @@ private:
 
 }; // class EvptnUpdstProblem
 
+/*
+ * for steady-flow capability, might want to check out Dlsmm_getEnabled() stuff in EvpC.c
+ *
+ * convention for spin coming in should be consistent with w_veccp_sm convention
+ */
+template< class SlipGeom, class Kinetics, class ThermoElastN, class EosModel >
+__ecmech_hdev__
+inline
+void getResponseEvptnSngl(const SlipGeom& slipGeom,
+                          const Kinetics& kinetics,
+                          const ThermoElastN& elastN,
+                          const EosModel& eos,
+                                real8    dt,
+                                real8    curTime,
+                                real8    tolerance, 
+                          const real8  * d_svec_kk,  // defRate,
+                          const real8  * w_veccp_sm, // spin
+                          const real8  * volRatio,
+                                real8  * eInt,
+                                real8  * stressSvecP,
+                                real8  * hist,
+                                real8  & tkelv,
+                                real8  * sdd,
+                                real8  * mtanSD ) 
+{
+
+   static const int evptn_iHistLbGdot = evptn_iHistLbH + Kinetics::nH ;
+
+   // NOTE : mtanSD can be nullptr
+   //
+   bool haveMtan = ( mtanSD != nullptr ) ;
+
+   // convert deformation rate convention
+   //
+   real8 d_vecd_sm[ecmech::ntvec] ;
+   svecToVecd( d_vecd_sm, d_svec_kk ) ;
+#ifdef NEED_SCALAR_FLOW_STRENGTH
+   real8 dEff = vecd_Deff( d_vecd_sm ) ;
+#endif
+   
+   // pointers to state
+   //
+   real8* h_state = &(hist[evptn_iHistLbH]) ;
+   real8* gdot    = &(hist[evptn_iHistLbGdot]) ;
+   //
+   // copies, to keep beginning-of-step state safe
+   //
+   real8 e_vecd_n[ecmech::ntvec] ;
+   std::copy(hist+evptn_iHistLbE, hist+evptn_iHistLbE+ecmech::ntvec, e_vecd_n) ;
+   real8 quat_n[ecmech::qdim] ;
+   std::copy(hist+evptn_iHistLbQ, hist+evptn_iHistLbQ+ecmech::qdim,  quat_n) ;
+   //
+   // normalize quat just in case
+   vecsVNormalize<qdim>(quat_n) ;
+
+   // total increment in the deviatoric part of the strain energy using
+   // trapezoidal rule integration
+   //
+   // just beginning-of-step stress part so far
+   //
+   real8 halfVMidDt = oneqrtr * (volRatio[0]+volRatio[1]) * dt ;
+   real8 eDevTot = halfVMidDt * vecsInnerSvecDev( stressSvecP, d_svec_kk ) ;
+   
+   // EOS
+   //
+   real8 eOld = eInt[0] ;
+   real8 pOld = stressSvecP[6] ;
+   real8 pEOS, eNew, bulkNew ; 
+   updateSimple<EosModel>( eos, pEOS, tkelv, eNew, bulkNew,
+                           volRatio, eOld, pOld ) ;
+
+   // update hardness state to the end of the step
+   // gdot is still at beginning-of-step
+   //
+   real8 h_state_u[Kinetics::nH] ;
+   kinetics.updateH( h_state_u, h_state, dt, gdot ) ;
+
+   real8 Cstr_vecds_lat[ecmech::nsvec] ;
+   //
+   real8* e_vecd_u  = &(hist[evptn_iHistLbE]) ;
+   real8* quat_u    = &(hist[evptn_iHistLbQ]) ;
+   {
+      real8 vNew = volRatio[1] ;
+      EvptnUpdstProblem< SlipGeom, Kinetics, ThermoElastN > prob(slipGeom, kinetics, elastN,
+                                                                 dt,
+                                                                 vNew, eNew, pEOS, tkelv, 
+                                                                 h_state_u, e_vecd_n, quat_n,
+                                                                 d_vecd_sm, w_veccp_sm ) ;
+   
+      snls::SNLSTrDlDenseG< EvptnUpdstProblem<SlipGeom, Kinetics, ThermoElastN> > solver(prob) ;
+
+      snls::TrDeltaControl deltaControl ;
+      deltaControl._deltaInit = 1e0 ;
+      {
+         static const int maxIter = 100 ;
+         static const int outputLevel = 0 ;
+         solver.setupSolver(maxIter, tolerance, &deltaControl, outputLevel) ;
+      }
+
+      // set initial guess
+      //
+      real8* x = solver.getXPntr() ;
+      for (int iX = 0; iX < prob.nDimSys; ++iX) {
+         x[iX] = 0e0 ;
+      }
+   
+      snls::SNLSStatus_t status = solver.solve( ) ;
+      if ( status != snls::converged ){
+         ECMECH_FAIL(__func__,"Solver failed to converge!");
+      }
+      // std::cout << "Function evaluations: " << solver.getNFEvals() << std::endl ;
+
+      if ( haveMtan ) {
+
+         real8 mtanSD_vecds[ ecmech::nsvec2 ] ;
+         prob.provideMTan( &mtanSD_vecds ) ; 
+         solver.computeRJ() ;
+         prob.clearMTan() ;
+
+         // currently have derivative with-respsect-to deformation rate ;
+         // to get derivative with-respsect-to strain increment,
+         // multiply by 1/dt 
+         //
+         real8 dt_ri = prob.getDtRi() ;
+         for ( int i=0; i<ecmech::nsvec2; ++i ) {
+            mtanSD_vecds[i] = mtanSD_vecds[i] * dt_ri ;
+         }
+         
+         // contribution to stiffness from EOS 
+         // this is a bit crude, but should do the trick for now;
+         // neglects effect of pEOS and vNew on workings of evptn
+         // 
+         mtanSD_vecds[iSvecS,iSvecS] = three * bulkNew ;
+
+         // convert from vecds notation to svec notation
+         //
+         mtan_conv_sd_svec<true>(mtanSD, mtanSD_vecds) ;
+         
+      }
+
+      // store updated state
+      //
+      prob.stateFromX(e_vecd_u, quat_u, x) ;
+      std::copy(h_state_u, h_state_u+Kinetics::nH, h_state) ;
+      {
+         real8* gdot_u = prob.getGdot() ;
+         std::copy(gdot_u, gdot_u+SlipGeom::nslip, gdot) ;
+      }
+      hist[evptn_iHistLbA+0]  = prob.getShrateEff() ;
+      hist[evptn_iHistLbA+1] += hist[evptn_iHistLbA+0] * dt ;
+
+      //  get Cauchy stress
+      //
+      prob.elastNEtoC( Cstr_vecds_lat, e_vecd_u ) ;
+      
+#ifdef NEED_SCALAR_FLOW_STRENGTH
+      real8 flow_strength = 0.0 ;
+      if ( dEff > idp_tiny_sqrt ) {
+         flow_strength = prob.getDisRate() / dEff ;
+      }
+#endif
+      
+   }
+
+   real8 C_matx[ecmech::ndim * ecmech::ndim] ;
+   quat_to_tensor( C_matx, quat_u ) ;   
+   //
+   real8 qr5x5_ls[ecmech::ntvec * ecmech::ntvec] ;
+   get_rot_mat_vecd(qr5x5_ls, C_matx) ;
+   //
+   real8 Cstr_vecds_sm[ecmech::nsvec] ;
+   vecsVMa<ntvec>(Cstr_vecds_sm, qr5x5_ls, Cstr_vecds_lat) ;
+   Cstr_vecds_sm[iSvecS] = Cstr_vecds_lat[iSvecS] ;
+   //
+   // put end-of-step stress in stressSvecP
+   vecdsToSvecP( stressSvecP, Cstr_vecds_sm) ;
+   //
+   // and now the second half of the trapezoidal integration
+   //
+   eDevTot += halfVMidDt * vecsInnerSvecDev( stressSvecP, d_svec_kk ) ;
+
+   // adjust sign on quat so that as close as possible to quat_o;
+   // more likely to keep orientations clustered this way
+   //
+   if ( vecsyadotb<qdim>(quat_u, quat_n) < zero ) {
+      for ( int iQ=0; iQ<ecmech::qdim; ++iQ ) { quat_u[iQ] = -quat_u[iQ] ; }
+   }
+
+   {
+      real8 gmod = elastN.getGmod( tkelv, pEOS, eNew ) ;
+      sdd[i_sdd_bulk] = bulkNew ;
+      sdd[i_sdd_gmod] = gmod ;
+   }
+#ifdef DEBUG
+   assert(ecmech::nsdd == 2) ;
+#endif
+
+   eNew = eNew + eDevTot; 
+   //
+   // could update pressure and temperature again, but do not bother
+
+   eInt[ecmech::i_ne_total] = eNew ;
+#ifdef DEBUG
+   assert(ecmech::ne == 1) ;
+#endif
+
+} // getResponseEvptnSngl
+   
 } // namespace ecmech
 
 #endif  // ECMECH_EVPTN_H

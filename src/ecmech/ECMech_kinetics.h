@@ -8,65 +8,6 @@
 #include "ECMech_core.h"
 #include "ECMech_util.h"
 
-/**
-
-// classes need to have member functions:
-
-// constructor
-__ecmech_hdev__
-Kinetics(int nslip) : _nslip(nslip) {};
-
-__ecmech_hdev__
-inline real8 getFixedRefRate(const real8* const vals) const
-
-__ecmech_hdev__
-inline void setParams( const std::vector<real8> & params) // const real8* const params
-
-// Akin to hs_to_gss, power_law_tdep_vals, and plaw_from_hs
-//
-__ecmech_hdev__
-inline
-void
-getVals( real8* const vals,
-         real8 p,
-         real8 tK,
-         const real8* const h_state
-         ) const
-
-__ecmech_hdev__
-inline
-void
-evalGdots( real8* const gdot,
-           real8* const dgdot_dtau,
-           real8* const dgdot_dg,
-           const real8* const tau,
-           const real8* const vals
-           ) const
-
-__ecmech_hdev__
-inline
-void
-evalGdot(
-                          real8 & gdot,
-                          bool  & l_act,
-                          real8 & dgdot_dtau,  // wrt resolved shear stress
-                          real8 & dgdot_dg,    // wrt slip system strength
-#if MORE_DERIVS
-                          real8 & dgdot_dmu,   // wrt shear modulus, not through g
-                          real8 & dgdot_dgamo, // wrt reference rate for thermal part
-                          real8 & dgdot_dgamr, // wrt reference rate for drag limited part
-                          real8 & dgdot_dtK,   // wrt temperature, with other arguments fixed
-#endif
-                          real8   gIn,
-                          real8   tau,
-                          real8   mu,
-#if MORE_DERIVS
-                          real8   tK,
-#endif
-                         ) const
-           
- */
-
 namespace ecmech {
 
 template< class Kinetics >
@@ -132,7 +73,8 @@ updateH1( const Kinetics* const kinetics,
           real8 &hs_n,
           real8 hs_o,
           real8 dt,
-          const real8* const gdot ) 
+          const real8* const gdot,
+          int outputLevel = 0) 
 {
 
    real8 evolVals[Kinetics::nEvolVals] ;
@@ -146,7 +88,7 @@ updateH1( const Kinetics* const kinetics,
    {
       int maxIter = 100 ;
       real8 tolerance = 1e-10 ;
-      solver.setupSolver(maxIter, tolerance, &deltaControl) ;
+      solver.setupSolver(maxIter, tolerance, &deltaControl, outputLevel) ;
    }
    
    real8* x = solver.getXPntr() ;
