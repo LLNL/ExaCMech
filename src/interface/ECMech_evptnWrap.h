@@ -3,32 +3,32 @@
 #ifndef ecmech_evptnWrap_include
 #define ecmech_evptnWrap_include
 
-namespace ecmech {
+namespace ecmech::evptn {
 
 //
 // template on the specifics of the crystal model ;
 // but have a base class so that the templating can stop here
 //   
 template< class SlipGeom, class Kinetics, class ThermoElastN, class EosModel >
-class matModelEvptn : public matModelBase
+class matModel : public matModelBase
 {
 public :
-   
+
+   // see n_rsv_matmod in F90 code
+   static const int numHist = EvptnNumHist<SlipGeom, Kinetics, ThermoElastN, EosModel>::numHist ;
+         
    // constructor 
-   matModelEvptn()
+   matModel()
       : matModelBase() {
       _slipGeom     = new SlipGeom() ;
       _kinetics     = new Kinetics(SlipGeom::nslip) ;
       _elastN       = new ThermoElastN() ;
       _eosModel     = new EosModel() ;
 
-      // see n_rsv_matmod in F90 code
-      _numHist = ecmech::evptn_iHistLbH + Kinetics::nH + SlipGeom::nslip ;
-         
    };
 
    // destructor 
-   ~matModelEvptn() {
+   ~matModel() {
       delete _slipGeom ;
       delete _kinetics ;
       delete _elastN ;
@@ -121,7 +121,7 @@ public :
          _rhvNames.push_back(name) ; _rhvVals.push_back(0.) ; _rhvPlot.push_back(true) ; _rhvState.push_back(true) ;
       }
       //
-      if ( _rhvNames.size() != _numHist ) {
+      if ( _rhvNames.size() != numHist ) {
          ECMECH_FAIL(__func__,"mismatch in numHist") ;
       }
 
@@ -140,7 +140,6 @@ public :
    };
 
    void getResponse(const real8  & dt          , 
-                    const real8  & curTime     ,
                     const real8  * defRateV    ,      
                     const real8  * spinV       ,         
                     const real8  * volRatioV   ,     
@@ -154,7 +153,7 @@ public :
                     const int    & nPassed      ) const {
       
       real8 *mtanSDThis = nullptr ;
-      if ( nHist != _numHist ) {
+      if ( nHist != numHist ) {
          ECMECH_FAIL(__func__,"numHist mismatch") ;         
       }
       //
@@ -164,14 +163,13 @@ public :
          }
          getResponseEvptnSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>( _slipGeom, _kinetics, _elastN, _eosModel,
                                                                            dt,
-                                                                           curTime,
                                                                            _tolerance,
                                                                            &defRateV[ecmech::nsvp*i],
                                                                            &spinV[ecmech::ndim*i],
                                                                            &volRatioV[ecmech::nvr*i],
                                                                            &eIntV[ecmech::ne*i],
                                                                            &stressSvecPV[ecmech::nsvp*i],
-                                                                           &histV[_numHist*i],
+                                                                           &histV[numHist*i],
                                                                            tkelvV[i],
                                                                            &sddV[ecmech::nsdd*i],
                                                                            mtanSDThis );
@@ -183,21 +181,18 @@ public :
                     std::vector<bool>        & plot,
                     std::vector<bool>        & state) {
 
-      if ( _rhvNames.size() != _numHist ) {
+      if ( _rhvNames.size() != numHist ) {
          ECMECH_FAIL(__func__, "have not yet set up history information") ;
       }
-      names.resize(_numHist); std::copy( _rhvNames.begin(), _rhvNames.end(), names.begin() ) ;
-      vals.resize (_numHist); std::copy(  _rhvVals.begin(),  _rhvVals.end(),  vals.begin() ) ;
-      plot.resize (_numHist); std::copy(  _rhvPlot.begin(),  _rhvPlot.end(),  plot.begin() ) ;
-      state.resize(_numHist); std::copy( _rhvState.begin(), _rhvState.end(), state.begin() ) ;
+      names.resize(numHist); std::copy( _rhvNames.begin(), _rhvNames.end(), names.begin() ) ;
+      vals.resize (numHist); std::copy(  _rhvVals.begin(),  _rhvVals.end(),  vals.begin() ) ;
+      plot.resize (numHist); std::copy(  _rhvPlot.begin(),  _rhvPlot.end(),  plot.begin() ) ;
+      state.resize(numHist); std::copy( _rhvState.begin(), _rhvState.end(), state.begin() ) ;
 
    };
    
    int getNumHist( ) const {
-      if ( _numHist < 0 ) {
-         ECMECH_FAIL(__func__,"numHist < 0") ;
-      }
-      return _numHist ;
+      return numHist ;
    } ;
 
 private:
@@ -206,8 +201,6 @@ private:
    Kinetics *_kinetics ;
    ThermoElastN *_elastN ;
    EosModel *_eosModel ;
-
-   int _numHist ;
 
    real8 _tolerance ;
 

@@ -73,8 +73,6 @@ class matModelBase
    *
    * @param[in] dt : Time step size
    *
-   * @param[in] curTime : Current simulation time
-   *
    * @param[in] defRateV : Components of the deformation rate (symmetric part of the velocity gradient)
    *	length nsvp*nPassed
    *	Voigt ordering
@@ -140,7 +138,6 @@ class matModelBase
    */
 
   virtual void getResponse(const real8  & dt          , 
-                           const real8  & curTime     ,
                            const real8  * defRateV    ,      
                            const real8  * spinV       ,         
                            const real8  * volRatioV   ,     

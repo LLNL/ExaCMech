@@ -15,12 +15,28 @@
 
 namespace ecmech {
 
-   const int evptn_numHistAux = 2 ; // effective shearing rate, accumulated shear
-   //
-   const int evptn_iHistLbA = 0 ;
-   const int evptn_iHistLbE = evptn_numHistAux ;
-   const int evptn_iHistLbQ = evptn_numHistAux + ecmech::ntvec ;
-   const int evptn_iHistLbH = evptn_numHistAux + ecmech::ntvec + ecmech::qdim ; 
+namespace evptn {
+   
+const int numHistAux = 3 ; // effective shearing rate, accumulated shear, nFEval
+//
+const int iHistLbA = 0 ;
+const int iHistA_shrateEff = iHistLbA+0 ;
+const int iHistA_shrEff    = iHistLbA+1 ;
+const int iHistA_nFEval    = iHistLbA+2 ;
+const int iHistLbE = numHistAux ;
+const int iHistLbQ = numHistAux + ecmech::ntvec ;
+const int iHistLbH = numHistAux + ecmech::ntvec + ecmech::qdim ; 
+   
+/*
+ * just a container for a traits
+ */
+template< class SlipGeom, class Kinetics, class ThermoElastN, class EosModel >
+class NumHist
+{
+public:
+   static const int iHistLbGdot = iHistLbH + Kinetics::nH ;   
+   static const int numHist = iHistLbH + Kinetics::nH + SlipGeom::nslip ;
+}; // NumHist
 
 /**
  * for cubic cyrstal symmetry
@@ -39,13 +55,17 @@ public:
    inline ~ThermoElastNCubic() {};
    
    __ecmech_hdev__
-   inline void setParams( const real8* const params ) {
+   inline void setParams( const std::vector<real8> & params // const real8* const params
+                          ) {
       
-      int iParam = 0 ;
-      real8 c11 = params[iParam++] ;
-      real8 c12 = params[iParam++] ;
-      real8 c44 = params[iParam++] ;
-      assert( iParam == nParams ) ;
+      std::vector<real8>::const_iterator parsIt = params.begin();
+      
+      real8 c11 = *parsIt; ++parsIt;
+      real8 c12 = *parsIt; ++parsIt;
+      real8 c44 = *parsIt; ++parsIt;
+      //
+      int iParam = parsIt - params.begin();
+      assert( iParam == nParams );
       
       _K_diag[0] = c11-c12 ;
       _K_diag[1] = c11-c12 ;
@@ -168,7 +188,6 @@ private :
    real8 _K_diag[ecmech::ntvec] ;
    real8 _K_bulkMod, _K_gmod ;
 };
-
 
 template< class SlipGeom, class Kinetics, class ThermoElastN >
 class EvptnUpdstProblem
@@ -775,9 +794,8 @@ void getResponseEvptnSngl(const SlipGeom& slipGeom,
                           const ThermoElastN& elastN,
                           const EosModel& eos,
                                 real8    dt,
-                                real8    curTime,
                                 real8    tolerance, 
-                          const real8  * d_svec_kk,  // defRate,
+                          const real8  * d_svec_kk_sm,  // defRate,
                           const real8  * w_veccp_sm, // spin
                           const real8  * volRatio,
                                 real8  * eInt,
@@ -788,7 +806,7 @@ void getResponseEvptnSngl(const SlipGeom& slipGeom,
                                 real8  * mtanSD ) 
 {
 
-   static const int evptn_iHistLbGdot = evptn_iHistLbH + Kinetics::nH ;
+   static const int iHistLbGdot = NumHist<SlipGeom,Kinetics,ThermoElastN,EosModel>::iHistLbGdot ;
 
    // NOTE : mtanSD can be nullptr
    //
@@ -797,22 +815,22 @@ void getResponseEvptnSngl(const SlipGeom& slipGeom,
    // convert deformation rate convention
    //
    real8 d_vecd_sm[ecmech::ntvec] ;
-   svecToVecd( d_vecd_sm, d_svec_kk ) ;
+   svecToVecd( d_vecd_sm, d_svec_kk_sm ) ;
 #ifdef NEED_SCALAR_FLOW_STRENGTH
    real8 dEff = vecd_Deff( d_vecd_sm ) ;
 #endif
    
    // pointers to state
    //
-   real8* h_state = &(hist[evptn_iHistLbH]) ;
-   real8* gdot    = &(hist[evptn_iHistLbGdot]) ;
+   real8* h_state = &(hist[iHistLbH]) ;
+   real8* gdot    = &(hist[iHistLbGdot]) ;
    //
    // copies, to keep beginning-of-step state safe
    //
    real8 e_vecd_n[ecmech::ntvec] ;
-   std::copy(hist+evptn_iHistLbE, hist+evptn_iHistLbE+ecmech::ntvec, e_vecd_n) ;
+   std::copy(hist+iHistLbE, hist+iHistLbE+ecmech::ntvec, e_vecd_n) ;
    real8 quat_n[ecmech::qdim] ;
-   std::copy(hist+evptn_iHistLbQ, hist+evptn_iHistLbQ+ecmech::qdim,  quat_n) ;
+   std::copy(hist+iHistLbQ, hist+iHistLbQ+ecmech::qdim,  quat_n) ;
    //
    // normalize quat just in case
    vecsVNormalize<qdim>(quat_n) ;
@@ -823,7 +841,7 @@ void getResponseEvptnSngl(const SlipGeom& slipGeom,
    // just beginning-of-step stress part so far
    //
    real8 halfVMidDt = oneqrtr * (volRatio[0]+volRatio[1]) * dt ;
-   real8 eDevTot = halfVMidDt * vecsInnerSvecDev( stressSvecP, d_svec_kk ) ;
+   real8 eDevTot = halfVMidDt * vecsInnerSvecDev( stressSvecP, d_svec_kk_sm ) ;
    
    // EOS
    //
@@ -841,8 +859,8 @@ void getResponseEvptnSngl(const SlipGeom& slipGeom,
 
    real8 Cstr_vecds_lat[ecmech::nsvec] ;
    //
-   real8* e_vecd_u  = &(hist[evptn_iHistLbE]) ;
-   real8* quat_u    = &(hist[evptn_iHistLbQ]) ;
+   real8* e_vecd_u  = &(hist[iHistLbE]) ;
+   real8* quat_u    = &(hist[iHistLbQ]) ;
    {
       real8 vNew = volRatio[1] ;
       EvptnUpdstProblem< SlipGeom, Kinetics, ThermoElastN > prob(slipGeom, kinetics, elastN,
@@ -877,7 +895,7 @@ void getResponseEvptnSngl(const SlipGeom& slipGeom,
       if ( haveMtan ) {
 
          real8 mtanSD_vecds[ ecmech::nsvec2 ] ;
-         prob.provideMTan( &mtanSD_vecds ) ; 
+         prob.provideMTan( mtanSD_vecds ) ; 
          solver.computeRJ() ;
          prob.clearMTan() ;
 
@@ -894,7 +912,7 @@ void getResponseEvptnSngl(const SlipGeom& slipGeom,
          // this is a bit crude, but should do the trick for now;
          // neglects effect of pEOS and vNew on workings of evptn
          // 
-         mtanSD_vecds[iSvecS,iSvecS] = three * bulkNew ;
+         mtanSD_vecds[ECMECH_NN_INDX(iSvecS,iSvecS,ecmech::nsvec)] = three * bulkNew ;
 
          // convert from vecds notation to svec notation
          //
@@ -907,18 +925,19 @@ void getResponseEvptnSngl(const SlipGeom& slipGeom,
       prob.stateFromX(e_vecd_u, quat_u, x) ;
       std::copy(h_state_u, h_state_u+Kinetics::nH, h_state) ;
       {
-         real8* gdot_u = prob.getGdot() ;
+         const real8* gdot_u = prob.getGdot() ;
          std::copy(gdot_u, gdot_u+SlipGeom::nslip, gdot) ;
       }
-      hist[evptn_iHistLbA+0]  = prob.getShrateEff() ;
-      hist[evptn_iHistLbA+1] += hist[evptn_iHistLbA+0] * dt ;
+      hist[iHistA_shrateEff]  =  prob.getShrateEff() ;
+      hist[iHistA_shrEff]    +=  hist[iHistLbA+0] * dt ;
+      hist[iHistA_nFEval]     =  solver.getNFEvals() ; // does _not_ include updateH iterations
 
       //  get Cauchy stress
       //
       prob.elastNEtoC( Cstr_vecds_lat, e_vecd_u ) ;
       
 #ifdef NEED_SCALAR_FLOW_STRENGTH
-      real8 flow_strength = 0.0 ;
+      real8 flow_strength = 0.0 ; // TO_DO : consider setting this instead to a reference value (dependent on the current state?)?
       if ( dEff > idp_tiny_sqrt ) {
          flow_strength = prob.getDisRate() / dEff ;
       }
@@ -941,7 +960,7 @@ void getResponseEvptnSngl(const SlipGeom& slipGeom,
    //
    // and now the second half of the trapezoidal integration
    //
-   eDevTot += halfVMidDt * vecsInnerSvecDev( stressSvecP, d_svec_kk ) ;
+   eDevTot += halfVMidDt * vecsInnerSvecDev( stressSvecP, d_svec_kk_sm ) ;
 
    // adjust sign on quat so that as close as possible to quat_o;
    // more likely to keep orientations clustered this way
@@ -970,6 +989,8 @@ void getResponseEvptnSngl(const SlipGeom& slipGeom,
 
 } // getResponseEvptnSngl
    
+} // namespace evptn
+
 } // namespace ecmech
 
 #endif  // ECMECH_EVPTN_H

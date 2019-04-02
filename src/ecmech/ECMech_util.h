@@ -1022,7 +1022,7 @@ mtan_conv_sd_svec(real8* const mtanSD_raw,
    real8 t1_vec[ecmech::nsvec], t2_vec[ecmech::nsvec], t3_vec[ecmech::nsvec] ;
 
    RAJA::View< real8, RAJA::Layout<2> > mtanSD(mtanSD_raw, ecmech::nsvec, ecmech::nsvec) ;   
-   RAJA::View< real8, RAJA::Layout<2> > mtanSD_vecds(mtanSD_vecds_raw, ecmech::nsvec, ecmech::nsvec) ;   
+   RAJA::View< real8 const, RAJA::Layout<2> > mtanSD_vecds(mtanSD_vecds_raw, ecmech::nsvec, ecmech::nsvec) ;   
    RAJA::View< real8, RAJA::Layout<2> > C(C_raw, ecmech::nsvec, ecmech::nsvec) ;   
 
    // mtanSD = T . mtanSD_vecds . T^{-1}

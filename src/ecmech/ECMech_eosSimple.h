@@ -14,7 +14,7 @@ template< bool isothermal >
 class EosModelConst
 {
 public:
-   static const int nParams = 4 ;
+   static const int nParams = 5 ;
    
    // constructor
    __ecmech_hdev__
@@ -118,7 +118,7 @@ inline void updateSimple( const EosModel& eos,
                           real8  eOld,
                           real8  pOld) {
 
-   real8 vOld = volRatio[0] ;
+   // real8 vOld = volRatio[0] ; // not needed
    real8 vNew = volRatio[1] ;
    real8 delv = volRatio[3] ;
 

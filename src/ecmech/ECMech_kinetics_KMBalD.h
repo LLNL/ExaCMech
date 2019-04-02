@@ -510,7 +510,7 @@ updateH( real8* const hs_u,
          const real8* const hs_o,
          real8 dt,
          const real8* const gdot,
-         int outputLevel = 0 )
+         int outputLevel = 0 ) const
 {
 
    // do not yet both with l_overdriven and setting-to-saturation machinery as in Fortran coding
