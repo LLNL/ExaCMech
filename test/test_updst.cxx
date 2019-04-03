@@ -35,8 +35,9 @@ int main(int argc, char *argv[])
       EosModel eos ;
 #include "setup_eos.h"
       
-      kinetics.getParams( params ) ;
       elastN.getParams( params ) ;
+      
+      kinetics.getParams( params ) ;
 
       std::vector<real8> eosParams ;
       eos.getParams( eosParams ) ;
@@ -59,7 +60,11 @@ int main(int argc, char *argv[])
    real8* hist = &(hist_vec[0]);
    static const int iHistLbGdot = mmodel.iHistLbGdot ;
    real8* gdot = &(hist[iHistLbGdot]) ; 
+   real8* h_state = &(hist[ecmech::evptn::iHistLbH]) ; 
    
+   std::cout << "Initial hist : " ;
+   printVec<mmodel.numHist>(hist, std::cout) ;
+      
    const int nPassed = 1 ; // do not change this without some serious changes elsewhere
    mmodel.setOutputLevel( outputLevel ) ;
    //
@@ -76,9 +81,16 @@ int main(int argc, char *argv[])
 
       std::cout << "Function evaluations: " << hist[evptn::iHistA_nFEval] << std::endl ;
    
-      std::cout << "Slip system shearing rates : " ;
-      printVec<SlipGeom::nslip>(gdot, std::cout) ;
    }
       
+   std::cout << "Updated hist : " ;
+   printVec<mmodel.numHist>(hist, std::cout) ;
+      
+   std::cout << "Hardness state : " ;
+   printVec<Kinetics::nH>(h_state, std::cout) ;
+      
+   std::cout << "Slip system shearing rates : " ;
+   printVec<SlipGeom::nslip>(gdot, std::cout) ;
+   
 }
 

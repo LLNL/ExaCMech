@@ -1068,9 +1068,8 @@ mtan_conv_sd_svec(real8* const mtanSD_raw,
 template< int n >
 inline void
 printVec(const real8* const y, std::ostream & oss ) {
-   oss << std::setprecision(14) ;
    for ( int iX=0; iX<n; ++iX) {
-      oss << y[iX] << " " ;
+      oss << std::setprecision(14) << y[iX] << " " ;
    }
    oss << std::endl ;
 }
@@ -1078,10 +1077,9 @@ printVec(const real8* const y, std::ostream & oss ) {
 template< int n >
 inline void
 printMat(const real8* const A, std::ostream & oss ) {
-   oss << std::setprecision(14) ;
    for ( int iX=0; iX<n; ++iX) {
       for ( int jX=0; jX<n; ++jX) {
-         oss << A[ECMECH_NN_INDX(iX,jX,n)] << " " ;
+         oss << std::setprecision(14) << A[ECMECH_NN_INDX(iX,jX,n)] << " " ;
       }
       oss << std::endl ;
    } 

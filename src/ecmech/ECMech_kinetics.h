@@ -24,8 +24,8 @@ public:
                       const real8* const evolVals) :
       _kinetics(kinetics), _h_o(h_o), _dt(dt), _evolVals(evolVals)
    {
-      _x_scale   = fmax(_h_o, 1.0) ;
-      _res_scale = one / _h_o ;
+      _x_scale   = fmax(_h_o, 1.0) ; // TO_DO -- generalize this to not max with 1
+      _res_scale = one / _x_scale ;
    }
 
    __ecmech_hdev__

@@ -128,6 +128,9 @@ int main(int argc, char *argv[])
         tkelv, sdd, mtanSD ) ;
    std::cout << "Function evaluations: " << hist[evptn::iHistA_nFEval] << std::endl ;
    
+   std::cout << "Updated hist : " ;
+   printVec<numHist>(hist, std::cout) ;
+   
    std::cout << "Slip system shearing rates : " ;
    printVec<slipGeom.nslip>(gdot, std::cout) ;
       

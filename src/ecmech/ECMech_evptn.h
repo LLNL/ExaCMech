@@ -1007,7 +1007,7 @@ void getResponseSngl(const SlipGeom& slipGeom,
    assert(ecmech::ne == 1) ;
 #endif
 
-} // getResponseEvptnSngl
+} // getResponseSngl
    
 } // namespace evptn
 
