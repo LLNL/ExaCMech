@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
       outputLevel = atoi(argv[1]) ;
    }
    
-   real8 tolerance = 1e-10 ;
+#include "setup_base.h"
    
    // some convenience stuff
    using namespace ecmech ;
@@ -45,31 +45,26 @@ int main(int argc, char *argv[])
 
    typedef evptn::ThermoElastNCubic ThermoElastN ;
    ThermoElastN elastN ;
-   {
-      real8 c11 = 300e-2, c12 = 100e-2, c44 = 100e-2 ;
-      std::vector<real8> params{ c11, c12, c44 } ;
-      elastN.setParams( params ) ;
-   }
+#include "setup_elastn.h"
 
    //////////////////////////////
    
    real8 p = 0.0, tK = 300.0 ;
-   real8 h_state[kinetics.nH] = { 100e-5 } ;
+   std::vector<real8> h_state_vec ;
+   real8* h_state ;
+   {
+      std::vector<std::string> names ;
+      std::vector<bool>        plot ;
+      std::vector<bool>        state ;
+      kinetics.getHistInfo( names, h_state_vec, plot, state ) ;
+      h_state = &(h_state_vec[0]) ;
+   }
 
-   real8 d_svec_kk_sm[ecmech::nsvp] = {-0.5, -0.5, 1.0,
-                                       0.0, 0.0, 0.0,
-                                       0.0} ;
-   vecsVsa<ecmech::nsvp>(d_svec_kk_sm, sqr2b3) ; // scale so that d_vecd_sm comes out to unit magnitude
-   //
-   real8 d_vecd_sm[ecmech::ntvec] ;
-   svecToVecd(d_vecd_sm, d_svec_kk_sm) ;
-   
-   real8 dt = 1e-1 ;
+#include "setup_conditions.h"   
    real8 detV = 1.0 ;
    real8 eVref = 0.0 ;
    real8 e_vecd_n[ecmech::ntvec] = {0.0} ;
    real8 Cn_quat[ecmech::qdim] = {1.0, 0.0, 0.0, 0.0} ;
-   real8 w_veccp_sm[ecmech::nwvec] = {0.0, 0.0, 0.5} ;
    
    Prob prob(slipGeom, kinetics, elastN,
              dt,
@@ -104,19 +99,11 @@ int main(int argc, char *argv[])
    //
    // this gives the same as above? does updateH internally, but with
    // beginning-of-step shearing rates which are all set to zero
-   
+
    typedef ecmech::EosModelConst<false> EosModel ;
    EosModel eos ;
-   {
-      real8 bulkMod = elastN.getBulkMod() ;
-      real8 rho0 = 3.0, cvav = 2.0e-5, gamma = 1.7 ;
-      real8 ec0 = -cvav*300. ; 
-      const std::vector<real8> params{ rho0, bulkMod, cvav, gamma, ec0 };
-      eos.setParams( params ) ;
-   }
+#include "setup_eos.h"
    
-   real8 volRatio[ecmech::nvr] = {1.0, 1.0, 0.0, 0.0} ;
-   //
    real8 eInt[ecmech::ne] = {0.0} ;
    real8 stressSvecP[ecmech::nsvp] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                                       0.0};
@@ -132,7 +119,7 @@ int main(int argc, char *argv[])
    real8 sdd[ecmech::nsdd] ;
    real8 mtanSD[ecmech::nsvec2] ;
    //
-   evptn::getResponseEvptnSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
+   evptn::getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
       ( slipGeom, kinetics, elastN, eos,
         dt, 
         tolerance,

@@ -35,7 +35,6 @@ include(cmake/CMakeBasics.cmake)
 # Add source subdirectories
 ################################
 add_subdirectory(src/ecmech)
-# add_subdirectory(src/interface) # not ready yet
 
 if(ENABLE_TESTS)
     add_subdirectory(test)

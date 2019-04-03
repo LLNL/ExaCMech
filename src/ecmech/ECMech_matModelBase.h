@@ -1,3 +1,5 @@
+// -*-c++-*-
+
 #ifndef ECMech_matModelBase_include
 #define ECMech_matModelBase_include
 
@@ -19,16 +21,23 @@ class matModelBase
 {
  protected:
   bool  _complete;
+  real8 _rho0, _cvav, _v0, _e0 ;
   
   // constructor
-  matModelBase() : _complete(false), _rho0(-1.0) {};
+  matModelBase() :
+     _complete(false),
+     _rho0(-1.0),
+     _cvav(-1.0),
+     _v0(-1.0),
+     _e0(-1.0)
+      {};
 
  public:
   virtual ~matModelBase() {};
 
   virtual void initFromParams(const std::vector<int>         & opts,
                               const std::vector<real8>       & pars,
-                              const std::vector<std::string> & strs ) ;
+                              const std::vector<std::string> & strs )=0 ;
   
   virtual void getParams(std::vector<int>         & opts,
                          std::vector<real8>       & pars,
@@ -37,7 +46,7 @@ class matModelBase
   /**
    * @brief log parameters, including history information; more human-readable than getParams output
    */
-  virtual void logParameters( std::ostringstream & oss ) ;
+  virtual void logParameters( std::ostringstream & oss ) const=0 ;
 
   /**
    * @brief Request response information for a group of host-code
@@ -115,8 +124,8 @@ class matModelBase
    *	beginning-of-step on input, end-of-step on output
    *
    * @param histV[in,out] : History (eg, state) variables
-   *	length nHist*nPassed if hIndx is NULL
-   *	along nHist : order is as indicated by getHistInfo
+   *	length numHist*nPassed if hIndx is NULL
+   *	along numHist : order is as indicated by getHistInfo
    *	beginning-of-step on input, end-of-step on output
    *
    * @param tkelvV[out] : end-of-step temperature
@@ -132,11 +141,9 @@ class matModelBase
    * @param hIndx[in] : index array for histV, or NULL for close-packed
    *	length nPassed, or NULL
    *    pass a negative value for a host-code point that is to be 'skipped'
-   *
-   * @param nHist[in] : number of history variables
-   *	should be consistent with results from getHistInfo
    */
 
+  __ecmech_hdev__
   virtual void getResponse(const real8  & dt          , 
                            const real8  * defRateV    ,      
                            const real8  * spinV       ,         
@@ -147,8 +154,7 @@ class matModelBase
                                  real8  * tkelvV      ,        
                                  real8  * sddV        ,          
                                  real8  * mtanSDV     ,      
-                           const int    & nHist       ,     
-                           const int    & nPassed      ) const ;
+                           const int    & nPassed      ) const=0 ;
 
   /**
    * @brief
@@ -167,7 +173,13 @@ class matModelBase
   /**
    * @brief Get the reference density
    */
-  virtual real8 getRhoRef() const ;
+   __ecmech_hdev__
+   virtual real8 getRhoRef() const {
+      if ( _rho0 < 0.0 ) { // want to be able to call this before _complete
+         ECMECH_FAIL(__func__,"rho0 does not appear to have been set") ;
+      }
+      return _rho0 ;
+   };
 
 
   /**

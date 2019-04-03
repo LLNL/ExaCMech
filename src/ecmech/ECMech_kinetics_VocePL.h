@@ -26,7 +26,7 @@ public:
    __ecmech_hdev__
    KineticsVocePL(int nslip) : _nslip(nslip) {};
 
-   __ecmech_host__
+   __ecmech_hdev__
    inline void setParams( const std::vector<real8> & params // const real8* const params
                           ) {
 
@@ -68,8 +68,43 @@ public:
       int iParam = parsIt - params.begin();
       assert( iParam == nParams );
       
-   };
+   }
    
+   __ecmech_hdev__
+   inline void getParams( std::vector<real8> & params
+                          ) const {
+
+      // do not clear params in case adding to an existing set
+      int paramsStart = params.size() ;
+
+      //////////////////////////////
+      // power-law stuff
+      
+      params.push_back(_mu     ) ;
+      params.push_back(_xm     ) ;
+      params.push_back(_gam_w  ) ;
+
+      //////////////////////////////
+      // Voce hardening stuff
+
+      params.push_back(_h0     ) ;
+      params.push_back(_tausi  ) ;
+      params.push_back(_taus0  ) ;
+      params.push_back(_xms    ) ;
+      params.push_back(_gamss0 ) ;
+
+      //////////////////////////////
+      // nH
+
+      params.push_back(_hdn_init ) ;
+
+      //////////////////////////////
+
+      int iParam = params.size() - paramsStart;
+      assert( iParam == nParams );
+      
+   }
+
    __ecmech_host__
    void getHistInfo(std::vector<std::string> & names,
                     std::vector<real8>       & init,

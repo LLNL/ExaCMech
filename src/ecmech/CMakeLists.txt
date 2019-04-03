@@ -13,6 +13,8 @@ set(ECMECH_HEADERS
     ECMech_port.h
     ECMech_slipgeom.h
     ECMech_util.h
+    ECMech_matModelBase.h
+    ECMech_evptnWrap.h
     mc_vars_set.h
     vad_vars_set.h
     vadl_vars_set.h
@@ -21,7 +23,8 @@ set(ECMECH_HEADERS
 
 set(ECMECH_SOURCES
     ECMech_kinetics.cxx
-    ECMech_slipgeom.cxx)
+    ECMech_slipgeom.cxx
+    ECMech_evptnWrap.cxx)
 
 #------------------------------------------------------------------------------
 # Dependencies

@@ -20,7 +20,8 @@ public:
    __ecmech_hdev__
    EosModelConst() {};
 
-   __ecmech_host__
+
+   __ecmech_hdev__
    inline void setParams( const std::vector<real8> & params // const real8* const params
                           ) {
 
@@ -40,6 +41,30 @@ public:
       //////////////////////////////
 
       int iParam = parsIt - params.begin();
+      if ( iParam != nParams ) {
+         ECMECH_FAIL(__func__,"iParam != nParams");
+      }
+      
+   };
+
+   __ecmech_hdev__
+   inline void getParams( std::vector<real8> & params
+                          ) const {
+
+      // do not clear params in case adding to an existing set
+      int paramsStart = params.size() ;
+
+      //////////////////////////////
+
+      params.push_back(_rho0    ) ;
+      params.push_back(_bulkMod ) ;
+      params.push_back(_cvav    ) ;
+      params.push_back(_gamma   ) ;
+      params.push_back(_ec0     ) ;
+
+      //////////////////////////////
+
+      int iParam = params.size() - paramsStart;
       if ( iParam != nParams ) {
          ECMECH_FAIL(__func__,"iParam != nParams");
       }

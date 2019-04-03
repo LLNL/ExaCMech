@@ -113,6 +113,48 @@ public:
       assert( iParam == nParams );
       
    };
+
+   __ecmech_hdev__
+   void getParams( std::vector<real8> & params
+                   ) const {
+
+      // do not clear params in case adding to an existing set
+      int paramsStart = params.size() ;
+
+      //////////////////////////////
+      // power-law stuff
+      
+      params.push_back(_mu_ref ) ;
+      params.push_back(_tK_ref ) ;
+      params.push_back(_c_1    ) ;
+      params.push_back(_tau_a  ) ;
+      params.push_back(_p      ) ;
+      params.push_back(_q      ) ;
+      params.push_back(_gam_wo ) ;
+      params.push_back(_gam_ro ) ;
+      params.push_back(_wrD    ) ;
+      params.push_back(_go     ) ;
+      params.push_back(_s      ) ;
+
+      //////////////////////////////
+      // Kocks-Mecking stuff
+
+      params.push_back(_k1      ) ;
+      params.push_back(_k2o     ) ;
+      params.push_back(_ninv    ) ;
+      params.push_back(_gamma_o ) ;
+
+      //////////////////////////////
+      // nH
+
+      params.push_back(_hdn_init ) ;
+
+      //////////////////////////////
+      
+      int iParam = params.size() - paramsStart;
+      assert( iParam == nParams );
+      
+   };
    
 #ifdef __cuda_host_only__
    __ecmech_host__

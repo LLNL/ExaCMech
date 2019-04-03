@@ -10,6 +10,7 @@
 #include "ECMech_eosSimple.h"
 
 #include "SNLS_lup_solve.h"
+#include "SNLS_TrDLDenseG.h"
 
 #include "RAJA/RAJA.hpp"
 
@@ -34,6 +35,7 @@ template< class SlipGeom, class Kinetics, class ThermoElastN, class EosModel >
 class NumHist
 {
 public:
+   // see n_rsv_matmod in F90 code
    static const int iHistLbGdot = iHistLbH + Kinetics::nH ;   
    static const int numHist = iHistLbH + Kinetics::nH + SlipGeom::nslip ;
 }; // NumHist
@@ -60,21 +62,37 @@ public:
       
       std::vector<real8>::const_iterator parsIt = params.begin();
       
-      real8 c11 = *parsIt; ++parsIt;
-      real8 c12 = *parsIt; ++parsIt;
-      real8 c44 = *parsIt; ++parsIt;
+      _c11 = *parsIt; ++parsIt;
+      _c12 = *parsIt; ++parsIt;
+      _c44 = *parsIt; ++parsIt;
       //
       int iParam = parsIt - params.begin();
       assert( iParam == nParams );
       
-      _K_diag[0] = c11-c12 ;
-      _K_diag[1] = c11-c12 ;
-      _K_diag[2] = two*c44 ;
-      _K_diag[3] = two*c44 ;
-      _K_diag[4] = two*c44 ;
-      real8 K_vecds_s = c11+two*c12 ;
+      _K_diag[0] = _c11 - _c12 ;
+      _K_diag[1] = _c11 - _c12 ;
+      _K_diag[2] = two*_c44 ;
+      _K_diag[3] = two*_c44 ;
+      _K_diag[4] = two*_c44 ;
+      real8 K_vecds_s = _c11 + two*_c12 ;
       _K_bulkMod = onethird * K_vecds_s ;
-      _K_gmod = (two*c11-two*c12+six*c44)*0.2 ; // average of _K_diag entries
+      _K_gmod = (two*_c11-two*_c12+six*_c44)*0.2 ; // average of _K_diag entries
+      
+   }
+   
+   __ecmech_hdev__
+   inline void getParams( std::vector<real8> & params
+                          ) const {
+      
+      // do not clear params in case adding to an existing set
+      int paramsStart = params.size() ;
+      
+      params.push_back(_c11) ;
+      params.push_back(_c12) ;
+      params.push_back(_c44) ;
+
+      int iParam = params.size() - paramsStart;
+      assert( iParam == nParams );
       
    }
    
@@ -185,6 +203,7 @@ public:
    }
   
 private :
+   real8 _c11, _c12, _c44 ;
    real8 _K_diag[ecmech::ntvec] ;
    real8 _K_bulkMod, _K_gmod ;
 };
@@ -789,21 +808,23 @@ private:
 template< class SlipGeom, class Kinetics, class ThermoElastN, class EosModel >
 __ecmech_hdev__
 inline
-void getResponseEvptnSngl(const SlipGeom& slipGeom,
-                          const Kinetics& kinetics,
-                          const ThermoElastN& elastN,
-                          const EosModel& eos,
-                                real8    dt,
-                                real8    tolerance, 
-                          const real8  * d_svec_kk_sm,  // defRate,
-                          const real8  * w_veccp_sm, // spin
-                          const real8  * volRatio,
-                                real8  * eInt,
-                                real8  * stressSvecP,
-                                real8  * hist,
-                                real8  & tkelv,
-                                real8  * sdd,
-                                real8  * mtanSD ) 
+void getResponseSngl(const SlipGeom& slipGeom,
+                     const Kinetics& kinetics,
+                     const ThermoElastN& elastN,
+                     const EosModel& eos,
+                           real8    dt,
+                           real8    tolerance, 
+                     const real8  * d_svec_kk_sm,  // defRate,
+                     const real8  * w_veccp_sm, // spin
+                     const real8  * volRatio,
+                           real8  * eInt,
+                           real8  * stressSvecP,
+                           real8  * hist,
+                           real8  & tkelv,
+                           real8  * sdd,
+                           real8  * mtanSD,
+                     
+                     int outputLevel = 0 ) 
 {
 
    static const int iHistLbGdot = NumHist<SlipGeom,Kinetics,ThermoElastN,EosModel>::iHistLbGdot ;
@@ -875,7 +896,6 @@ void getResponseEvptnSngl(const SlipGeom& slipGeom,
       deltaControl._deltaInit = 1e0 ;
       {
          static const int maxIter = 100 ;
-         static const int outputLevel = 0 ;
          solver.setupSolver(maxIter, tolerance, &deltaControl, outputLevel) ;
       }
 
