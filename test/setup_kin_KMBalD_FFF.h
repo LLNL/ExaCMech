@@ -14,7 +14,7 @@
       real8
          k1       = 100.0,
          k2o      =  10.0,
-         ninv     =  20.0,
+         ninv     =  0.05,
          gamma_o  =  1e-6 ;
       real8
          rho_dd_init = 0.25 ;
