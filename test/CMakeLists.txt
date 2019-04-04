@@ -34,8 +34,17 @@ blt_add_test(NAME    test_evptn_1
 
 blt_add_executable(NAME       test_updst
                    SOURCES    test_updst.cxx
+                   DEFINES    AS_DRIVER=0
                    OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
                    DEPENDS_ON ${ECMECH_TEST_DEPENDS})
 blt_add_test(NAME    test_updst
              COMMAND test_updst)
+
+blt_add_executable(NAME       test_driver
+                   SOURCES    test_updst.cxx
+                   DEFINES    AS_DRIVER=1
+                   OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
+                   DEPENDS_ON ${ECMECH_TEST_DEPENDS})
+blt_add_test(NAME    test_driver
+             COMMAND test_driver)
 
