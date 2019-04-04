@@ -1074,6 +1074,14 @@ printVec(const real8* const y, std::ostream & oss ) {
    oss << std::endl ;
 }
 
+inline void
+printVec(const real8* const y, int n, std::ostream & oss ) {
+   for ( int iX=0; iX<n; ++iX) {
+      oss << std::setprecision(14) << y[iX] << " " ;
+   }
+   oss << std::endl ;
+}
+
 template< int n >
 inline void
 printMat(const real8* const A, std::ostream & oss ) {
