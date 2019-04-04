@@ -227,7 +227,8 @@ getVals( real8* const vals,
          ) const
 {
    vals[3] = _c_1 / tK ; // _c_t
-   real8 sqrtDDens = exp(onehalf * h_state[0]) ;
+   real8 sqrtDDens = sqrt(h_state[0]) ;
+   // real8 sqrtDDens = exp(onehalf * h_state[0]) ; // this is for h_state[0] storing the log of the dislocation density
    vals[0] = _go + _s * sqrtDDens ; // _gAll
    vals[1] = _gam_wo / sqrtDDens ; // _gam_w
    vals[2] = _gam_ro * sqrtDDens * sqrtDDens ; // _gam_r
