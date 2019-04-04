@@ -14,7 +14,7 @@ BACKGROUND
 
 ECMech is a GPU-friendly library of constitutive models. The models are based on standard continuum mechanics concepts. Crystal-mechanics-based and porosity-mechanics-based models are a principal focus. Models are meant for standard crystalline metallic materials deforming under quasi-static conditions. 
 
-Constitutive model response is a main ingredient in the simulation of deformation of material. In the solution of the governing equations, the constitutive model sub-problem is typically solved at every discretization point in the problem. In a finite element setting for solving the balance of momentum (stress equilibrim in the quasi-static case), these would be quadrature points in the finite element integrals. The constitutive model has two main jobs: it provides the stress tensor that goes into the balance of linear momentum, and it updates the evolving state of the material. This state can be tracked by variables for the stress, dislocation density, orientation of crystal lattices, grain size, and so forth.
+Constitutive model response is a main ingredient in the simulation of deformation of material. In the solution of the governing equations, the constitutive model sub-problem is typically solved at every discretization point in the problem. In a finite element setting for solving the balance of momentum (stress equilibrium in the quasi-static case), these would be quadrature points in the finite element integrals. The constitutive model has two main jobs: it provides the stress tensor that goes into the balance of linear momentum, and it updates the evolving state of the material. This state can be tracked by variables for the stress, dislocation density, orientation of crystal lattices, grain size, and so forth.
 
 Implementations here are meant for quasi-static applications, and include material tangent stiffness computations for incorporation into finite element stiffness matrices for quasi-static applications.
 
@@ -50,7 +50,7 @@ The develop branch is the main development branch. Changes to develop are by pul
 AUTHORS
 ======
 
-The principal devleoper of ECMech is Nathan Barton, nrbarton@llnl.gov. 
+The principal developer of ECMech is Nathan Barton, nrbarton@llnl.gov. 
 
 LICENSE
 ======
