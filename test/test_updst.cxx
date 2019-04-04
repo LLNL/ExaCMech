@@ -3,6 +3,8 @@
 #include "ECMech_cases.h"
 #include "ECMech_evptnWrap.h"
 
+#define STACK_PARAMS
+
 int main(int argc, char *argv[])
 {
    int outputLevel = 1 ;
@@ -12,42 +14,18 @@ int main(int argc, char *argv[])
 
    using namespace ecmech ;
 
-   typedef Kin_KMBalD_FFF Kinetics  ;
-   typedef SlipGeomFCC SlipGeom ;
-   typedef evptn::ThermoElastNCubic ThermoElastN ;
-   typedef EosModelConst<false> EosModel ;
-
-   ecmech::evptn::matModel<SlipGeom, Kinetics, ThermoElastN, EosModel> mmodel ;
+   matModelEvptn_FCC_B mmodel ;
 
 #include "setup_base.h"
    std::vector<int>           opts ; // none
    std::vector<std::string>   strs ; // none
    std::vector<real8>         params{ rho0, cvav, tolerance } ;
-   {
-   
-      // NOTE : not using these instances other than as a hack to provide parameters
-      Kinetics kinetics(SlipGeom::nslip) ;
-#include "setup_kin_KMBalD_FFF.h"
-
-      ThermoElastN elastN ;
 #include "setup_elastn.h"
-      
-      EosModel eos ;
+#include "setup_kin_KMBalD_FFF.h"
 #include "setup_eos.h"
-      
-      elastN.getParams( params ) ;
-      
-      kinetics.getParams( params ) ;
-
-      std::vector<real8> eosParams ;
-      eos.getParams( eosParams ) ;
-      int nParamsEOS = eosParams.size()-mmodel.nParamsEOSHave ; // nasty complexity to match what happens in matModel
-      for ( int iP=0; iP<nParamsEOS; ++iP ) {
-         params.push_back(eosParams[mmodel.nParamsEOSHave+iP]) ;
-      }
-   }
    //
    mmodel.initFromParams( opts, params, strs ) ;
+   //
    mmodel.complete() ;
 
    std::vector<real8>       hist_vec ;
@@ -87,10 +65,10 @@ int main(int argc, char *argv[])
    printVec<mmodel.numHist>(hist, std::cout) ;
       
    std::cout << "Hardness state : " ;
-   printVec<Kinetics::nH>(h_state, std::cout) ;
+   printVec<mmodel.nH>(h_state, std::cout) ;
       
    std::cout << "Slip system shearing rates : " ;
-   printVec<SlipGeom::nslip>(gdot, std::cout) ;
+   printVec<mmodel.nslip>(gdot, std::cout) ;
    
 }
 

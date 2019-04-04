@@ -23,8 +23,7 @@ set(ECMECH_HEADERS
 
 set(ECMECH_SOURCES
     ECMech_kinetics.cxx
-    ECMech_slipgeom.cxx
-    ECMech_evptnWrap.cxx)
+    ECMech_slipgeom.cxx)
 
 #------------------------------------------------------------------------------
 # Dependencies

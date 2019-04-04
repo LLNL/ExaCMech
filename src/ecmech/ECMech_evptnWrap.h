@@ -27,6 +27,8 @@ public :
 
    static const int iHistLbGdot = NumHist<SlipGeom, Kinetics, ThermoElastN, EosModel>::iHistLbGdot ;
    static const int numHist     = NumHist<SlipGeom, Kinetics, ThermoElastN, EosModel>::numHist ;
+   static const int nH          = Kinetics::nH ;
+   static const int nslip       = SlipGeom::nslip ;
 
    // this are assumed to go in first
    static const int nParamsEOSHave = 3 ; // number that get from 'elsewhere'
@@ -237,8 +239,8 @@ private:
    
 }; // class matModel 
 
-} // namespace ecmech
-
 } //  namespace evptn 
+
+} // namespace ecmech
 
 #endif // ecmech_evptnWrap_include

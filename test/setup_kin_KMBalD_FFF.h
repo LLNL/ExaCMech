@@ -18,10 +18,14 @@
          gamma_o  =  1e-6 ;
       real8
          rho_dd_init = 0.25 ;
-      std::vector<real8> params{
+      std::vector<real8> paramsThese{
          mu, tK_ref, c_1, tau_a, p, q, gam_wo, gam_ro, wrD, go, s,
          k1, k2o, ninv, gamma_o,
          rho_dd_init
       } ;
-      kinetics.setParams( params ) ;
+#ifdef STACK_PARAMS
+      params.insert(params.end(), paramsThese.begin(), paramsThese.end()) ;
+#else
+      kinetics.setParams( paramsThese ) ;
+#endif      
    }
