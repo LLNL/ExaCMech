@@ -8,8 +8,68 @@
 #include "ECMech_core.h"
 #include "ECMech_util.h"
 
+/*
+ * Kinetics models include both the slip system kinetics and 'hardness'
+ * state evolution kinetics. Those two could be separated to increase
+ * modularity, but then it might be a pain to keep the interactions
+ * among them both generally flexible and simple to manage. So the
+ * choice has been made to group them into a single class.
+ *
+ * Specific model cases are down below, through include files. Cases are expected to provide traits:
+ *
+ *  	nH, nParams, nVals, nEvolVals
+ *
+ * and member functions:
+ *
+ *  void setParams( const std::vector<real8> & params ) ;
+ *
+ *  void getParams( std::vector<real8> & params ) const ;
+ *
+ *  void getHistInfo(std::vector<std::string> & names,
+ *                   std::vector<real8>       & init,
+ *                   std::vector<bool>        & plot,
+ *                   std::vector<bool>        & state) const ;
+ *
+ *  void getVals( real8* const vals,
+ *                real8 p,
+ *                real8 tK,
+ *                const real8* const h_state
+ *                ) const ;
+ *
+ *  void
+ *  evalGdots( real8* const gdot,
+ *             real8* const dgdot_dtau,
+ *             real8* const dgdot_dg,
+ *             const real8* const tau,
+ *             const real8* const vals
+ *             ) const ;
+ *
+ *  void
+ *  updateH( real8* const hs_u,
+ *           const real8* const hs_o,
+ *           real8 dt,
+ *           const real8* const gdot,
+ *           int outputLevel = 0 ) const ;
+ *
+ *  void
+ *  getEvolVals( real8* const evolVals,
+ *               const real8* const gdot
+ *               ) const ;
+ *
+ * And if using updateH1, they should also provide member function:
+ *
+ *  void
+ *  getSdot1( real8 &sdot,
+ *            real8 &dsdot_ds,
+ *            real8 h,
+ *            const real8* const evolVals) const ;
+ */
+
 namespace ecmech {
 
+/*
+ * State update solver for cases in which there is a single hardness state variable. 
+ */
 template< class Kinetics >
 class Kinetics_H1Problem
 {
@@ -65,6 +125,9 @@ private :
    
 }; // class Kinetics_H1Problem
 
+/*
+ * Helper function to run the state update solver for cases in which there is a single hardness state variable. 
+ */
 template< class Kinetics >
 __ecmech_hdev__
 inline
@@ -104,10 +167,13 @@ updateH1( const Kinetics* const kinetics,
 
    hs_n = prob.getHn(x) ;
          
-}
+} // updateH1
 
 } // namespace ecmech
 
+/*
+ * And now, specific model cases.
+ */
 #include "ECMech_kinetics_KMBalD.h"
 #include "ECMech_kinetics_VocePL.h"
 

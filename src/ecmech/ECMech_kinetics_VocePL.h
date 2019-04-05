@@ -109,7 +109,7 @@ public:
    void getHistInfo(std::vector<std::string> & names,
                     std::vector<real8>       & init,
                     std::vector<bool>        & plot,
-                    std::vector<bool>        & state) {
+                    std::vector<bool>        & state) const {
       names.push_back("h") ;
       init.push_back(_hdn_init) ;
       plot.push_back(true) ;
