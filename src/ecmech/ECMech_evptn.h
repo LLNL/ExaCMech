@@ -635,7 +635,7 @@ bool computeRJ( real8* const resid,
             //
             real8 pfrac_sys[ _nXnDim ] ;
             std::copy(Jacobian, Jacobian+_nXnDim, pfrac_sys) ;
-            int err = SNLS_LUP_SolveX(pfrac_sys, pfrac_rhs_T, nDimSys, nRHS) ;
+            int err = SNLS_LUP_SolveX<nDimSys>(pfrac_sys, pfrac_rhs_T, nRHS) ;
             if ( err != 0 ) {
                ECMECH_FAIL(__func__,"error from SNLS_LUP_SolveX") ;
             }
