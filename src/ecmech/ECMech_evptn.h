@@ -624,7 +624,7 @@ bool computeRJ( real8* const resid,
                // negatives cancel
                // pfrac_rhs(i_sub_e:i_sup_e,I_subD:I_supD) = TRANSPOSE(qr5x5_ls)
                for (int jE=0; jE<nRHS; ++jE) {
-                  for (int iE=0; iE<nDimSys; ++iE) {
+                  for (int iE=0; iE<ntvec; ++iE) { // ntvec, _not_ nDimSys // iE is same as index into nDimSys, give how d(resid)/d(_d_vecd_sm) works out
                      // pfrac_rhs[ECMECH_NM_INDX(iE,jE,nDimSys,nRHS)] = qr5x5_ls[ECMECH_NN_INDX(jE,iE,ntvec)] ;
                      pfrac_rhs_T [ECMECH_NM_INDX(jE,iE,nRHS,nDimSys)] = qr5x5_ls[ECMECH_NN_INDX(jE,iE,ntvec)] ;
                   }
@@ -634,9 +634,7 @@ bool computeRJ( real8* const resid,
             // SYSTEM
             //
             real8 pfrac_sys[ _nXnDim ] ;
-            for ( int iNXN=0; iNXN<_nXnDim; ++iNXN ) {
-               pfrac_sys[iNXN] = Jacobian[iNXN] ;
-            }
+            std::copy(Jacobian, Jacobian+_nXnDim, pfrac_sys) ;
             int err = SNLS_LUP_SolveX(pfrac_sys, pfrac_rhs_T, nDimSys, nRHS) ;
             if ( err != 0 ) {
                ECMECH_FAIL(__func__,"error from SNLS_LUP_SolveX") ;
