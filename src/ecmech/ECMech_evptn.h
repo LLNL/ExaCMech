@@ -866,9 +866,20 @@ void getResponseSngl(const SlipGeom& slipGeom,
    //
    real8 eOld = eInt[0] ;
    real8 pOld = stressSvecP[6] ;
-   real8 pEOS, eNew, bulkNew ; 
-   updateSimple<EosModel>( eos, pEOS, tkelv, eNew, bulkNew,
-                           volRatio, eOld, pOld ) ;
+   real8 pEOS, eNew, bulkNew ;
+   //
+   // get tkelv from beginning-of-step to avoid tangent stiffness contributions
+   {
+      real8 pBOS ;
+      real8 vOld = volRatio[0] ;
+      eos.evalPT(pBOS, tkelv, vOld, eOld);
+   }
+   //
+   {
+      real8 tkelvNew ;
+      updateSimple<EosModel>( eos, pEOS, tkelvNew, eNew, bulkNew,
+                              volRatio, eOld, pOld ) ;
+   }
 
    // update hardness state to the end of the step
    // gdot is still at beginning-of-step
