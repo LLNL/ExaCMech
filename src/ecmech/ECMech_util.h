@@ -93,7 +93,7 @@ inline void vecsVsa( real8* const a,
 
 template< int n >
 inline void vecsVNormalize( real8* const v ){
-   real8 s = vecNorm<n>(v) ;
+   real8 s = 1.0 / vecNorm<n>(v) ;
    vecsVsa<n>(v, s) ;
 }
 
@@ -374,6 +374,21 @@ inline void vecdsToSvecP( real8* const svecp, // (SVEC+1)
    svecp[5] = sqr2i  * vecds[2] ; // 12
 
 }       
+
+//  SUBROUTINE svec_p_to_svec(a_svec, a_svec_p)
+inline void svecpToSvec( real8* const a_svec,
+                         const real8* const a_svec_p
+                         )
+{
+   real8 a_mean = -a_svec_p[iSvecP];
+
+   std::copy( a_svec_p, a_svec_p+ecmech::nsvec, a_svec ) ;
+
+   a_svec[0] = a_svec[0] + a_mean ;
+   a_svec[1] = a_svec[1] + a_mean ;
+   a_svec[2] = a_svec[2] + a_mean ;
+
+}
 
 inline void matToPQ( real8* const P_vecd,  // ntvec
                      real8* const Q_veccp, // nwvec
@@ -1069,7 +1084,7 @@ template< int n >
 inline void
 printVec(const real8* const y, std::ostream & oss ) {
    for ( int iX=0; iX<n; ++iX) {
-      oss << std::setprecision(14) << y[iX] << " " ;
+      oss << std::setw(21) << std::setprecision(14) << y[iX] << " " ;
    }
    oss << std::endl ;
 }
@@ -1077,7 +1092,7 @@ printVec(const real8* const y, std::ostream & oss ) {
 inline void
 printVec(const real8* const y, int n, std::ostream & oss ) {
    for ( int iX=0; iX<n; ++iX) {
-      oss << std::setprecision(14) << y[iX] << " " ;
+      oss << std::setw(21) << std::setprecision(14) << y[iX] << " " ;
    }
    oss << std::endl ;
 }
@@ -1087,7 +1102,7 @@ inline void
 printMat(const real8* const A, std::ostream & oss ) {
    for ( int iX=0; iX<n; ++iX) {
       for ( int jX=0; jX<n; ++jX) {
-         oss << std::setprecision(14) << A[ECMECH_NN_INDX(iX,jX,n)] << " " ;
+         oss << std::setw(21) << std::setprecision(14) << A[ECMECH_NN_INDX(iX,jX,n)] << " " ;
       }
       oss << std::endl ;
    } 
