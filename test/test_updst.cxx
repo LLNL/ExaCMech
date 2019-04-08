@@ -5,12 +5,27 @@
 
 #define STACK_PARAMS
 
+#ifndef DO_FD_CHECK_MTAN
+#define DO_FD_CHECK_MTAN 0
+#endif
+
+#if DO_FD_CHECK_MTAN
+// if doing finite-difference check of tangent stiffness, then change some other defaults
+#define NON_I_QUAT 1
+#define KIN_TYPE 0
+#define XM_DFLT 0.1
+#endif
+
 #ifndef KIN_TYPE
 #define KIN_TYPE 1
 #endif
 
 #ifndef AS_DRIVER
 #define AS_DRIVER 0
+#endif
+
+#ifndef NON_I_QUAT
+#define NON_I_QUAT 1
 #endif
 
 int main(int argc, char *argv[])
@@ -63,8 +78,19 @@ int main(int argc, char *argv[])
       mmb->getHistInfo(names, hist_vec, plot, state ) ;
    }
    real8* hist = &(hist_vec[0]);
+#if NON_I_QUAT
+   real8* q_state = &(hist[ecmech::evptn::iHistLbQ]) ;
+   {
+      real8 th = 0.2 ;
+      real8 et = 0.7 ;
+      q_state[0] = cos(0.5*th);
+      q_state[1] = sin(0.5*th)*cos(et) ;
+      q_state[2] = sin(0.5*th)*sin(et) ;
+      q_state[3] = 0.0 ;
+   }
+#endif
    
-   real8* h_state = &(hist[ecmech::evptn::iHistLbH]) ; 
+   // int numHist = hist_vec.size() ; // should equal mmodel->numHist
 
    const int nPassed = 1 ; // just do a single point here as a simple example
 
@@ -95,7 +121,9 @@ int main(int argc, char *argv[])
    real8 tkelv[nPassed] ;
    real8 sdd[ecmech::nsdd*nPassed] ;
    
+#if !(DO_FD_CHECK_MTAN)
    std::cout << "# time, Axial deviatoric stress, h[0], p : " << std::endl ;
+#endif
    real8 time = 0.0 ;
    //
    for ( int iStep=0; iStep<nStep; ++iStep ) {
@@ -105,7 +133,7 @@ int main(int argc, char *argv[])
       // update current relative volume from the volumetric deformation rate
       //
       volRatio[0] = volRatio[1] ;
-      volRatio[1] = volRatio[1] * exp( d_svec_kk_sm[ecmech::iSvecS] * dt ) ;
+      volRatio[1] = volRatio[0] * exp( d_svec_kk_sm[ecmech::iSvecP] * dt ) ;
       volRatio[3] = volRatio[1] - volRatio[0] ;
       volRatio[2] = volRatio[3] / ( dt * 0.5 *(volRatio[0]+volRatio[1]) )  ;
       
@@ -113,48 +141,141 @@ int main(int argc, char *argv[])
                         eInt, stressSvecP, hist, tkelv, sdd, nullptr,
                         nPassed ) ;
 
+#if !(DO_FD_CHECK_MTAN)
       std::cout << time << " "
                 << std::setprecision(14) << stressSvecP[2] << " "
-                << std::setprecision(14) << h_state[0] << " "
+                << std::setprecision(14) << hist[ecmech::evptn::iHistLbH+0] << " "
                 << std::setprecision(14) << stressSvecP[iSvecP] << " "
                 << std::endl ;
+
+      // std::cout << "hist : " ;
+      // printVec(hist, numHist, std::cout) ;
+#endif
+      
    }
       
-#else
 
-   int numHist = hist_vec.size() ; // should equal mmodel->numHist
+#if DO_FD_CHECK_MTAN
+   {
+      //
+      // do another step, and do finite differencing to check mtanSD
+
+      std::vector<real8> hist_ref(hist, hist+mmodel->numHist) ;
+      std::vector<real8> eInt_ref(eInt, eInt+ecmech::ne) ;
+      std::vector<real8> stressSvecP_ref(stressSvecP, stressSvecP+ecmech::nsvp) ;
+      real8 v_ref = volRatio[1] ;
+
+      volRatio[0] = v_ref ;
+      volRatio[1] = volRatio[0] * exp( d_svec_kk_sm[ecmech::iSvecP] * dt ) ;
+      volRatio[3] = volRatio[1] - volRatio[0] ;
+      volRatio[2] = volRatio[3] / ( dt * 0.5 *(volRatio[0]+volRatio[1]) )  ;
+      
+      real8 mtanSD_an[ecmech::nsvec2] ;
+      mmb->getResponse( dt, d_svec_kk_sm, w_veccp_sm, volRatio,
+                        eInt, stressSvecP, hist, tkelv, sdd, mtanSD_an, 
+                        nPassed ) ;
+
+
+      real8 stressSvec[ecmech::nsvec] ;
+      svecpToSvec( stressSvec, stressSvecP ) ;
+      
+      std::cout << "mtanSD_an : " << std::endl ;
+      printMat<ecmech::nsvec>( mtanSD_an, std::cout ) ;
+      
+      real8 d_svec_kk_sm_pert[ecmech::nsvp] ;
+      const real8 pertVal = 1e-8*relRate ;
+      real8 mtanSD_fd[ecmech::nsvec2] ;
+      //
+      real8 eInt_pert[ecmech::ne] ;
+      real8 stressSvecP_pert[ecmech::nsvp] ;
+      //
+      for ( int jSvec=0; jSvec<ecmech::nsvec; ++jSvec ) {
    
+         std::copy(d_svec_kk_sm, d_svec_kk_sm+ecmech::nsvp, d_svec_kk_sm_pert) ;
+         if ( jSvec < 3 ) {
+            d_svec_kk_sm_pert[jSvec] += pertVal ;
+            real8 d_kk = d_svec_kk_sm_pert[0] + d_svec_kk_sm_pert[1] + d_svec_kk_sm_pert[2] ;
+            d_svec_kk_sm_pert[ecmech::iSvecP] += d_kk ;
+            d_svec_kk_sm_pert[0] += (- ecmech::onethird * d_kk) ;
+            d_svec_kk_sm_pert[1] += (- ecmech::onethird * d_kk) ;
+            d_svec_kk_sm_pert[2] += (- ecmech::onethird * d_kk) ;
+         }
+         else {
+            // factor of 2 to go with l_ddsdde_gamma being true in call to mtan_conv_sd_svec ;
+            d_svec_kk_sm_pert[jSvec] += 0.5 * pertVal ;
+         }
+         //
+         volRatio[0] = v_ref ;
+         volRatio[1] = volRatio[0] * exp( d_svec_kk_sm_pert[ecmech::iSvecP] * dt ) ;
+         volRatio[3] = volRatio[1] - volRatio[0] ;
+         volRatio[2] = volRatio[3] / ( dt * 0.5 *(volRatio[0]+volRatio[1]) )  ;
+
+         std::copy(eInt_ref.begin(), eInt_ref.end(), eInt_pert) ;
+         std::copy(stressSvecP_ref.begin(), stressSvecP_ref.end(), stressSvecP_pert) ;
+         
+         real8 tkelv_pert[nPassed] ;
+         real8 sdd_pert[ecmech::nsdd*nPassed] ;
+   
+         std::copy(hist_ref.begin(), hist_ref.end(), hist) ; // make hist equal to hist_ref again
+         
+         mmb->getResponse( dt, d_svec_kk_sm_pert, w_veccp_sm, volRatio,
+                           eInt_pert, stressSvecP_pert, hist, tkelv_pert, sdd_pert, nullptr,
+                           nPassed ) ;
+   
+         real8 stressSvec_pert[ecmech::nsvec] ;
+         svecpToSvec( stressSvec_pert, stressSvecP_pert ) ;
+         //
+         for ( int iSvec=0; iSvec<ecmech::nsvec; ++iSvec ) {
+            // divide by dt because tangent gets converted to a per-strain-increment type quantity
+            mtanSD_fd[ECMECH_NN_INDX(iSvec,jSvec,ecmech::nsvec)] = ( stressSvec_pert[iSvec] - stressSvec[iSvec] ) / pertVal / dt ;
+         }
+         
+      }
+      std::cout << "mtanSD_fd : " << std::endl ;
+      printMat<ecmech::nsvec>( mtanSD_fd, std::cout ) ;
+
+      // do not bother restoring things to evaluation at non-perturbed condition
+      
+      
+   }
+#endif // DO_FD_CHECK_MTAN
+
+
+#else // AS_DRIVER
+
    static const int iHistLbGdot = mmodel->iHistLbGdot ;
    real8* gdot = &(hist[iHistLbGdot]) ; 
    
    std::cout << "Initial hist : " ;
-   printVec(hist, numHist, std::cout) ;
+   printVec(hist, mmodel->numHist, std::cout) ;
 
 #include "setup_conditions.h"
-   
    {
+
       real8 eInt[ecmech::ne] = {0.0} ;
       real8 stressSvecP[ecmech::nsvp] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                                          0.0};
       real8 tkelv[nPassed] ;
       real8 sdd[ecmech::nsdd*nPassed] ;
+      
       mmb->getResponse( dt, d_svec_kk_sm, w_veccp_sm, volRatio,
                         eInt, stressSvecP, hist, tkelv, sdd, nullptr,
                         nPassed ) ;
 
       std::cout << "Function evaluations: " << hist[evptn::iHistA_nFEval] << std::endl ;
+
    }
-      
+
    std::cout << "Updated hist : " ;
-   printVec(hist, numHist, std::cout) ;
-      
+   printVec(hist, mmodel->numHist, std::cout) ;
+   
    std::cout << "Hardness state : " ;
-   printVec<mmodel->nH>(h_state, std::cout) ;
-      
+   printVec<mmodel->nH>(&(hist[ecmech::evptn::iHistLbH]), std::cout) ;
+   
    std::cout << "Slip system shearing rates : " ;
    printVec<mmodel->nslip>(gdot, std::cout) ;
-
-#endif
+   
+#endif // AS_DRIVER
    
    delete mmodel ;
 
