@@ -29,6 +29,8 @@ fillFromMS( real8* const P, // ntvec * nslip
       for ( int iWvec = 0; iWvec < ecmech::nwvec; ++iWvec ) {
          Q[ECMECH_NM_INDX(iWvec,iSlip,ecmech::nwvec,nslip)] = Q_veccp[iWvec] ;
       }
+      //
+      // in some approaches, it is useful to form the outer product of P_vecd with itself, for tangent stiffness contributions
 
    }
 }   
