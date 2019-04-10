@@ -25,7 +25,7 @@
 #endif
 
 #ifndef NON_I_QUAT
-#define NON_I_QUAT 1
+#define NON_I_QUAT 0
 #endif
 
 int main(int argc, char *argv[])
