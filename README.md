@@ -32,10 +32,13 @@ The build system is cmake-based.
 Dependencies:
 * blt -- required
   - https://github.com/LLNL/blt
-* snls -- required
+  - specify with `-DBLT_SOURCE_DIR=...`
+* snls -- required (currently, needs to be the `templated` branch)
   - https://github.com/LLNL/SNLS
+  - specify with `-DSNLS_DIR=...`
 * raja -- required
   - https://github.com/LLNL/RAJA
+  - specify with `-DRAJA_DIR=...`
 
 TESTING
 ======
