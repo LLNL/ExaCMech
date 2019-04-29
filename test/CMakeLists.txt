@@ -59,7 +59,7 @@ blt_add_test(NAME    test_mtan
 blt_add_executable(NAME       test_px
                    SOURCES    test_px.cxx
                    OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
-                   DEPENDS_ON ${ECMECH_TEST_DEPENDS})
+                   DEPENDS_ON ${ECMECH_TEST_DEPENDS} gtest)
 blt_add_test(NAME    test_px
              COMMAND test_px)
 

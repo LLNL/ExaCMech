@@ -1,3 +1,5 @@
+#include <gtest/gtest.h>
+
 #include "SNLS_TrDLDenseG.h"
 
 #include "ECMech_cases.h"
@@ -11,7 +13,9 @@
 #define KIN_TYPE 1
 #endif
 
-int main(int argc, char *argv[])
+static int outputLevel = 0 ;
+
+TEST(ecmech, px_a)
 {
    
    // can adjust these to change the computational workload
@@ -20,11 +24,6 @@ int main(int argc, char *argv[])
    const int nStep = 100 ;
    //
    const real8 weight = 1.0 / (real8)(nPassed) ;
-
-   int outputLevel = 0 ;
-   if ( argc > 1 ) {
-      outputLevel = atoi(argv[1]) ;
-   }
 
    using namespace ecmech ;
 
@@ -119,6 +118,7 @@ int main(int argc, char *argv[])
    std::cout << "# time, Axial deviatoric stress : " << std::endl ;
    real8 time = 0.0 ;
    //
+   real8 sAvg = 0.0 ;
    for ( int iStep=0; iStep<nStep; ++iStep ) {
       //
       time += dt ;
@@ -139,7 +139,7 @@ int main(int argc, char *argv[])
                         V_eInt, V_stressSvecP, V_hist, V_tkelv, V_sdd, nullptr,
                         nPassed ) ;
 
-      real8 sAvg = 0.0 ;
+      sAvg = 0.0 ;
       for ( int iPassed=0; iPassed<nPassed; ++iPassed ) {
          sAvg += weight * V_stressSvecP[iPassed*ecmech::nsvp+2] ;
       }
@@ -148,9 +148,23 @@ int main(int argc, char *argv[])
                 << std::endl ;
       
    }
+
+#if KIN_TYPE
+   EXPECT_LT( fabs(sAvg-0.00816346240674) , 1e-10 ) << "Did not get expected value" ;
+#else
+   EXPECT_LT( fabs(sAvg-0.00344825801180) , 1e-10 ) << "Did not get expected value" ;
+#endif
       
    delete mmodel ;
-
-   exit(0) ;
 }
 
+int main(int argc, char *argv[])
+{
+   ::testing::InitGoogleTest(&argc, argv);
+   if ( argc > 1 ) {
+      outputLevel = atoi(argv[1]) ;
+   }
+   std::cout << "got outputLevel : " << outputLevel << std::endl ;
+
+  return RUN_ALL_TESTS();
+}
