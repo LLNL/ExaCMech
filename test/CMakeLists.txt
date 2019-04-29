@@ -4,9 +4,9 @@ SET(CMAKE_C_FLAGS_DEBUG   "${CMAKE_C_FLAGS_DEBUG}   -DDEBUG")
 SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG")
 
 if(BUILD_STATIC_LIBS)
-    list(APPEND ECMECH_TEST_DEPENDS ecmech_static snls)
+    list(APPEND ECMECH_TEST_DEPENDS ecmech_static ${SNLS_STATIC_TARGET})
 else()
-    list(APPEND ECMECH_TEST_DEPENDS ecmech_shared snls_shared)
+    list(APPEND ECMECH_TEST_DEPENDS ecmech_shared ${SNLS_SHARED_TARGET})
 endif()
 
 blt_add_executable(NAME       test_hardening

@@ -1,0 +1,7 @@
+[submodule "cmake/blt"]
+	path = cmake/blt
+	url = https://github.com/LLNL/blt.git
+[submodule "snls"]
+	path = snls
+	url = https://github.com/LLNL/SNLS.git
+	branch = templated
