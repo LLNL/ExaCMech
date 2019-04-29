@@ -3,5 +3,5 @@
 	url = https://github.com/LLNL/blt.git
 [submodule "snls"]
 	path = snls
-	url = https://github.com/LLNL/SNLS.git
+	url = ssh://git@cz-bitbucket.llnl.gov:7999/snls/snls.git
 	branch = templated
