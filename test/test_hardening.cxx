@@ -7,7 +7,7 @@
 
 static int outputLevel = 1 ;
 
-TEST(ecmech,hard_voce_a) // int main(int , char ** )
+TEST(ecmech,hard_voce_a)
 {
    using namespace ecmech ;
 
@@ -40,7 +40,7 @@ TEST(ecmech,hard_voce_a) // int main(int , char ** )
    }
 }
 
-TEST(ecmech,hard_kmbaldfff_a) // int main(int , char ** )
+TEST(ecmech,hard_kmbaldfff_a)
 {
    using namespace ecmech ;
 

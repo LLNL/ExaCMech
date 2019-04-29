@@ -1,3 +1,5 @@
+#include <gtest/gtest.h>
+
 #include "SNLS_TrDLDenseG.h"
 
 #include "ECMech_evptn.h"
@@ -11,17 +13,23 @@
 #define KIN_TYPE 1
 #endif
 
-int main(int argc, char *argv[])
+static int outputLevel = 1 ;
+
+TEST(ecmech, evptn_a)
 {
-   int outputLevel = 1 ;
-   if ( argc > 1 ) {
-      outputLevel = atoi(argv[1]) ;
-   }
+
+   const real8 expectedQ1 = 0.999687516276 ;
+#if KIN_TYPE
+   const real8 expectedGdotVal = 0.2398180885495 ;
+#else
+   const real8 expectedGdotVal = 0.2475346625929 ;
+#endif
    
 #include "setup_base.h"
    
    // some convenience stuff
    using namespace ecmech ;
+
 #if KIN_TYPE
    typedef Kin_KMBalD_FFF Kinetics  ;
    typedef EvptnUpsdtProblem_FCC_B Prob ;
@@ -95,6 +103,22 @@ int main(int argc, char *argv[])
    std::cout << "Slip system shearing rates : " ;
    printVec<slipGeom.nslip>(prob.getGdot(), std::cout) ;
 
+#if KIN_TYPE
+   EXPECT_TRUE( solver.getNFEvals() == 23 ) << "Not the expected number of function evaluations" ;
+   {
+      const real8* gdot = prob.getGdot() ;
+      EXPECT_LT( fabs( gdot[1] - expectedGdotVal ) , 1e-8 ) <<
+         "Did not get expected value for gdot[1]" ;
+   }
+#else
+   EXPECT_TRUE( solver.getNFEvals() == 18 ) << "Not the expected number of function evaluations" ;
+   {
+      const real8* gdot = prob.getGdot() ;
+      EXPECT_LT( fabs( gdot[1] - expectedGdotVal ) , 1e-8 ) <<
+         "Did not get expected value for gdot[1]" ;
+   }
+#endif
+   
    //////////////////////////////////////////////////////////////////////
    //
    // this gives the same as above? does updateH internally, but with
@@ -126,7 +150,8 @@ int main(int argc, char *argv[])
         d_svec_kk_sm, w_veccp_sm, volRatio,
         eInt, stressSvecP, hist,
         tkelv, sdd, mtanSD ) ;
-   std::cout << "Function evaluations: " << hist[evptn::iHistA_nFEval] << std::endl ;
+   int nFEvals = hist[evptn::iHistA_nFEval] ;
+   std::cout << "Function evaluations: " << nFEvals << std::endl ;
    
    std::cout << "Updated hist : " ;
    printVec<numHist>(hist, std::cout) ;
@@ -134,5 +159,33 @@ int main(int argc, char *argv[])
    std::cout << "Slip system shearing rates : " ;
    printVec<slipGeom.nslip>(gdot, std::cout) ;
       
+#if KIN_TYPE
+   EXPECT_TRUE( nFEvals == 24 ) << "Not the expected number of function evaluations" ;
+   EXPECT_LT( fabs( hist[evptn::iHistLbE+1] - 0.004072764580213 ) , 1e-10 ) <<
+      "Did not get expected value for lattice strain component" ;
+   EXPECT_LT( fabs( hist[evptn::iHistLbQ] - expectedQ1 ) , 1e-8 ) <<
+      "Did not get expected value for quat_1" ;
+   EXPECT_LT( fabs( gdot[1] - expectedGdotVal ) , 1e-8 ) <<
+      "Did not get expected value for gdot[1]" ;
+#else
+   EXPECT_TRUE( nFEvals == 19 ) << "Not the expected number of function evaluations" ;
+   EXPECT_LT( fabs( hist[evptn::iHistLbE+1] - 0.0009861349707681 ) , 1e-10 ) <<
+      "Did not get expected value for lattice strain component" ;
+   EXPECT_LT( fabs( hist[evptn::iHistLbQ] - expectedQ1 ) , 1e-8 ) <<
+      "Did not get expected value for quat_1" ;
+   EXPECT_LT( fabs( gdot[1] - expectedGdotVal ) , 1e-8 ) <<
+      "Did not get expected value for gdot[1]" ;
+#endif   
+
 }
 
+int main(int argc, char *argv[])
+{
+   ::testing::InitGoogleTest(&argc, argv);
+   if ( argc > 1 ) {
+      outputLevel = atoi(argv[1]) ;
+   }
+   std::cout << "got outputLevel : " << outputLevel << std::endl ;
+
+  return RUN_ALL_TESTS();
+}
