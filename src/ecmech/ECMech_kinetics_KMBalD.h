@@ -548,7 +548,7 @@ evalGdot(
 
 __ecmech_hdev__
 inline
-void
+int
 updateH( real8* const hs_u,
          const real8* const hs_o,
          real8 dt,
@@ -561,11 +561,12 @@ updateH( real8* const hs_u,
    // update is done on log(h) -- h treated as a nomralized (unitless) dislocation density
    real8 log_hs_u ;
    real8 log_hs_o = log(fmax(hs_o[0],_hdn_min)) ;
-   updateH1<KineticsKMBalD>(this,
-                            log_hs_u, log_hs_o, dt, gdot,
-                            outputLevel) ;
+   int nFEvals = updateH1<KineticsKMBalD>(this,
+                                          log_hs_u, log_hs_o, dt, gdot,
+                                          outputLevel) ;
    hs_u[0] = exp(log_hs_u) ;
-   
+
+   return nFEvals ;
 }
 
 __ecmech_hdev__

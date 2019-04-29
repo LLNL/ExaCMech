@@ -44,12 +44,13 @@
  *             const real8* const vals
  *             ) const ;
  *
- *  void
+ *  int
  *  updateH( real8* const hs_u,
  *           const real8* const hs_o,
  *           real8 dt,
  *           const real8* const gdot,
  *           int outputLevel = 0 ) const ;
+ *           // returns number of function evaluations
  *
  *  void
  *  getEvolVals( real8* const evolVals,
@@ -131,7 +132,7 @@ private :
 template< class Kinetics >
 __ecmech_hdev__
 inline
-void
+int
 updateH1( const Kinetics* const kinetics,
           real8 &hs_n,
           real8 hs_o,
@@ -164,9 +165,11 @@ updateH1( const Kinetics* const kinetics,
    if ( status != snls::converged ){
       ECMECH_FAIL(__func__,"Solver failed to converge!");
    }
+   int nFevals = solver.getNFEvals() ;
 
    hs_n = prob.getHn(x) ;
-         
+
+   return nFevals ;
 } // updateH1
 
 } // namespace ecmech

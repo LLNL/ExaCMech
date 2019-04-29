@@ -12,7 +12,7 @@ endif()
 blt_add_executable(NAME       test_hardening
                    SOURCES    test_hardening.cxx
                    OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
-                   DEPENDS_ON ${ECMECH_TEST_DEPENDS})
+                   DEPENDS_ON ${ECMECH_TEST_DEPENDS} gtest)
 blt_add_test(NAME    test_hardening
              COMMAND test_hardening)
 
