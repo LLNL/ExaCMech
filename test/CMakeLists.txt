@@ -36,23 +36,15 @@ blt_add_executable(NAME       test_updst
                    SOURCES    test_updst.cxx
                    DEFINES    AS_DRIVER=0
                    OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
-                   DEPENDS_ON ${ECMECH_TEST_DEPENDS})
+                   DEPENDS_ON ${ECMECH_TEST_DEPENDS} gtest)
 blt_add_test(NAME    test_updst
              COMMAND test_updst)
-
-blt_add_executable(NAME       test_driver
-                   SOURCES    test_updst.cxx
-                   DEFINES    AS_DRIVER=1
-                   OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
-                   DEPENDS_ON ${ECMECH_TEST_DEPENDS})
-blt_add_test(NAME    test_driver
-             COMMAND test_driver)
 
 blt_add_executable(NAME       test_mtan
                    SOURCES    test_updst.cxx
                    DEFINES    AS_DRIVER=1 DO_FD_CHECK_MTAN=1
                    OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
-                   DEPENDS_ON ${ECMECH_TEST_DEPENDS})
+                   DEPENDS_ON ${ECMECH_TEST_DEPENDS} gtest)
 blt_add_test(NAME    test_mtan
              COMMAND test_mtan)
 

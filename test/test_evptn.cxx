@@ -15,16 +15,11 @@
 
 static int outputLevel = 1 ;
 
+#include "test_expectedVals.h"
+
 TEST(ecmech, evptn_a)
 {
 
-   const real8 expectedQ1 = 0.999687516276 ;
-#if KIN_TYPE
-   const real8 expectedGdotVal = 0.2398180885495 ;
-#else
-   const real8 expectedGdotVal = 0.2475346625929 ;
-#endif
-   
 #include "setup_base.h"
    
    // some convenience stuff
@@ -103,21 +98,12 @@ TEST(ecmech, evptn_a)
    std::cout << "Slip system shearing rates : " ;
    printVec<slipGeom.nslip>(prob.getGdot(), std::cout) ;
 
-#if KIN_TYPE
-   EXPECT_TRUE( solver.getNFEvals() == 23 ) << "Not the expected number of function evaluations" ;
+   EXPECT_TRUE( solver.getNFEvals() == expectedNFEvals ) << "Not the expected number of function evaluations" ;
    {
       const real8* gdot = prob.getGdot() ;
       EXPECT_LT( fabs( gdot[1] - expectedGdotVal ) , 1e-8 ) <<
          "Did not get expected value for gdot[1]" ;
    }
-#else
-   EXPECT_TRUE( solver.getNFEvals() == 18 ) << "Not the expected number of function evaluations" ;
-   {
-      const real8* gdot = prob.getGdot() ;
-      EXPECT_LT( fabs( gdot[1] - expectedGdotVal ) , 1e-8 ) <<
-         "Did not get expected value for gdot[1]" ;
-   }
-#endif
    
    //////////////////////////////////////////////////////////////////////
    //
@@ -158,24 +144,15 @@ TEST(ecmech, evptn_a)
    
    std::cout << "Slip system shearing rates : " ;
    printVec<slipGeom.nslip>(gdot, std::cout) ;
-      
-#if KIN_TYPE
-   EXPECT_TRUE( nFEvals == 24 ) << "Not the expected number of function evaluations" ;
-   EXPECT_LT( fabs( hist[evptn::iHistLbE+1] - 0.004072764580213 ) , 1e-10 ) <<
+
+   // add 1 to expectedNFEvals because asked for mtanSD
+   EXPECT_TRUE( nFEvals == expectedNFEvals+1 ) << "Not the expected number of function evaluations" ;
+   EXPECT_LT( fabs( hist[evptn::iHistLbE+1] - expectedE2 ) , 1e-10 ) <<
       "Did not get expected value for lattice strain component" ;
    EXPECT_LT( fabs( hist[evptn::iHistLbQ] - expectedQ1 ) , 1e-8 ) <<
       "Did not get expected value for quat_1" ;
    EXPECT_LT( fabs( gdot[1] - expectedGdotVal ) , 1e-8 ) <<
       "Did not get expected value for gdot[1]" ;
-#else
-   EXPECT_TRUE( nFEvals == 19 ) << "Not the expected number of function evaluations" ;
-   EXPECT_LT( fabs( hist[evptn::iHistLbE+1] - 0.0009861349707681 ) , 1e-10 ) <<
-      "Did not get expected value for lattice strain component" ;
-   EXPECT_LT( fabs( hist[evptn::iHistLbQ] - expectedQ1 ) , 1e-8 ) <<
-      "Did not get expected value for quat_1" ;
-   EXPECT_LT( fabs( gdot[1] - expectedGdotVal ) , 1e-8 ) <<
-      "Did not get expected value for gdot[1]" ;
-#endif   
 
 }
 

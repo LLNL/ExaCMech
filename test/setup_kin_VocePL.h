@@ -1,8 +1,11 @@
-#ifndef XM_DFLT
-#define XM_DFLT 0.01
+#if XM_MUSHY
+#define XM_VAL 0.1
+#else
+#define XM_VAL 0.01
 #endif
+
       {
-         real8 mu = 1.0, xm = XM_DFLT, gam_w = 1.0 ;
+         real8 mu = 1.0, xm = XM_VAL, gam_w = 1.0 ;
          real8 h0 = 200e-5, tausi = 100e-5, taus0 = 400e-5, xms = 0.05, gamss0 = 1.0e-6 ;
          std::vector<real8> paramsThese{
             mu, xm, gam_w,
