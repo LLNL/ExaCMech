@@ -94,6 +94,7 @@ TEST(ecmech, evptn_a)
       ECMECH_FAIL(__func__,"Solver failed to converge!");
    }
    std::cout << "Function evaluations: " << solver.getNFEvals() << std::endl ;
+   std::cout << "Last 'rho' in solver: " << solver.getRhoLast() << std::endl ;
 
    std::cout << "Slip system shearing rates : " ;
    printVec<slipGeom.nslip>(prob.getGdot(), std::cout) ;
@@ -104,6 +105,7 @@ TEST(ecmech, evptn_a)
       EXPECT_LT( fabs( gdot[1] - expectedGdotVal ) , 1e-8 ) <<
          "Did not get expected value for gdot[1]" ;
    }
+   EXPECT_LT( solver.getRhoLast() - 1.0, 1e-3 ) << "Final 'rho' from solver not as close to 1 as expected" ;
    
    //////////////////////////////////////////////////////////////////////
    //
