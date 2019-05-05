@@ -4,4 +4,4 @@
 [submodule "snls"]
 	path = snls
 	url = ssh://git@cz-bitbucket.llnl.gov:7999/snls/snls.git
-	branch = templated
+	branch = develop
