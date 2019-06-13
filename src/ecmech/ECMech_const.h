@@ -16,11 +16,6 @@
 
 #define MORE_DERIVS 0
 
-#define ECMECH_INFO_LEVEL_INFO       0
-#define ECMECH_INFO_LEVEL_WARN       1
-#define ECMECH_INFO_LEVEL_IMPORTANT  2
-#define ECMECH_INFO_LEVEL_CRITICAL   3
-
 namespace ecmech
 {
 
@@ -48,11 +43,6 @@ const int nsdd         = 2  ;
 const int i_ne_total   = 0 ;
 // const int i_ne_cold    = ? ; // generally not needed
 // const int i_ne_melt    = ? ; // generally not needed
-
-const int info_level_info      = ECMECH_INFO_LEVEL_INFO     ;
-const int info_level_warn      = ECMECH_INFO_LEVEL_WARN     ;
-const int info_level_important = ECMECH_INFO_LEVEL_IMPORTANT;
-const int info_level_critical  = ECMECH_INFO_LEVEL_CRITICAL ;
 
 const real8 zero = 0.0 ;
 const real8 one = 1.0 ;
