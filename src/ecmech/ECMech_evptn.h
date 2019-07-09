@@ -916,7 +916,24 @@ void getResponseSngl(const SlipGeom& slipGeom,
       }
    
       snls::SNLSStatus_t status = solver.solve( ) ;
+      //
       if ( status != snls::converged ){
+         
+#ifdef __cuda_host_only__
+         ECMECH_WARN(__func__,"Solver failed to converge -- will rerun to get output for debuggin");
+         
+         // rerun to get more output for debugging
+         //
+         // get more output
+         solver.setOutputlevel( 10 ) ;
+         //
+         // reset initial guess
+         for (int iX = 0; iX < prob.nDimSys; ++iX) { x[iX] = 0e0 ; }
+         //
+         // redo solve
+         solver.solve( ) ;
+#endif
+         
          ECMECH_FAIL(__func__,"Solver failed to converge!");
       }
       // std::cout << "Function evaluations: " << solver.getNFEvals() << std::endl ;

@@ -10,8 +10,10 @@
 
 #ifdef __cuda_host_only__
 #define ECMECH_FAIL(loc,str) MS_Fail(loc,str);
+#define ECMECH_WARN(loc,str) MS_Warn(loc,str);
 #else
 #define ECMECH_FAIL(loc,str) MS_Fail(loc,str);
+#define ECMECH_WARN(loc,str) MS_Warn(loc,str);
 #endif
 
 #else
@@ -25,8 +27,10 @@ typedef double real8 ;
 #include <exception>
 #include <stdexcept>
 #define ECMECH_FAIL(loc,str) throw std::runtime_error(std::string("at ") + std::string(loc) + std::string(" failure : ") + std::string(str)) ;
+#define ECMECH_WARN(loc,str) printf("WARNING : ECMECH warning in %s : %s\n",loc,str) ;
 #else
 #define ECMECH_FAIL(loc,str) printf("ERROR : ECMECH failure in %s : %s\n",loc,str) ;
+#define ECMECH_WARN(loc,str) printf("WARNING : ECMECH warning in %s : %s\n",loc,str) ;
 #endif
 
 #endif
