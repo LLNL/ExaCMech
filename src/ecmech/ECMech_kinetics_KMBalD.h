@@ -50,10 +50,10 @@ public:
    KineticsKMBalD(int nslip) : _nslip(nslip) {};
 
    __ecmech_hdev__
-   void setParams( const std::vector<real8> & params // const real8* const params
+   void setParams( const std::vector<double> & params // const double* const params
                    ) {
 
-      std::vector<real8>::const_iterator parsIt = params.begin();
+      std::vector<double>::const_iterator parsIt = params.begin();
 
       //////////////////////////////
       // power-law stuff
@@ -80,7 +80,7 @@ public:
       // plaw_from_elawRef
       //
       //    pl%xm = getMtsxmEffective(pl, mu_ref, T_ref)
-      real8 xm = one / (two * ((_c_1 / _tK_ref) * _mu_ref * _p * _q)) ;
+      double xm = one / (two * ((_c_1 / _tK_ref) * _mu_ref * _p * _q)) ;
       //
       //    CALL fill_power_law(pl)
       // xmm  = xm - one ;
@@ -115,7 +115,7 @@ public:
    };
 
    __ecmech_hdev__
-   void getParams( std::vector<real8> & params
+   void getParams( std::vector<double> & params
                    ) const {
 
       // do not clear params in case adding to an existing set
@@ -159,7 +159,7 @@ public:
 #ifdef __cuda_host_only__
    __ecmech_host__
    void getHistInfo(std::vector<std::string> & names,
-                    std::vector<real8>       & init,
+                    std::vector<double>       & init,
                     std::vector<bool>        & plot,
                     std::vector<bool>        & state) const {
       names.push_back("rho_dd") ;
@@ -177,35 +177,35 @@ private:
    // MTS-like stuff
    
    // parameters
-   real8 _mu_ref ; // may evetually set for current conditions
-   real8 _tK_ref ;
-   real8 _tau_a ; // if withGAthermal then is Peierls barrier
-   real8 _p ; // only used if pOne is false
-   real8 _q ; // only used if qOne is false
-   real8 _gam_ro ;
-   real8 _gam_wo ; // adots0
-   real8 _c_1 ;
-   real8 _wrD ;
-   real8 _go, _s ;
+   double _mu_ref ; // may evetually set for current conditions
+   double _tK_ref ;
+   double _tau_a ; // if withGAthermal then is Peierls barrier
+   double _p ; // only used if pOne is false
+   double _q ; // only used if qOne is false
+   double _gam_ro ;
+   double _gam_wo ; // adots0
+   double _c_1 ;
+   double _wrD ;
+   double _go, _s ;
 
    // derived from parameters
-   real8 _t_max, _t_min, _xn, _xnn ;
+   double _t_max, _t_min, _xn, _xnn ;
 
    //////////////////////////////
    // Kocks-Mecking stuff
 
-   real8 _k1, _k2o, _ninv, _gamma_o ;
+   double _k1, _k2o, _ninv, _gamma_o ;
 
    //////////////////////////////
    
-   real8 _hdn_init, _hdn_min ;
+   double _hdn_init, _hdn_min ;
    
 public:
 
 __ecmech_hdev__
 inline
-real8
-getFixedRefRate(const real8* const vals) const
+double
+getFixedRefRate(const double* const vals) const
 {
    
    return vals[1]+vals[2] ; // _gam_w + _gam_r ;
@@ -220,15 +220,15 @@ getFixedRefRate(const real8* const vals) const
 __ecmech_hdev__
 inline
 void
-getVals( real8* const vals,
-         real8 , // p, not used
-         real8 tK,
-         const real8* const h_state
+getVals( double* const vals,
+         double , // p, not used
+         double tK,
+         const double* const h_state
          ) const
 {
    vals[3] = _c_1 / tK ; // _c_t
-   real8 sqrtDDens = sqrt(h_state[0]) ;
-   // real8 sqrtDDens = exp(onehalf * h_state[0]) ; // this is for h_state[0] storing the log of the dislocation density
+   double sqrtDDens = sqrt(h_state[0]) ;
+   // double sqrtDDens = exp(onehalf * h_state[0]) ; // this is for h_state[0] storing the log of the dislocation density
    vals[0] = _go + _s * sqrtDDens ; // _gAll
    vals[1] = _gam_wo / sqrtDDens ; // _gam_w
    vals[2] = _gam_ro * sqrtDDens * sqrtDDens ; // _gam_r
@@ -242,11 +242,11 @@ getVals( real8* const vals,
 __ecmech_hdev__
 inline
 void
-evalGdots( real8* const gdot,
-           real8* const dgdot_dtau,
-           real8* const dgdot_dg,
-           const real8* const tau,
-           const real8* const vals
+evalGdots( double* const gdot,
+           double* const dgdot_dtau,
+           double* const dgdot_dg,
+           const double* const tau,
+           const double* const vals
            ) const
 {
    for ( int iSlip=0; iSlip<this->_nslip; ++iSlip ) {
@@ -265,13 +265,13 @@ evalGdots( real8* const gdot,
 __ecmech_hdev__
 inline
 void
-get_mts_dG(real8 &exp_arg,
-           real8 &mts_dfac,
-           real8 c_e, real8 denom_i, real8 t_frac) const {
+get_mts_dG(double &exp_arg,
+           double &mts_dfac,
+           double c_e, double denom_i, double t_frac) const {
 
    mts_dfac = c_e * denom_i ;
 
-   real8 p_func ;
+   double p_func ;
    if ( pOne ) {
       p_func = t_frac ;
    }
@@ -293,8 +293,8 @@ get_mts_dG(real8 &exp_arg,
       }
    }
 
-   real8 q_arg = one - p_func ;
-   real8 pq_fac ;
+   double q_arg = one - p_func ;
+   double pq_fac ;
    if ( q_arg < idp_tiny_sqrt) {
       //  peg
       q_arg = zero ;
@@ -306,7 +306,7 @@ get_mts_dG(real8 &exp_arg,
          pq_fac = q_arg ;
       }
       else {
-        real8 temp = pow( fabs(q_arg), _q ) ;
+        double temp = pow( fabs(q_arg), _q ) ;
         mts_dfac = mts_dfac * 
            _q * temp / fabs(q_arg) ; // always positive
         pq_fac = copysign( temp, q_arg ) ;
@@ -324,32 +324,32 @@ __ecmech_hdev__
 inline
 void
 evalGdot(
-                          real8 & gdot,
+                          double & gdot,
                           bool  & l_act,
-                          real8 & dgdot_dtau,  // wrt resolved shear stress
-                          real8 & dgdot_dg,    // wrt slip system strength
+                          double & dgdot_dtau,  // wrt resolved shear stress
+                          double & dgdot_dg,    // wrt slip system strength
 #if MORE_DERIVS
-                          real8 & dgdot_dmu,   // wrt shear modulus, not through g
-                          real8 & dgdot_dgamo, // wrt reference rate for thermal part
-                          real8 & dgdot_dgamr, // wrt reference rate for drag limited part
-                          real8 & dgdot_dtK,   // wrt temperature, with other arguments fixed
+                          double & dgdot_dmu,   // wrt shear modulus, not through g
+                          double & dgdot_dgamo, // wrt reference rate for thermal part
+                          double & dgdot_dgamr, // wrt reference rate for drag limited part
+                          double & dgdot_dtK,   // wrt temperature, with other arguments fixed
 #endif
-                          const real8* const vals,
-                          real8   tau,
-                          real8   mu
+                          const double* const vals,
+                          double   tau,
+                          double   mu
 #if MORE_DERIVS
                           ,
-                          real8   tK
+                          double   tK
 #endif
                          ) const
 {
-   static const real8 gdot_w_pl_scaling = 10.0 ;
-   static const real8 one = 1.0, zero=0.0 ;
+   static const double gdot_w_pl_scaling = 10.0 ;
+   static const double one = 1.0, zero=0.0 ;
 
-   real8 gIn   = vals[0] ;
-   real8 gam_w = vals[1] ;
-   real8 gam_r = vals[2] ;
-   real8 c_t   = vals[3] ;
+   double gIn   = vals[0] ;
+   double gam_w = vals[1] ;
+   double gam_r = vals[2] ;
+   double c_t   = vals[3] ;
 
    // zero things so that can more easily just return if inactive
    gdot = zero ;
@@ -364,8 +364,8 @@ evalGdot(
 #endif
    l_act = false ;
 
-   real8 g_i ;
-   real8 gAth ;
+   double g_i ;
+   double gAth ;
    if ( withGAthermal ) {
       gAth = gIn ;
       g_i = one / _tau_a ;
@@ -377,17 +377,17 @@ evalGdot(
       }
       g_i = one / gIn ;
    }
-   real8 at_0 = fmax(zero,fabs(tau) - gAth) * g_i ;
+   double at_0 = fmax(zero,fabs(tau) - gAth) * g_i ;
    
    // calculate drag limited kinetics
    //
-   real8 gdot_r, dgdot_r ;
+   double gdot_r, dgdot_r ;
 #if MORE_DERIVS
-   real8 dgdotr_dtK ;
+   double dgdotr_dtK ;
 #endif
    {
-      real8 exp_arg = (fabs(tau) - gAth)/_wrD ;
-      real8 temp ;
+      double exp_arg = (fabs(tau) - gAth)/_wrD ;
+      double temp ;
       if ( exp_arg < gam_ratio_min) { // ! IF (gdot_r < gam_ratio_min) THEN
          //  note that this should catch tau <= g
          return ;
@@ -403,7 +403,7 @@ evalGdot(
       }
       dgdot_r = gam_r * temp / _wrD ;
 #if MORE_DERIVS
-      real8 dgdotr_dtK ;
+      double dgdotr_dtK ;
       if ( withGAthermal ) { 
          dgdotr_dtK = -gam_r * temp * exp_arg * _wrDT / _wrD ;
       } else {
@@ -436,15 +436,15 @@ evalGdot(
 
    }
 
-   real8 gdot_w, dgdot_w ;
-   real8 dgdot_wg ; // only used if !withGAthermal
+   double gdot_w, dgdot_w ;
+   double dgdot_wg ; // only used if !withGAthermal
    //
    // calculate thermally activated kinetics
    {
-      real8 c_e = c_t * mu ;
+      double c_e = c_t * mu ;
       //
-      real8 t_frac = (fabs(tau) - gAth) * g_i ;
-      real8 exp_arg, mts_dfac ;
+      double t_frac = (fabs(tau) - gAth) * g_i ;
+      double exp_arg, mts_dfac ;
       get_mts_dG(exp_arg, mts_dfac, c_e, g_i, t_frac) ;
       // 
       if ( exp_arg < ln_gam_ratio_min ) {
@@ -472,15 +472,15 @@ evalGdot(
       dgdotw_dtK = gdot_w * ( exp_arg/tK) ; // negatives cancel
 #endif
       //
-      real8 t_frac_m = (-fabs(tau) - gAth) * g_i ;
-      real8 exp_arg_m, mts_dfac_m ;
+      double t_frac_m = (-fabs(tau) - gAth) * g_i ;
+      double exp_arg_m, mts_dfac_m ;
       get_mts_dG(exp_arg_m, mts_dfac_m, c_e, g_i, t_frac_m) ;
       // 
       if ( exp_arg_m > ln_gam_ratio_min ) {
          // non-vanishing contribution from balancing MTS-like kinetics
-         real8 gdot_w_m = gam_w * exp(exp_arg_m) ;
+         double gdot_w_m = gam_w * exp(exp_arg_m) ;
          gdot_w = gdot_w - gdot_w_m ;
-         real8 contrib = mts_dfac_m * gdot_w_m ;
+         double contrib = mts_dfac_m * gdot_w_m ;
          dgdot_w = dgdot_w - contrib ; // sign used to be the other way, but suspect that was a bug
          if ( !withGAthermal ) {
             dgdot_wg = dgdot_wg - contrib * t_frac_m ;
@@ -496,14 +496,14 @@ evalGdot(
    if ( at_0 > _t_min) {
       // need power-law part
 
-      real8 abslog = log(at_0) ;
-      real8 blog = _xn * abslog ;
-      real8 temp = (gam_w * gdot_w_pl_scaling) * exp(blog) ;
+      double abslog = log(at_0) ;
+      double blog = _xn * abslog ;
+      double temp = (gam_w * gdot_w_pl_scaling) * exp(blog) ;
 
-      real8 gdot_w_pl = temp * at_0 ; // not signed ! copysign(at_0,tau) 
+      double gdot_w_pl = temp * at_0 ; // not signed ! copysign(at_0,tau) 
       gdot_w = gdot_w + gdot_w_pl ;
 
-      real8 contrib = temp * _xnn * g_i ;
+      double contrib = temp * _xnn * g_i ;
       dgdot_w = dgdot_w + contrib ;
       if ( !withGAthermal ) {
          dgdot_wg = dgdot_wg + contrib * at_0 ;
@@ -515,11 +515,11 @@ evalGdot(
    //
    {
       gdot   = one/(one/gdot_w + one/gdot_r) ;
-      real8 gdrdiv2 = one/(gdot_r*gdot_r) ;
-      real8 gdwdiv2 = one/(gdot_w*gdot_w) ;
+      double gdrdiv2 = one/(gdot_r*gdot_r) ;
+      double gdwdiv2 = one/(gdot_w*gdot_w) ;
       dgdot_dtau  = (gdot*gdot)*( dgdot_w*gdwdiv2 + dgdot_r*gdrdiv2 ) ;
       //
-      real8 temp  =   gdot * copysign(gdot,tau) * gdwdiv2 ;
+      double temp  =   gdot * copysign(gdot,tau) * gdwdiv2 ;
       // neglect difference in at_0 versus t_frac for dgdot_dg evaluation
       if ( withGAthermal ) {
          dgdot_dg = - temp * dgdot_w ;  // opposite sign as signed gdot
@@ -549,18 +549,18 @@ evalGdot(
 __ecmech_hdev__
 inline
 int
-updateH( real8* const hs_u,
-         const real8* const hs_o,
-         real8 dt,
-         const real8* const gdot,
+updateH( double* const hs_u,
+         const double* const hs_o,
+         double dt,
+         const double* const gdot,
          int outputLevel = 0 ) const
 {
 
    // do not yet both with l_overdriven and setting-to-saturation machinery as in Fortran coding
    
    // update is done on log(h) -- h treated as a nomralized (unitless) dislocation density
-   real8 log_hs_u ;
-   real8 log_hs_o = log(fmax(hs_o[0],_hdn_min)) ;
+   double log_hs_u ;
+   double log_hs_o = log(fmax(hs_o[0],_hdn_min)) ;
    int nFEvals = updateH1<KineticsKMBalD>(this,
                                           log_hs_u, log_hs_o, dt, gdot,
                                           outputLevel) ;
@@ -572,14 +572,14 @@ updateH( real8* const hs_u,
 __ecmech_hdev__
 inline
 void
-getEvolVals( real8* const evolVals,
-             const real8* const gdot
+getEvolVals( double* const evolVals,
+             const double* const gdot
              ) const
 {
    // recompute effective shear rate here versus using a stored value
-   real8 shrate_eff = vecsssumabs_n(gdot, _nslip) ; // could switch to template if template class on _nslip
+   double shrate_eff = vecsssumabs_n(gdot, _nslip) ; // could switch to template if template class on _nslip
 
-   real8 k2 = _k2o ;
+   double k2 = _k2o ;
    if ( shrate_eff > ecmech::idp_tiny_sqrt ) {
       k2 = _k2o * pow((_gamma_o/shrate_eff), _ninv) ;
    }
@@ -591,14 +591,14 @@ getEvolVals( real8* const evolVals,
 __ecmech_hdev__
 inline
 void
-getSdot1( real8 &sdot,
-          real8 &dsdot_ds,
-          real8 h,
-          const real8* const evolVals) const
+getSdot1( double &sdot,
+          double &dsdot_ds,
+          double h,
+          const double* const evolVals) const
 {
 
-   real8 shrate_eff = evolVals[0] ;
-   real8 k2         = evolVals[1] ;
+   double shrate_eff = evolVals[0] ;
+   double k2         = evolVals[1] ;
 
    // IF (PRESENT(dfdtK)) THEN
    //   dfdtK(1) = zero
@@ -611,8 +611,8 @@ getSdot1( real8 &sdot,
    //    // do not get any evolution, and will get errors if proceed with calculations below
    // }
    // else {
-      real8 temp_hs_a = exp(-onehalf * h) ;
-      real8 temp1 = _k1 * temp_hs_a - k2 ;
+      double temp_hs_a = exp(-onehalf * h) ;
+      double temp1 = _k1 * temp_hs_a - k2 ;
       sdot = temp1 * shrate_eff ;
       // dfdshr = temp1 + _ninv * k2 ;
       dsdot_ds = (-_k1 * onehalf * temp_hs_a) * shrate_eff ;

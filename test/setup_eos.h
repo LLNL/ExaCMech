@@ -1,12 +1,12 @@
    {
 #ifdef STACK_PARAMS
-      real8 bulkMod = -1.0 ; // dummy 
+      double bulkMod = -1.0 ; // dummy 
 #else
-      real8 bulkMod = elastN.getBulkMod() ;
+      double bulkMod = elastN.getBulkMod() ;
 #endif
-      real8 gamma = 1.7 ;
-      real8 ec0 = -cvav*300. ; 
-      const std::vector<real8> paramsThese{ rho0, bulkMod, cvav, gamma, ec0 };
+      double gamma = 1.7 ;
+      double ec0 = -cvav*300. ; 
+      const std::vector<double> paramsThese{ rho0, bulkMod, cvav, gamma, ec0 };
 #ifdef STACK_PARAMS
       int nParamsEOS = paramsThese.size()-mmodel->nParamsEOSHave ; // nasty complexity to match what happens in matModel
       for ( int iP=0; iP<nParamsEOS; ++iP ) {

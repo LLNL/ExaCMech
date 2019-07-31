@@ -21,49 +21,49 @@
  *
  * and member functions:
  *
- *  void setParams( const std::vector<real8> & params ) ;
+ *  void setParams( const std::vector<double> & params ) ;
  *
- *  void getParams( std::vector<real8> & params ) const ;
+ *  void getParams( std::vector<double> & params ) const ;
  *
  *  void getHistInfo(std::vector<std::string> & names,
- *                   std::vector<real8>       & init,
+ *                   std::vector<double>       & init,
  *                   std::vector<bool>        & plot,
  *                   std::vector<bool>        & state) const ;
  *
- *  void getVals( real8* const vals,
- *                real8 p,
- *                real8 tK,
- *                const real8* const h_state
+ *  void getVals( double* const vals,
+ *                double p,
+ *                double tK,
+ *                const double* const h_state
  *                ) const ;
  *
  *  void
- *  evalGdots( real8* const gdot,
- *             real8* const dgdot_dtau,
- *             real8* const dgdot_dg,
- *             const real8* const tau,
- *             const real8* const vals
+ *  evalGdots( double* const gdot,
+ *             double* const dgdot_dtau,
+ *             double* const dgdot_dg,
+ *             const double* const tau,
+ *             const double* const vals
  *             ) const ;
  *
  *  int
- *  updateH( real8* const hs_u,
- *           const real8* const hs_o,
- *           real8 dt,
- *           const real8* const gdot,
+ *  updateH( double* const hs_u,
+ *           const double* const hs_o,
+ *           double dt,
+ *           const double* const gdot,
  *           int outputLevel = 0 ) const ;
  *           // returns number of function evaluations
  *
  *  void
- *  getEvolVals( real8* const evolVals,
- *               const real8* const gdot
+ *  getEvolVals( double* const evolVals,
+ *               const double* const gdot
  *               ) const ;
  *
  * And if using updateH1, they should also provide member function:
  *
  *  void
- *  getSdot1( real8 &sdot,
- *            real8 &dsdot_ds,
- *            real8 h,
- *            const real8* const evolVals) const ;
+ *  getSdot1( double &sdot,
+ *            double &dsdot_ds,
+ *            double h,
+ *            const double* const evolVals) const ;
  */
 
 namespace ecmech {
@@ -80,9 +80,9 @@ public:
    // constructor
    __ecmech_hdev__
    Kinetics_H1Problem(const Kinetics* const kinetics,
-                      real8 h_o,
-                      real8 dt,
-                      const real8* const evolVals) :
+                      double h_o,
+                      double dt,
+                      const double* const evolVals) :
       _kinetics(kinetics), _h_o(h_o), _dt(dt), _evolVals(evolVals)
    {
       _x_scale   = fmax(_h_o, 1.0) ; // TO_DO -- generalize this to not max with 1
@@ -91,21 +91,21 @@ public:
 
    __ecmech_hdev__
    inline
-   real8 getHn( const real8* const x ) const {
+   double getHn( const double* const x ) const {
       return _h_o + x[0] * _x_scale ;
    }
    
    __ecmech_hdev__
    inline
-   bool computeRJ( real8* const resid,
-                   real8* const Jacobian,
-                   const real8* const x ) {
+   bool computeRJ( double* const resid,
+                   double* const Jacobian,
+                   const double* const x ) {
       bool doComputeJ = (Jacobian != nullptr) ;
    
-      real8 h_delta = x[0] * _x_scale ;
-      real8 h = _h_o + h_delta ;
+      double h_delta = x[0] * _x_scale ;
+      double h = _h_o + h_delta ;
 
-      real8 sdot, dsdot_ds ;
+      double sdot, dsdot_ds ;
       _kinetics->getSdot1(sdot, dsdot_ds, h, _evolVals) ;
    
       resid[0] = (h_delta - sdot * _dt) * _res_scale ;
@@ -120,9 +120,9 @@ public:
 
 private :
    const Kinetics* _kinetics ;
-   const real8 _h_o, _dt ;
-   const real8* const _evolVals ;
-   real8 _x_scale, _res_scale ; 
+   const double _h_o, _dt ;
+   const double* const _evolVals ;
+   double _x_scale, _res_scale ; 
    
 }; // class Kinetics_H1Problem
 
@@ -134,14 +134,14 @@ __ecmech_hdev__
 inline
 int
 updateH1( const Kinetics* const kinetics,
-          real8 &hs_n,
-          real8 hs_o,
-          real8 dt,
-          const real8* const gdot,
+          double &hs_n,
+          double hs_o,
+          double dt,
+          const double* const gdot,
           int outputLevel = 0) 
 {
 
-   real8 evolVals[Kinetics::nEvolVals] ;
+   double evolVals[Kinetics::nEvolVals] ;
    kinetics->getEvolVals(evolVals, gdot) ;
    
    Kinetics_H1Problem<Kinetics> prob(kinetics, hs_o, dt, evolVals) ;
@@ -151,11 +151,11 @@ updateH1( const Kinetics* const kinetics,
    deltaControl._deltaInit = 1e0 ;
    {
       int maxIter = 100 ;
-      real8 tolerance = 1e-10 ;
+      double tolerance = 1e-10 ;
       solver.setupSolver(maxIter, tolerance, &deltaControl, outputLevel) ;
    }
    
-   real8* x = solver.getXPntr() ;
+   double* x = solver.getXPntr() ;
    // for (int iX = 0; iX < prob.nDimSys; ++iX) {
    //    x[iX] = 0e0 ;
    // }

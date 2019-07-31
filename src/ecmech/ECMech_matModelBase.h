@@ -21,7 +21,7 @@ class matModelBase
 {
  protected:
   bool  _complete;
-  real8 _rho0, _cvav, _v0, _e0 ;
+  double _rho0, _cvav, _v0, _e0 ;
   
   // constructor
   matModelBase() :
@@ -36,11 +36,11 @@ class matModelBase
   virtual ~matModelBase() {};
 
   virtual void initFromParams(const std::vector<int>         & opts,
-                              const std::vector<real8>       & pars,
+                              const std::vector<double>       & pars,
                               const std::vector<std::string> & strs )=0 ;
   
   virtual void getParams(std::vector<int>         & opts,
-                         std::vector<real8>       & pars,
+                         std::vector<double>       & pars,
                          std::vector<std::string> & strs ) const=0;
 
   /**
@@ -144,16 +144,16 @@ class matModelBase
    */
 
   __ecmech_hdev__
-  virtual void getResponse(const real8  & dt          , 
-                           const real8  * defRateV    ,      
-                           const real8  * spinV       ,         
-                           const real8  * volRatioV   ,     
-                                 real8  * eIntV       ,         
-                                 real8  * stressSvecPV,  
-                                 real8  * histV       ,         
-                                 real8  * tkelvV      ,        
-                                 real8  * sddV        ,          
-                                 real8  * mtanSDV     ,      
+  virtual void getResponse(const double  & dt          , 
+                           const double  * defRateV    ,      
+                           const double  * spinV       ,         
+                           const double  * volRatioV   ,     
+                                 double  * eIntV       ,         
+                                 double  * stressSvecPV,  
+                                 double  * histV       ,         
+                                 double  * tkelvV      ,        
+                                 double  * sddV        ,          
+                                 double  * mtanSDV     ,      
                            const int    & nPassed      ) const=0 ;
 
   /**
@@ -161,7 +161,7 @@ class matModelBase
    * Get the history variable information.
    */
   virtual void getHistInfo(std::vector<std::string> & histNames,
-                           std::vector<real8>       & initVals,
+                           std::vector<double>       & initVals,
                            std::vector<bool>        & plot,
                            std::vector<bool>        & state) const = 0;
   /**
@@ -174,7 +174,7 @@ class matModelBase
    * @brief Get the reference density
    */
    __ecmech_hdev__
-   virtual real8 getRhoRef() const {
+   virtual double getRhoRef() const {
       if ( _rho0 < 0.0 ) { // want to be able to call this before _complete
          ECMECH_FAIL(__func__,"rho0 does not appear to have been set") ;
       }

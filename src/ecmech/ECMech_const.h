@@ -44,45 +44,45 @@ const int i_ne_total   = 0 ;
 // const int i_ne_cold    = ? ; // generally not needed
 // const int i_ne_melt    = ? ; // generally not needed
 
-const real8 zero = 0.0 ;
-const real8 one = 1.0 ;
-const real8 two = 2.0 ;
-const real8 three = 3.0 ;
-const real8 six = 6.0 ;
-const real8 onehalf = 0.5 ;
-const real8 onethird = 1.0/3.0 ;
-const real8 oneninth = 1.0/9.0 ;
-const real8 oneqrtr = 0.25 ;
-const real8 thrhalf = 1.5 ;
-const real8 fourthirds = 4.0/3.0 ;
-const real8 twothird   = 2.0/3.0 ;
+const double zero = 0.0 ;
+const double one = 1.0 ;
+const double two = 2.0 ;
+const double three = 3.0 ;
+const double six = 6.0 ;
+const double onehalf = 0.5 ;
+const double onethird = 1.0/3.0 ;
+const double oneninth = 1.0/9.0 ;
+const double oneqrtr = 0.25 ;
+const double thrhalf = 1.5 ;
+const double fourthirds = 4.0/3.0 ;
+const double twothird   = 2.0/3.0 ;
 
-const real8 sqr2       = sqrt(two) ;
-const real8 sqr3       = sqrt(three) ;
-const real8 sqr3b2     = sqrt(thrhalf) ;
-const real8 sqr2i      = one/sqr2 ;
-const real8 sqr3i      = one/sqr3 ;
-const real8 sqr6       = sqrt(six) ;
-const real8 sqr6i      = one/sqr6 ;
-const real8 sqr2b3     = one/sqr3b2 ;
-const real8 halfsqr3   = sqr3/two ;
-const real8 twosqr3    = two*sqr3 ;
+const double sqr2       = sqrt(two) ;
+const double sqr3       = sqrt(three) ;
+const double sqr3b2     = sqrt(thrhalf) ;
+const double sqr2i      = one/sqr2 ;
+const double sqr3i      = one/sqr3 ;
+const double sqr6       = sqrt(six) ;
+const double sqr6i      = one/sqr6 ;
+const double sqr2b3     = one/sqr3b2 ;
+const double halfsqr3   = sqr3/two ;
+const double twosqr3    = two*sqr3 ;
 
-const real8 idp_tiny_sqrt = 1.0e-90 ;
-const real8 idp_eps_sqrt=1.0e-8 ;
+const double idp_tiny_sqrt = 1.0e-90 ;
+const double idp_eps_sqrt=1.0e-8 ;
 
-const real8 gam_ratio_min=1.0e-60 ;
-const real8 ln_gam_ratio_min=-138.16 ;
-const real8 gam_ratio_max=1.0e30 ;
-const real8 gam_ratio_ovffx=1.0e45 ;
-const real8 gam_ratio_ovf=1.0e60 ; // HUGE(idp_eps)*1.0d-10
-const real8 ln_gam_ratio_ovf=138.15 ;
+const double gam_ratio_min=1.0e-60 ;
+const double ln_gam_ratio_min=-138.16 ;
+const double gam_ratio_max=1.0e30 ;
+const double gam_ratio_ovffx=1.0e45 ;
+const double gam_ratio_ovf=1.0e60 ; // HUGE(idp_eps)*1.0d-10
+const double ln_gam_ratio_ovf=138.15 ;
 
 // as in evptn and evptnconst
-const real8 st_toler = 1.0e-11 ;
-const real8 epsdot_scl_nzeff = idp_eps_sqrt ;
-const real8 e_scale = 5e-4 ;
-const real8 r_scale = 0.01 ;
+const double st_toler = 1.0e-11 ;
+const double epsdot_scl_nzeff = idp_eps_sqrt ;
+const double e_scale = 5e-4 ;
+const double r_scale = 0.01 ;
 const int st_max_iter = 200 ;
    
 }  // (namespace ecmech)
