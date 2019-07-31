@@ -1079,6 +1079,7 @@ mtan_conv_sd_svec(double* const mtanSD_raw,
    
 } // mtan_conv_sd_svec
 
+#ifdef DEBUG
 #ifdef __cuda_host_only__
 template< int n >
 inline void
@@ -1107,6 +1108,7 @@ printMat(const double* const A, std::ostream & oss ) {
       oss << std::endl ;
    } 
 }
+#endif
 #endif
 
 } // namespace ecmech

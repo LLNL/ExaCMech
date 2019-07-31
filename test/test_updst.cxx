@@ -91,10 +91,10 @@ TEST(ecmech, updst_a)
 
    static const int iHistLbGdot = mmodel->iHistLbGdot ;
    double* gdot = &(hist[iHistLbGdot]) ; 
-   
+#ifdef DEBUG   
    std::cout << "Initial hist : " ;
    printVec(hist, mmodel->numHist, std::cout) ;
-
+#endif
 #include "setup_conditions.h"
    {
 
@@ -111,7 +111,7 @@ TEST(ecmech, updst_a)
       std::cout << "Function evaluations: " << hist[evptn::iHistA_nFEval] << std::endl ;
 
    }
-
+#ifdef DEBUG
    std::cout << "Updated hist : " ;
    printVec(hist, mmodel->numHist, std::cout) ;
    
@@ -120,7 +120,7 @@ TEST(ecmech, updst_a)
    
    std::cout << "Slip system shearing rates : " ;
    printVec<mmodel->nslip>(gdot, std::cout) ;
-
+#endif
    EXPECT_TRUE( hist[evptn::iHistA_nFEval] == expectedNFEvals ) << "Not the expected number of function evaluations" ;
    EXPECT_LT( fabs( hist[evptn::iHistLbE+1] - expectedE2 ) , 1e-10 ) <<
       "Did not get expected value for lattice strain component" ;
@@ -279,10 +279,10 @@ TEST(ecmech, driver_a)
 
       double stressSvec[ecmech::nsvec] ;
       svecpToSvec( stressSvec, stressSvecP ) ;
-      
+#ifdef DEBUG      
       std::cout << "mtanSD_an : " << std::endl ;
       printMat<ecmech::nsvec>( mtanSD_an, std::cout ) ;
-      
+#endif      
       double d_svec_kk_sm_pert[ecmech::nsvp] ;
       const double pertVal = 1e-8*relRate ;
       double mtanSD_fd[ecmech::nsvec2] ;
@@ -332,9 +332,10 @@ TEST(ecmech, driver_a)
          }
          
       }
+#ifdef DEBUG
       std::cout << "mtanSD_fd : " << std::endl ;
       printMat<ecmech::nsvec>( mtanSD_fd, std::cout ) ;
-
+#endif
       // do not bother restoring things to evaluation at non-perturbed condition
 
       for ( int iiMtan=0; iiMtan<ecmech::nsvec2; ++iiMtan ) {

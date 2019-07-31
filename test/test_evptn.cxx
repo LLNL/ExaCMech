@@ -95,10 +95,10 @@ TEST(ecmech, evptn_a)
    }
    std::cout << "Function evaluations: " << solver.getNFEvals() << std::endl ;
    std::cout << "Last 'rho' in solver: " << solver.getRhoLast() << std::endl ;
-
+#ifdef DEBUG
    std::cout << "Slip system shearing rates : " ;
    printVec<slipGeom.nslip>(prob.getGdot(), std::cout) ;
-
+#endif
    EXPECT_TRUE( solver.getNFEvals() == expectedNFEvals ) << "Not the expected number of function evaluations" ;
    {
       const double* gdot = prob.getGdot() ;
@@ -140,13 +140,13 @@ TEST(ecmech, evptn_a)
         tkelv, sdd, mtanSD ) ;
    int nFEvals = hist[evptn::iHistA_nFEval] ;
    std::cout << "Function evaluations: " << nFEvals << std::endl ;
-   
+#ifdef DEBUG   
    std::cout << "Updated hist : " ;
    printVec<numHist>(hist, std::cout) ;
    
    std::cout << "Slip system shearing rates : " ;
    printVec<slipGeom.nslip>(gdot, std::cout) ;
-
+#endif
    // add 1 to expectedNFEvals because asked for mtanSD
    EXPECT_TRUE( nFEvals == expectedNFEvals+1 ) << "Not the expected number of function evaluations" ;
    EXPECT_LT( fabs( hist[evptn::iHistLbE+1] - expectedE2 ) , 1e-10 ) <<
