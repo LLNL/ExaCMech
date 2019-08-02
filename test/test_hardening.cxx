@@ -11,31 +11,32 @@ TEST(ecmech,hard_voce_a)
 {
    using namespace ecmech ;
 
-   const real8 hUpdtVal = 0.001016620868315 ;
-   const real8 hUpdtTol = 1e-11 ;
+   const double hUpdtVal = 0.001016620868315 ;
+   const double hUpdtTol = 1e-11 ;
    
    const int nslip = 12 ;
-   real8 dt = 1e-1 ;
-   real8 gdot[nslip] = { 1.0/nslip } ;
+   double dt = 1e-1 ;
+   double gdot[nslip] = { 1.0/nslip } ;
    
    {
       KineticsVocePL kinetics(nslip) ;
 #include "setup_kin_VocePL.h"
    
-      std::vector<real8>       init ;
+      std::vector<double>       init ;
       {
          std::vector<std::string> names ;
          std::vector<bool>        plot ;
          std::vector<bool>        state ;
          kinetics.getHistInfo( names, init, plot, state ) ;
       }
-      real8 hs_u[kinetics.nH] ;
+      double hs_u[kinetics.nH] ;
       int nFEvals = kinetics.updateH( hs_u, &(init[0]), dt, gdot, outputLevel ) ;
       std::cout << "Converged with nFEvals : " << nFEvals << std::endl ;
       EXPECT_TRUE( nFEvals == 2 ) << "Not the expected number of function evaluations" ;
-   
+#ifdef DEBUG
       std::cout << "Updated hardness state : " ;
       printVec<kinetics.nH>(hs_u, std::cout) ;
+#endif
       EXPECT_LT( fabs(hs_u[0]-hUpdtVal) , hUpdtTol ) << "Did not get expected value" ;
    }
 }
@@ -44,31 +45,32 @@ TEST(ecmech,hard_kmbaldfff_a)
 {
    using namespace ecmech ;
 
-   const real8 hUpdtVal = 0.6633659171982 ;
-   const real8 hUpdtTol = 1e-8 ;
+   const double hUpdtVal = 0.6633659171982 ;
+   const double hUpdtTol = 1e-8 ;
 
    const int nslip = 12 ;
-   real8 dt = 1e-1 ;
-   real8 gdot[nslip] = { 1.0/nslip } ;
+   double dt = 1e-1 ;
+   double gdot[nslip] = { 1.0/nslip } ;
    
    {
       Kin_KMBalD_FFF kinetics(nslip) ;
 #include "setup_kin_KMBalD_FFF.h"
    
-      std::vector<real8>       init ;
+      std::vector<double>       init ;
       {
          std::vector<std::string> names ;
          std::vector<bool>        plot ;
          std::vector<bool>        state ;
          kinetics.getHistInfo( names, init, plot, state ) ;
       }
-      real8 hs_u[kinetics.nH] ;
+      double hs_u[kinetics.nH] ;
       int nFEvals = kinetics.updateH( hs_u, &(init[0]), dt, gdot, outputLevel ) ;
       std::cout << "Converged with nFEvals : " << nFEvals << std::endl ;
       EXPECT_TRUE( nFEvals == 5 ) << "Not the expected number of function evaluations" ;
-      
+#ifdef DEBUG      
       std::cout << "Updated hardness state : " ;
       printVec<kinetics.nH>(hs_u, std::cout) ;
+#endif
       EXPECT_LT( fabs(hs_u[0]-hUpdtVal) , hUpdtTol ) << "Did not get expected value" ;
    }
    

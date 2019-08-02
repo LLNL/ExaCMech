@@ -3,9 +3,11 @@
 #------------------------------------------------------------------------------
 set(ECMECH_HEADERS
     ${HEADER_INCLUDE_DIR}/ECMech_Version.h
+    ECMech_cases.h
     ECMech_const.h
     ECMech_core.h
     ECMech_cuda_portability.h
+    ECMech_eosSimple.h
     ECMech_evptn.h
     ECMech_kinetics.h
     ECMech_kinetics_KMBalD.h

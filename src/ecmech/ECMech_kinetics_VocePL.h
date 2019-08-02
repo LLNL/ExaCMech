@@ -27,10 +27,10 @@ public:
    KineticsVocePL(int nslip) : _nslip(nslip) {};
 
    __ecmech_hdev__
-   inline void setParams( const std::vector<real8> & params // const real8* const params
+   inline void setParams( const std::vector<double> & params // const double* const params
                           ) {
 
-      std::vector<real8>::const_iterator parsIt = params.begin();
+      std::vector<double>::const_iterator parsIt = params.begin();
 
       //////////////////////////////
       // power-law stuff
@@ -71,7 +71,7 @@ public:
    }
    
    __ecmech_hdev__
-   inline void getParams( std::vector<real8> & params
+   inline void getParams( std::vector<double> & params
                           ) const {
 
       // do not clear params in case adding to an existing set
@@ -107,7 +107,7 @@ public:
 
    __ecmech_host__
    void getHistInfo(std::vector<std::string> & names,
-                    std::vector<real8>       & init,
+                    std::vector<double>       & init,
                     std::vector<bool>        & plot,
                     std::vector<bool>        & state) const {
       names.push_back("h") ;
@@ -126,26 +126,26 @@ private:
    // power-law stuff
    
    // parameters
-   real8 _mu ; // may evetually set for current conditions
-   real8 _xm ;
-   real8 _gam_w ; // pl%adots, adots0
+   double _mu ; // may evetually set for current conditions
+   double _xm ;
+   double _gam_w ; // pl%adots, adots0
 
    // derived from parameters
-   real8 _t_max, _t_min, _xn, _xnn ;
+   double _t_max, _t_min, _xn, _xnn ;
 
    //////////////////////////////
    // Voce hardening stuff
 
-   real8 _h0, _tausi, _taus0, _xms, _gamss0 ;
+   double _h0, _tausi, _taus0, _xms, _gamss0 ;
 
    //////////////////////////////
    
-   real8 _hdn_init ;
+   double _hdn_init ;
    
 public:
 
 __ecmech_hdev__
-inline real8 getFixedRefRate(const real8* const // vals, not used
+inline double getFixedRefRate(const double* const // vals, not used
                              ) const
 {
    return _gam_w ;
@@ -154,10 +154,10 @@ inline real8 getFixedRefRate(const real8* const // vals, not used
 __ecmech_hdev__
 inline
 void
-getVals( real8* const vals,
-         real8 , // p, not currently used
-         real8 , // tK, not currently used
-         const real8* const h_state
+getVals( double* const vals,
+         double , // p, not currently used
+         double , // tK, not currently used
+         const double* const h_state
          ) const
 {
    vals[0] = h_state[0] ; // _gAll
@@ -167,14 +167,14 @@ getVals( real8* const vals,
 __ecmech_hdev__
 inline
 void
-evalGdots( real8* const gdot,
-           real8* const dgdot_dtau,
-           real8* const dgdot_dg,
-           const real8* const tau,
-           const real8* const vals
+evalGdots( double* const gdot,
+           double* const dgdot_dtau,
+           double* const dgdot_dg,
+           const double* const tau,
+           const double* const vals
            ) const
 {
-   real8 gAll = vals[0] ; // gss%h(islip) // _gAll
+   double gAll = vals[0] ; // gss%h(islip) // _gAll
    for ( int iSlip=0; iSlip<this->_nslip; ++iSlip ) {
       bool l_act ;
       this->evalGdot( gdot[iSlip], l_act, dgdot_dtau[iSlip], dgdot_dg[iSlip],
@@ -192,22 +192,22 @@ __ecmech_hdev__
 inline
 void
 evalGdot(
-                          real8 & gdot,
+                          double & gdot,
                           bool  & l_act,
-                          real8 & dgdot_dtau,  // wrt resolved shear stress
-                          real8 & dgdot_dg,    // wrt slip system strength
+                          double & dgdot_dtau,  // wrt resolved shear stress
+                          double & dgdot_dg,    // wrt slip system strength
 #if MORE_DERIVS
-                          real8 & dgdot_dmu,   // wrt shear modulus, not through g
-                          real8 & dgdot_dgamo, // wrt reference rate for thermal part
-                          real8 & dgdot_dgamr, // wrt reference rate for drag limited part
-                          real8 & dgdot_dtK,   // wrt temperature, with other arguments fixed
+                          double & dgdot_dmu,   // wrt shear modulus, not through g
+                          double & dgdot_dgamo, // wrt reference rate for thermal part
+                          double & dgdot_dgamr, // wrt reference rate for drag limited part
+                          double & dgdot_dtK,   // wrt temperature, with other arguments fixed
 #endif
-                          real8   gIn,
-                          real8   tau,
-                          real8   // mu, not currently used
+                          double   gIn,
+                          double   tau,
+                          double   // mu, not currently used
 #if MORE_DERIVS
                           ,
-                          real8   tK
+                          double   tK
 #endif
                          ) const
 {
@@ -225,9 +225,9 @@ evalGdot(
 #endif
    l_act = false ;
 
-   real8 g_i = one / gIn ; // assume have checked gIn>0 elsewhere
-   real8 t_frac = tau * g_i ; // has sign of tau
-   real8 at = fabs(t_frac) ;
+   double g_i = one / gIn ; // assume have checked gIn>0 elsewhere
+   double t_frac = tau * g_i ; // has sign of tau
+   double at = fabs(t_frac) ;
 
    if ( at > _t_min) {
       //
@@ -242,9 +242,9 @@ evalGdot(
       }
       else {
 
-         real8 abslog = log(at) ;
-         real8 blog = _xn * abslog ;
-         real8 temp = _gam_w * exp(blog) ; 
+         double abslog = log(at) ;
+         double blog = _xn * abslog ;
+         double temp = _gam_w * exp(blog) ; 
 
          gdot = temp * t_frac ;
 
@@ -274,13 +274,13 @@ evalGdot(
 __ecmech_hdev__
 inline
 int
-updateH( real8* const hs_u,
-         const real8* const hs_o,
-         real8 dt,
-         const real8* const gdot,
+updateH( double* const hs_u,
+         const double* const hs_o,
+         double dt,
+         const double* const gdot,
          int outputLevel = 0  ) const
 {
-   real8 hs_u_1 ;
+   double hs_u_1 ;
    int nFEvals = updateH1<KineticsVocePL>(this,
                                           hs_u_1, hs_o[0], dt, gdot,
                                           outputLevel) ;
@@ -292,14 +292,14 @@ updateH( real8* const hs_u,
 __ecmech_hdev__
 inline
 void
-getEvolVals( real8* const evolVals,
-             const real8* const gdot
+getEvolVals( double* const evolVals,
+             const double* const gdot
              ) const
 {
    // recompute effective shear rate here versus using a stored value
-   real8 shrate_eff = vecsssumabs_n(gdot, _nslip) ; // could switch to template if template class on _nslip
+   double shrate_eff = vecsssumabs_n(gdot, _nslip) ; // could switch to template if template class on _nslip
 
-   real8 sv_sat = _taus0 ;
+   double sv_sat = _taus0 ;
    if ( shrate_eff > ecmech::idp_tiny_sqrt ) {
       sv_sat = _taus0 * pow((shrate_eff / _gamss0 ), _xms) ;
    }
@@ -311,16 +311,16 @@ getEvolVals( real8* const evolVals,
 __ecmech_hdev__
 inline
 void
-getSdot1( real8 &sdot,
-          real8 &dsdot_ds,
-          real8 h,
-          const real8* const evolVals) const
+getSdot1( double &sdot,
+          double &dsdot_ds,
+          double h,
+          const double* const evolVals) const
 {
 
-   real8 shrate_eff = evolVals[0] ;
-   real8 sv_sat     = evolVals[1] ;
+   double shrate_eff = evolVals[0] ;
+   double sv_sat     = evolVals[1] ;
    
-   real8 temp2 = sv_sat - _tausi ;
+   double temp2 = sv_sat - _tausi ;
    
    // IF (PRESENT(dfdtK)) THEN
    //   dfdtK(1) = zero
@@ -336,9 +336,9 @@ getSdot1( real8 &sdot,
       // sdot and dsdot_ds already set to zero
    }
    else {
-      real8 temp1 = _h0 * ((sv_sat - h) / temp2) ;
+      double temp1 = _h0 * ((sv_sat - h) / temp2) ;
       sdot = temp1 * shrate_eff ;
-      // real8 dfdshr = temp1 + _h0 * ( (h - _tausi) / (temp2*temp2)) * _xms * sv_sat ;
+      // double dfdshr = temp1 + _h0 * ( (h - _tausi) / (temp2*temp2)) * _xms * sv_sat ;
       dsdot_ds = - _h0 / temp2 * shrate_eff ;
    }
    

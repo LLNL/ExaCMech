@@ -16,12 +16,12 @@ public:
    __ecmech_hdev__  SlipGeomFCC();
    __ecmech_hdev__ ~SlipGeomFCC(){};
 
-   __ecmech_hdev__ inline const real8* getP() const { return _P_ref_vec; } ;
-   __ecmech_hdev__ inline const real8* getQ() const { return _Q_ref_vec; } ;
+   __ecmech_hdev__ inline const double* getP() const { return _P_ref_vec; } ;
+   __ecmech_hdev__ inline const double* getQ() const { return _Q_ref_vec; } ;
    
 private:
-   real8 _P_ref_vec[ ecmech::ntvec * nslip ] ;
-   real8 _Q_ref_vec[ ecmech::nwvec * nslip ] ;
+   double _P_ref_vec[ ecmech::ntvec * nslip ] ;
+   double _Q_ref_vec[ ecmech::nwvec * nslip ] ;
 
 };
 

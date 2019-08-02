@@ -32,53 +32,53 @@
 namespace ecmech {
 
 template< int n >
-inline void vecsVapb( real8* const v,
-                      const real8* const a,
-                      const real8* const b) {
+inline void vecsVapb( double* const v,
+                      const double* const a,
+                      const double* const b) {
    for (int i=0; i<n; ++i) { v[i] = a[i] + b[i]; }
 }
 
 template< int n >
-inline void vecsVAdiagB( real8* const v,
-                         const real8* const a,
-                         const real8* const b) {
+inline void vecsVAdiagB( double* const v,
+                         const double* const a,
+                         const double* const b) {
    for (int i=0; i<n; ++i) { v[i] = a[i] * b[i]; }
 }
 
 // standard vector inner product
 template< int n >
-inline real8 vecsyadotb( const real8* const a,
-                         const real8* const b) {
-   real8 y = 0.0 ;
+inline double vecsyadotb( const double* const a,
+                         const double* const b) {
+   double y = 0.0 ;
    for (int i=0; i<n; ++i) { y+= a[i] * b[i]; }
    return y ;
 }
 
 template< int n >
-inline real8 vecsssumabs( const real8* const a) {
-   real8 s = 0.0 ;
+inline double vecsssumabs( const double* const a) {
+   double s = 0.0 ;
    for (int i=0; i<n; ++i) { s+= fabs(a[i]); }
    return s ;
 }
 
-inline real8 vecsssumabs_n( const real8* const a, int n) {
-   real8 s = 0.0 ;
+inline double vecsssumabs_n( const double* const a, int n) {
+   double s = 0.0 ;
    for (int i=0; i<n; ++i) { s+= fabs(a[i]); }
    return s ;
 }
 
 template< int n >
-inline real8 vecNorm( const real8* const v ){
-   real8 retval = 0.0 ;
+inline double vecNorm( const double* const v ){
+   double retval = 0.0 ;
    for (int i=0; i<n; ++i) { retval += v[i]*v[i]; }
    retval = sqrt(retval) ;
    return retval ;
 }
 
 template< int n >
-inline void vecsVxa( real8* const v,
-                     real8 x,
-                     const real8* const a) {
+inline void vecsVxa( double* const v,
+                     double x,
+                     const double* const a) {
    for (int i=0; i<n; ++i) { v[i] = x * a[i]; }
 }
 
@@ -86,14 +86,14 @@ inline void vecsVxa( real8* const v,
  * scale vector in place
  */
 template< int n >
-inline void vecsVsa( real8* const a,
-                     real8 s) {
+inline void vecsVsa( double* const a,
+                     double s) {
    for (int i=0; i<n; ++i) { a[i] = s * a[i]; }
 }
 
 template< int n >
-inline void vecsVNormalize( real8* const v ){
-   real8 s = 1.0 / vecNorm<n>(v) ;
+inline void vecsVNormalize( double* const v ){
+   double s = 1.0 / vecNorm<n>(v) ;
    vecsVsa<n>(v, s) ;
 }
 
@@ -103,9 +103,9 @@ inline void vecsVNormalize( real8* const v ){
  * NOTE : unlike SUBROUTINE matt_x_vec_5, output is first argument
  */
 template< int n >
-inline void vecsVMTa( real8* const p,
-                      const real8* const M,
-                      const real8* const v) {
+inline void vecsVMTa( double* const p,
+                      const double* const M,
+                      const double* const v) {
    for (int i=0; i<n; ++i) {
       p[i] = 0.0 ;
       for (int j=0; j<n; ++j) {
@@ -118,9 +118,9 @@ inline void vecsVMTa( real8* const p,
  * @brief vector transposed times non-square matrix
  */
 template< int n, int q >
-inline void vecsVaTM( real8* const p,
-                      const real8* const a,
-                      const real8* const M) {
+inline void vecsVaTM( double* const p,
+                      const double* const a,
+                      const double* const M) {
    for (int iQ=0; iQ<q; ++iQ) {
       p[iQ] = 0.0 ;
       for (int iN=0; iN<n; ++iN) {
@@ -133,9 +133,9 @@ inline void vecsVaTM( real8* const p,
  * @brief non-square matrix times vector
  */
 template< int n, int q >
-inline void vecsVMa( real8* const p,
-                      const real8* const M,
-                      const real8* const a) {
+inline void vecsVMa( double* const p,
+                      const double* const M,
+                      const double* const a) {
    for (int iN=0; iN<n; ++iN) {
       p[iN] = 0.0 ;
       for (int iQ=0; iQ<q; ++iQ) {
@@ -148,9 +148,9 @@ inline void vecsVMa( real8* const p,
  * @brief square matrix times vector
  */
 template< int n  >
-inline void vecsVMa( real8* const p,
-                      const real8* const M,
-                      const real8* const a) {
+inline void vecsVMa( double* const p,
+                      const double* const M,
+                      const double* const a) {
    for (int iN=0; iN<n; ++iN) {
       p[iN] = 0.0 ;
       for (int jN=0; jN<n; ++jN) {
@@ -163,9 +163,9 @@ inline void vecsVMa( real8* const p,
  * @brief P = A . B^T where A and B are non-square and both n-by-q, so that P is n-by-n
  */
 template< int n, int q >
-inline void vecsMABT( real8* const P,
-                      const real8* const A,
-                      const real8* const B)
+inline void vecsMABT( double* const P,
+                      const double* const A,
+                      const double* const B)
 {
    
    for ( int ij=0; ij<n*n; ++ij ){
@@ -174,7 +174,7 @@ inline void vecsMABT( real8* const P,
    
    for ( int jN = 0; jN < n; ++jN ) {
       for ( int iQ=0; iQ < q; ++iQ ) {
-         real8 temp = B[ECMECH_NM_INDX(jN,iQ,n,q)] ;
+         double temp = B[ECMECH_NM_INDX(jN,iQ,n,q)] ;
          for ( int iN = 0; iN < n; ++iN ) {
             P[ECMECH_NM_INDX(iN,jN,n,n)] += A[ECMECH_NM_INDX(iN,iQ,n,q)] * temp ;
          }
@@ -187,9 +187,9 @@ inline void vecsMABT( real8* const P,
  * @brief P = A . B^T where A (n-by-q) and B (m-by-q) are non-square, so that P is n-by-m
  */
 template< int n, int m, int q >
-inline void vecsMABT( real8* const P,
-                      const real8* const A,
-                      const real8* const B) {
+inline void vecsMABT( double* const P,
+                      const double* const A,
+                      const double* const B) {
    
    for ( int ij=0; ij<n*m; ++ij ){
       P[ij] = 0.0 ;
@@ -197,7 +197,7 @@ inline void vecsMABT( real8* const P,
    
    for ( int jM = 0; jM < m; ++jM ) {
       for ( int iQ=0; iQ < q; ++iQ ) {
-         real8 temp = B[ECMECH_NM_INDX(jM,iQ,m,q)] ;
+         double temp = B[ECMECH_NM_INDX(jM,iQ,m,q)] ;
          for ( int iN = 0; iN < n; ++iN ) {
             P[ECMECH_NM_INDX(iN,jM,n,m)] += A[ECMECH_NM_INDX(iN,iQ,n,q)] * temp ;
          }
@@ -210,9 +210,9 @@ inline void vecsMABT( real8* const P,
  * @brief P = A . B where A (n-by-q) and B (q-by-m) are non-square, so that P is n-by-m
  */
 template< int n, int m, int q >
-inline void vecsMAB( real8* const P,
-                      const real8* const A,
-                      const real8* const B) {
+inline void vecsMAB( double* const P,
+                      const double* const A,
+                      const double* const B) {
    
    for ( int ij=0; ij<n*m; ++ij ){
       P[ij] = 0.0 ;
@@ -232,9 +232,9 @@ inline void vecsMAB( real8* const P,
  * @brief outer product P_ij = a_i b_j where a and b are n-vectors so that P is n-by-n
  */
 template< int n >
-inline void vecsMaTb( real8* const P,
-                      const real8* const a,
-                      const real8* const b)
+inline void vecsMaTb( double* const P,
+                      const double* const a,
+                      const double* const b)
 {
    for ( int iN = 0; iN < n; ++iN ) {
       for ( int jN = 0; jN < n; ++jN ) {
@@ -244,8 +244,8 @@ inline void vecsMaTb( real8* const P,
 }
 
 template< int n >
-inline void vecsMsymm( real8* const P,
-                       const real8* const A)
+inline void vecsMsymm( double* const P,
+                       const double* const A)
 {
    for ( int iN = 0; iN < n; ++iN ) {
       for ( int jN = 0; jN < n; ++jN ) {
@@ -255,8 +255,8 @@ inline void vecsMsymm( real8* const P,
 }
 
 template< int n >
-inline void vecsMskew( real8* const Q,
-                       const real8* const A)
+inline void vecsMskew( double* const Q,
+                       const double* const A)
 {
    for ( int iN = 0; iN < n; ++iN ) {
       for ( int jN = 0; jN < n; ++jN ) {
@@ -269,8 +269,8 @@ inline void vecsMskew( real8* const Q,
    ! w_j = \frac{1}{2} \varepsilon_{ijk} W_{ik}
  */
 // SUBROUTINE skew_to_veccp(veccp, W)
-inline void skewToVeccp( real8* const veccp, // (WVEC)
-                         const real8* const W // (DIMS,DIMS)
+inline void skewToVeccp( double* const veccp, // (WVEC)
+                         const double* const W // (DIMS,DIMS)
                          )
 {
     veccp[0] = W[ECMECH_NN_INDX(2,1,ecmech::ndim)] ;
@@ -278,9 +278,9 @@ inline void skewToVeccp( real8* const veccp, // (WVEC)
     veccp[2] = W[ECMECH_NN_INDX(1,0,ecmech::ndim)] ;
 }
 
-inline real8 trace3( const real8* const A // (DIMS,DIMS)
+inline double trace3( const double* const A // (DIMS,DIMS)
                      ) {
-   real8 trace =
+   double trace =
       A[ECMECH_NN_INDX(0,0,ecmech::ndim)] +
       A[ECMECH_NN_INDX(1,1,ecmech::ndim)] +
       A[ECMECH_NN_INDX(2,2,ecmech::ndim)] ;
@@ -289,20 +289,20 @@ inline real8 trace3( const real8* const A // (DIMS,DIMS)
 }
 
 // trace_to_vecds_s(vecds_s, dkk)
-inline real8 traceToVecdsS(real8 dkk) {
-   real8 vecds_s = sqr3i * dkk ;
+inline double traceToVecdsS(double dkk) {
+   double vecds_s = sqr3i * dkk ;
    return vecds_s ;
 }
 
 // 
-inline real8 vecd_Deff(const real8* const vecd) {
-   real8 retval = vecNorm<ecmech::ntvec>(vecd) ;
+inline double vecd_Deff(const double* const vecd) {
+   double retval = vecNorm<ecmech::ntvec>(vecd) ;
    retval = sqr2b3 * retval ;
    return retval ;
 }
 
-inline void symmToVecd( real8* const vecd, // (TVEC)
-                        const real8* const A // (DIMS,DIMS)
+inline void symmToVecd( double* const vecd, // (TVEC)
+                        const double* const A // (DIMS,DIMS)
                         )
 {
     vecd[0] = sqr2i * (A[ECMECH_NN_INDX(0,0,ecmech::ndim)] - A[ECMECH_NN_INDX(1,1,ecmech::ndim)]) ;
@@ -317,8 +317,8 @@ inline void symmToVecd( real8* const vecd, // (TVEC)
  *
  * svec_kk[6] is not accessed, so it need not be there
  */
-inline void svecToVecd( real8* const vecd, // (TVEC)
-                        const real8* const svec_kk // (SVEC[+1])
+inline void svecToVecd( double* const vecd, // (TVEC)
+                        const double* const svec_kk // (SVEC[+1])
                         )
 {
    vecd[0] = sqr2i * (svec_kk[0] - svec_kk[1]) ;
@@ -333,18 +333,18 @@ inline void svecToVecd( real8* const vecd, // (TVEC)
     ! symmetric (non-deviatoric) matrix to vecds representation
  */
 // SUBROUTINE symm_to_vecds(vecds, A)
-inline void symmToVecds( real8* const vecds, // (SVEC)
-                         const real8* const A // (DIMS,DIMS)
+inline void symmToVecds( double* const vecds, // (SVEC)
+                         const double* const A // (DIMS,DIMS)
                          )
 {
    symmToVecd(vecds, A) ;
-   real8 Akk = trace3(A) ;
+   double Akk = trace3(A) ;
    vecds[iSvecS] = traceToVecdsS(Akk) ;
 }       
 
-inline real8 vecsInnerSvecDev( const real8* const stressSvec,
-                               const real8* const dSvec ) {
-   real8 retval = 
+inline double vecsInnerSvecDev( const double* const stressSvec,
+                               const double* const dSvec ) {
+   double retval = 
       stressSvec[0] * dSvec[0] +
       stressSvec[1] * dSvec[1] +
       stressSvec[2] * dSvec[2] +
@@ -356,15 +356,15 @@ inline real8 vecsInnerSvecDev( const real8* const stressSvec,
 }
 
 // SUBROUTINE vecds_to_symm(A, vecds)
-inline void vecdsToSvecP( real8* const svecp, // (SVEC+1)
-                          const real8* const vecds // (SVEC)
+inline void vecdsToSvecP( double* const svecp, // (SVEC+1)
+                          const double* const vecds // (SVEC)
                           )
 {
    
    svecp[iSvecP] = -sqr3i * vecds[iSvecS] ; // -Akk_by_3
    
-   real8 t1 = sqr2i * vecds[0] ;
-   real8 t2 = sqr6i * vecds[1] ;
+   double t1 = sqr2i * vecds[0] ;
+   double t2 = sqr6i * vecds[1] ;
    //
    svecp[0] =    t1 - t2 ;        // 11'
    svecp[1] =   -t1 - t2 ;        // 22'
@@ -376,11 +376,11 @@ inline void vecdsToSvecP( real8* const svecp, // (SVEC+1)
 }       
 
 //  SUBROUTINE svec_p_to_svec(a_svec, a_svec_p)
-inline void svecpToSvec( real8* const a_svec,
-                         const real8* const a_svec_p
+inline void svecpToSvec( double* const a_svec,
+                         const double* const a_svec_p
                          )
 {
-   real8 a_mean = -a_svec_p[iSvecP];
+   double a_mean = -a_svec_p[iSvecP];
 
    std::copy( a_svec_p, a_svec_p+ecmech::nsvec, a_svec ) ;
 
@@ -390,9 +390,9 @@ inline void svecpToSvec( real8* const a_svec,
 
 }
 
-inline void matToPQ( real8* const P_vecd,  // ntvec
-                     real8* const Q_veccp, // nwvec
-                     const real8* const T // ndim*ndim
+inline void matToPQ( double* const P_vecd,  // ntvec
+                     double* const Q_veccp, // nwvec
+                     const double* const T // ndim*ndim
                      )
 {
    
@@ -400,32 +400,32 @@ inline void matToPQ( real8* const P_vecd,  // ntvec
    // CALL symm_to_vecds(P_ref_svec, crys%p_ref(:,:,is))
    // crys%P_ref_vec(:, is) = P_ref_svec(1:TVEC)
    //
-   real8 P[ ecmech::ndim*ecmech::ndim ] ;
+   double P[ ecmech::ndim*ecmech::ndim ] ;
    vecsMsymm< ndim >(P,T) ;
    symmToVecd(P_vecd, P) ;
    
    // CALL mat_to_skew_3(crys%q_ref(:,:,is), crys%t_ref(:,:,is))
    // CALL skew_to_veccp(crys%q_ref_vec(:,is), crys%q_ref(:,:,is))
-   real8 Q[ ecmech::ndim*ecmech::ndim ] ;
+   double Q[ ecmech::ndim*ecmech::ndim ] ;
    vecsMskew< ndim >(Q,T) ;
    skewToVeccp(Q_veccp, Q) ;
    
 }
    
-inline void inv_to_quat(real8* const quat,
-                        const real8* const inv) {
-   real8 a = inv[0] * 0.5 ;
+inline void inv_to_quat(double* const quat,
+                        const double* const inv) {
+   double a = inv[0] * 0.5 ;
    quat[0] = cos(a) ;
    a = sin(a) ;
    vecsVxa<nwvec>(&(quat[1]), a, &(inv[1])) ;
 }
 
-inline void emap_to_quat(real8* const quat,
-                         const real8* const emap) {
-   real8 inv[invdim] = { 0.0, 1.0, 0.0, 0.0 };
+inline void emap_to_quat(double* const quat,
+                         const double* const emap) {
+   double inv[invdim] = { 0.0, 1.0, 0.0, 0.0 };
    inv[0] = vecNorm<emapdim>(emap) ;
    if ( inv[0] > idp_tiny_sqrt ) {
-      real8 invInv = 1.0 / inv[0] ;
+      double invInv = 1.0 / inv[0] ;
       vecsVxa<emapdim>(&(inv[1]), invInv, emap) ;
    } // else, emap is effectively zero, so axis does not matter
    inv_to_quat(quat, inv);
@@ -434,9 +434,9 @@ inline void emap_to_quat(real8* const quat,
 /**
  * @brief calculate quaternion product q = a . b
  */
-inline void quat_prod(real8* const q,
-                       const real8* const a,
-                       const real8* const b) {
+inline void quat_prod(double* const q,
+                       const double* const a,
+                       const double* const b) {
 
    q[0] = a[0]*b[0] - a[1]*b[1] - a[2]*b[2] - a[3]*b[3] ;
 
@@ -446,9 +446,9 @@ inline void quat_prod(real8* const q,
    
 }
 
-inline void get_c_quat(real8* const c_quat,
-                       const real8* const dr_quat,
-                       const real8* const cn_quat) {
+inline void get_c_quat(double* const c_quat,
+                       const double* const dr_quat,
+                       const double* const cn_quat) {
    //  Compute : c = c_n * dr
    quat_prod(c_quat, cn_quat, dr_quat) ;
 }
@@ -456,23 +456,23 @@ inline void get_c_quat(real8* const c_quat,
 /**
  * @breif after \cite{kri-etal-94a}
  */
-inline void quat_to_tensor(real8* const c, // ndim * ndim
-                           const real8* const quat // qdim
+inline void quat_to_tensor(double* const c, // ndim * ndim
+                           const double* const quat // qdim
                            ) {
 
-   real8 x0sq = quat[0]*quat[0] ;
-   real8 x1sq = quat[1]*quat[1] ;
-   real8 x2sq = quat[2]*quat[2] ;
-   real8 x3sq = quat[3]*quat[3] ;
+   double x0sq = quat[0]*quat[0] ;
+   double x1sq = quat[1]*quat[1] ;
+   double x2sq = quat[2]*quat[2] ;
+   double x3sq = quat[3]*quat[3] ;
 
-   real8 x0x1 = quat[0]*quat[1] ;
-   real8 x0x2 = quat[0]*quat[2] ;
-   real8 x0x3 = quat[0]*quat[3] ;
+   double x0x1 = quat[0]*quat[1] ;
+   double x0x2 = quat[0]*quat[2] ;
+   double x0x3 = quat[0]*quat[3] ;
 
-   real8 x1x2 = quat[1]*quat[2] ;
-   real8 x1x3 = quat[1]*quat[3] ;
+   double x1x2 = quat[1]*quat[2] ;
+   double x1x3 = quat[1]*quat[3] ;
 
-   real8 x2x3 = quat[2]*quat[3] ; 
+   double x2x3 = quat[2]*quat[3] ; 
 
    c[ECMECH_NN_INDX(0,0,ndim)] = x0sq+x1sq-x2sq-x3sq ;
    c[ECMECH_NN_INDX(0,1,ndim)] = two*(x1x2-x0x3)     ;
@@ -495,8 +495,8 @@ inline void quat_to_tensor(real8* const c, // ndim * ndim
     !     with: {A}={()/sqr2,sqr3b2*(),sqr2*(),sqr2*(),sqr2*()}
     
  */
-inline void get_rot_mat_vecd( real8* const qr5x5_raw, // ntvec * ntvec
-                              const real8* const c // ndim * ndim
+inline void get_rot_mat_vecd( double* const qr5x5_raw, // ntvec * ntvec
+                              const double* const c // ndim * ndim
                               ) {
 
 // include "mc_vars.f90"
@@ -509,7 +509,7 @@ inline void get_rot_mat_vecd( real8* const qr5x5_raw, // ntvec * ntvec
 //    IF ((UBOUND(qr5x5,DIM=1) /= TVEC) .OR. (UBOUND(qr5x5,DIM=2) /= TVEC)) &
 //         & CALL consider_ierr(1,location,CIERR_DIMS_p,IERR_FATAL_p)
 
-   RAJA::View< real8, RAJA::Layout<2> > qr5x5(qr5x5_raw, ecmech::ntvec, ecmech::ntvec) ;
+   RAJA::View< double, RAJA::Layout<2> > qr5x5(qr5x5_raw, ecmech::ntvec, ecmech::ntvec) ;
 
 //     ! if do not want to assume (c31**2+c32**2+c33**2=1)
 //     qr5x5(1, 1)  =  c33 * c33 - onehalf * (c31 * c31 + c32 * c32)
@@ -555,8 +555,8 @@ inline void get_rot_mat_vecd( real8* const qr5x5_raw, // ntvec * ntvec
  * if want _dB, just call with cmv6a and take negative of result;
  * this will give opeartion of A on B
  */
-inline void M35_d_AAoB_dA( real8* const M35, // nwvec * ntvec
-                       const real8* const cmv6b // nsvec or ntvec -- cmv6b[iSvecS] not accessed
+inline void M35_d_AAoB_dA( double* const M35, // nwvec * ntvec
+                       const double* const cmv6b // nsvec or ntvec -- cmv6b[iSvecS] not accessed
                        ) {
 
 #include "vb_d_vars_set.h"
@@ -618,18 +618,18 @@ inline void M35_d_AAoB_dA( real8* const M35, // nwvec * ntvec
    ! derivative of quaternion parameters with respect to exponential map
    ! parameters
  */
-inline void dquat_demap_T( real8* const dqdeT_raw, // (EMAPDIM_p,QDIM_p)
-                           const real8* const emap // (EMAPDIM_p)
+inline void dquat_demap_T( double* const dqdeT_raw, // (EMAPDIM_p,QDIM_p)
+                           const double* const emap // (EMAPDIM_p)
                            )
 {
 
-   const real8 theta_sm_a = 1e-9 ;
-   const real8 oo48 = 1.0/48.0 ;
+   const double theta_sm_a = 1e-9 ;
+   const double oo48 = 1.0/48.0 ;
 
 
-   real8 theta = vecNorm< emapdim >( emap ) ;
+   double theta = vecNorm< emapdim >( emap ) ;
 
-   real8 theta_inv, sthhbyth, halfsthh, na, nb, nc ;
+   double theta_inv, sthhbyth, halfsthh, na, nb, nc ;
    if ( abs(theta) < theta_sm_a ) {
       sthhbyth = onehalf - theta*theta * oo48 ; // truncated Taylor seriers; probably safe to just use onehalf and be done with it
       halfsthh = theta * oneqrtr ; // truncated Taylor seriers
@@ -650,17 +650,17 @@ inline void dquat_demap_T( real8* const dqdeT_raw, // (EMAPDIM_p,QDIM_p)
       na = emap[0]*theta_inv; nb = emap[1]*theta_inv; nc = emap[2]*theta_inv;
    }
    //
-   real8 halfcthh = cos(theta*onehalf)*onehalf ;
+   double halfcthh = cos(theta*onehalf)*onehalf ;
    //
    // now have: halfsthh, sthhbyth, halfcthh, theta, na, nb, nc
 
-   RAJA::View< real8, RAJA::Layout<2> > dqdeT(dqdeT_raw, ecmech::emapdim, ecmech::qdim) ;
+   RAJA::View< double, RAJA::Layout<2> > dqdeT(dqdeT_raw, ecmech::emapdim, ecmech::qdim) ;
    
    dqdeT(0,0) = -halfsthh * na ;
    dqdeT(1,0) = -halfsthh * nb ;
    dqdeT(2,0) = -halfsthh * nc ;
 
-   real8 temp = na*na ;
+   double temp = na*na ;
    dqdeT(0,1) = halfcthh * temp + sthhbyth * (one - temp) ;
    //
    temp = nb*nb ;
@@ -671,7 +671,7 @@ inline void dquat_demap_T( real8* const dqdeT_raw, // (EMAPDIM_p,QDIM_p)
 
    temp = halfcthh - sthhbyth ;
    //
-   real8 tempb = temp * na*nb ;
+   double tempb = temp * na*nb ;
    dqdeT(1,1) = tempb ;
    dqdeT(0,2) = tempb ;
    //
@@ -685,16 +685,16 @@ inline void dquat_demap_T( real8* const dqdeT_raw, // (EMAPDIM_p,QDIM_p)
 
 }
    
-inline void d_quat_to_tensor(real8* const dcdq_raw, // (DIMS,DIMS,QDIM_p)
-                             const real8* const quat // (QDIM_p)
+inline void d_quat_to_tensor(double* const dcdq_raw, // (DIMS,DIMS,QDIM_p)
+                             const double* const quat // (QDIM_p)
                              )
 {
-    real8 tqa = two * quat[0] ;
-    real8 tqb = two * quat[1] ;
-    real8 tqc = two * quat[2] ;
-    real8 tqd = two * quat[3] ;
+    double tqa = two * quat[0] ;
+    double tqb = two * quat[1] ;
+    double tqc = two * quat[2] ;
+    double tqd = two * quat[3] ;
 
-    RAJA::View< real8, RAJA::Layout<3> > dcdq(dcdq_raw, ecmech::ndim, ecmech::ndim, ecmech::qdim) ;
+    RAJA::View< double, RAJA::Layout<3> > dcdq(dcdq_raw, ecmech::ndim, ecmech::ndim, ecmech::qdim) ;
     
     // c(1,1) = x1sq+x2sq-x3sq-x4sq
     dcdq(0,0,0) =  tqa ;
@@ -760,9 +760,9 @@ inline void d_quat_to_tensor(real8* const dcdq_raw, // (DIMS,DIMS,QDIM_p)
     ! {vec_lat} = [Q]^T {vec_sm}
     ! dvdc is d({vec_lat})/d{C}
 */
-inline void d_rot_mat_vecd_latop( real8* const dvdc_raw, // (TVEC,DIMS,DIMS)
-                                  const real8* const c, // (DIMS, DIMS)
-                                  const real8* const vec_sm // (TVEC)
+inline void d_rot_mat_vecd_latop( double* const dvdc_raw, // (TVEC,DIMS,DIMS)
+                                  const double* const c, // (DIMS, DIMS)
+                                  const double* const vec_sm // (TVEC)
                                   )
 {
 
@@ -770,7 +770,7 @@ inline void d_rot_mat_vecd_latop( real8* const dvdc_raw, // (TVEC,DIMS,DIMS)
 #include "vad_vars_set.h"   
 
 // include "d_Alat_dC.f90"
-   RAJA::View< real8, RAJA::Layout<3> > dvdc(dvdc_raw, ecmech::ntvec, ecmech::ndim, ecmech::ndim) ;
+   RAJA::View< double, RAJA::Layout<3> > dvdc(dvdc_raw, ecmech::ntvec, ecmech::ndim, ecmech::ndim) ;
    dvdc(0,0,0)   = c11*va1-c11*sqr3*va2*onethird+c21*va3+c31*va4 ;
    dvdc(1,0,0)   = -sqr3*(3*c11*va1-c11*sqr3*va2+3*c21*va3+3*c31*va4)*oneninth ;
    dvdc(2,0,0)   = c12*va1-c12*sqr3*va2*onethird+c22*va3+c32*va4 ;
@@ -828,16 +828,16 @@ inline void d_rot_mat_vecd_latop( real8* const dvdc_raw, // (TVEC,DIMS,DIMS)
     !
     ! dvdc(i,k,l) = \pfrac{(Qw_ji W_j)}{C_kl}
  */
-inline void d_rot_mat_wveccp_latop( real8* const dvdc_raw, // (WVEC,DIMS,DIMS)
-                                    // const real8* const c, // (DIMS, DIMS) // not used
-                                    const real8* const cmv3w // (WVEC) // vec_sm(WVEC)
+inline void d_rot_mat_wveccp_latop( double* const dvdc_raw, // (WVEC,DIMS,DIMS)
+                                    // const double* const c, // (DIMS, DIMS) // not used
+                                    const double* const cmv3w // (WVEC) // vec_sm(WVEC)
                                     )
 {
 
 #include "vw_vars_set.h"
 
 // include "d_Wlat_dC.f90"
-   RAJA::View< real8, RAJA::Layout<3> > dvdc(dvdc_raw, ecmech::nwvec, ecmech::ndim, ecmech::ndim) ;
+   RAJA::View< double, RAJA::Layout<3> > dvdc(dvdc_raw, ecmech::nwvec, ecmech::ndim, ecmech::ndim) ;
    
    dvdc(0,0,0)   = vw1 ;
    dvdc(1,0,0)   = zero ;
@@ -876,23 +876,23 @@ inline void d_rot_mat_wveccp_latop( real8* const dvdc_raw, // (WVEC,DIMS,DIMS)
     ! 
     ! dDapp derivatives are all through lattice rotations, so just TVEC rows instead of SVEC -- trace of applied D does not change with rotation
  */
-inline void eval_d_dxi_impl_quat( real8* const dC_quat_dxi_T, // (WVEC,QDIM_p)
-                                  // real8* const dC_matx_dxi, // (DIMS,DIMS,WVEC)
-                                  real8* const dDapp_dxi,   // dDapp_dxi(TVEC, WVEC)
-                                  real8* const dWapp_dxi,   // dWapp_dxi(WVEC, WVEC)
-                                  const real8* const d_vecd_sm, // (TVEC), or (SVEC) is fine too
-                                  const real8* const w_vec_sm, // (WVEC)
-                                  const real8* const xi, // (WVEC)
-                                  const real8* const Cn_quat, // (QDIM_p)
-                                  const real8* const C_matx, // (DIMS,DIMS)
-                                  const real8* const C_quat // (QDIM_p)
-                                  // const real8* const A_quat // (QDIM_p) // not used
+inline void eval_d_dxi_impl_quat( double* const dC_quat_dxi_T, // (WVEC,QDIM_p)
+                                  // double* const dC_matx_dxi, // (DIMS,DIMS,WVEC)
+                                  double* const dDapp_dxi,   // dDapp_dxi(TVEC, WVEC)
+                                  double* const dWapp_dxi,   // dWapp_dxi(WVEC, WVEC)
+                                  const double* const d_vecd_sm, // (TVEC), or (SVEC) is fine too
+                                  const double* const w_vec_sm, // (WVEC)
+                                  const double* const xi, // (WVEC)
+                                  const double* const Cn_quat, // (QDIM_p)
+                                  const double* const C_matx, // (DIMS,DIMS)
+                                  const double* const C_quat // (QDIM_p)
+                                  // const double* const A_quat // (QDIM_p) // not used
                                   ) {
 
    // working with quats, so do not call eval_d_cA_dxi(dc_dxi, dA_dxi, xi, c_n)
    //
    {
-      real8 dA_quat_dxi_T[ ecmech::ndim * ecmech::qdim ] ; // (QDIM_p,DIMS)^T
+      double dA_quat_dxi_T[ ecmech::ndim * ecmech::qdim ] ; // (QDIM_p,DIMS)^T
       dquat_demap_T(dA_quat_dxi_T, xi) ;
 
       // can get away with these three calls as quat_prod is bilinear in the input arguments
@@ -903,16 +903,16 @@ inline void eval_d_dxi_impl_quat( real8* const dC_quat_dxi_T, // (WVEC,QDIM_p)
    }
    // now have dC_quat_dxi
 
-   real8 dC_matx_dxi[ (ecmech::ndim * ecmech::ndim) * ecmech::nwvec ] ; // (DIMS,DIMS,WVEC)
+   double dC_matx_dxi[ (ecmech::ndim * ecmech::ndim) * ecmech::nwvec ] ; // (DIMS,DIMS,WVEC)
    {
-      real8 dCmatx_dq[ (ecmech::ndim * ecmech::ndim) * ecmech::qdim ] ; // (DIMS,DIMS,QDIM_p)
+      double dCmatx_dq[ (ecmech::ndim * ecmech::ndim) * ecmech::qdim ] ; // (DIMS,DIMS,QDIM_p)
       // get dC_matx_dxi
       d_quat_to_tensor(dCmatx_dq, C_quat) ;
       vecsMABT< ndim*ndim, nwvec, qdim >( dC_matx_dxi, dCmatx_dq, dC_quat_dxi_T ) ; // vecsMABT because _T on dC_quat_dxi_T
    }
     
    {
-      real8 dD_dC_matx[ ecmech::ntvec * (ecmech::ndim * ecmech::ndim) ] ;
+      double dD_dC_matx[ ecmech::ntvec * (ecmech::ndim * ecmech::ndim) ] ;
       d_rot_mat_vecd_latop(dD_dC_matx, C_matx, d_vecd_sm) ;
       //
       vecsMAB< ntvec, nwvec, ndim*ndim >( dDapp_dxi, dD_dC_matx, dC_matx_dxi ) ;
@@ -920,7 +920,7 @@ inline void eval_d_dxi_impl_quat( real8* const dC_quat_dxi_T, // (WVEC,QDIM_p)
    }
 
    {
-      real8 dW_dC_matx[ ecmech::nwvec * (ecmech::ndim * ecmech::ndim) ] ; // (WVEC,DIMS,DIMS)
+      double dW_dC_matx[ ecmech::nwvec * (ecmech::ndim * ecmech::ndim) ] ; // (WVEC,DIMS,DIMS)
       d_rot_mat_wveccp_latop(dW_dC_matx, // C_matx,
                              w_vec_sm) ;
       //
@@ -930,9 +930,9 @@ inline void eval_d_dxi_impl_quat( real8* const dC_quat_dxi_T, // (WVEC,QDIM_p)
 }
 
 inline void
-d_rot_mat_vecd_smop( real8* const dvdc_raw, // (TVEC,DIMS,DIMS)
-                     const real8* const c, // (DIMS, DIMS)
-                     const real8* const vec_lat // (TVEC)
+d_rot_mat_vecd_smop( double* const dvdc_raw, // (TVEC,DIMS,DIMS)
+                     const double* const c, // (DIMS, DIMS)
+                     const double* const vec_lat // (TVEC)
                      ) 
 {
     //
@@ -946,7 +946,7 @@ d_rot_mat_vecd_smop( real8* const dvdc_raw, // (TVEC,DIMS,DIMS)
 #include "vadl_vars_set.h"
 
    // include "d_Asm_dC.f90"
-   RAJA::View< real8, RAJA::Layout<3> > dvdc(dvdc_raw, ecmech::ntvec, ecmech::ndim, ecmech::ndim) ;
+   RAJA::View< double, RAJA::Layout<3> > dvdc(dvdc_raw, ecmech::ntvec, ecmech::ndim, ecmech::ndim) ;
    dvdc(0,0,0) = c11*va1-c11*sqr3*va2*onethird+c12*va3+c13*va4 ;
    dvdc(1,0,0) = sqr3*(-3*c11*va1+sqr3*c11*va2-3*c12*va3-3*c13*va4)*oneninth ;
    dvdc(2,0,0) = c21*va1-c21*sqr3*va2*onethird+c22*va3+c23*va4 ;
@@ -1002,9 +1002,9 @@ d_rot_mat_vecd_smop( real8* const dvdc_raw, // (TVEC,DIMS,DIMS)
  */
 template< int n, bool l_T >
 inline void
-qr6x6_pre_mul( real8* const M_out, // 6xn
-               const real8* const M_in, // 6xn
-               const real8* const qr5x5 // 5x5
+qr6x6_pre_mul( double* const M_out, // 6xn
+               const double* const M_in, // 6xn
+               const double* const qr5x5 // 5x5
                )
 {
 
@@ -1031,14 +1031,14 @@ qr6x6_pre_mul( real8* const M_out, // 6xn
 
 template< bool l_ddsdde_gamma >
 inline void
-mtan_conv_sd_svec(real8* const mtanSD_raw,
-                  const real8* const mtanSD_vecds_raw) {
-   real8 C_raw[ecmech::nsvec2] ;
-   real8 t1_vec[ecmech::nsvec], t2_vec[ecmech::nsvec], t3_vec[ecmech::nsvec] ;
+mtan_conv_sd_svec(double* const mtanSD_raw,
+                  const double* const mtanSD_vecds_raw) {
+   double C_raw[ecmech::nsvec2] ;
+   double t1_vec[ecmech::nsvec], t2_vec[ecmech::nsvec], t3_vec[ecmech::nsvec] ;
 
-   RAJA::View< real8, RAJA::Layout<2> > mtanSD(mtanSD_raw, ecmech::nsvec, ecmech::nsvec) ;   
-   RAJA::View< real8 const, RAJA::Layout<2> > mtanSD_vecds(mtanSD_vecds_raw, ecmech::nsvec, ecmech::nsvec) ;   
-   RAJA::View< real8, RAJA::Layout<2> > C(C_raw, ecmech::nsvec, ecmech::nsvec) ;   
+   RAJA::View< double, RAJA::Layout<2> > mtanSD(mtanSD_raw, ecmech::nsvec, ecmech::nsvec) ;   
+   RAJA::View< double const, RAJA::Layout<2> > mtanSD_vecds(mtanSD_vecds_raw, ecmech::nsvec, ecmech::nsvec) ;   
+   RAJA::View< double, RAJA::Layout<2> > C(C_raw, ecmech::nsvec, ecmech::nsvec) ;   
 
    // mtanSD = T . mtanSD_vecds . T^{-1}
 
@@ -1079,10 +1079,11 @@ mtan_conv_sd_svec(real8* const mtanSD_raw,
    
 } // mtan_conv_sd_svec
 
+#ifdef DEBUG
 #ifdef __cuda_host_only__
 template< int n >
 inline void
-printVec(const real8* const y, std::ostream & oss ) {
+printVec(const double* const y, std::ostream & oss ) {
    for ( int iX=0; iX<n; ++iX) {
       oss << std::setw(21) << std::setprecision(14) << y[iX] << " " ;
    }
@@ -1090,7 +1091,7 @@ printVec(const real8* const y, std::ostream & oss ) {
 }
 
 inline void
-printVec(const real8* const y, int n, std::ostream & oss ) {
+printVec(const double* const y, int n, std::ostream & oss ) {
    for ( int iX=0; iX<n; ++iX) {
       oss << std::setw(21) << std::setprecision(14) << y[iX] << " " ;
    }
@@ -1099,7 +1100,7 @@ printVec(const real8* const y, int n, std::ostream & oss ) {
 
 template< int n >
 inline void
-printMat(const real8* const A, std::ostream & oss ) {
+printMat(const double* const A, std::ostream & oss ) {
    for ( int iX=0; iX<n; ++iX) {
       for ( int jX=0; jX<n; ++jX) {
          oss << std::setw(21) << std::setprecision(14) << A[ECMECH_NN_INDX(iX,jX,n)] << " " ;
@@ -1107,6 +1108,7 @@ printMat(const real8* const A, std::ostream & oss ) {
       oss << std::endl ;
    } 
 }
+#endif
 #endif
 
 } // namespace ecmech

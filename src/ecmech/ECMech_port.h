@@ -19,8 +19,6 @@
 #else
 // ECMECH_HAVE_MSLIB
 
-// The interface uses 'real8' as a type
-typedef double real8 ;
 
 #ifdef __cuda_host_only__
 #include <stdio.h>

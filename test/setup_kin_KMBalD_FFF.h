@@ -1,5 +1,5 @@
    {
-      real8
+      double
          mu     = 1.0,
          tK_ref = 300.,
          c_1    = 20000.,
@@ -11,14 +11,14 @@
          wrD    = 0.02,
          go     = 10e-5,
          s      = 5e-5 ;
-      real8
+      double
          k1       = 100.0,
          k2o      =  10.0,
          ninv     =  0.05,
          gamma_o  =  1e-6 ;
-      real8
+      double
          rho_dd_init = 0.25 ;
-      std::vector<real8> paramsThese{
+      std::vector<double> paramsThese{
          mu, tK_ref, c_1, tau_a, p, q, gam_wo, gam_ro, wrD, go, s,
          k1, k2o, ninv, gamma_o,
          rho_dd_init

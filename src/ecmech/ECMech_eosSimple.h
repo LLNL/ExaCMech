@@ -22,10 +22,10 @@ public:
 
 
    __ecmech_hdev__
-   inline void setParams( const std::vector<real8> & params // const real8* const params
+   inline void setParams( const std::vector<double> & params // const double* const params
                           ) {
 
-      std::vector<real8>::const_iterator parsIt = params.begin();
+      std::vector<double>::const_iterator parsIt = params.begin();
 
       //////////////////////////////
 
@@ -48,7 +48,7 @@ public:
    };
 
    __ecmech_hdev__
-   inline void getParams( std::vector<real8> & params
+   inline void getParams( std::vector<double> & params
                           ) const {
 
       // do not clear params in case adding to an existing set
@@ -72,12 +72,12 @@ public:
    };
 
    __ecmech_hdev__
-   inline void evalPT( real8 &p,
-                       real8 &tK,
-                       real8  v,
-                       real8  e ) const {
+   inline void evalPT( double &p,
+                       double &tK,
+                       double  v,
+                       double  e ) const {
       
-      real8 mu = one / v - one ;
+      double mu = one / v - one ;
       
       if ( isothermal ) {
          p  = _bulkMod * mu ;
@@ -91,15 +91,15 @@ public:
    }
    
    __ecmech_hdev__
-   inline void evalPTDiff( real8 &p,
-                           real8 &tK,
-                           real8 &bulkNew,
-                           real8 &dpde,
-                           real8  v,
-                           real8  e ) const {
+   inline void evalPTDiff( double &p,
+                           double &tK,
+                           double &bulkNew,
+                           double &dpde,
+                           double  v,
+                           double  e ) const {
 
-      real8 eta = one / v ;
-      real8 mu  = eta - one ;
+      double eta = one / v ;
+      double mu  = eta - one ;
 
       if ( isothermal ) {
          p  = _bulkMod * mu ;
@@ -116,8 +116,8 @@ public:
    }
    
    __ecmech_hdev__
-   inline void getEV0( real8 &e0,
-                       real8 &v0 ) const {
+   inline void getEV0( double &e0,
+                       double &v0 ) const {
       e0 = 0.0 ;
       v0 = 1.0 ;
    }
@@ -125,31 +125,31 @@ public:
 private:
 
    // parameters
-   real8 _rho0, _bulkMod, _gamma, _ec0, _cvav ;
+   double _rho0, _bulkMod, _gamma, _ec0, _cvav ;
 
    // derived from parameters
-   real8 _dtde, _tK0 ;
+   double _dtde, _tK0 ;
 
 }; // class KineticsVocePL
 
 template< class EosModel >
 __ecmech_hdev__
 inline void updateSimple( const EosModel& eos,
-                          real8 &p,
-                          real8 &tK,
-                          real8 &eNew,
-                          real8 &bulkNew, 
-                          const real8* volRatio,
-                          real8  eOld,
-                          real8  pOld) {
+                          double &p,
+                          double &tK,
+                          double &eNew,
+                          double &bulkNew, 
+                          const double* volRatio,
+                          double  eOld,
+                          double  pOld) {
 
-   // real8 vOld = volRatio[0] ; // not needed
-   real8 vNew = volRatio[1] ;
-   real8 delv = volRatio[3] ;
+   // double vOld = volRatio[0] ; // not needed
+   double vNew = volRatio[1] ;
+   double delv = volRatio[3] ;
 
    eNew = eOld - delv * pOld ;
 
-   real8 dpde ;
+   double dpde ;
    eos.evalPTDiff( p, tK, bulkNew, dpde, vNew, eNew ) ;
    // dpdv = - bulkNew / vNew ; // not needed
    

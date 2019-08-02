@@ -7,20 +7,20 @@ namespace ecmech {
 
 __ecmech_hdev__
 static void
-fillFromMS( real8* const P, // ntvec * nslip
-            real8* const Q, // nwvec * nslip
-            const real8* const mVecs, // nslip * ndim
-            const real8* const sVecs, // nslip * ndim
+fillFromMS( double* const P, // ntvec * nslip
+            double* const Q, // nwvec * nslip
+            const double* const mVecs, // nslip * ndim
+            const double* const sVecs, // nslip * ndim
             int nslip )
 {
    for ( int iSlip=0; iSlip<nslip; ++iSlip) {
 
       // CALL vec_x_vect_mn(crys%vecs(:,is),crys%vecm(:,is),crys%t_ref(:,:,is),DIMS,DIMS)
-      real8 T_ref[ ecmech::ndim*ecmech::ndim ] ;
+      double T_ref[ ecmech::ndim*ecmech::ndim ] ;
       vecsMaTb< ndim >( T_ref, &(sVecs[iSlip*ecmech::ndim]), &(mVecs[iSlip*ecmech::ndim]) ) ;
 
-      real8 P_vecd[ ecmech::ntvec ] ;
-      real8 Q_veccp[ ecmech::nwvec ] ;
+      double P_vecd[ ecmech::ntvec ] ;
+      double Q_veccp[ ecmech::nwvec ] ;
       matToPQ( P_vecd, Q_veccp, T_ref ) ;
 
       for ( int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec ) {
@@ -44,7 +44,7 @@ SlipGeomFCC::SlipGeomFCC()
    //   s = (/ zero, sqr2i, -sqr2i /)
    //
    // do not yet bother with making slip systems from symmetry group -- just write them out
-   const real8 mVecs[ nslip * ecmech::ndim ] = {
+   const double mVecs[ nslip * ecmech::ndim ] = {
       sqr3i ,  sqr3i ,  sqr3i ,
       sqr3i ,  sqr3i ,  sqr3i ,
       sqr3i ,  sqr3i ,  sqr3i ,
@@ -58,7 +58,7 @@ SlipGeomFCC::SlipGeomFCC()
       sqr3i , -sqr3i ,  sqr3i ,
       sqr3i , -sqr3i ,  sqr3i ,
    } ;
-   const real8 sVecs[ nslip * ecmech::ndim ] = {
+   const double sVecs[ nslip * ecmech::ndim ] = {
       zero  ,  sqr2i ,  -sqr2i ,
      -sqr2i ,  zero  ,   sqr2i ,
       sqr2i , -sqr2i ,   zero  ,

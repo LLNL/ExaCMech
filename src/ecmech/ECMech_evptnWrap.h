@@ -46,7 +46,7 @@ public :
    using matModelBase::initFromParams ;
    __ecmech_hdev__
    void initFromParams(const std::vector<int>         & opts,
-                       const std::vector<real8>       & pars,
+                       const std::vector<double>       & pars,
                        const std::vector<std::string> & strs ) {
 
       const int nParamsEOS = EosModel::nParams-nParamsEOSHave ; 
@@ -66,7 +66,7 @@ public :
          ECMECH_FAIL(__func__,"wrong number of strs") ;
       }
       
-      std::vector<real8>::const_iterator parsIt = pars.begin() ;
+      std::vector<double>::const_iterator parsIt = pars.begin() ;
       
       _rho0 = *parsIt; ++parsIt;
       _cvav = *parsIt; ++parsIt;
@@ -74,16 +74,16 @@ public :
       _tolerance = *parsIt; ++parsIt;      
 
       {
-         const std::vector<real8> paramsThese(parsIt, parsIt+ThermoElastN::nParams) ;
+         const std::vector<double> paramsThese(parsIt, parsIt+ThermoElastN::nParams) ;
          _elastN.setParams( paramsThese ) ; parsIt += ThermoElastN::nParams ;
       }
       {
-         const std::vector<real8> paramsThese(parsIt, parsIt+Kinetics::nParams) ;
+         const std::vector<double> paramsThese(parsIt, parsIt+Kinetics::nParams) ;
          _kinetics.setParams( paramsThese ) ; parsIt += Kinetics::nParams ;
       }
       {
-         real8 bulkMod = _elastN.getBulkMod() ;
-         std::vector<real8> paramsThese(EosModel::nParams) ;
+         double bulkMod = _elastN.getBulkMod() ;
+         std::vector<double> paramsThese(EosModel::nParams) ;
          paramsThese[0] = _rho0 ;
          paramsThese[1] = bulkMod ;
          paramsThese[2] = _cvav ;
@@ -119,7 +119,7 @@ public :
       }
       //
       {
-         real8 qVal = 1.0 ;
+         double qVal = 1.0 ;
          for ( int iQ = 0; iQ < ecmech::qdim; ++iQ ) {
             std::ostringstream os;
             os << "quat_" << iQ+1 ;
@@ -145,7 +145,7 @@ public :
    
    __ecmech_host__
    void getParams(std::vector<int>         & opts,
-                  std::vector<real8>       & pars,
+                  std::vector<double>       & pars,
                   std::vector<std::string> & strs ) const {
       // ...*** ;
       opts.clear() ;
@@ -163,19 +163,19 @@ public :
 
    using matModelBase::getResponse ;
    __ecmech_hdev__
-   void getResponse(const real8  & dt          , 
-                    const real8  * defRateV    ,      
-                    const real8  * spinV       ,         
-                    const real8  * volRatioV   ,     
-                          real8  * eIntV       ,         
-                          real8  * stressSvecPV,  
-                          real8  * histV       ,         
-                          real8  * tkelvV      ,        
-                          real8  * sddV        ,          
-                          real8  * mtanSDV     ,      
+   void getResponse(const double  & dt          , 
+                    const double  * defRateV    ,      
+                    const double  * spinV       ,         
+                    const double  * volRatioV   ,     
+                          double  * eIntV       ,         
+                          double  * stressSvecPV,  
+                          double  * histV       ,         
+                          double  * tkelvV      ,        
+                          double  * sddV        ,          
+                          double  * mtanSDV     ,      
                     const int    & nPassed      ) const {
       
-      real8 *mtanSDThis = nullptr ;
+      double *mtanSDThis = nullptr ;
       //
       for ( int i=0; i<nPassed; ++i ) {
          if ( mtanSDV != nullptr ) {
@@ -200,7 +200,7 @@ public :
 #ifdef __cuda_host_only__
    __ecmech_host__
    void getHistInfo(std::vector<std::string> & names,
-                    std::vector<real8>       & vals,
+                    std::vector<double>       & vals,
                     std::vector<bool>        & plot,
                     std::vector<bool>        & state) const {
 
@@ -226,13 +226,13 @@ private:
    ThermoElastN _elastN ;
    EosModel _eosModel ;
 
-   real8 _tolerance ;
+   double _tolerance ;
    int _outputLevel ;
 
 #ifdef __cuda_host_only__
    // TO_DO : it is a good idea to have these host-only?
    std::vector<std::string> _rhvNames;
-   std::vector<real8>       _rhvVals;
+   std::vector<double>       _rhvVals;
    std::vector<bool>        _rhvPlot;
    std::vector<bool>        _rhvState;
 #endif

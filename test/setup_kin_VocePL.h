@@ -5,9 +5,9 @@
 #endif
 
       {
-         real8 mu = 1.0, xm = XM_VAL, gam_w = 1.0 ;
-         real8 h0 = 200e-5, tausi = 100e-5, taus0 = 400e-5, xms = 0.05, gamss0 = 1.0e-6 ;
-         std::vector<real8> paramsThese{
+         double mu = 1.0, xm = XM_VAL, gam_w = 1.0 ;
+         double h0 = 200e-5, tausi = 100e-5, taus0 = 400e-5, xms = 0.05, gamss0 = 1.0e-6 ;
+         std::vector<double> paramsThese{
             mu, xm, gam_w,
             h0, tausi, taus0, xms, gamss0,
             tausi // hdn_init
