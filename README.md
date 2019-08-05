@@ -53,9 +53,13 @@ The develop branch is the main development branch. Changes to develop are by pul
 AUTHORS
 ======
 
-The principal developer of ECMech is Nathan Barton, nrbarton@llnl.gov. 
+The principal developer of ECMech is Nathan Barton, nrbarton@llnl.gov. Robert Carson has also made contributions. 
 
 LICENSE
 ======
 
-NOTE : This software is not yet released. It is _anticipated_ that it will be released under the BSD-3-Clause license. 
+License is under the BSD-3-Clause license. See [LICENSE](LICENSE) file for details. And see also the [NOTICE](NOTICE) file. 
+
+`SPDX-License-Identifier: BSD-3-Clause`
+
+``LLNL-CODE-784997``
