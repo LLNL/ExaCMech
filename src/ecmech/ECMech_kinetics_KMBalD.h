@@ -277,6 +277,8 @@ namespace ecmech {
                   // !   mts_dfac = zero
                   // !ELSE
                   // ! blows up, but just set big
+		  //p_func goes to 0 in this scenario.
+                  p_func = zero;
                   mts_dfac = mts_dfac * 1e10;
                   // !END IF
                }
