@@ -10,8 +10,8 @@
 #endif
 
 // When compiling using the Nvidia/CUDA tools, nvcc defines the host, device, and global
-// labels to identify the compilation target for a particular module. Routines that 
-// are intended for the host need to be declared with __host__.  Similarly, routines 
+// labels to identify the compilation target for a particular module. Routines that
+// are intended for the host need to be declared with __host__.  Similarly, routines
 // that are intended for the GPU need to be declared using __device__. Routines
 // that are intended for both host and GPU need to be declared using both __host__ and
 // __device__.
@@ -36,7 +36,8 @@
 
 #ifdef __CUDACC__
 extern void CUDART_Check(const cudaError_t err, const char *file, const char *func, const int ln);
-#define CUDART_CHECK(err) CUDART_Check(err,__FILE__,__func__,__LINE__);
+
+#define CUDART_CHECK(err) CUDART_Check(err, __FILE__, __func__, __LINE__);
 #else
 #define CUDART_CHECK(err)
 #endif
@@ -46,9 +47,9 @@ extern void CUDART_Check(const cudaError_t err, const char *file, const char *fu
 //----------------------------------------------------------------------------------------
 
 #ifdef __CUDA_ARCH__
-#define __cuda_device_only__      
+#define __cuda_device_only__
 #else
-#define __cuda_host_only__      
+#define __cuda_host_only__
 #endif
 
 #endif  // __ECMECH_CUDA_PORTABILITY_H
