@@ -24,8 +24,8 @@ set(ECMECH_HEADERS
     vw_vars_set.h)
 
 set(ECMECH_SOURCES
-    ECMech_kinetics.cxx
-    ECMech_slipgeom.cxx)
+    ECMech_kinetics.cpp)
+#    ECMech_slipgeom.cpp)
 
 #------------------------------------------------------------------------------
 # Dependencies
@@ -33,7 +33,9 @@ set(ECMECH_SOURCES
 set(ECMECH_DEPENDS)
 
 ecmech_fill_depends_list(LIST_NAME  ECMECH_DEPENDS
-                        DEPENDS_ON raja snls cuda)
+                        DEPENDS_ON raja snls cuda openmp)
+
+message("ECMECH_DEPENDS: ${ECMECH_DEPENDS}")
 
 #------------------------------------------------------------------------------
 # Defines

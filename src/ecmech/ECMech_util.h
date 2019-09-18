@@ -31,6 +31,7 @@
 
 namespace ecmech {
    template<int n>
+   __ecmech_hdev__
    inline void vecsVapb(double* const v,
                         const double* const a,
                         const double* const b) {
@@ -40,6 +41,7 @@ namespace ecmech {
    }
 
    template<int n>
+   __ecmech_hdev__
    inline void vecsVAdiagB(double* const v,
                            const double* const a,
                            const double* const b) {
@@ -50,6 +52,7 @@ namespace ecmech {
 
    // standard vector inner product
    template<int n>
+   __ecmech_hdev__
    inline double vecsyadotb(const double* const a,
                             const double* const b) {
       double y = 0.0;
@@ -61,6 +64,7 @@ namespace ecmech {
    }
 
    template<int n>
+   __ecmech_hdev__
    inline double vecsssumabs(const double* const a) {
       double s = 0.0;
       for (int i = 0; i<n; ++i) {
@@ -70,6 +74,7 @@ namespace ecmech {
       return s;
    }
 
+   __ecmech_hdev__
    inline double vecsssumabs_n(const double* const a, int n) {
       double s = 0.0;
       for (int i = 0; i<n; ++i) {
@@ -80,6 +85,7 @@ namespace ecmech {
    }
 
    template<int n>
+   __ecmech_hdev__
    inline double vecNorm(const double* const v){
       double retval = 0.0;
       for (int i = 0; i<n; ++i) {
@@ -91,6 +97,7 @@ namespace ecmech {
    }
 
    template<int n>
+   __ecmech_hdev__
    inline void vecsVxa(double* const v,
                        double x,
                        const double* const a) {
@@ -103,6 +110,7 @@ namespace ecmech {
     * scale vector in place
     */
    template<int n>
+   __ecmech_hdev__
    inline void vecsVsa(double* const a,
                        double s) {
       for (int i = 0; i<n; ++i) {
@@ -111,6 +119,7 @@ namespace ecmech {
    }
 
    template<int n>
+   __ecmech_hdev__
    inline void vecsVNormalize(double* const v){
       double s = 1.0 / vecNorm<n>(v);
       vecsVsa<n>(v, s);
@@ -122,6 +131,7 @@ namespace ecmech {
     * NOTE : unlike SUBROUTINE matt_x_vec_5, output is first argument
     */
    template<int n>
+   __ecmech_hdev__
    inline void vecsVMTa(double* const p,
                         const double* const M,
                         const double* const v) {
@@ -137,6 +147,7 @@ namespace ecmech {
     * @brief vector transposed times non-square matrix
     */
    template<int n, int q>
+   __ecmech_hdev__
    inline void vecsVaTM(double* const p,
                         const double* const a,
                         const double* const M) {
@@ -152,6 +163,7 @@ namespace ecmech {
     * @brief non-square matrix times vector
     */
    template<int n, int q>
+   __ecmech_hdev__
    inline void vecsVMa(double* const p,
                        const double* const M,
                        const double* const a) {
@@ -167,6 +179,7 @@ namespace ecmech {
     * @brief square matrix times vector
     */
    template<int n>
+   __ecmech_hdev__
    inline void vecsVMa(double* const p,
                        const double* const M,
                        const double* const a) {
@@ -182,6 +195,7 @@ namespace ecmech {
     * @brief P = A . B^T where A and B are non-square and both n-by-q, so that P is n-by-n
     */
    template<int n, int q>
+   __ecmech_hdev__
    inline void vecsMABT(double* const P,
                         const double* const A,
                         const double* const B)
@@ -204,6 +218,7 @@ namespace ecmech {
     * @brief P = A . B^T where A (n-by-q) and B (m-by-q) are non-square, so that P is n-by-m
     */
    template<int n, int m, int q>
+   __ecmech_hdev__
    inline void vecsMABT(double* const P,
                         const double* const A,
                         const double* const B) {
@@ -225,6 +240,7 @@ namespace ecmech {
     * @brief P = A . B where A (n-by-q) and B (q-by-m) are non-square, so that P is n-by-m
     */
    template<int n, int m, int q>
+   __ecmech_hdev__
    inline void vecsMAB(double* const P,
                        const double* const A,
                        const double* const B) {
@@ -245,6 +261,7 @@ namespace ecmech {
     * @brief outer product P_ij = a_i b_j where a and b are n-vectors so that P is n-by-n
     */
    template<int n>
+   __ecmech_hdev__
    inline void vecsMaTb(double* const P,
                         const double* const a,
                         const double* const b)
@@ -257,6 +274,7 @@ namespace ecmech {
    }
 
    template<int n>
+   __ecmech_hdev__
    inline void vecsMsymm(double* const P,
                          const double* const A)
    {
@@ -268,6 +286,7 @@ namespace ecmech {
    }
 
    template<int n>
+   __ecmech_hdev__
    inline void vecsMskew(double* const Q,
                          const double* const A)
    {
@@ -282,6 +301,7 @@ namespace ecmech {
       ! w_j = \frac{1}{2} \varepsilon_{ijk} W_{ik}
     */
    // SUBROUTINE skew_to_veccp(veccp, W)
+   __ecmech_hdev__
    inline void skewToVeccp(double* const veccp, // (WVEC)
                            const double* const W // (DIMS,DIMS)
                            )
@@ -291,6 +311,7 @@ namespace ecmech {
       veccp[2] = W[ECMECH_NN_INDX(1, 0, ecmech::ndim)];
    }
 
+   __ecmech_hdev__
    inline double trace3(const double* const A // (DIMS,DIMS)
                         ) {
       double trace =
@@ -302,18 +323,21 @@ namespace ecmech {
    }
 
    // trace_to_vecds_s(vecds_s, dkk)
+   __ecmech_hdev__
    inline double traceToVecdsS(double dkk) {
       double vecds_s = sqr3i * dkk;
       return vecds_s;
    }
 
    //
+   __ecmech_hdev__
    inline double vecd_Deff(const double* const vecd) {
       double retval = vecNorm<ecmech::ntvec>(vecd);
       retval = sqr2b3 * retval;
       return retval;
    }
 
+   __ecmech_hdev__
    inline void symmToVecd(double* const vecd, // (TVEC)
                           const double* const A // (DIMS,DIMS)
                           )
@@ -333,6 +357,7 @@ namespace ecmech {
     *
     * svec_kk[6] is not accessed, so it need not be there
     */
+   __ecmech_hdev__
    inline void svecToVecd(double* const vecd, // (TVEC)
                           const double* const svec_kk // (SVEC[+1])
                           )
@@ -349,6 +374,7 @@ namespace ecmech {
        ! symmetric (non-deviatoric) matrix to vecds representation
     */
    // SUBROUTINE symm_to_vecds(vecds, A)
+   __ecmech_hdev__
    inline void symmToVecds(double* const vecds, // (SVEC)
                            const double* const A // (DIMS,DIMS)
                            )
@@ -358,6 +384,7 @@ namespace ecmech {
       vecds[iSvecS] = traceToVecdsS(Akk);
    }
 
+   __ecmech_hdev__
    inline double vecsInnerSvecDev(const double* const stressSvec,
                                   const double* const dSvec) {
       double retval =
@@ -372,6 +399,7 @@ namespace ecmech {
    }
 
    // SUBROUTINE vecds_to_symm(A, vecds)
+   __ecmech_hdev__
    inline void vecdsToSvecP(double* const svecp, // (SVEC+1)
                             const double* const vecds // (SVEC)
                             )
@@ -390,20 +418,26 @@ namespace ecmech {
    }
 
    //  SUBROUTINE svec_p_to_svec(a_svec, a_svec_p)
+   __ecmech_hdev__
    inline void svecpToSvec(double* const a_svec,
                            const double* const a_svec_p
                            )
    {
       double a_mean = -a_svec_p[iSvecP];
 
-      std::copy(a_svec_p, a_svec_p + ecmech::nsvec, a_svec);
+      //std::copy(a_svec_p, a_svec_p + ecmech::nsvec, a_svec);
+      for (int i_svec = 0; i_svec < ecmech::nsvec; i_svec++) {
+         a_svec[i_svec] = a_svec_p[i_svec];
+      }
 
       a_svec[0] = a_svec[0] + a_mean;
       a_svec[1] = a_svec[1] + a_mean;
       a_svec[2] = a_svec[2] + a_mean;
    }
 
-   inline void matToPQ(double* const P_vecd, // ntvec
+   __ecmech_hdev__
+   inline
+   void matToPQ(double* const P_vecd, // ntvec
                        double* const Q_veccp, // nwvec
                        const double* const T // ndim*ndim
                        )
@@ -423,6 +457,7 @@ namespace ecmech {
       skewToVeccp(Q_veccp, Q);
    }
 
+   __ecmech_hdev__
    inline void inv_to_quat(double* const quat,
                            const double* const inv) {
       double a = inv[0] * 0.5;
@@ -431,6 +466,7 @@ namespace ecmech {
       vecsVxa<nwvec>(&(quat[1]), a, &(inv[1]));
    }
 
+   __ecmech_hdev__
    inline void emap_to_quat(double* const quat,
                             const double* const emap) {
       double inv[invdim] = { 0.0, 1.0, 0.0, 0.0 };
@@ -445,6 +481,7 @@ namespace ecmech {
    /**
     * @brief calculate quaternion product q = a . b
     */
+   __ecmech_hdev__
    inline void quat_prod(double* const q,
                          const double* const a,
                          const double* const b) {
@@ -455,6 +492,7 @@ namespace ecmech {
       q[3] = a[0] * b[3] + a[1] * b[2] - a[2] * b[1] + a[3] * b[0];
    }
 
+   __ecmech_hdev__
    inline void get_c_quat(double* const c_quat,
                           const double* const dr_quat,
                           const double* const cn_quat) {
@@ -465,6 +503,7 @@ namespace ecmech {
    /**
     * @breif after \cite{kri-etal-94a}
     */
+   __ecmech_hdev__
    inline void quat_to_tensor(double* const c, // ndim * ndim
                               const double* const quat // qdim
                               ) {
@@ -502,6 +541,7 @@ namespace ecmech {
        !     with: {A}={()/sqr2,sqr3b2*(),sqr2*(),sqr2*(),sqr2*()}
 
     */
+   __ecmech_hdev__
    inline void get_rot_mat_vecd(double* const qr5x5_raw, // ntvec * ntvec
                                 const double* const c // ndim * ndim
                                 ) {
@@ -560,6 +600,7 @@ namespace ecmech {
     * if want _dB, just call with cmv6a and take negative of result;
     * this will give opeartion of A on B
     */
+   __ecmech_hdev__
    inline void M35_d_AAoB_dA(double* const M35, // nwvec * ntvec
                              const double* const cmv6b // nsvec or ntvec -- cmv6b[iSvecS] not accessed
                              ) {
@@ -622,7 +663,9 @@ namespace ecmech {
       ! derivative of quaternion parameters with respect to exponential map
       ! parameters
     */
-   inline void dquat_demap_T(double* const dqdeT_raw, // (EMAPDIM_p,QDIM_p)
+   __ecmech_hdev__
+   inline 
+   void dquat_demap_T(double* const dqdeT_raw, // (EMAPDIM_p,QDIM_p)
                              const double* const emap // (EMAPDIM_p)
                              )
    {
@@ -687,6 +730,7 @@ namespace ecmech {
       dqdeT(1, 3) = tempb;
    }
 
+   __ecmech_hdev__
    inline void d_quat_to_tensor(double* const dcdq_raw, // (DIMS,DIMS,QDIM_p)
                                 const double* const quat // (QDIM_p)
                                 )
@@ -761,6 +805,7 @@ namespace ecmech {
        ! {vec_lat} = [Q]^T {vec_sm}
        ! dvdc is d({vec_lat})/d{C}
    */
+   __ecmech_hdev__
    inline void d_rot_mat_vecd_latop(double* const dvdc_raw, // (TVEC,DIMS,DIMS)
                                     const double* const c, // (DIMS, DIMS)
                                     const double* const vec_sm // (TVEC)
@@ -828,6 +873,7 @@ namespace ecmech {
        !
        ! dvdc(i,k,l) = \pfrac{(Qw_ji W_j)}{C_kl}
     */
+   __ecmech_hdev__
    inline void d_rot_mat_wveccp_latop(double* const dvdc_raw, // (WVEC,DIMS,DIMS)
                                       // const double* const c, // (DIMS, DIMS) // not used
                                       const double* const cmv3w // (WVEC) // vec_sm(WVEC)
@@ -874,7 +920,9 @@ namespace ecmech {
        !
        ! dDapp derivatives are all through lattice rotations, so just TVEC rows instead of SVEC -- trace of applied D does not change with rotation
     */
-   inline void eval_d_dxi_impl_quat(double* const dC_quat_dxi_T, // (WVEC,QDIM_p)
+   __ecmech_hdev__
+   inline
+   void eval_d_dxi_impl_quat(double* const dC_quat_dxi_T, // (WVEC,QDIM_p)
                                     // double* const dC_matx_dxi, // (DIMS,DIMS,WVEC)
                                     double* const dDapp_dxi, // dDapp_dxi(TVEC, WVEC)
                                     double* const dWapp_dxi, // dWapp_dxi(WVEC, WVEC)
@@ -925,6 +973,7 @@ namespace ecmech {
       }
    }
 
+   __ecmech_hdev__
    inline void
    d_rot_mat_vecd_smop(double* const dvdc_raw, // (TVEC,DIMS,DIMS)
                        const double* const c, // (DIMS, DIMS)
@@ -996,6 +1045,7 @@ namespace ecmech {
     * NOTE : NOT set up so that M_in and M_out may be the same
     */
    template<int n, bool l_T>
+   __ecmech_hdev__
    inline void
    qr6x6_pre_mul(double* const M_out, // 6xn
                  const double* const M_in, // 6xn
@@ -1024,7 +1074,9 @@ namespace ecmech {
    } // qr6x6_pre_mul
 
    template<bool l_ddsdde_gamma>
-   inline void
+   __ecmech_hdev__
+   inline 
+   void
    mtan_conv_sd_svec(double* const mtanSD_raw,
                      const double* const mtanSD_vecds_raw) {
       double C_raw[ecmech::nsvec2];

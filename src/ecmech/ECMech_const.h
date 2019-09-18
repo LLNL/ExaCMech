@@ -1,8 +1,9 @@
 #ifndef __ECMECH_CONST_H__
 #define __ECMECH_CONST_H__
 
-#include <math.h>
+//#include <math.h>
 #include "ECMech_port.h"
+#include "ECMech_cuda_portability.h"
 
 /* [J/deg. K] */
 #ifndef M_BOLTZ_J_K
@@ -14,10 +15,72 @@
 #define M_AVOGADRO 6.02214179e23
 #endif
 
+#ifndef M_SQRT2
+#define M_SQRT2 1.41421356237309504880168872421
+#endif
+
+#ifndef M_SQRT3
+#define M_SQRT3 1.73205080756887729352744634151
+#endif
+
+#ifndef M_SQRT3B2
+#define M_SQRT3B2 1.22474487139158904909864203735
+#endif
+
+#ifndef M_SQRT2I
+#define M_SQRT2I 0.707106781186547524400844362105
+#endif
+
+#ifndef M_SQRT3I
+#define M_SQRT3I 0.577350269189625764509148780501
+#endif
+
+#ifndef M_SQRT6
+#define M_SQRT6 2.44948974278317809819728407471
+#endif
+
+#ifndef M_SQRT6I
+#define M_SQRT6I 0.408248290463863016366214012450
+#endif
+
+#ifndef M_SQRT2B3
+#define M_SQRT2B3 0.816496580927726032732428024904
+#endif
+
+#ifndef M_HALFSQRT3
+#define M_HALFSQRT3 0.866025403784438646763723170755
+#endif
+
+#ifndef M_TWOSQRT3
+#define M_TWOSQRT3 3.46410161513775458705489268302
+#endif
+
 #define MORE_DERIVS 0
+
+//#include <limits>
 
 namespace ecmech
 {
+   /*
+ __ecmech_hdev__
+ double constexpr sqrtNewtonRaphson(double x, double curr, double prev)
+ {
+    return curr == prev ? curr : sqrtNewtonRaphson(x, 0.5 * (curr + x / curr), curr);
+ }*/
+
+   /*
+    * Constexpr version of the square root
+    * Return value:
+    *   - For a finite and non-negative value of "x", returns an approximation for the square root of "x"
+    *   - Otherwise, returns NaN
+    *
+   __ecmech_hdev__
+   double constexpr const_sqrt(double x)
+   {
+     return sqrtNewtonRaphson(x, x, 0);
+   }*/
+
+
    const int nsvp = 7;
    const int ndim = 3;
    const int ne = 1;
@@ -56,16 +119,16 @@ namespace ecmech
    const double fourthirds = 4.0 / 3.0;
    const double twothird = 2.0 / 3.0;
 
-   const double sqr2 = sqrt(two);
-   const double sqr3 = sqrt(three);
-   const double sqr3b2 = sqrt(thrhalf);
-   const double sqr2i = one / sqr2;
-   const double sqr3i = one / sqr3;
-   const double sqr6 = sqrt(six);
-   const double sqr6i = one / sqr6;
-   const double sqr2b3 = one / sqr3b2;
-   const double halfsqr3 = sqr3 / two;
-   const double twosqr3 = two * sqr3;
+   const double sqr2 = M_SQRT2;
+   const double sqr3 = M_SQRT3;
+   const double sqr3b2 = M_SQRT3B2;
+   const double sqr2i = M_SQRT2I;
+   const double sqr3i = M_SQRT3I;
+   const double sqr6 = M_SQRT6;
+   const double sqr6i = M_SQRT6I;
+   const double sqr2b3 = M_SQRT2B3;
+   const double halfsqr3 = M_HALFSQRT3;
+   const double twosqr3 = M_TWOSQRT3;
 
    const double idp_tiny_sqrt = 1.0e-90;
    const double idp_eps_sqrt = 1.0e-8;

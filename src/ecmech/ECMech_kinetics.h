@@ -88,6 +88,10 @@ namespace ecmech {
             _res_scale = one / _x_scale;
          }
 
+         // deconstructor
+         __ecmech_hdev__
+         ~Kinetics_H1Problem() {}
+
          __ecmech_hdev__
          inline
          double getHn(const double* const x) const {
@@ -95,7 +99,7 @@ namespace ecmech {
          }
 
          __ecmech_hdev__
-         inline
+         // inline
          bool computeRJ(double* const resid,
                         double* const Jacobian,
                         const double* const x) {
@@ -128,7 +132,7 @@ namespace ecmech {
     */
    template<class Kinetics>
    __ecmech_hdev__
-   inline
+   // inline
    int
    updateH1(const Kinetics* const kinetics,
             double &hs_n,

@@ -52,9 +52,10 @@ namespace ecmech {
             // constructor and destructor
             __ecmech_hdev__
             inline ThermoElastNCubic() : _K_bulkMod(-1.0), _K_gmod(-1.0) {};
+            __ecmech_hdev__
             inline ~ThermoElastNCubic() {};
 
-            __ecmech_hdev__
+            __ecmech_host__
             inline void setParams(const std::vector<double> & params // const double* const params
                                   ) {
                std::vector<double>::const_iterator parsIt = params.begin();
@@ -76,7 +77,7 @@ namespace ecmech {
                _K_gmod = (two * _c11 - two * _c12 + six * _c44) * 0.2; // average of _K_diag entries
             }
 
-            __ecmech_hdev__
+            __ecmech_host__
             inline void getParams(std::vector<double> & params
                                   ) const {
                // do not clear params in case adding to an existing set
@@ -91,7 +92,8 @@ namespace ecmech {
             }
 
             __ecmech_hdev__
-            inline void eval(double* const T_vecds,
+            inline
+            void eval(double* const T_vecds,
                              const double* const Ee_vecds,
                              double, // tK
                              double p_EOS,
@@ -114,7 +116,8 @@ namespace ecmech {
              * for cubic, dT_deps is diag(K_diag * a_V%ri) (symmetric) ; dT_deps[iSvecS,:] = 0
              */
             __ecmech_hdev__
-            inline void multDTDepsT(double* const P, // ntvec*p
+            inline
+            void multDTDepsT(double* const P, // ntvec*p
                                     const double* const A, // ntvec*p
                                     double a_V_ri,
                                     int p) const {
@@ -127,7 +130,8 @@ namespace ecmech {
             }
 
             __ecmech_hdev__
-            inline void getCauchy(double* const sigC_vecds_lat,
+            inline
+            void getCauchy(double* const sigC_vecds_lat,
                                   const double* const T_vecds,
                                   double detVi) const
             {
@@ -149,7 +153,8 @@ namespace ecmech {
              * (instead of ntvec) to make things easier elsewhere
              */
             __ecmech_hdev__
-            inline void multCauchyDif(double* const M6,
+            // inline
+            void multCauchyDif(double* const M6,
                                       const double* const A,
                                       double detVi,
                                       double a_V_ri
@@ -178,7 +183,8 @@ namespace ecmech {
             }
 
             __ecmech_hdev__
-            inline double getBulkMod( ) const {
+            inline
+            double getBulkMod( ) const {
                if (_K_bulkMod <= 0.0) {
                   ECMECH_FAIL(__func__, "bulk modulus negative -- not initialized?");
                }
@@ -186,7 +192,8 @@ namespace ecmech {
             }
 
             __ecmech_hdev__
-            inline double getGmod(double, // tK
+            inline
+            double getGmod(double, // tK
                                   double, // p_EOS
                                   double // eVref
                                   ) const {
@@ -256,6 +263,10 @@ namespace ecmech {
                _rotincr_scale_inv = _dt_ri * _epsdot_scale_inv;
             }
 
+            // constructor
+            __ecmech_hdev__
+            ~EvptnUpdstProblem() {}
+
             __ecmech_hdev__
             inline
             void provideMTan(double* mtan_sI) { _mtan_sI = mtan_sI; }
@@ -282,7 +293,7 @@ namespace ecmech {
              * () not necessarily safe if e_vecd is the same memory as _e_vecd_n or quat is the same as _Cn_quat
              */
             __ecmech_hdev__
-            inline
+            // inline
             void stateFromX(double* const e_vecd,
                             double* const quat,
                             const double* const x) {
@@ -303,7 +314,7 @@ namespace ecmech {
             }
 
             __ecmech_hdev__
-            inline
+            // inline
             void elastNEtoT(double* const T_vecds, // nsvec
                             const double* const e_vecd_f // ntvec
                             ) {
@@ -336,7 +347,7 @@ namespace ecmech {
             }
 
             __ecmech_hdev__
-            inline
+            // inline
             bool computeRJ(double* const resid,
                            double* const Jacobian,
                            const double* const x) {
@@ -540,14 +551,15 @@ namespace ecmech {
                   //
                   // jacob_er = -dDsm_dxi(:,:)
                   {
-                     RAJA::OffsetLayout<JDIM> layout = RAJA::make_offset_layout<JDIM>({{ 0, -_i_sub_r } }, {{ nDimSys - 1,
-                                                                                                              -_i_sub_r + nDimSys -
-                                                                                                              1 } });
-                     RAJA::View<double, RAJA::OffsetLayout<JDIM> > jacob_er(Jacobian, layout);
+                     //RAJA::OffsetLayout<JDIM> layout = RAJA::make_offset_layout<JDIM>({{ 0, -_i_sub_r } }, {{ nDimSys - 1,
+                     //                                                                                        -_i_sub_r + nDimSys -
+                     //                                                                                          1 } });
+                     RAJA::View<double, RAJA::Layout<JDIM> > jacob_er(Jacobian, nDimSys, nDimSys);
                      for (int jWvec = 0; jWvec<ecmech::nwvec; ++jWvec) {
                         for (int iTvec = 0; iTvec<ecmech::ntvec; ++iTvec) {
                            // could also make dDsm_dxi into a RAJA view, but not really needed
-                           jacob_er(iTvec, jWvec) = -dDsm_dxi[ ECMECH_NM_INDX(iTvec, jWvec, ecmech::ntvec, ecmech::nwvec) ];
+                           jacob_er(iTvec,
+                                    jWvec + _i_sub_r) = -dDsm_dxi[ ECMECH_NM_INDX(iTvec, jWvec, ecmech::ntvec, ecmech::nwvec) ];
                         }
                      }
                   }
@@ -555,9 +567,9 @@ namespace ecmech {
                   // d(B_xi)/d(e_vecds_f)
                   //
                   {
-                     RAJA::OffsetLayout<JDIM> layout = RAJA::make_offset_layout<JDIM>({{ -_i_sub_r, 0 } },
-                                                                                      {{ -_i_sub_r + nDimSys - 1, nDimSys - 1 } });
-                     RAJA::View<double, RAJA::OffsetLayout<JDIM> > jacob_re(Jacobian, layout);
+                     //RAJA::OffsetLayout<JDIM> layout = RAJA::make_offset_layout<JDIM>({{ -_i_sub_r, 0 } },
+                     //                                                                  {{ -_i_sub_r + nDimSys - 1, nDimSys - 1 } });
+                     RAJA::View<double, RAJA::Layout<JDIM> > jacob_re(Jacobian, nDimSys, nDimSys);
 
                      double A_edot_M35[ecmech::nwvec * ecmech::ntvec];
                      M35_d_AAoB_dA(A_edot_M35, edot_vecd);
@@ -567,7 +579,7 @@ namespace ecmech {
                      for (int iWvec = 0; iWvec < ecmech::nwvec; ++iWvec) {
                         for (int jTvec = 0; jTvec < ecmech::ntvec; ++jTvec) {
                            int ijWT = ECMECH_NM_INDX(iWvec, jTvec, ecmech::nwvec, ecmech::ntvec);
-                           jacob_re(iWvec, jTvec) =
+                           jacob_re(iWvec + _i_sub_r, jTvec) =
                               _dt * dpl_deps_skew[ijWT] - dt_ee_fac * (A_e_M35[ijWT] * _dt_ri - A_edot_M35[ijWT]);
                         }
                      }
@@ -576,18 +588,18 @@ namespace ecmech {
                   // d(B_xi)/d(xi_f)
                   //
                   {
-                     RAJA::OffsetLayout<JDIM> layout = RAJA::make_offset_layout<JDIM>({{ -_i_sub_r, -_i_sub_r } },
-                                                                                      {{ -_i_sub_r + nDimSys - 1,
-                                                                                         -_i_sub_r + nDimSys - 1 } });
-                     RAJA::View<double, RAJA::OffsetLayout<JDIM> > jacob_rr(Jacobian, layout);
+                     //RAJA::OffsetLayout<JDIM> layout = RAJA::make_offset_layout<JDIM>({{ -_i_sub_r, -_i_sub_r } },
+                     //                                                                {{ -_i_sub_r + nDimSys - 1,
+                     //                                                                   -_i_sub_r + nDimSys - 1 } });
+                     RAJA::View<double, RAJA::Layout<JDIM> > jacob_rr(Jacobian, nDimSys, nDimSys);
 
                      for (int iWvec = 0; iWvec < ecmech::nwvec; ++iWvec) {
                         for (int jWvec = 0; jWvec < ecmech::nwvec; ++jWvec) {
                            int ijWW = ECMECH_NN_INDX(iWvec, jWvec, ecmech::nwvec);
-                           jacob_rr(iWvec, jWvec) = -_dt * dWsm_dxi[ijWW];
+                           jacob_rr(iWvec + _i_sub_r, jWvec + _i_sub_r) = -_dt * dWsm_dxi[ijWW];
                         }
 
-                        jacob_rr(iWvec, iWvec) += one;
+                        jacob_rr(iWvec + _i_sub_r, iWvec + _i_sub_r) += one;
                      }
                   }
 
@@ -622,7 +634,12 @@ namespace ecmech {
                         // SYSTEM
                         //
                         double pfrac_sys[ _nXnDim ];
-                        std::copy(Jacobian, Jacobian + _nXnDim, pfrac_sys);
+                        //std::copy doesn't exist on the gpu so we need to do this manually
+                        for (int i_jac = 0; i_jac < _nXnDim; i_jac++) {
+                           pfrac_sys[i_jac] = Jacobian[i_jac];
+                        }
+
+                        //std::copy(Jacobian, Jacobian + _nXnDim, pfrac_sys);
                         int err = SNLS_LUP_SolveX<nDimSys>(pfrac_sys, pfrac_rhs_T, nRHS);
                         if (err != 0) {
                            ECMECH_FAIL(__func__, "error from SNLS_LUP_SolveX");
@@ -787,7 +804,7 @@ namespace ecmech {
        */
       template<class SlipGeom, class Kinetics, class ThermoElastN, class EosModel>
       __ecmech_hdev__
-      inline
+      // inline
       void getResponseSngl(const SlipGeom& slipGeom,
                            const Kinetics& kinetics,
                            const ThermoElastN& elastN,
@@ -828,9 +845,18 @@ namespace ecmech {
          // copies, to keep beginning-of-step state safe
          //
          double e_vecd_n[ecmech::ntvec];
-         std::copy(hist + iHistLbE, hist + iHistLbE + ecmech::ntvec, e_vecd_n);
+         //std::copy isn't available on the GPU so loops are required...
+         //std::copy(hist + iHistLbE, hist + iHistLbE + ecmech::ntvec, e_vecd_n);
+         for (int i_hist = 0; i_hist < ecmech::ntvec; i_hist++) {
+            e_vecd_n[i_hist] = hist[iHistLbE + i_hist];
+         }
+
          double quat_n[ecmech::qdim];
-         std::copy(hist + iHistLbQ, hist + iHistLbQ + ecmech::qdim, quat_n);
+         for (int i_hist = 0; i_hist < ecmech::qdim; i_hist++) {
+            quat_n[i_hist] = hist[iHistLbQ + i_hist];
+         }
+
+         //std::copy(hist + iHistLbQ, hist + iHistLbQ + ecmech::qdim, quat_n);
          //
          // normalize quat just in case
          vecsVNormalize<qdim>(quat_n);
@@ -950,10 +976,17 @@ namespace ecmech {
             // store updated state
             //
             prob.stateFromX(e_vecd_u, quat_u, x);
-            std::copy(h_state_u, h_state_u + Kinetics::nH, h_state);
+            //std::copy(h_state_u, h_state_u + Kinetics::nH, h_state);
+            for (int i_hstate = 0; i_hstate < Kinetics::nH; i_hstate++) {
+               h_state[i_hstate] = h_state_u[i_hstate];
+            }
+
             {
                const double* gdot_u = prob.getGdot();
-               std::copy(gdot_u, gdot_u + SlipGeom::nslip, gdot);
+               //std::copy(gdot_u, gdot_u + SlipGeom::nslip, gdot);
+               for (int i_gdot = 0; i_gdot < SlipGeom::nslip; i_gdot++) {
+                  gdot[i_gdot] = gdot_u[i_gdot];
+               }
             }
             hist[iHistA_shrateEff] = prob.getShrateEff();
             hist[iHistA_shrEff] += hist[iHistLbA + 0] * dt;

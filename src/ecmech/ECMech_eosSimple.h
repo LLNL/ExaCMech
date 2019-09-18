@@ -19,9 +19,14 @@ namespace ecmech {
          __ecmech_hdev__
          EosModelConst() {};
 
-
+         // deconstructor
          __ecmech_hdev__
-         inline void setParams(const std::vector<double> & params // const double* const params
+         ~EosModelConst() {};
+
+
+         __ecmech_host__
+         inline
+         void setParams(const std::vector<double> & params // const double* const params
                                ) {
             std::vector<double>::const_iterator parsIt = params.begin();
 
@@ -44,8 +49,9 @@ namespace ecmech {
             }
          };
 
-         __ecmech_hdev__
-         inline void getParams(std::vector<double> & params
+         __ecmech_host__
+         inline 
+         void getParams(std::vector<double> & params
                                ) const {
             // do not clear params in case adding to an existing set
             int paramsStart = params.size();
@@ -84,7 +90,8 @@ namespace ecmech {
          }
 
          __ecmech_hdev__
-         inline void evalPTDiff(double &p,
+         inline
+         void evalPTDiff(double &p,
                                 double &tK,
                                 double &bulkNew,
                                 double &dpde,
@@ -107,7 +114,8 @@ namespace ecmech {
          }
 
          __ecmech_hdev__
-         inline void getEV0(double &e0,
+         inline
+         void getEV0(double &e0,
                             double &v0) const {
             e0 = 0.0;
             v0 = 1.0;
@@ -124,7 +132,8 @@ namespace ecmech {
 
    template<class EosModel>
    __ecmech_hdev__
-   inline void updateSimple(const EosModel& eos,
+   inline
+   void updateSimple(const EosModel& eos,
                             double &p,
                             double &tK,
                             double &eNew,

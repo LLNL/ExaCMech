@@ -32,20 +32,25 @@ namespace ecmech {
             static const int nParamsEOSHave = 3; // number that get from 'elsewhere'
 
             // constructor
+            __ecmech_hdev__
             matModel()
                : matModelBase(),
                _kinetics(SlipGeom::nslip),
                _outputLevel(0) {
             };
 
+            // deconstructor
+            __ecmech_hdev__
+            ~matModel() {}
+
             __ecmech_hdev__
             void setOutputLevel(int outputLevel) { _outputLevel = outputLevel; };
 
             using matModelBase::initFromParams;
-            __ecmech_hdev__
+            __ecmech_host__
             void initFromParams(const std::vector<int>         & opts,
                                 const std::vector<double>       & pars,
-                                const std::vector<std::string> & strs) {
+                                const std::vector<std::string> & strs) override {
                const int nParamsEOS = EosModel::nParams - nParamsEOSHave;
                int nParams =
                   2 + 1 + // rho0, cvav, tolerance
@@ -171,7 +176,7 @@ namespace ecmech {
                              double  * tkelvV,
                              double  * sddV,
                              double  * mtanSDV,
-                             const int    & nPassed) const {
+                             const int    & nPassed) const override final {
                double *mtanSDThis = nullptr;
                //
                for (int i = 0; i<nPassed; ++i) {
@@ -194,12 +199,13 @@ namespace ecmech {
                }
             };
 
-#ifdef __cuda_host_only__
+            #ifdef __cuda_host_only__
+            using matModelBase::getHistInfo;
             __ecmech_host__
-            void getHistInfo(std::vector<std::string> & names,
-                             std::vector<double>       & vals,
-                             std::vector<bool>        & plot,
-                             std::vector<bool>        & state) const {
+            virtual void getHistInfo(std::vector<std::string> & names,
+                                     std::vector<double>       & vals,
+                                     std::vector<bool>        & plot,
+                                     std::vector<bool>        & state) const override {
                if (_rhvNames.size() != numHist) {
                   ECMECH_FAIL(__func__, "have not yet set up history information");
                }
@@ -208,7 +214,7 @@ namespace ecmech {
                plot.resize(numHist); std::copy(_rhvPlot.begin(), _rhvPlot.end(), plot.begin() );
                state.resize(numHist); std::copy(_rhvState.begin(), _rhvState.end(), state.begin() );
             };
-#endif
+            #endif
 
             int getNumHist( ) const {
                return numHist;
@@ -224,13 +230,18 @@ namespace ecmech {
             double _tolerance;
             int _outputLevel;
 
-#ifdef __cuda_host_only__
+            #ifdef __cuda_host_only__
             // TO_DO : it is a good idea to have these host-only?
             std::vector<std::string> _rhvNames;
             std::vector<double>       _rhvVals;
             std::vector<bool>        _rhvPlot;
             std::vector<bool>        _rhvState;
-#endif
+            #else//Not used at all but it keeps the compiler happy
+            const char* _rhvNames;
+            const double* _rhvVals;
+            const bool* _rhvPlot;
+            const bool* _rhvState;
+            #endif
       }; // class matModel
    } //  namespace evptn
 } // namespace ecmech

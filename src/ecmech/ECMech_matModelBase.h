@@ -23,6 +23,7 @@ namespace ecmech {
          double _rho0, _cvav, _v0, _e0;
 
          // constructor
+         __ecmech_hdev__
          matModelBase() :
             _complete(false),
             _rho0(-1.0),
@@ -32,6 +33,8 @@ namespace ecmech {
          {};
 
       public:
+         // deconstructor
+         __ecmech_hdev__
          virtual ~matModelBase() {};
 
          virtual void initFromParams(const std::vector<int>         & opts,
@@ -159,11 +162,13 @@ namespace ecmech {
           * @brief
           * Get the history variable information.
           */
+         #ifdef __cuda_host_only__
          virtual void getHistInfo(std::vector<std::string> & histNames,
                                   std::vector<double>       & initVals,
                                   std::vector<bool>        & plot,
                                   std::vector<bool>        & state) const = 0;
 
+         #endif
          /**
           * @brief
           * Get number of history variables

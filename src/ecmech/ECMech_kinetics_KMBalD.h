@@ -47,8 +47,11 @@ namespace ecmech {
          // constructor
          __ecmech_hdev__
          KineticsKMBalD(int nslip) : _nslip(nslip) {};
-
+         // deconstructor
          __ecmech_hdev__
+         ~KineticsKMBalD() {}
+
+         __ecmech_host__
          void setParams(const std::vector<double> & params // const double* const params
                         ) {
             std::vector<double>::const_iterator parsIt = params.begin();
@@ -111,7 +114,7 @@ namespace ecmech {
             assert(iParam == nParams);
          };
 
-         __ecmech_hdev__
+         __ecmech_host__
          void getParams(std::vector<double> & params
                         ) const {
             // do not clear params in case adding to an existing set
@@ -236,7 +239,7 @@ namespace ecmech {
          }
 
          __ecmech_hdev__
-         inline
+         // inline
          void
          evalGdots(double* const gdot,
                    double* const dgdot_dtau,
@@ -259,7 +262,7 @@ namespace ecmech {
           * like mts_dG, but with output args first
           */
          __ecmech_hdev__
-         inline
+         // inline
          void
          get_mts_dG(double &exp_arg,
                     double &mts_dfac,
@@ -277,7 +280,6 @@ namespace ecmech {
                   // !   mts_dfac = zero
                   // !ELSE
                   // ! blows up, but just set big
-		  //p_func goes to 0 in this scenario.
                   p_func = zero;
                   mts_dfac = mts_dfac * 1e10;
                   // !END IF
@@ -317,7 +319,7 @@ namespace ecmech {
           * see subroutine kinetics_mtspwr_d in mdef
           */
          __ecmech_hdev__
-         inline
+         // inline
          void
          evalGdot(
             double & gdot,
@@ -543,7 +545,7 @@ namespace ecmech {
          } // evalGdot
 
          __ecmech_hdev__
-         inline
+         // inline
          int
          updateH(double* const hs_u,
                  const double* const hs_o,

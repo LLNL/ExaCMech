@@ -24,8 +24,11 @@ namespace ecmech {
          // constructor
          __ecmech_hdev__
          KineticsVocePL(int nslip) : _nslip(nslip) {};
-
+         // deconstructor
          __ecmech_hdev__
+         ~KineticsVocePL() {}
+
+         __ecmech_host__
          inline void setParams(const std::vector<double> & params // const double* const params
                                ) {
             std::vector<double>::const_iterator parsIt = params.begin();
@@ -67,7 +70,7 @@ namespace ecmech {
             assert(iParam == nParams);
          }
 
-         __ecmech_hdev__
+         __ecmech_host__
          inline void getParams(std::vector<double> & params
                                ) const {
             // do not clear params in case adding to an existing set
@@ -160,7 +163,7 @@ namespace ecmech {
          }
 
          __ecmech_hdev__
-         inline
+         // inline
          void
          evalGdots(double* const gdot,
                    double* const dgdot_dtau,
@@ -184,7 +187,7 @@ namespace ecmech {
           * see kinetics_pl_d
           */
          __ecmech_hdev__
-         inline
+         // inline
          void
          evalGdot(
             double & gdot,
