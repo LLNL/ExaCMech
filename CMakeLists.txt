@@ -100,3 +100,7 @@ add_subdirectory(src/ecmech)
 if(ENABLE_TESTS)
     add_subdirectory(test)
 endif(ENABLE_TESTS)
+
+if(ENABLE_MINIAPPS)
+    add_subdirectory(miniapp)
+endif(ENABLE_MINIAPPS)
