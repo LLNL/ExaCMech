@@ -176,7 +176,8 @@ int main(int argc, char *argv[]){
          num_hardness = mat_modela->nH;
          num_gdot = mat_modela->nslip;
          iHistLbGdot = mat_modela->iHistLbGdot;
-
+//For the time being I haven't included the other model yet up on the device just because I want
+//to see if things will even work when using the simpler model.
 #if defined(RAJA_ENABLE_CUDA)
          if (device == Accelerator::CUDA) {
             RAJA::forall<RAJA::cuda_exec<1> >(RAJA::RangeSegment(0, 1), [ = ] RAJA_HOST_DEVICE(int) {
@@ -184,7 +185,6 @@ int main(int argc, char *argv[]){
             });
          }
 #endif
-
          mat_model_base = dynamic_cast<matModelBase*>(mat_modela);
       }
       else if (mat_model_str.compare("mts") == 0) {

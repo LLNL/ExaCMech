@@ -4,60 +4,6 @@ using namespace ecmech;
 
 //We want to keep all of the functions in this namespace private and not viewable to outside files.
 namespace {
-   class matModelBase_test
-   {
-      public:
-         __host__ __device__
-         matModelBase_test() {}
-
-         __host__ __device__
-         virtual void getResponse(const double  & dt,
-                                  const double  * defRateV,
-                                  const double  * spinV,
-                                  const double  * volRatioV,
-                                  double  * eIntV,
-                                  double  * stressSvecPV,
-                                  double  * histV,
-                                  double  * tkelvV,
-                                  double  * sddV,
-                                  double  * mtanSDV,
-                                  const int    & nPassed) const = 0;
-
-         __host__ __device__
-         ~matModelBase_test() {}
-   };
-
-   class matModel_test : public matModelBase_test
-   {
-      private:
-         double var;
-      public:
-         __host__ __device__
-         matModel_test() {}
-
-         __host__ __device__
-         virtual void getResponse(const double  & dt,
-                                  const double  * defRateV,
-                                  const double  * spinV,
-                                  const double  * volRatioV,
-                                  double  * eIntV,
-                                  double  * stressSvecPV,
-                                  double  * histV,
-                                  double  * tkelvV,
-                                  double  * sddV,
-                                  double  * mtanSDV,
-                                  const int    & nPassed) const override final {
-            eIntV[0] = 1.0;
-            stressSvecPV[0] = var;
-         }
-
-         __host__ void init_data(double num){
-            var = num;
-         }
-
-         __host__ __device__
-         ~matModel_test() {}
-   };
 
    void mat_model_kernel_cpu(const ecmech::matModelBase* mat_model_base,
                              const int nqpts, const double dt,
@@ -191,17 +137,7 @@ namespace {
       const int nwvec = ecmech::nwvec;
       const int nvr = ecmech::nvr;
       const int nsvp = ecmech::nsvp;
-      /*
-      matModel_test* arg =  memoryManager::allocate<matModel_test>(1);
 
-      RAJA::forall<RAJA::cuda_exec<1>>(RAJA::RangeSegment(0, 1), [ = ] RAJA_HOST_DEVICE (int) {
-     new(arg) matModel_test();
-      });
-
-      arg->init_data(1.0);
-
-      matModelBase_test* arg2 = dynamic_cast<matModelBase_test*>(arg);
-      */
       RAJA::forall<RAJA::cuda_exec<128> >(default_range, [ = ] RAJA_DEVICE(int ipass) {
          // for(int ipass = 0; ipass < num_passes; ipass++){
          int i_qpts = ipass * num_items;
@@ -221,12 +157,7 @@ namespace {
          double* d_svec_p = &(d_svec_p_array[ind_svecp]);
          double sdd[2];
 
-         //sdd[0] = 2;
-         /*
-         arg2->getResponse(dt, d_svec_p, w_vec, vol_ratio,
-               eng_int, stress_svec_p, state_vars,
-               &temp, &sdd[0], ddsdde, num_items);
-         */
+
          if (remainder == 0 | ipass < (num_passes - 1)) {
             mat_model_base->getResponse(dt, d_svec_p, w_vec, vol_ratio,
                                         eng_int, stress_svec_p, state_vars,
@@ -238,12 +169,7 @@ namespace {
                                         temp_ref, &sdd[0], ddsdde, remainder);
          }
       });//end of npass loop
-         /*
-         RAJA::forall<RAJA::cuda_exec<1>>(RAJA::RangeSegment(0, 1), [ = ] RAJA_HOST_DEVICE (int) {
-       arg->~matModel_test();
-         });
 
-         memoryManager::deallocate(arg); */
    }//end of mat_model_cuda
 
 #endif

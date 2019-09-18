@@ -1,4 +1,5 @@
 #include "setup_kernels.h"
+#include "ECMech_core.h"
 
 using namespace ecmech;
 
