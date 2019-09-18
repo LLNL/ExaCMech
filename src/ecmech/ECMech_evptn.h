@@ -94,11 +94,11 @@ namespace ecmech {
             __ecmech_hdev__
             inline
             void eval(double* const T_vecds,
-                             const double* const Ee_vecds,
-                             double, // tK
-                             double p_EOS,
-                             double // eVref
-                             ) const {
+                      const double* const Ee_vecds,
+                      double,        // tK
+                      double p_EOS,
+                      double        // eVref
+                      ) const {
                double ln_J = sqr3 * Ee_vecds[iSvecS]; // vecds_s_to_trace
                double J = exp(ln_J);
                double Ts_bulk = -sqr3 * J * p_EOS;
@@ -118,9 +118,9 @@ namespace ecmech {
             __ecmech_hdev__
             inline
             void multDTDepsT(double* const P, // ntvec*p
-                                    const double* const A, // ntvec*p
-                                    double a_V_ri,
-                                    int p) const {
+                             const double* const A,        // ntvec*p
+                             double a_V_ri,
+                             int p) const {
                for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
                   double dTdepsThis = _K_diag[iTvec] * a_V_ri;
                   for (int iP = 0; iP < p; ++iP) {
@@ -132,8 +132,8 @@ namespace ecmech {
             __ecmech_hdev__
             inline
             void getCauchy(double* const sigC_vecds_lat,
-                                  const double* const T_vecds,
-                                  double detVi) const
+                           const double* const T_vecds,
+                           double detVi) const
             {
                for (int iSvec = 0; iSvec < ecmech::nsvec; ++iSvec) {
                   sigC_vecds_lat[iSvec] = detVi * T_vecds[iSvec];
@@ -155,10 +155,10 @@ namespace ecmech {
             __ecmech_hdev__
             // inline
             void multCauchyDif(double* const M6,
-                                      const double* const A,
-                                      double detVi,
-                                      double a_V_ri
-                                      ) const {
+                               const double* const A,
+                               double detVi,
+                               double a_V_ri
+                               ) const {
                // CALL vecds_s_to_trace(tr_ln_V, s_meas%Ee_vecds(SVEC))
                // detV = DEXP(tr_ln_V)
                // detVi = one / detV
@@ -194,9 +194,9 @@ namespace ecmech {
             __ecmech_hdev__
             inline
             double getGmod(double, // tK
-                                  double, // p_EOS
-                                  double // eVref
-                                  ) const {
+                           double,        // p_EOS
+                           double        // eVref
+                           ) const {
                if (_K_gmod <= 0.0) {
                   ECMECH_FAIL(__func__, "effective shear modulus negative -- not initialized?");
                }

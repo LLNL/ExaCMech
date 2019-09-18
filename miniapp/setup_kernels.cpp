@@ -329,7 +329,7 @@ namespace {
       //or if we want to test different sizes
       const int block_size = 256;
 
-      RAJA::forall<RAJA::cuda_exec<256> >(default_range, [ = ]RAJA_DEVICE (int i_qpts) {
+      RAJA::forall<RAJA::cuda_exec<256> >(default_range, [ = ] RAJA_DEVICE(int i_qpts) {
          // for (int i_qpts = 0; i_qpts < nqpts; i_qpts++) {
          //Might want to eventually set these all up using RAJA views. It might simplify
          //things later on.
@@ -349,7 +349,7 @@ namespace {
          // initialize 6x6 2d arrays all to 0
          for (int i = 0; i < ecmech::nsvec; i++) {
             for (int j = 0; j < ecmech::nsvec; j++) {
-               ddsdde[(i * ecmech::nsvec) + j] = 0.0;
+               ddsdde[(i * ecmech::nsvec) +j] = 0.0;
             }
          }
 
@@ -381,9 +381,10 @@ namespace {
          vol_ratio[2] = vol_ratio[3] / (dt * 0.5 * (vol_ratio[0] + vol_ratio[1]));
 
          //std::copy(stress, stress + ecmech::nsvec, stress_svec_p);
-	 for(int i = 0; i < ecmech::nsvec; i++){
-	   stress_svec_p[i] = stress[i];
-	 }
+         for (int i = 0; i < ecmech::nsvec; i++) {
+            stress_svec_p[i] = stress[i];
+         }
+
          double stress_mean = -ecmech::onethird * (stress[0] + stress[1] + stress[2]);
          stress_svec_p[0] += stress_mean;
          stress_svec_p[1] += stress_mean;

@@ -68,9 +68,9 @@ int main(int argc, char *argv[]){
    ecmech::matModelBase* mat_model_base;
    //Could probably do this in a smarter way where we don't create two class objects for
    //our different use cases...
-                                                                        
-   ecmech::matModelEvptn_FCC_A* mat_modela =  memoryManager::allocate<ecmech::matModelEvptn_FCC_A>(1);
-   ecmech::matModelEvptn_FCC_B* mat_modelb =  memoryManager::allocate<ecmech::matModelEvptn_FCC_B>(1);
+
+   ecmech::matModelEvptn_FCC_A* mat_modela = memoryManager::allocate<ecmech::matModelEvptn_FCC_A>(1);
+   ecmech::matModelEvptn_FCC_B* mat_modelb = memoryManager::allocate<ecmech::matModelEvptn_FCC_B>(1);
 
    Accelerator device;
 
@@ -169,22 +169,22 @@ int main(int argc, char *argv[]){
          return 1;
       }
 
-      std::cout << "About to initialize class"  << std::endl;
+      std::cout << "About to initialize class" << std::endl;
       //Initialize our base class using the appropriate model
       if (mat_model_str.compare("voce") == 0) {
          num_props = 17;
          num_hardness = mat_modela->nH;
          num_gdot = mat_modela->nslip;
          iHistLbGdot = mat_modela->iHistLbGdot;
-	 
+
 #if defined(RAJA_ENABLE_CUDA)
-	 if(device == Accelerator::CUDA){
-         RAJA::forall<RAJA::cuda_exec<1>>(RAJA::RangeSegment(0, 1), [ = ] RAJA_HOST_DEVICE (int) {
-             new(mat_modela) ecmech::matModelEvptn_FCC_A();
-         });
-	 }
+         if (device == Accelerator::CUDA) {
+            RAJA::forall<RAJA::cuda_exec<1> >(RAJA::RangeSegment(0, 1), [ = ] RAJA_HOST_DEVICE(int) {
+               new(mat_modela) ecmech::matModelEvptn_FCC_A();
+            });
+         }
 #endif
-	 
+
          mat_model_base = dynamic_cast<matModelBase*>(mat_modela);
       }
       else if (mat_model_str.compare("mts") == 0) {
@@ -198,8 +198,8 @@ int main(int argc, char *argv[]){
          std::cerr << "material model must be either voce or mts " << std::endl;
          return 1;
       }
-      
-      std::cout << "Initialized class"  << std::endl;
+
+      std::cout << "Initialized class" << std::endl;
 
       //Read and store our material property data
       std::vector<double> mat_props;
@@ -244,7 +244,7 @@ int main(int argc, char *argv[]){
       //
       mat_model_base->complete();
 
-      std::cout << "Class has been completely initialized"  << std::endl;
+      std::cout << "Class has been completely initialized" << std::endl;
 
       //We're now initializing our state variables and vgrad to be used in other parts
       //of the simulations.
@@ -255,7 +255,7 @@ int main(int argc, char *argv[]){
 
       init_data(device, quats_array, mat_model_base, nqpts, num_hardness,
                 num_gdot, iHistLbGdot, num_state_vars, state_vars);
-      std::cout << "Data is now initialized"  << std::endl;
+      std::cout << "Data is now initialized" << std::endl;
       setup_vgrad(vgrad, nqpts);
    }
 
@@ -290,13 +290,13 @@ int main(int argc, char *argv[]){
       setup_data(device, nqpts, num_state_vars, dt, vgrad, stress_array, state_vars,
                  stress_svec_p_array, d_svec_p_array, w_vec_array, ddsdde_array,
                  vol_ratio_array, eng_int_array);
-      std::cout << "Data is now setup and now to run material model"  << std::endl;
+      std::cout << "Data is now setup and now to run material model" << std::endl;
       //Now our kernel
       mat_model_kernel(device, mat_model_base, nqpts, dt,
                        num_state_vars, state_vars, stress_svec_p_array,
                        d_svec_p_array, w_vec_array, ddsdde_array,
                        vol_ratio_array, eng_int_array);
-      std::cout << "Material model ran now to retrieve the data"  << std::endl;
+      std::cout << "Material model ran now to retrieve the data" << std::endl;
       //retrieve all of the data and put it back in the global arrays
       retrieve_data(device, nqpts, num_state_vars,
                     stress_svec_p_array, vol_ratio_array,
@@ -338,16 +338,16 @@ int main(int argc, char *argv[]){
 
    //Delete all variables declared using new now.
 
-//Right now this is the only model that I'll be testing out.
-//After things work I'll add in the other models as well
-#if defined(RAJA_ENABLE_CUDA) 
-  if(device == Accelerator::CUDA){
-     if (mat_model_str.compare("voce") == 0) {
-         RAJA::forall<RAJA::cuda_exec<1>>(RAJA::RangeSegment(0, 1), [ = ] RAJA_HOST_DEVICE (int) {
-             mat_modela->~matModel();
+   //Right now this is the only model that I'll be testing out.
+   //After things work I'll add in the other models as well
+#if defined(RAJA_ENABLE_CUDA)
+   if (device == Accelerator::CUDA) {
+      if (mat_model_str.compare("voce") == 0) {
+         RAJA::forall<RAJA::cuda_exec<1> >(RAJA::RangeSegment(0, 1), [ = ] RAJA_HOST_DEVICE(int) {
+            mat_modela->~matModel();
          });
-     }
-  }
+      }
+   }
 #endif
 
 

@@ -438,9 +438,9 @@ namespace ecmech {
    __ecmech_hdev__
    inline
    void matToPQ(double* const P_vecd, // ntvec
-                       double* const Q_veccp, // nwvec
-                       const double* const T // ndim*ndim
-                       )
+                double* const Q_veccp,        // nwvec
+                const double* const T        // ndim*ndim
+                )
    {
       // CALL mat_to_symm_3(crys%p_ref(:,:,is), crys%t_ref(:,:,is))
       // CALL symm_to_vecds(P_ref_svec, crys%p_ref(:,:,is))
@@ -664,10 +664,10 @@ namespace ecmech {
       ! parameters
     */
    __ecmech_hdev__
-   inline 
+   inline
    void dquat_demap_T(double* const dqdeT_raw, // (EMAPDIM_p,QDIM_p)
-                             const double* const emap // (EMAPDIM_p)
-                             )
+                      const double* const emap        // (EMAPDIM_p)
+                      )
    {
       const double theta_sm_a = 1e-9;
       const double oo48 = 1.0 / 48.0;
@@ -923,17 +923,17 @@ namespace ecmech {
    __ecmech_hdev__
    inline
    void eval_d_dxi_impl_quat(double* const dC_quat_dxi_T, // (WVEC,QDIM_p)
-                                    // double* const dC_matx_dxi, // (DIMS,DIMS,WVEC)
-                                    double* const dDapp_dxi, // dDapp_dxi(TVEC, WVEC)
-                                    double* const dWapp_dxi, // dWapp_dxi(WVEC, WVEC)
-                                    const double* const d_vecd_sm, // (TVEC), or (SVEC) is fine too
-                                    const double* const w_vec_sm, // (WVEC)
-                                    const double* const xi, // (WVEC)
-                                    const double* const Cn_quat, // (QDIM_p)
-                                    const double* const C_matx, // (DIMS,DIMS)
-                                    const double* const C_quat // (QDIM_p)
-                                    // const double* const A_quat // (QDIM_p) // not used
-                                    ) {
+                             // double* const dC_matx_dxi, // (DIMS,DIMS,WVEC)
+                             double* const dDapp_dxi,        // dDapp_dxi(TVEC, WVEC)
+                             double* const dWapp_dxi,        // dWapp_dxi(WVEC, WVEC)
+                             const double* const d_vecd_sm,        // (TVEC), or (SVEC) is fine too
+                             const double* const w_vec_sm,        // (WVEC)
+                             const double* const xi,        // (WVEC)
+                             const double* const Cn_quat,        // (QDIM_p)
+                             const double* const C_matx,        // (DIMS,DIMS)
+                             const double* const C_quat        // (QDIM_p)
+                             // const double* const A_quat // (QDIM_p) // not used
+                             ) {
       // working with quats, so do not call eval_d_cA_dxi(dc_dxi, dA_dxi, xi, c_n)
       //
       {
@@ -1075,7 +1075,7 @@ namespace ecmech {
 
    template<bool l_ddsdde_gamma>
    __ecmech_hdev__
-   inline 
+   inline
    void
    mtan_conv_sd_svec(double* const mtanSD_raw,
                      const double* const mtanSD_vecds_raw) {

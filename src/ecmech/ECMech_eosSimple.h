@@ -27,7 +27,7 @@ namespace ecmech {
          __ecmech_host__
          inline
          void setParams(const std::vector<double> & params // const double* const params
-                               ) {
+                        ) {
             std::vector<double>::const_iterator parsIt = params.begin();
 
             //////////////////////////////
@@ -50,9 +50,9 @@ namespace ecmech {
          };
 
          __ecmech_host__
-         inline 
+         inline
          void getParams(std::vector<double> & params
-                               ) const {
+                        ) const {
             // do not clear params in case adding to an existing set
             int paramsStart = params.size();
 
@@ -92,11 +92,11 @@ namespace ecmech {
          __ecmech_hdev__
          inline
          void evalPTDiff(double &p,
-                                double &tK,
-                                double &bulkNew,
-                                double &dpde,
-                                double  v,
-                                double  e) const {
+                         double &tK,
+                         double &bulkNew,
+                         double &dpde,
+                         double  v,
+                         double  e) const {
             double eta = one / v;
             double mu = eta - one;
 
@@ -116,7 +116,7 @@ namespace ecmech {
          __ecmech_hdev__
          inline
          void getEV0(double &e0,
-                            double &v0) const {
+                     double &v0) const {
             e0 = 0.0;
             v0 = 1.0;
          }
@@ -134,13 +134,13 @@ namespace ecmech {
    __ecmech_hdev__
    inline
    void updateSimple(const EosModel& eos,
-                            double &p,
-                            double &tK,
-                            double &eNew,
-                            double &bulkNew,
-                            const double* volRatio,
-                            double  eOld,
-                            double  pOld) {
+                     double &p,
+                     double &tK,
+                     double &eNew,
+                     double &bulkNew,
+                     const double* volRatio,
+                     double  eOld,
+                     double  pOld) {
       // double vOld = volRatio[0] ; // not needed
       double vNew = volRatio[1];
       double delv = volRatio[3];

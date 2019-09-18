@@ -80,6 +80,7 @@ namespace {
          stress[2] += stress_mean;
       });  //end of qpts loop
    } //end of retrieve_data_openmp
+
 #endif
 
 #if defined(RAJA_ENABLE_CUDA)
@@ -96,7 +97,7 @@ namespace {
       //or if we want to test different sizes
       const int block_size = 256;
 
-      RAJA::forall<RAJA::cuda_exec<256>>(default_range, [ = ] RAJA_DEVICE (int i_qpts) {
+      RAJA::forall<RAJA::cuda_exec<256> >(default_range, [ = ] RAJA_DEVICE(int i_qpts) {
          // for (int i_qpts = 0; i_qpts < nqpts; i_qpts++){
          //These are our outputs
          double* state_vars = &(state_vars_array[i_qpts * nstatev]);
@@ -118,15 +119,17 @@ namespace {
          //Here we're converting back from our deviatoric + pressure representation of our
          //Cauchy stress back to the Voigt notation of stress.
          double stress_mean = -stress_svec_p[ecmech::iSvecP];
-	 for(int i = 0; i < ecmech::nsvec; i++){
-	   stress[i] = stress_svec_p[i];
-	 }
+         for (int i = 0; i < ecmech::nsvec; i++) {
+            stress[i] = stress_svec_p[i];
+         }
+
          //std::copy(stress_svec_p, stress_svec_p + ecmech::nsvec, stress);
          stress[0] += stress_mean;
          stress[1] += stress_mean;
          stress[2] += stress_mean;
       });  //end of qpts loop
    } //end of retrieve_data_cuda
+
 #endif
 }//end of private namespace
 
