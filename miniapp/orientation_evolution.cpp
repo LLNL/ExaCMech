@@ -145,6 +145,30 @@ int main(int argc, char *argv[]){
       }
 
 
+      //Read and store our material property data
+      //We're going to check that the number of properties are what we expect
+      //when we initialize the classes.
+      std::vector<double> mat_props;
+      int mp_nlines = 0;
+      {
+         std::ifstream mfile(mat_prop_file);
+         std::string line;
+         while (std::getline(mfile, line)) {
+            std::istringstream iss(line);
+            double prop;
+
+            mp_nlines += 1;
+            // std::cout << line << std::endl;
+            if (!(iss >> prop)) {
+               std::cerr << "Material prop file has a malformed line on line: " << mp_nlines << std::endl;
+               return 1;
+            }    // error
+
+            mat_props.push_back(prop);
+         }
+      }
+
+
       //We now detect which device is desired to run the different cases.
       //Compiler flags passed in will tell us which options are available
       //based on what RAJA was built with. If we do not have support for
@@ -169,6 +193,16 @@ int main(int argc, char *argv[]){
          return 1;
       }
 
+      //Some basic set up for when we initialize our class
+      //Opts and strs are just empty vectors of int and strings
+      std::vector<double> params;
+      std::vector<int> opts;
+      std::vector<std::string> strs;
+
+      for (uint i = 0; i < mat_props.size(); i++) {
+         params.push_back(mat_props.at(i));
+      }
+
       std::cout << "About to initialize class" << std::endl;
       //Initialize our base class using the appropriate model
       if (mat_model_str.compare("voce") == 0) {
@@ -176,8 +210,18 @@ int main(int argc, char *argv[]){
          num_hardness = mat_modela->nH;
          num_gdot = mat_modela->nslip;
          iHistLbGdot = mat_modela->iHistLbGdot;
-//For the time being I haven't included the other model yet up on the device just because I want
-//to see if things will even work when using the simpler model.
+
+         //This check used to be in the loop used to read in the material properties
+         //However, if things we're re-arranged, so it's now during the class initialization
+         if (mp_nlines != num_props) {
+            std::cerr << "Material prop file should have " << num_props
+                      << " properties (each on their own line). A total of " << mp_nlines
+                      << " properties were provided instead." << std::endl;
+            return 1;
+         }
+
+         //For the time being I haven't included the other model yet up on the device just because I want
+         //to see if things will even work when using the simpler model.
 #if defined(RAJA_ENABLE_CUDA)
          if (device == Accelerator::CUDA) {
             RAJA::forall<RAJA::cuda_exec<1> >(RAJA::RangeSegment(0, 1), [ = ] RAJA_HOST_DEVICE(int) {
@@ -185,6 +229,10 @@ int main(int argc, char *argv[]){
             });
          }
 #endif
+         //We really shouldn't see this change over time at least for our applications.
+         mat_modela->initFromParams(opts, params, strs);
+         //
+         mat_modela->complete();
          mat_model_base = dynamic_cast<matModelBase*>(mat_modela);
       }
       else if (mat_model_str.compare("mts") == 0) {
@@ -192,57 +240,27 @@ int main(int argc, char *argv[]){
          num_hardness = mat_modelb->nH;
          num_gdot = mat_modelb->nslip;
          iHistLbGdot = mat_modelb->iHistLbGdot;
+
+         //This check used to be in the loop used to read in the material properties
+         //However, if things we're re-arranged, so it's now during the class initialization
+         if (mp_nlines != num_props) {
+            std::cerr << "Material prop file should have " << num_props
+                      << " properties (each on their own line). A total of " << mp_nlines
+                      << " properties were provided instead." << std::endl;
+            return 1;
+         }
+
+         //We really shouldn't see this change over time at least for our applications.
+         mat_modelb->initFromParams(opts, params, strs);
+         //
+         mat_modelb->complete();
+
          mat_model_base = dynamic_cast<matModelBase*>(mat_modelb);
       }
       else {
          std::cerr << "material model must be either voce or mts " << std::endl;
          return 1;
       }
-
-      std::cout << "Initialized class" << std::endl;
-
-      //Read and store our material property data
-      std::vector<double> mat_props;
-      {
-         std::ifstream mfile(mat_prop_file);
-         std::string line;
-         int nlines = 0;
-         while (std::getline(mfile, line)) {
-            std::istringstream iss(line);
-            double prop;
-
-            nlines += 1;
-            // std::cout << line << std::endl;
-            if (!(iss >> prop)) {
-               std::cerr << "Material prop file has a malformed line on line: " << nlines << std::endl;
-               return 1;
-            }    // error
-
-            mat_props.push_back(prop);
-         }
-         if (nlines != num_props) {
-            std::cerr << "Material prop file should have " << num_props
-                      << " properties (each on their own line). A total of " << nlines
-                      << " properties were provided instead." << std::endl;
-            return 1;
-         }
-      }
-
-
-      //Below initializes our material model class
-      //Opts and strs are just empty vectors of int and strings
-      std::vector<double> params;
-      std::vector<int> opts;
-      std::vector<std::string> strs;
-
-      for (int i = 0; i < mat_props.size(); i++) {
-         params.push_back(mat_props.at(i));
-      }
-
-      //We really shouldn't see this change over time at least for our applications.
-      mat_model_base->initFromParams(opts, params, strs);
-      //
-      mat_model_base->complete();
 
       std::cout << "Class has been completely initialized" << std::endl;
 
@@ -286,17 +304,17 @@ int main(int argc, char *argv[]){
    double wts = 1.0 / nqpts;
 
    for (int i = 0; i < nsteps; i++) {
-      std::cout << "About to setup data..." << std::endl;
+      // std::cout << "About to setup data..." << std::endl;
       setup_data(device, nqpts, num_state_vars, dt, vgrad, stress_array, state_vars,
                  stress_svec_p_array, d_svec_p_array, w_vec_array, ddsdde_array,
                  vol_ratio_array, eng_int_array);
-      std::cout << "Data is now setup and now to run material model" << std::endl;
+      // std::cout << "Data is now setup and now to run material model" << std::endl;
       //Now our kernel
       mat_model_kernel(device, mat_model_base, nqpts, dt,
                        num_state_vars, state_vars, stress_svec_p_array,
                        d_svec_p_array, w_vec_array, ddsdde_array,
                        vol_ratio_array, eng_int_array);
-      std::cout << "Material model ran now to retrieve the data" << std::endl;
+      // std::cout << "Material model ran now to retrieve the data" << std::endl;
       //retrieve all of the data and put it back in the global arrays
       retrieve_data(device, nqpts, num_state_vars,
                     stress_svec_p_array, vol_ratio_array,

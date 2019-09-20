@@ -37,6 +37,7 @@
 #ifdef __CUDACC__
 #ifndef CUDART_CHECK
 extern void CUDART_Check(const cudaError_t err, const char *file, const char *func, const int ln);
+
 #define CUDART_CHECK(err) CUDART_Check(err, __FILE__, __func__, __LINE__);
 #endif
 #else

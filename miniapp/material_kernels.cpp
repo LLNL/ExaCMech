@@ -4,7 +4,6 @@ using namespace ecmech;
 
 //We want to keep all of the functions in this namespace private and not viewable to outside files.
 namespace {
-
    void mat_model_kernel_cpu(const ecmech::matModelBase* mat_model_base,
                              const int nqpts, const double dt,
                              const int nstatev, double* state_vars_array,
@@ -42,7 +41,7 @@ namespace {
          double* d_svec_p = &(d_svec_p_array[ind_svecp]);
          double sdd[2];
 
-         if (remainder == 0 | ipass < (num_passes - 1)) {
+         if ((remainder == 0) | (ipass < (num_passes - 1))) {
             mat_model_base->getResponse(dt, d_svec_p, w_vec, vol_ratio,
                                         eng_int, stress_svec_p, state_vars,
                                         temp_ref, &sdd[0], ddsdde, num_items);
@@ -93,7 +92,7 @@ namespace {
          double* d_svec_p = &(d_svec_p_array[ind_svecp]);
          double sdd[2];
 
-         if (remainder == 0 | ipass < (num_passes - 1)) {
+         if ((remainder == 0) | (ipass < (num_passes - 1))) {
             mat_model_base->getResponse(dt, d_svec_p, w_vec, vol_ratio,
                                         eng_int, stress_svec_p, state_vars,
                                         temp_ref, &sdd[0], ddsdde, num_items);
@@ -158,7 +157,7 @@ namespace {
          double sdd[2];
 
 
-         if (remainder == 0 | ipass < (num_passes - 1)) {
+         if ((remainder == 0) | (ipass < (num_passes - 1))) {
             mat_model_base->getResponse(dt, d_svec_p, w_vec, vol_ratio,
                                         eng_int, stress_svec_p, state_vars,
                                         temp_ref, &sdd[0], ddsdde, num_items);
@@ -169,7 +168,6 @@ namespace {
                                         temp_ref, &sdd[0], ddsdde, remainder);
          }
       });//end of npass loop
-
    }//end of mat_model_cuda
 
 #endif
