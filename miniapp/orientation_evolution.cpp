@@ -223,6 +223,10 @@ int main(int argc, char *argv[]){
          //For the time being I haven't included the other model yet up on the device just because I want
          //to see if things will even work when using the simpler model.
 #if defined(RAJA_ENABLE_CUDA)
+         //These lines allow the code to run on the CPU now, but I'm still running into issues with
+         //the GPU seg faulting whenever the initFromParams call is made...
+         ecmech::matModelEvptn_FCC_A temp;
+         memcpy(mat_modela, &temp, sizeof(ecmech::matModelEvptn_FCC_A));
          if (device == Accelerator::CUDA) {
             RAJA::forall<RAJA::cuda_exec<1> >(RAJA::RangeSegment(0, 1), [ = ] RAJA_HOST_DEVICE(int) {
                new(mat_modela) ecmech::matModelEvptn_FCC_A();
@@ -368,7 +372,8 @@ int main(int argc, char *argv[]){
    }
 #endif
 
-
+   //Program seg faults when compiled with NVCC and run on the CPU somewhere down here
+   //It doesn't appear to be a problem caused by the deallocation though...
    memoryManager::deallocate(mat_modela);
    memoryManager::deallocate(mat_modelb);
    memoryManager::deallocate(state_vars);

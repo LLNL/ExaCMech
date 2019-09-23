@@ -23,13 +23,13 @@ namespace ecmech {
       {
          public:
 
-            static const int iHistLbGdot = NumHist<SlipGeom, Kinetics, ThermoElastN, EosModel>::iHistLbGdot;
-            static const int numHist = NumHist<SlipGeom, Kinetics, ThermoElastN, EosModel>::numHist;
-            static const int nH = Kinetics::nH;
-            static const int nslip = SlipGeom::nslip;
+            static constexpr int iHistLbGdot = NumHist<SlipGeom, Kinetics, ThermoElastN, EosModel>::iHistLbGdot;
+            static constexpr int numHist = NumHist<SlipGeom, Kinetics, ThermoElastN, EosModel>::numHist;
+            static constexpr int nH = Kinetics::nH;
+            static constexpr int nslip = SlipGeom::nslip;
 
             // this are assumed to go in first
-            static const int nParamsEOSHave = 3; // number that get from 'elsewhere'
+            static constexpr int nParamsEOSHave = 3; // number that get from 'elsewhere'
 
             // constructor
             __ecmech_hdev__
