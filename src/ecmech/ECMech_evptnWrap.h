@@ -4,6 +4,7 @@
 #define ecmech_evptnWrap_include
 
 #include "ECMech_core.h"
+#include "RAJA/RAJA.hpp"
 
 #ifdef __cuda_host_only__
 #include <sstream>
@@ -46,7 +47,132 @@ namespace ecmech {
                _rhvPlotLen(0),
                _rhvState(nullptr),
                _rhvStateLen(0)
-            {};
+            {
+               //Should the tangent stiff matrix be included in these stride calculations?
+               _strides[0] = ecmech::nsvp;
+               _strides[1] = ecmech::ndim;
+               _strides[2] = ecmech::nvr;
+               _strides[3] = ecmech::ne;
+               _strides[4] = ecmech::nsvp;
+               _strides[5] = NumHist<SlipGeom, Kinetics, ThermoElastN, EosModel>::numHist;
+               _strides[6] = 1;
+               _strides[7] = ecmech::nsdd;
+            };
+
+            // constructor
+            __ecmech_hdev__
+            matModel(const uint* strides, const uint stride_len)
+               : matModelBase(),
+               _kinetics(SlipGeom::nslip),
+               _outputLevel(0),
+               _rhvNames(nullptr),
+               _rhvNamesLen(0),
+               _rhvNamesPtrEndLoc(nullptr),
+               _rhvVals(nullptr),
+               _rhvValsLen(0),
+               _rhvPlot(nullptr),
+               _rhvPlotLen(0),
+               _rhvState(nullptr),
+               _rhvStateLen(0)
+            {
+               uint nhist = NumHist<SlipGeom, Kinetics, ThermoElastN, EosModel>::numHist;
+
+               if (stride_len != 8) {
+                  #ifdef __cuda_host_only__
+                  std::ostringstream os;
+                  os << "Stride vector needs to have a size of 8 with strides of: " <<
+                     ecmech::nsvp << ", " << ecmech::ndim << ", " << ecmech::nvr << ", " <<
+                     ecmech::ne << ", " << ecmech::nsvp << ", " << nhist << ", 1, " << ecmech::nsdd;
+                  ECMECH_FAIL(__func__, os.str());
+                  #else
+                  ECMECH_FAIL(__func__, "Stride vector needs to have a size of 8 with strides");
+                  #endif
+               }
+
+               //Need to make sure all of the strides provided at least make sense
+               if (strides[0] < ecmech::nsvp) {
+                  #ifdef __cuda_host_only__
+                  std::ostringstream os;
+                  os << "strides[0] should have at least a length of: " << ecmech::nsvp;
+                  ECMECH_FAIL(__func__, os.str());
+                  #else
+                  ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
+                  #endif
+               }
+               if (strides[1] < ecmech::ndim) {
+                  #ifdef __cuda_host_only__
+                  std::ostringstream os;
+                  os << "strides[1] should have at least a length of: " << ecmech::ndim;
+                  ECMECH_FAIL(__func__, os.str());
+                  #else
+                  ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
+                  #endif
+                  
+               }
+               if (strides[2] < ecmech::nvr) {
+                  #ifdef __cuda_host_only__
+                  std::ostringstream os;
+                  os << "strides[2] should have at least a length of: " << ecmech::nvr;
+                  ECMECH_FAIL(__func__, os.str());
+                  #else
+                  ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
+                  #endif
+               }
+               if (strides[3] < ecmech::ne) {
+                  #ifdef __cuda_host_only__
+                  std::ostringstream os;
+                  os << "strides[3] should have at least a length of: " << ecmech::ne;
+                  ECMECH_FAIL(__func__, os.str());
+                  #else
+                  ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
+                  #endif
+               }
+               if (strides[4] < ecmech::nsvp) {
+                  #ifdef __cuda_host_only__
+                  std::ostringstream os;
+                  os << "strides[4] should have at least a length of: " << ecmech::nsvp;
+                  ECMECH_FAIL(__func__, os.str());
+                  #else
+                  ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
+                  #endif
+               }
+               if (strides[5] < nhist) {
+                  #ifdef __cuda_host_only__
+                  std::ostringstream os;
+                  os << "strides[5] should have at least a length of: " << nhist;
+                  ECMECH_FAIL(__func__, os.str());
+                  #else
+                  ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
+                  #endif
+               }
+               if (strides[6] < 1) {
+                  #ifdef __cuda_host_only__
+                  std::ostringstream os;
+                  os << "strides[6] should have at least a length of: " << 1;
+                  ECMECH_FAIL(__func__, os.str());
+                  #else
+                  ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
+                  #endif
+               }
+               if (strides[7] < ecmech::nsdd) {
+                  #ifdef __cuda_host_only__
+                  std::ostringstream os;
+                  os << "strides[7] should have at least a length of: " << ecmech::nsdd;
+                  ECMECH_FAIL(__func__, os.str());
+                  #else
+                  ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
+                  #endif
+               }
+
+               _strides[0] = strides[0];
+               _strides[1] = strides[1];
+               _strides[2] = strides[2];
+               _strides[3] = strides[3];
+               _strides[4] = strides[4];
+               _strides[5] = strides[5];
+               _strides[6] = strides[6];
+               _strides[7] = strides[7];
+            };
 
             // deconstructor
             __ecmech_hdev__
@@ -64,9 +190,10 @@ namespace ecmech {
 
             using matModelBase::initFromParams;
             __ecmech_host__
-            void initFromParams(const std::vector<int>         & opts,
-                                const std::vector<double>       & pars,
-                                const std::vector<std::string> & strs) override {
+            void initFromParams(const std::vector<int>& opts,
+                                const std::vector<double>& pars,
+                                const std::vector<std::string>& strs,
+                                const ecmech::Accelerator& accel = ecmech::Accelerator::CPU) override final {
                const int nParamsEOS = EosModel::nParams - nParamsEOSHave;
                int nParams =
                   2 + 1 + // rho0, cvav, tolerance
@@ -83,6 +210,8 @@ namespace ecmech {
                if (strs.size() != 0) {
                   ECMECH_FAIL(__func__, "wrong number of strs");
                }
+
+               _accel = accel;
 
                std::vector<double>::const_iterator parsIt = pars.begin();
 
@@ -216,9 +345,9 @@ namespace ecmech {
             };
 
             __ecmech_host__
-            void getParams(std::vector<int>         & opts,
-                           std::vector<double>       & pars,
-                           std::vector<std::string> & strs) const {
+            void getParams(std::vector<int>& opts,
+                           std::vector<double>& pars,
+                           std::vector<std::string>& strs) const {
                // ...*** ;
                opts.clear();
                strs.clear();
@@ -227,48 +356,95 @@ namespace ecmech {
             };
 
             __ecmech_host__
-            void logParameters(std::ostringstream & oss) const {
+            void logParameters(std::ostringstream& oss) const {
                // ...*** ;
                oss << "evptn constitutive model" << std::endl;
                ECMECH_FAIL(__func__, "logParameters not yet implemented");
             };
 
             using matModelBase::getResponse;
-            __ecmech_hdev__
-            void getResponse(const double  & dt,
-                             const double  * defRateV,
-                             const double  * spinV,
-                             const double  * volRatioV,
-                             double  * eIntV,
-                             double  * stressSvecPV,
-                             double  * histV,
-                             double  * tkelvV,
-                             double  * sddV,
-                             double  * mtanSDV,
-                             const int    & nPassed) const override final {
-               double *mtanSDThis = nullptr;
-               //
-               for (int i = 0; i<nPassed; ++i) {
+            __ecmech_host__
+            void getResponse(const double & dt,
+                             const double * defRateV,
+                             const double * spinV,
+                             const double * volRatioV,
+                             double * eIntV,
+                             double * stressSvecPV,
+                             double * histV,
+                             double * tkelvV,
+                             double * sddV,
+                             double * mtanSDV,
+                             const int& nPassed) const override final {
+               RAJA::RangeSegment default_range(0, nPassed);
+#if defined(RAJA_ENABLE_OPENMP)
+               if (_accel == ecmech::Accelerator::OPENMP) {
+                  RAJA::forall<RAJA::omp_parallel_for_exec>(default_range, [ = ] (int i) {
+                  double *mtanSDThis = nullptr;
                   if (mtanSDV != nullptr) {
                      mtanSDThis = &mtanSDV[ecmech::nsvec2 * i];
                   }
                   getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>(_slipGeom, _kinetics, _elastN, _eosModel,
                                                                               dt,
                                                                               _tolerance,
-                                                                              &defRateV[ecmech::nsvp*i],
-                                                                              &spinV[ecmech::ndim*i],
-                                                                              &volRatioV[ecmech::nvr*i],
-                                                                              &eIntV[ecmech::ne*i],
-                                                                              &stressSvecPV[ecmech::nsvp*i],
-                                                                              &histV[numHist * i],
-                                                                              tkelvV[i],
-                                                                              &sddV[ecmech::nsdd*i],
+                                                                              &defRateV[_strides[0] * i],
+                                                                              &spinV[_strides[1] * i],
+                                                                              &volRatioV[_strides[2] * i],
+                                                                              &eIntV[_strides[3] * i],
+                                                                              &stressSvecPV[_strides[4] * i],
+                                                                              &histV[_strides[5] * i],
+                                                                              tkelvV[_strides[6] * i],
+                                                                              &sddV[_strides[7] * i],
                                                                               mtanSDThis,
                                                                               _outputLevel);
+               });
                }
-            };
+#endif
+#if defined(RAJA_ENABLE_CUDA)
+               if (_accel == ecmech::Accelerator::CUDA) {
+                  RAJA::forall<RAJA::cuda_exec<RAJA_CUDA_THREADS> >(default_range, [ = ] RAJA_DEVICE(int i) {
+                  double *mtanSDThis = nullptr;
+                  if (mtanSDV != nullptr) {
+                     mtanSDThis = &mtanSDV[ecmech::nsvec2 * i];
+                  }
+                  getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>(_slipGeom, _kinetics, _elastN, _eosModel,
+                                                                              dt,
+                                                                              _tolerance,
+                                                                              &defRateV[_strides[0] * i],
+                                                                              &spinV[_strides[1] * i],
+                                                                              &volRatioV[_strides[2] * i],
+                                                                              &eIntV[_strides[3] * i],
+                                                                              &stressSvecPV[_strides[4] * i],
+                                                                              &histV[_strides[5] * i],
+                                                                              tkelvV[_strides[6] * i],
+                                                                              &sddV[_strides[7] * i],
+                                                                              mtanSDThis,
+                                                                              _outputLevel);
+               });
+               }
+#endif
+               if (_accel == ecmech::Accelerator::CPU) {
+                  RAJA::forall<RAJA::loop_exec>(default_range, [ = ] (int i) {
+                  double *mtanSDThis = nullptr;
+                  if (mtanSDV != nullptr) {
+                     mtanSDThis = &mtanSDV[ecmech::nsvec2 * i];
+                  }
+                  getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>(_slipGeom, _kinetics, _elastN, _eosModel,
+                                                                              dt,
+                                                                              _tolerance,
+                                                                              &defRateV[_strides[0] * i],
+                                                                              &spinV[_strides[1] * i],
+                                                                              &volRatioV[_strides[2] * i],
+                                                                              &eIntV[_strides[3] * i],
+                                                                              &stressSvecPV[_strides[4] * i],
+                                                                              &histV[_strides[5] * i],
+                                                                              tkelvV[_strides[6] * i],
+                                                                              &sddV[_strides[7] * i],
+                                                                              mtanSDThis,
+                                                                              _outputLevel);
+               });
+               }
+            };//End of getResponse
 
-            #ifdef __cuda_host_only__
             using matModelBase::getHistInfo;
             __ecmech_host__
             virtual void getHistInfo(std::vector<std::string> & names,
@@ -293,19 +469,24 @@ namespace ecmech {
                }
 
                std::vector<double> _rhvValsTemp(_rhvVals, _rhvVals + _rhvValsLen);
-               std::vector<bool> _rhvPlotTemp(_rhvPlot, _rhvPlot + _rhvPlotLen);;
-               std::vector<bool> _rhvStateTemp(_rhvState, _rhvState + _rhvStateLen);;
+               std::vector<bool> _rhvPlotTemp(_rhvPlot, _rhvPlot + _rhvPlotLen);
+               std::vector<bool> _rhvStateTemp(_rhvState, _rhvState + _rhvStateLen);
 
                names.resize(numHist); std::copy(_rhvNamesTemp.begin(), _rhvNamesTemp.end(), names.begin() );
                vals.resize(numHist); std::copy(_rhvValsTemp.begin(), _rhvValsTemp.end(), vals.begin() );
                plot.resize(numHist); std::copy(_rhvPlotTemp.begin(), _rhvPlotTemp.end(), plot.begin() );
                state.resize(numHist); std::copy(_rhvStateTemp.begin(), _rhvStateTemp.end(), state.begin() );
             };
-            #endif
 
+            __ecmech_hdev__
             int getNumHist( ) const {
                return numHist;
             };
+
+            __ecmech_host__
+            void setAccelerator(ecmech::Accelerator accel) override final {
+               _accel = accel;
+            }
 
          private:
 
@@ -316,6 +497,8 @@ namespace ecmech {
 
             double _tolerance;
             int _outputLevel;
+            uint _strides[8];
+            ecmech::Accelerator _accel;
 
             //I'm not sure we can even have these in here when dealing
             //with host and device code. So, I've replaced them with

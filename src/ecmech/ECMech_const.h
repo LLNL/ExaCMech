@@ -61,25 +61,9 @@
 
 namespace ecmech
 {
-   /*
- __ecmech_hdev__
- double constexpr sqrtNewtonRaphson(double x, double curr, double prev)
- {
-    return curr == prev ? curr : sqrtNewtonRaphson(x, 0.5 * (curr + x / curr), curr);
- }*/
-
-   /*
-    * Constexpr version of the square root
-    * Return value:
-    *   - For a finite and non-negative value of "x", returns an approximation for the square root of "x"
-    *   - Otherwise, returns NaN
-    *
-   __ecmech_hdev__
-   double constexpr const_sqrt(double x)
-   {
-     return sqrtNewtonRaphson(x, x, 0);
-   }*/
-
+   //We're going to use this to determine what RAJA code to run for our
+   //kernels.
+   enum class Accelerator { CPU, CUDA, OPENMP };
 
    const int nsvp = 7;
    const int ndim = 3;

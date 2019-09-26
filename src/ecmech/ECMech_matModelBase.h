@@ -37,18 +37,19 @@ namespace ecmech {
          __ecmech_hdev__
          virtual ~matModelBase() {};
 
-         virtual void initFromParams(const std::vector<int>         & opts,
-                                     const std::vector<double>       & pars,
-                                     const std::vector<std::string> & strs) = 0;
+         virtual void initFromParams(const std::vector<int>& opts,
+                                     const std::vector<double>& pars,
+                                     const std::vector<std::string>& strs,
+                                     const ecmech::Accelerator& accel = ecmech::Accelerator::CPU) = 0;
 
-         virtual void getParams(std::vector<int>         & opts,
-                                std::vector<double>       & pars,
-                                std::vector<std::string> & strs) const = 0;
+         virtual void getParams(std::vector<int>& opts,
+                                std::vector<double>& pars,
+                                std::vector<std::string>& strs) const = 0;
 
          /**
           * @brief log parameters, including history information; more human-readable than getParams output
           */
-         virtual void logParameters(std::ostringstream & oss) const = 0;
+         virtual void logParameters(std::ostringstream& oss) const = 0;
 
          /**
           * @brief Request response information for a group of host-code
@@ -145,35 +146,43 @@ namespace ecmech {
           *    pass a negative value for a host-code point that is to be 'skipped'
           */
 
-         __ecmech_hdev__
-         virtual void getResponse(const double  & dt,
-                                  const double  * defRateV,
-                                  const double  * spinV,
-                                  const double  * volRatioV,
-                                  double  * eIntV,
-                                  double  * stressSvecPV,
-                                  double  * histV,
-                                  double  * tkelvV,
-                                  double  * sddV,
-                                  double  * mtanSDV,
-                                  const int    & nPassed) const = 0;
+         __ecmech_host__
+         virtual void getResponse(const double & dt,
+                                  const double * defRateV,
+                                  const double * spinV,
+                                  const double * volRatioV,
+                                  double * eIntV,
+                                  double * stressSvecPV,
+                                  double * histV,
+                                  double * tkelvV,
+                                  double * sddV,
+                                  double * mtanSDV,
+                                  const int & nPassed) const = 0;
 
          /**
           * @brief
           * Get the history variable information.
           */
-         #ifdef __cuda_host_only__
-         virtual void getHistInfo(std::vector<std::string> & histNames,
-                                  std::vector<double>       & initVals,
-                                  std::vector<bool>        & plot,
-                                  std::vector<bool>        & state) const = 0;
+         virtual void getHistInfo(std::vector<std::string>& histNames,
+                                  std::vector<double>& initVals,
+                                  std::vector<bool>& plot,
+                                  std::vector<bool>& state) const = 0;
 
-         #endif
+
          /**
           * @brief
           * Get number of history variables
           */
+         __ecmech_hdev__
          virtual int getNumHist( ) const = 0;
+
+         /**
+          *  @brief
+          *  Set the accelerator to be used for getResponse
+          *  The available options are CPU, OPENMP, and CUDA.
+          */
+         __ecmech_host__
+         virtual void setAccelerator(ecmech::Accelerator accel) = 0;
 
          /**
           * @brief Get the reference density
@@ -191,12 +200,14 @@ namespace ecmech {
           * @brief
           * May end up requiring this to be called before the model may be used; and probably want to redefine this
           */
+         __ecmech_hdev__
          virtual void complete() { _complete = true; };
 
          /**
           * @brief
           * Return whether or not complete has been called
           */
+         __ecmech_hdev__
          virtual bool isComplete() { return _complete; };
    };
 } // ecmech namespace

@@ -137,23 +137,23 @@ namespace {
 //each time step. We could also show this kernel being used to compute the
 //internal force (divergence of the Cauchy stress) for each point. However,
 //we might make one last kernel to accomplish that goal.
-void retrieve_data(Accelerator accel, const int nqpts, const int nstatev,
+void retrieve_data(ecmech::Accelerator accel, const int nqpts, const int nstatev,
                    const double* stress_svec_p_array, const double* vol_ratio_array,
                    const double* eng_int_array, double* state_vars_array,
                    double* stress_array){
    #if defined(RAJA_ENABLE_OPENMP)
-   if (accel == Accelerator::OPENMP) {
+   if (accel == ecmech::Accelerator::OPENMP) {
       retrieve_data_openmp(nqpts, nstatev, stress_svec_p_array, vol_ratio_array,
                            eng_int_array, state_vars_array, stress_array);
    }
    #endif
    #if defined(RAJA_ENABLE_CUDA)
-   if (accel == Accelerator::CUDA) {
+   if (accel == ecmech::Accelerator::CUDA) {
       retrieve_data_cuda(nqpts, nstatev, stress_svec_p_array, vol_ratio_array,
                          eng_int_array, state_vars_array, stress_array);
    }
    #endif
-   if (accel == Accelerator::CPU) {
+   if (accel == ecmech::Accelerator::CPU) {
       retrieve_data_cpu(nqpts, nstatev, stress_svec_p_array, vol_ratio_array,
                         eng_int_array, state_vars_array, stress_array);
    }

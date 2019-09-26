@@ -154,7 +154,6 @@ namespace ecmech {
             assert(iParam == nParams);
          };
 
-#ifdef __cuda_host_only__
          __ecmech_host__
          void getHistInfo(std::vector<std::string> & names,
                           std::vector<double>       & init,
@@ -165,8 +164,6 @@ namespace ecmech {
             plot.push_back(true);
             state.push_back(true);
          }
-
-#endif
 
       private:
 

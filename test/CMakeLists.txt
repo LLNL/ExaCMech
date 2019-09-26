@@ -9,6 +9,14 @@ else()
     list(APPEND ECMECH_TEST_DEPENDS ecmech_shared ${SNLS_SHARED_TARGET})
 endif()
 
+if(ENABLE_OPENMP)
+   list(APPEND ECMECH_TEST_DEPENDS openmp)
+endif()
+
+if(ENABLE_CUDA)
+   list(APPEND ECMECH_TEST_DEPENDS cuda)
+endif()
+
 blt_add_executable(NAME       test_hardening
                    SOURCES    test_hardening.cxx
                    OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}

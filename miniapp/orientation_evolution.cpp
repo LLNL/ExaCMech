@@ -69,10 +69,20 @@ int main(int argc, char *argv[]){
    //Could probably do this in a smarter way where we don't create two class objects for
    //our different use cases...
 
-   ecmech::matModelEvptn_FCC_A* mat_modela = memoryManager::allocate<ecmech::matModelEvptn_FCC_A>(1);
-   ecmech::matModelEvptn_FCC_B* mat_modelb = memoryManager::allocate<ecmech::matModelEvptn_FCC_B>(1);
+   std::vector<uint> strides;
+   strides.push_back(ecmech::nsvp);
+   strides.push_back(ecmech::ndim);
+   strides.push_back(ecmech::nvr);
+   strides.push_back(ecmech::ne);
+   strides.push_back(ecmech::nsvp);
+   strides.push_back(num_state_vars);
+   strides.push_back(1);
+   strides.push_back(ecmech::nsdd);
 
-   Accelerator device;
+   ecmech::matModelEvptn_FCC_A mat_modela(strides.data(), strides.size());
+   ecmech::matModelEvptn_FCC_B mat_modelb(strides.data(), strides.size());
+
+   ecmech::Accelerator class_device;
 
    //Data structures needed for each time step
    //We really don't need to allocate these constantly, so we should just do it
@@ -176,16 +186,16 @@ int main(int argc, char *argv[]){
       //which values are available.
 
       if (device_type.compare("CPU") == 0) {
-         device = Accelerator::CPU;
+         class_device = ecmech::Accelerator::CPU;
       }
       #if defined(RAJA_ENABLE_OPENMP)
       else if (device_type.compare("OpenMP") == 0) {
-         device = Accelerator::OPENMP;
+         class_device = ecmech::Accelerator::OPENMP;
       }
       #endif
       #if defined(RAJA_ENABLE_CUDA)
       else if (device_type.compare("CUDA") == 0) {
-         device = Accelerator::CUDA;
+         class_device = ecmech::Accelerator::CUDA;
       }
       #endif
       else {
@@ -207,9 +217,9 @@ int main(int argc, char *argv[]){
       //Initialize our base class using the appropriate model
       if (mat_model_str.compare("voce") == 0) {
          num_props = 17;
-         num_hardness = mat_modela->nH;
-         num_gdot = mat_modela->nslip;
-         iHistLbGdot = mat_modela->iHistLbGdot;
+         num_hardness = mat_modela.nH;
+         num_gdot = mat_modela.nslip;
+         iHistLbGdot = mat_modela.iHistLbGdot;
 
          //This check used to be in the loop used to read in the material properties
          //However, if things we're re-arranged, so it's now during the class initialization
@@ -220,30 +230,16 @@ int main(int argc, char *argv[]){
             return 1;
          }
 
-         //For the time being I haven't included the other model yet up on the device just because I want
-         //to see if things will even work when using the simpler model.
-#if defined(RAJA_ENABLE_CUDA)
-         //These lines allow the code to run on the CPU now, but I'm still running into issues with
-         //the GPU seg faulting whenever the initFromParams call is made...
-         ecmech::matModelEvptn_FCC_A temp;
-         memcpy(mat_modela, &temp, sizeof(ecmech::matModelEvptn_FCC_A));
-         if (device == Accelerator::CUDA) {
-            RAJA::forall<RAJA::cuda_exec<1> >(RAJA::RangeSegment(0, 1), [ = ] RAJA_HOST_DEVICE(int) {
-               new(mat_modela) ecmech::matModelEvptn_FCC_A();
-            });
-         }
-#endif
          //We really shouldn't see this change over time at least for our applications.
-         mat_modela->initFromParams(opts, params, strs);
-         //
-         mat_modela->complete();
-         mat_model_base = dynamic_cast<matModelBase*>(mat_modela);
+         mat_modela.initFromParams(opts, params, strs, class_device);
+         mat_modela.complete();
+         mat_model_base = dynamic_cast<matModelBase*>(&mat_modela);
       }
       else if (mat_model_str.compare("mts") == 0) {
          num_props = 24;
-         num_hardness = mat_modelb->nH;
-         num_gdot = mat_modelb->nslip;
-         iHistLbGdot = mat_modelb->iHistLbGdot;
+         num_hardness = mat_modelb.nH;
+         num_gdot = mat_modelb.nslip;
+         iHistLbGdot = mat_modelb.iHistLbGdot;
 
          //This check used to be in the loop used to read in the material properties
          //However, if things we're re-arranged, so it's now during the class initialization
@@ -255,11 +251,10 @@ int main(int argc, char *argv[]){
          }
 
          //We really shouldn't see this change over time at least for our applications.
-         mat_modelb->initFromParams(opts, params, strs);
+         mat_modelb.initFromParams(opts, params, strs, class_device);
          //
-         mat_modelb->complete();
-
-         mat_model_base = dynamic_cast<matModelBase*>(mat_modelb);
+         mat_modelb.complete();
+         mat_model_base = dynamic_cast<matModelBase*>(&mat_modelb);
       }
       else {
          std::cerr << "material model must be either voce or mts " << std::endl;
@@ -275,7 +270,7 @@ int main(int argc, char *argv[]){
 
       double* quats_array = quats.data();
 
-      init_data(device, quats_array, mat_model_base, nqpts, num_hardness,
+      init_data(class_device, quats_array, mat_model_base, nqpts, num_hardness,
                 num_gdot, iHistLbGdot, num_state_vars, state_vars);
       std::cout << "Data is now initialized" << std::endl;
       setup_vgrad(vgrad, nqpts);
@@ -309,20 +304,25 @@ int main(int argc, char *argv[]){
 
    for (int i = 0; i < nsteps; i++) {
       // std::cout << "About to setup data..." << std::endl;
-      setup_data(device, nqpts, num_state_vars, dt, vgrad, stress_array, state_vars,
+      setup_data(class_device, nqpts, num_state_vars, dt, vgrad, stress_array, state_vars,
                  stress_svec_p_array, d_svec_p_array, w_vec_array, ddsdde_array,
                  vol_ratio_array, eng_int_array);
       // std::cout << "Data is now setup and now to run material model" << std::endl;
       //Now our kernel
-      mat_model_kernel(device, mat_model_base, nqpts, dt,
+      mat_model_kernel(mat_model_base, nqpts, dt,
                        num_state_vars, state_vars, stress_svec_p_array,
                        d_svec_p_array, w_vec_array, ddsdde_array,
                        vol_ratio_array, eng_int_array);
       // std::cout << "Material model ran now to retrieve the data" << std::endl;
       //retrieve all of the data and put it back in the global arrays
-      retrieve_data(device, nqpts, num_state_vars,
+      retrieve_data(class_device, nqpts, num_state_vars,
                     stress_svec_p_array, vol_ratio_array,
                     eng_int_array, state_vars, stress_array);
+      //This operation should eventually be made a compute kernel just so we're
+      //not constantly sending the stress array back and forth between the CPU
+      //and GPU once things are all working.
+      //It should be fine though if the avg stress is sent back between the two,
+      //since it's only 6 doubles.
       for (int j = 0; j < ecmech::nsvec; j++) {
          stress_avg[j] = 0.0;
          for (int i_qpts = 0; i_qpts < nqpts; i_qpts++) {
@@ -346,36 +346,8 @@ int main(int argc, char *argv[]){
 
    std::cout << std::endl;
 
-   //for loop time
-   //setup_data(...);
-   // A stride-n index range [beg, end, n) using type int.
-   // We might want to setup n here to be greater than one to potentially to have
-   // multiple pts passed to our solver
-   // int n = some number;
-   // int num_threads = some number; When using CUDA or HIP we'll need to play
-   // around with the number of threads used to reduce memory type pressures.
-   // RAJA::TypedRangeStrideSegment<int> striden_range(0, nqpts, n);
-   // model_kernel(...);
-   // retrieve_data(...);
-
    //Delete all variables declared using new now.
 
-   //Right now this is the only model that I'll be testing out.
-   //After things work I'll add in the other models as well
-#if defined(RAJA_ENABLE_CUDA)
-   if (device == Accelerator::CUDA) {
-      if (mat_model_str.compare("voce") == 0) {
-         RAJA::forall<RAJA::cuda_exec<1> >(RAJA::RangeSegment(0, 1), [ = ] RAJA_HOST_DEVICE(int) {
-            mat_modela->~matModel();
-         });
-      }
-   }
-#endif
-
-   //Program seg faults when compiled with NVCC and run on the CPU somewhere down here
-   //It doesn't appear to be a problem caused by the deallocation though...
-   memoryManager::deallocate(mat_modela);
-   memoryManager::deallocate(mat_modelb);
    memoryManager::deallocate(state_vars);
    memoryManager::deallocate(vgrad);
    memoryManager::deallocate(stress_array);

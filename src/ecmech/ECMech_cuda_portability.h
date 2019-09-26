@@ -44,6 +44,14 @@ extern void CUDART_Check(const cudaError_t err, const char *file, const char *fu
 #define CUDART_CHECK(err)
 #endif
 
+// RAJA_CUDA_THREADS defines the number of cuda threads that we want to run for our material
+// model.
+//----------------------------------------------------------------------------------------
+
+#ifndef RAJA_CUDA_THREADS
+#define RAJA_CUDA_THREADS 128
+#endif
+
 // __CUDA_ARCH__ is defined when compiling for the device, the macro below is used
 // to filter code that cannot be compiled for the device.
 //----------------------------------------------------------------------------------------

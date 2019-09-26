@@ -326,9 +326,6 @@ namespace {
       //All of the below we could setup in one big RAJA loop/kernel
       // RAJA::RangeSegment default_range(0, nqpts);
       RAJA::RangeSegment default_range(0, nqpts);
-      //The block size could change during compilation if we decide that there's better ways of doing this
-      //or if we want to test different sizes
-      const int block_size = 256;
 
       RAJA::forall<RAJA::cuda_exec<256> >(default_range, [ = ] RAJA_DEVICE(int i_qpts) {
          // for (int i_qpts = 0; i_qpts < nqpts; i_qpts++) {
@@ -400,33 +397,32 @@ namespace {
 //Here we're going to initialize all of the data that's going inside of
 //of our material update function call.
 //This function is used to initialize the data originally
-void init_data(Accelerator accel, const double* ori, const ecmech::matModelBase* mat_model_base,
+void init_data(ecmech::Accelerator accel, const double* ori, const ecmech::matModelBase* mat_model_base,
                const int nqpts, const int num_hardness,
                const int num_slip, const int ind_gdot,
                const int state_var_vdim, double* state_vars){
    //We want to store the initial history vector and use information from it to instantiate
    //everything else.
    //When we pass this to the for loop we'll want to use just the raw double array
-   #ifdef __cuda_host_only__
+
    std::vector<double> histInit_vec;
    {
       std::vector<std::string> names;
-      std::vector<bool>        plot;
-      std::vector<bool>        state;
+      std::vector<bool> plot;
+      std::vector<bool> state;
       mat_model_base->getHistInfo(names, histInit_vec, plot, state);
    }
 
    const int vdim = state_var_vdim;
 
    #if defined(RAJA_ENABLE_OPENMP)
-   if (accel == Accelerator::OPENMP) {
+   if (accel == ecmech::Accelerator::OPENMP) {
       init_data_openmp(ori, histInit_vec, nqpts, num_hardness, ind_gdot, num_slip, vdim, state_vars);
    }
    #endif
-   if (accel == Accelerator::CPU || accel == Accelerator::CUDA) {
+   if (accel == ecmech::Accelerator::CPU || accel == ecmech::Accelerator::CUDA) {
       init_data_cpu(ori, histInit_vec, nqpts, num_hardness, ind_gdot, num_slip, vdim, state_vars);
    }
-   #endif
 }//end of init_data
 
 //This sets the macroscopic vgrad to be purely deviatoric and behaving as a tension test in the
@@ -461,27 +457,27 @@ void setup_vgrad(double* vgrad, const int nqpts){
 }//end of setup_vgrad
 
 //This function/kernel is used to set-up the problem at each time step
-void setup_data(Accelerator accel, const int nqpts, const int nstatev,
+void setup_data(ecmech::Accelerator accel, const int nqpts, const int nstatev,
                 const double dt, const double* vel_grad_array,
                 const double* stress_array, const double* state_vars_array,
                 double* stress_svec_p_array, double* d_svec_p_array,
                 double* w_vec_array, double* ddsdde_array,
                 double* vol_ratio_array, double* eng_int_array){
    #if defined(RAJA_ENABLE_OPENMP)
-   if (accel == Accelerator::OPENMP) {
+   if (accel == ecmech::Accelerator::OPENMP) {
       setup_data_openmp(nqpts, nstatev, dt, vel_grad_array, stress_array, state_vars_array,
                         stress_svec_p_array, d_svec_p_array, w_vec_array, ddsdde_array,
                         vol_ratio_array, eng_int_array);
    }
    #endif
    #if defined(RAJA_ENABLE_CUDA)
-   if (accel == Accelerator::CUDA) {
+   if (accel == ecmech::Accelerator::CUDA) {
       setup_data_cuda(nqpts, nstatev, dt, vel_grad_array, stress_array, state_vars_array,
                       stress_svec_p_array, d_svec_p_array, w_vec_array, ddsdde_array,
                       vol_ratio_array, eng_int_array);
    }
    #endif
-   if (accel == Accelerator::CPU) {
+   if (accel == ecmech::Accelerator::CPU) {
       setup_data_cpu(nqpts, nstatev, dt, vel_grad_array, stress_array, state_vars_array,
                      stress_svec_p_array, d_svec_p_array, w_vec_array, ddsdde_array,
                      vol_ratio_array, eng_int_array);
