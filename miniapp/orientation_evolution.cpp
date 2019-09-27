@@ -136,22 +136,66 @@ int main(int argc, char *argv[]){
       std::vector<double> quats;
       //This next chunk reads in all of the quaternions and pushes them to a vector.
       //It will exit if 4 values are not read on a line.
+      bool quat_random = false;
+      uint quat_nrand = 0;
       {
          std::ifstream qfile(ori_file);
          std::string line;
-         while (std::getline(qfile, line)) {
+         {
+            std::getline(qfile, line);
             std::istringstream iss(line);
-            double q1, q2, q3, q4;
+            std::string tmp_str;
 
-            nqpts += 1;
-
-            if (!(iss >> q1 >> q2 >> q3 >> q4)) {
-               std::cerr << "Quat file has malformed line on line: " << nqpts << std::endl;
+            if (!(iss >> tmp_str >> quat_nrand)){
+               std::cerr << "Quat file starting line should be either the following in parantheses: " << 
+                         "(#random num_quats) where num_quats is a positive value for the number of " <<
+                         "quaternions that you want randomly generated, or it can be (#data 0) where " <<
+                         "reads in all of the content of the file where each line is a quat" << std::endl;
                return 1;
-            }    // error
+            }
 
-            quats.push_back(q1); quats.push_back(q2); quats.push_back(q3); quats.push_back(q4);
+            if(tmp_str.compare("#random") == 0){
+               quat_random = true;
+               nqpts = quat_nrand;
+            }
          }
+         if(quat_random){
+            //provide a seed so things are reproducible
+            std::default_random_engine gen(42);
+            // std::normal_distribution<double> distrib(0.0, 1.0);
+            std::uniform_real_distribution<double> udistrib(-1.0, 1.0);
+            std::vector<double> q_state = {1., 0., 0., 0.};
+            
+            for(int i = 0; i < quat_nrand; i++){
+               
+               q_state[0] = udistrib(gen);
+               q_state[1] = udistrib(gen);
+               q_state[2] = udistrib(gen);
+               q_state[3] = udistrib(gen);
+
+               ecmech::vecsVNormalize<ecmech::qdim>(q_state.data());
+
+               quats.push_back(q_state[0]);
+               quats.push_back(q_state[1]);
+               quats.push_back(q_state[2]);
+               quats.push_back(q_state[3]);
+            }
+         }else{
+            while (std::getline(qfile, line)) {
+               std::istringstream iss(line);
+               double q1, q2, q3, q4;
+
+               nqpts += 1;
+
+               if (!(iss >> q1 >> q2 >> q3 >> q4)) {
+                  std::cerr << "Quat file has malformed line on line: " << nqpts << std::endl;
+                  return 1;
+               }// error
+
+               quats.push_back(q1); quats.push_back(q2); quats.push_back(q3); quats.push_back(q4);
+            }
+         }
+
       }
 
 
@@ -357,4 +401,6 @@ int main(int argc, char *argv[]){
    memoryManager::deallocate(ddsdde_array);
    memoryManager::deallocate(vol_ratio_array);
    memoryManager::deallocate(eng_int_array);
+
+   return 0;
 }
