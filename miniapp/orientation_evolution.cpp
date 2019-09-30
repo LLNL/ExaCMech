@@ -1,6 +1,7 @@
 #include "ECMech_cases.h"
 #include "ECMech_evptnWrap.h"
 #include "RAJA/RAJA.hpp"
+#include "RAJA/util/Timer.hpp"
 #if defined(RAJA_ENABLE_CUDA)
 #include "cuda.h"
 #endif
@@ -94,7 +95,11 @@ int main(int argc, char *argv[]){
    double* ddsdde_array = nullptr;
    double* vol_ratio_array = nullptr;
    double* eng_int_array = nullptr;
+   double* temp_array = nullptr;
+   double* sdd_array = nullptr;
 
+   //If this is turned off then we do take a performance hit. At least if this is 10k and above things
+   //run fine.
    #if defined(RAJA_ENABLE_CUDA)
    cudaDeviceSetLimit(cudaLimitStackSize, 16000);
    #endif
@@ -146,28 +151,27 @@ int main(int argc, char *argv[]){
             std::istringstream iss(line);
             std::string tmp_str;
 
-            if (!(iss >> tmp_str >> quat_nrand)){
-               std::cerr << "Quat file starting line should be either the following in parantheses: " << 
-                         "(#random num_quats) where num_quats is a positive value for the number of " <<
-                         "quaternions that you want randomly generated, or it can be (#data 0) where " <<
-                         "reads in all of the content of the file where each line is a quat" << std::endl;
+            if (!(iss >> tmp_str >> quat_nrand)) {
+               std::cerr << "Quat file starting line should be either the following in parantheses: " <<
+                  "(#random num_quats) where num_quats is a positive value for the number of " <<
+                  "quaternions that you want randomly generated, or it can be (#data 0) where " <<
+                  "reads in all of the content of the file where each line is a quat" << std::endl;
                return 1;
             }
 
-            if(tmp_str.compare("#random") == 0){
+            if (tmp_str.compare("#random") == 0) {
                quat_random = true;
                nqpts = quat_nrand;
             }
          }
-         if(quat_random){
+         if (quat_random) {
             //provide a seed so things are reproducible
             std::default_random_engine gen(42);
             // std::normal_distribution<double> distrib(0.0, 1.0);
             std::uniform_real_distribution<double> udistrib(-1.0, 1.0);
-            std::vector<double> q_state = {1., 0., 0., 0.};
-            
-            for(int i = 0; i < quat_nrand; i++){
-               
+            std::vector<double> q_state = { 1., 0., 0., 0. };
+
+            for (int i = 0; i < quat_nrand; i++) {
                q_state[0] = udistrib(gen);
                q_state[1] = udistrib(gen);
                q_state[2] = udistrib(gen);
@@ -180,7 +184,8 @@ int main(int argc, char *argv[]){
                quats.push_back(q_state[2]);
                quats.push_back(q_state[3]);
             }
-         }else{
+         }
+         else {
             while (std::getline(qfile, line)) {
                std::istringstream iss(line);
                double q1, q2, q3, q4;
@@ -195,7 +200,6 @@ int main(int argc, char *argv[]){
                quats.push_back(q1); quats.push_back(q2); quats.push_back(q3); quats.push_back(q4);
             }
          }
-
       }
 
 
@@ -335,28 +339,31 @@ int main(int argc, char *argv[]){
    vol_ratio_array = memoryManager::allocate<double>(nqpts * ecmech::nvr);
    stress_svec_p_array = memoryManager::allocate<double>(nqpts * ecmech::nsvp);
    d_svec_p_array = memoryManager::allocate<double>(nqpts * ecmech::nsvp);
-
-   std::cout << "Quat before: " << std::endl;
-   for (int i = 0; i < ecmech::qdim; i++) {
-      std::cout << state_vars[8 + i] << " ";
-   }
+   temp_array = memoryManager::allocate<double>(nqpts);
+   sdd_array = memoryManager::allocate<double>(nqpts * ecmech::nsdd);
 
    std::cout << std::endl;
 
    double stress_avg[6];
    double wts = 1.0 / nqpts;
 
+   RAJA::RangeSegment default_range(0, nqpts);
+
+   RAJA::Timer run_time;
+
+   run_time.start();
+
    for (int i = 0; i < nsteps; i++) {
       // std::cout << "About to setup data..." << std::endl;
       setup_data(class_device, nqpts, num_state_vars, dt, vgrad, stress_array, state_vars,
                  stress_svec_p_array, d_svec_p_array, w_vec_array, ddsdde_array,
-                 vol_ratio_array, eng_int_array);
+                 vol_ratio_array, eng_int_array, temp_array);
       // std::cout << "Data is now setup and now to run material model" << std::endl;
       //Now our kernel
       mat_model_kernel(mat_model_base, nqpts, dt,
                        num_state_vars, state_vars, stress_svec_p_array,
                        d_svec_p_array, w_vec_array, ddsdde_array,
-                       vol_ratio_array, eng_int_array);
+                       vol_ratio_array, eng_int_array, temp_array, sdd_array);
       // std::cout << "Material model ran now to retrieve the data" << std::endl;
       //retrieve all of the data and put it back in the global arrays
       retrieve_data(class_device, nqpts, num_state_vars,
@@ -367,14 +374,43 @@ int main(int argc, char *argv[]){
       //and GPU once things are all working.
       //It should be fine though if the avg stress is sent back between the two,
       //since it's only 6 doubles.
-      for (int j = 0; j < ecmech::nsvec; j++) {
-         stress_avg[j] = 0.0;
-         for (int i_qpts = 0; i_qpts < nqpts; i_qpts++) {
-            const double* stress = &(stress_array[i_qpts * ecmech::nsvec]);
-            stress_avg[j] += wts * stress[j];
+      if (class_device == ecmech::Accelerator::CPU) {
+         for (int j = 0; j < ecmech::nsvec; j++) {
+            RAJA::ReduceSum<RAJA::seq_reduce, double> seq_sum(0.0);
+            RAJA::forall<RAJA::loop_exec>(default_range, [ = ] (int i_qpts){
+               const double* stress = &(stress_array[i_qpts * ecmech::nsvec]);
+               seq_sum += wts * stress[j];
+            });
+            stress_avg[j] = seq_sum.get();
          }
       }
+      #if defined(RAJA_ENABLE_OPENMP)
+      if (class_device == ecmech::Accelerator::OPENMP) {
+         for (int j = 0; j < ecmech::nsvec; j++) {
+            RAJA::ReduceSum<RAJA::omp_reduce_ordered, double> omp_sum(0.0);
+            RAJA::forall<RAJA::omp_parallel_for_exec>(default_range, [ = ] (int i_qpts){
+               const double* stress = &(stress_array[i_qpts * ecmech::nsvec]);
+               omp_sum += wts * stress[j];
+            });
+            stress_avg[j] = omp_sum.get();
+         }
+      }
+      #endif
+      #if defined(RAJA_ENABLE_CUDA)
+      if (class_device == ecmech::Accelerator::CUDA) {
+         for (int j = 0; j < ecmech::nsvec; j++) {
+            RAJA::ReduceSum<RAJA::cuda_reduce, double> cuda_sum(0.0);
+            RAJA::forall<RAJA::cuda_exec<256> >(default_range, [ = ] RAJA_DEVICE(int i_qpts){
+               const double* stress = &(stress_array[i_qpts * ecmech::nsvec]);
+               cuda_sum += wts * stress[j];
+            });
+            stress_avg[j] = cuda_sum.get();
+         }
+      }
+      #endif
 
+      //On Summit like architectures these print statements don't really add anything to the execution time.
+      //So, we're going to keep them to make things are correct.
       std::cout << "Step# " << i + 1 << " Stress: ";
       for (int i = 0; i < ecmech::nsvec; i++) {
          std::cout << stress_avg[i] << " ";
@@ -383,12 +419,14 @@ int main(int argc, char *argv[]){
       std::cout << std::endl;
    }
 
-   std::cout << "Quat final: ";
-   for (int i = 0; i < ecmech::qdim; i++) {
-      std::cout << state_vars[8 + i] << " ";
-   }
+   run_time.stop();
+
+   double time = run_time.elapsed();
 
    std::cout << std::endl;
+
+   std::cout << "Run time of set-up, material, and retrieve kernels over " << 
+             nsteps << " time steps is: " << time << "(s)" << std::endl;
 
    //Delete all variables declared using new now.
 
@@ -401,6 +439,8 @@ int main(int argc, char *argv[]){
    memoryManager::deallocate(ddsdde_array);
    memoryManager::deallocate(vol_ratio_array);
    memoryManager::deallocate(eng_int_array);
+   memoryManager::deallocate(temp_array);
+   memoryManager::deallocate(sdd_array);
 
    return 0;
 }

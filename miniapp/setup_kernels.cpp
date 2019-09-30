@@ -73,7 +73,8 @@ namespace {
                        const double* stress_array, const double* state_vars_array,
                        double* stress_svec_p_array, double* d_svec_p_array,
                        double* w_vec_array, double* ddsdde_array,
-                       double* vol_ratio_array, double* eng_int_array){
+                       double* vol_ratio_array, double* eng_int_array,
+                       double* temp_array){
       //vgrad is kinda a pain to deal with as a raw 1d array, so we're
       //going to just use a RAJA view here. The data is taken to be in col. major format.
       //It might be nice to eventually create a type alias for the below or
@@ -107,6 +108,8 @@ namespace {
          int ind_svecp = i_qpts * ecmech::nsvp;
          double* stress_svec_p = &(stress_svec_p_array[ind_svecp]);
          double* d_svec_p = &(d_svec_p_array[ind_svecp]);
+
+         temp_array[i_qpts] = 300.;
 
          // initialize 6x6 2d arrays all to 0
          for (int i = 0; i < ecmech::nsvec; i++) {
@@ -221,7 +224,8 @@ namespace {
                           const double* stress_array, const double* state_vars_array,
                           double* stress_svec_p_array, double* d_svec_p_array,
                           double* w_vec_array, double* ddsdde_array,
-                          double* vol_ratio_array, double* eng_int_array){
+                          double* vol_ratio_array, double* eng_int_array,
+                          double* temp_array){
       //vgrad is kinda a pain to deal with as a raw 1d array, so we're
       //going to just use a RAJA view here. The data is taken to be in col. major format.
       //It might be nice to eventually create a type alias for the below or
@@ -255,6 +259,8 @@ namespace {
          int ind_svecp = i_qpts * ecmech::nsvp;
          double* stress_svec_p = &(stress_svec_p_array[ind_svecp]);
          double* d_svec_p = &(d_svec_p_array[ind_svecp]);
+
+         temp_array[i_qpts] = 300.;
 
          // initialize 6x6 2d arrays all to 0
          for (int i = 0; i < ecmech::nsvec; i++) {
@@ -309,7 +315,8 @@ namespace {
                         const double* stress_array, const double* state_vars_array,
                         double* stress_svec_p_array, double* d_svec_p_array,
                         double* w_vec_array, double* ddsdde_array,
-                        double* vol_ratio_array, double* eng_int_array){
+                        double* vol_ratio_array, double* eng_int_array,
+                        double* temp_array){
       //vgrad is kinda a pain to deal with as a raw 1d array, so we're
       //going to just use a RAJA view here. The data is taken to be in col. major format.
       //It might be nice to eventually create a type alias for the below or
@@ -327,7 +334,7 @@ namespace {
       // RAJA::RangeSegment default_range(0, nqpts);
       RAJA::RangeSegment default_range(0, nqpts);
 
-      RAJA::forall<RAJA::cuda_exec<256> >(default_range, [ = ] RAJA_DEVICE(int i_qpts) {
+      RAJA::forall<RAJA::cuda_exec<384> >(default_range, [ = ] RAJA_DEVICE(int i_qpts) {
          // for (int i_qpts = 0; i_qpts < nqpts; i_qpts++) {
          //Might want to eventually set these all up using RAJA views. It might simplify
          //things later on.
@@ -343,6 +350,8 @@ namespace {
          int ind_svecp = i_qpts * ecmech::nsvp;
          double* stress_svec_p = &(stress_svec_p_array[ind_svecp]);
          double* d_svec_p = &(d_svec_p_array[ind_svecp]);
+
+         temp_array[i_qpts] = 300.;
 
          // initialize 6x6 2d arrays all to 0
          for (int i = 0; i < ecmech::nsvec; i++) {
@@ -462,24 +471,25 @@ void setup_data(ecmech::Accelerator accel, const int nqpts, const int nstatev,
                 const double* stress_array, const double* state_vars_array,
                 double* stress_svec_p_array, double* d_svec_p_array,
                 double* w_vec_array, double* ddsdde_array,
-                double* vol_ratio_array, double* eng_int_array){
+                double* vol_ratio_array, double* eng_int_array,
+                double* temp_array){
    #if defined(RAJA_ENABLE_OPENMP)
    if (accel == ecmech::Accelerator::OPENMP) {
       setup_data_openmp(nqpts, nstatev, dt, vel_grad_array, stress_array, state_vars_array,
                         stress_svec_p_array, d_svec_p_array, w_vec_array, ddsdde_array,
-                        vol_ratio_array, eng_int_array);
+                        vol_ratio_array, eng_int_array, temp_array);
    }
    #endif
    #if defined(RAJA_ENABLE_CUDA)
    if (accel == ecmech::Accelerator::CUDA) {
       setup_data_cuda(nqpts, nstatev, dt, vel_grad_array, stress_array, state_vars_array,
                       stress_svec_p_array, d_svec_p_array, w_vec_array, ddsdde_array,
-                      vol_ratio_array, eng_int_array);
+                      vol_ratio_array, eng_int_array, temp_array);
    }
    #endif
    if (accel == ecmech::Accelerator::CPU) {
       setup_data_cpu(nqpts, nstatev, dt, vel_grad_array, stress_array, state_vars_array,
                      stress_svec_p_array, d_svec_p_array, w_vec_array, ddsdde_array,
-                     vol_ratio_array, eng_int_array);
+                     vol_ratio_array, eng_int_array, temp_array);
    }
 }//end setup_data

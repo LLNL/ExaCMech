@@ -93,11 +93,7 @@ namespace {
 
       RAJA::RangeSegment default_range(0, nqpts);
 
-      //The block size could change during compilation if we decide that there's better ways of doing this
-      //or if we want to test different sizes
-      const int block_size = 256;
-
-      RAJA::forall<RAJA::cuda_exec<256> >(default_range, [ = ] RAJA_DEVICE(int i_qpts) {
+      RAJA::forall<RAJA::cuda_exec<384> >(default_range, [ = ] RAJA_DEVICE(int i_qpts) {
          // for (int i_qpts = 0; i_qpts < nqpts; i_qpts++){
          //These are our outputs
          double* state_vars = &(state_vars_array[i_qpts * nstatev]);

@@ -29,6 +29,7 @@ void setup_data(ecmech::Accelerator accel, const int nqpts, const int nstatev,
                 const double* stress_array, const double* state_vars_array,
                 double* stress_svec_p_array, double* d_svec_p_array,
                 double* w_vec_array, double* ddsdde_array,
-                double* vol_ratio_array, double* eng_int_array);
+                double* vol_ratio_array, double* eng_int_array,
+                double* temp_array);
 
 #endif

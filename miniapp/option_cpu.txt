@@ -1,0 +1,7 @@
+./rand_quats_cpu.txt
+voce
+./props.txt
+CPU
+
+
+
