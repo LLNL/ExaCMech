@@ -4,6 +4,7 @@
 #include "RAJA/util/Timer.hpp"
 #if defined(RAJA_ENABLE_CUDA)
 #include "cuda.h"
+//#include "cuda_profiler_api.h"
 #endif
 #include "miniapp_util.h"
 #include "retrieve_kernels.h"
@@ -15,6 +16,8 @@
 #include <random>
 #include <sstream>
 #include <string>
+
+#define NEVALS_COUNTS false
 
 
 using namespace ecmech;
@@ -261,7 +264,7 @@ int main(int argc, char *argv[]){
          params.push_back(mat_props.at(i));
       }
 
-      std::cout << "About to initialize class" << std::endl;
+      std::cout << "\nAbout to initialize class" << std::endl;
       //Initialize our base class using the appropriate model
       if (mat_model_str.compare("voce") == 0) {
          num_props = 17;
@@ -353,6 +356,11 @@ int main(int argc, char *argv[]){
 
    run_time.start();
 
+   // For profiling uses
+   // #if defined(RAJA_ENABLE_CUDA)
+   //    cudaProfilerStart();
+   // #endif
+
    for (int i = 0; i < nsteps; i++) {
       // std::cout << "About to setup data..." << std::endl;
       setup_data(class_device, nqpts, num_state_vars, dt, vgrad, stress_array, state_vars,
@@ -369,12 +377,21 @@ int main(int argc, char *argv[]){
       retrieve_data(class_device, nqpts, num_state_vars,
                     stress_svec_p_array, vol_ratio_array,
                     eng_int_array, state_vars, stress_array);
-      //This operation should eventually be made a compute kernel just so we're
-      //not constantly sending the stress array back and forth between the CPU
-      //and GPU once things are all working.
-      //It should be fine though if the avg stress is sent back between the two,
-      //since it's only 6 doubles.
+
       if (class_device == ecmech::Accelerator::CPU) {
+         if (NEVALS_COUNTS) {
+            RAJA::ReduceSum<RAJA::seq_reduce, double> seq_sum(0.0);
+            RAJA::ReduceMin<RAJA::seq_reduce, double> seq_min(100.0);//We now this shouldn't ever be more than 100
+            RAJA::ReduceMax<RAJA::seq_reduce, double> seq_max(0.0);//We now this will always be at least 1.0
+            RAJA::forall<RAJA::loop_exec>(default_range, [ = ] (int i_qpts){
+               double* nfunceval = &(state_vars[i_qpts * num_state_vars + 2]);
+               seq_sum += wts * nfunceval[0];
+               seq_max.max(nfunceval[0]);
+               seq_min.min(nfunceval[0]);
+            });
+            std::cout << "Min Func Eval: " << seq_min.get() << " Mean Func Evals: " <<
+               seq_sum.get() << " Max Func Eval: " << seq_max.get() << std::endl;
+         }
          for (int j = 0; j < ecmech::nsvec; j++) {
             RAJA::ReduceSum<RAJA::seq_reduce, double> seq_sum(0.0);
             RAJA::forall<RAJA::loop_exec>(default_range, [ = ] (int i_qpts){
@@ -386,6 +403,19 @@ int main(int argc, char *argv[]){
       }
       #if defined(RAJA_ENABLE_OPENMP)
       if (class_device == ecmech::Accelerator::OPENMP) {
+         if (NEVALS_COUNTS) {
+            RAJA::ReduceSum<RAJA::omp_reduce_ordered, double> omp_sum(0.0);
+            RAJA::ReduceMin<RAJA::omp_reduce_ordered, double> omp_min(100.0);//We now this shouldn't ever be more than 100
+            RAJA::ReduceMax<RAJA::omp_reduce_ordered, double> omp_max(0.0);//We now this will always be at least 1.0
+            RAJA::forall<RAJA::omp_parallel_for_exec>(default_range, [ = ] (int i_qpts){
+               double* nfunceval = &(state_vars[i_qpts * num_state_vars + 2]);
+               omp_sum += wts * nfunceval[0];
+               omp_max.max(nfunceval[0]);
+               omp_min.min(nfunceval[0]);
+            });
+            std::cout << "Min Func Eval: " << omp_min.get() << " Mean Func Evals: " <<
+               omp_sum.get() << " Max Func Eval: " << omp_max.get() << std::endl;
+         }
          for (int j = 0; j < ecmech::nsvec; j++) {
             RAJA::ReduceSum<RAJA::omp_reduce_ordered, double> omp_sum(0.0);
             RAJA::forall<RAJA::omp_parallel_for_exec>(default_range, [ = ] (int i_qpts){
@@ -398,9 +428,22 @@ int main(int argc, char *argv[]){
       #endif
       #if defined(RAJA_ENABLE_CUDA)
       if (class_device == ecmech::Accelerator::CUDA) {
+         if (NEVALS_COUNTS) {
+            RAJA::ReduceSum<RAJA::cuda_reduce, double> cuda_sum(0.0);
+            RAJA::ReduceMin<RAJA::cuda_reduce, double> cuda_min(100.0);//We now this shouldn't ever be more than 100
+            RAJA::ReduceMax<RAJA::cuda_reduce, double> cuda_max(0.0);//We now this will always be at least 1.0
+            RAJA::forall<RAJA::cuda_exec<1024> >(default_range, [ = ] RAJA_DEVICE(int i_qpts){
+               double* nfunceval = &(state_vars[i_qpts * num_state_vars + 2]);
+               cuda_sum += wts * nfunceval[0];
+               cuda_max.max(nfunceval[0]);
+               cuda_min.min(nfunceval[0]);
+            });
+            std::cout << "Min Func Eval: " << cuda_min.get() << " Mean Func Evals: " <<
+               cuda_sum.get() << " Max Func Eval: " << cuda_max.get() << std::endl;
+         }
          for (int j = 0; j < ecmech::nsvec; j++) {
             RAJA::ReduceSum<RAJA::cuda_reduce, double> cuda_sum(0.0);
-            RAJA::forall<RAJA::cuda_exec<256> >(default_range, [ = ] RAJA_DEVICE(int i_qpts){
+            RAJA::forall<RAJA::cuda_exec<1024> >(default_range, [ = ] RAJA_DEVICE(int i_qpts){
                const double* stress = &(stress_array[i_qpts * ecmech::nsvec]);
                cuda_sum += wts * stress[j];
             });
@@ -419,14 +462,19 @@ int main(int argc, char *argv[]){
       std::cout << std::endl;
    }
 
+   // For profiling uses
+   // #if defined(RAJA_ENABLE_CUDA)
+   //    cudaProfilerStart();
+   // #endif
+
    run_time.stop();
 
    double time = run_time.elapsed();
 
    std::cout << std::endl;
 
-   std::cout << "Run time of set-up, material, and retrieve kernels over " << 
-             nsteps << " time steps is: " << time << "(s)" << std::endl;
+   std::cout << "Run time of set-up, material, and retrieve kernels over " <<
+      nsteps << " time steps is: " << time << "(s)" << std::endl;
 
    //Delete all variables declared using new now.
 
