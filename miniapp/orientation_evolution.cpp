@@ -4,7 +4,7 @@
 #include "RAJA/util/Timer.hpp"
 #if defined(RAJA_ENABLE_CUDA)
 #include "cuda.h"
-//#include "cuda_profiler_api.h"
+// #include "cuda_profiler_api.h"
 #endif
 #include "miniapp_util.h"
 #include "retrieve_kernels.h"
@@ -23,23 +23,23 @@
 using namespace ecmech;
 
 int main(int argc, char *argv[]){
-   //TODO:
-   //Read in options (orientation file, material model,
-   //                 material model params file, device type (CPU, OpenMP, CUDA, HIP))
-   //Read in data file for the orientations
-   //Read in data file for material model params
-   //Create material model
-   //Setup all of the various variables being used on the device:
-   //      state variables, stress field, all of the temporary variables,
-   //      material tangent stiffness matrix, and velocity gradient.
+   // TODO:
+   // Read in options (orientation file, material model,
+   // material model params file, device type (CPU, OpenMP, CUDA, HIP))
+   // Read in data file for the orientations
+   // Read in data file for material model params
+   // Create material model
+   // Setup all of the various variables being used on the device:
+   // state variables, stress field, all of the temporary variables,
+   // material tangent stiffness matrix, and velocity gradient.
    //
-   //The below initialization should work just fine for setting up the material model
-   //Place various kernels in the areas they need to be.
-   //Put a giant loop around the inner kernels to allow things to evolve in time.
-   //Compare first the OpenMP versus the serial implementation results
-   //Compare GPU versus the serial results (We need to figure out what the bounds on our
-   //differences are between our results. We should see some due to CPU and GPU being different
-   //devices with potentially subtle different ways of dealing with floating point arrithmetic)
+   // The below initialization should work just fine for setting up the material model
+   // Place various kernels in the areas they need to be.
+   // Put a giant loop around the inner kernels to allow things to evolve in time.
+   // Compare first the OpenMP versus the serial implementation results
+   // Compare GPU versus the serial results (We need to figure out what the bounds on our
+   // differences are between our results. We should see some due to CPU and GPU being different
+   // devices with potentially subtle different ways of dealing with floating point arrithmetic)
 
    if (argc != 2) {
       std::cerr << "Usage: " << argv[0] <<
@@ -52,7 +52,7 @@ int main(int argc, char *argv[]){
    const double dt = 0.00025;
    const int nsteps = 60;
 
-   //All of the varibles that we'll be using in our simulations
+   // All of the varibles that we'll be using in our simulations
    double* state_vars = nullptr;
    double* vgrad = nullptr;
 
@@ -61,17 +61,17 @@ int main(int argc, char *argv[]){
    int num_hardness = 0;
    int num_gdot = 0;
    int iHistLbGdot = 0;
-   //We have 23 state variables plus the 4 from quaternions for
-   //a total of 27 for FCC materials using either the
-   //voce or mts model.
-   //They are in order:
-   //dp_eff(1), eq_pl_strain(2), n_evals(3), dev. elastic strain(4-8),
-   //quats(9-12), h(13), gdot(14-25), rel_vol(26), int_eng(27)
+   // We have 23 state variables plus the 4 from quaternions for
+   // a total of 27 for FCC materials using either the
+   // voce or mts model.
+   // They are in order:
+   // dp_eff(1), eq_pl_strain(2), n_evals(3), dev. elastic strain(4-8),
+   // quats(9-12), h(13), gdot(14-25), rel_vol(26), int_eng(27)
    int num_state_vars = 27;
 
    ecmech::matModelBase* mat_model_base;
-   //Could probably do this in a smarter way where we don't create two class objects for
-   //our different use cases...
+   // Could probably do this in a smarter way where we don't create two class objects for
+   // our different use cases...
 
    std::vector<uint> strides;
    strides.push_back(ecmech::nsvp);
@@ -88,9 +88,9 @@ int main(int argc, char *argv[]){
 
    ecmech::Accelerator class_device;
 
-   //Data structures needed for each time step
-   //We really don't need to allocate these constantly, so we should just do it
-   //once and be done with it.
+   // Data structures needed for each time step
+   // We really don't need to allocate these constantly, so we should just do it
+   // once and be done with it.
    double* stress_array = nullptr;
    double* stress_svec_p_array = nullptr;
    double* d_svec_p_array = nullptr;
@@ -101,20 +101,20 @@ int main(int argc, char *argv[]){
    double* temp_array = nullptr;
    double* sdd_array = nullptr;
 
-   //If this is turned off then we do take a performance hit. At least if this is 10k and above things
-   //run fine.
-   #if defined(RAJA_ENABLE_CUDA)
+   // If this is turned off then we do take a performance hit. At least if this is 10k and above things
+   // run fine.
+#if defined(RAJA_ENABLE_CUDA)
    cudaDeviceSetLimit(cudaLimitStackSize, 16000);
-   #endif
+#endif
 
    std::string mat_model_str;
 
-   //The below scope of work sets up everything that we're going to be doing initially.
-   //We're currently doing this to ensure that memory used during the set-up is freed
-   //early on before we start doing all of our computations. We could probably keep everything
-   //in scope without running into memory issues.
+   // The below scope of work sets up everything that we're going to be doing initially.
+   // We're currently doing this to ensure that memory used during the set-up is freed
+   // early on before we start doing all of our computations. We could probably keep everything
+   // in scope without running into memory issues.
    {
-      //All the input arguments
+      // All the input arguments
       std::string option_file(argv[1]);
 
       std::string ori_file;
@@ -140,10 +140,10 @@ int main(int argc, char *argv[]){
          }
       }
 
-      //Quaternion and the number of quaternions total.
+      // Quaternion and the number of quaternions total.
       std::vector<double> quats;
-      //This next chunk reads in all of the quaternions and pushes them to a vector.
-      //It will exit if 4 values are not read on a line.
+      // This next chunk reads in all of the quaternions and pushes them to a vector.
+      // It will exit if 4 values are not read on a line.
       bool quat_random = false;
       uint quat_nrand = 0;
       {
@@ -168,7 +168,7 @@ int main(int argc, char *argv[]){
             }
          }
          if (quat_random) {
-            //provide a seed so things are reproducible
+            // provide a seed so things are reproducible
             std::default_random_engine gen(42);
             // std::normal_distribution<double> distrib(0.0, 1.0);
             std::uniform_real_distribution<double> udistrib(-1.0, 1.0);
@@ -198,7 +198,7 @@ int main(int argc, char *argv[]){
                if (!(iss >> q1 >> q2 >> q3 >> q4)) {
                   std::cerr << "Quat file has malformed line on line: " << nqpts << std::endl;
                   return 1;
-               }// error
+               } // error
 
                quats.push_back(q1); quats.push_back(q2); quats.push_back(q3); quats.push_back(q4);
             }
@@ -206,9 +206,9 @@ int main(int argc, char *argv[]){
       }
 
 
-      //Read and store our material property data
-      //We're going to check that the number of properties are what we expect
-      //when we initialize the classes.
+      // Read and store our material property data
+      // We're going to check that the number of properties are what we expect
+      // when we initialize the classes.
       std::vector<double> mat_props;
       int mp_nlines = 0;
       {
@@ -223,39 +223,39 @@ int main(int argc, char *argv[]){
             if (!(iss >> prop)) {
                std::cerr << "Material prop file has a malformed line on line: " << mp_nlines << std::endl;
                return 1;
-            }    // error
+            } // error
 
             mat_props.push_back(prop);
          }
       }
 
 
-      //We now detect which device is desired to run the different cases.
-      //Compiler flags passed in will tell us which options are available
-      //based on what RAJA was built with. If we do not have support for
-      //the chosen value then we should error out and let the user know
-      //which values are available.
+      // We now detect which device is desired to run the different cases.
+      // Compiler flags passed in will tell us which options are available
+      // based on what RAJA was built with. If we do not have support for
+      // the chosen value then we should error out and let the user know
+      // which values are available.
 
       if (device_type.compare("CPU") == 0) {
          class_device = ecmech::Accelerator::CPU;
       }
-      #if defined(RAJA_ENABLE_OPENMP)
+#if defined(RAJA_ENABLE_OPENMP)
       else if (device_type.compare("OpenMP") == 0) {
          class_device = ecmech::Accelerator::OPENMP;
       }
-      #endif
-      #if defined(RAJA_ENABLE_CUDA)
+#endif
+#if defined(RAJA_ENABLE_CUDA)
       else if (device_type.compare("CUDA") == 0) {
          class_device = ecmech::Accelerator::CUDA;
       }
-      #endif
+#endif
       else {
          std::cerr << "Accelerator is not supported or RAJA was not built with" << std::endl;
          return 1;
       }
 
-      //Some basic set up for when we initialize our class
-      //Opts and strs are just empty vectors of int and strings
+      // Some basic set up for when we initialize our class
+      // Opts and strs are just empty vectors of int and strings
       std::vector<double> params;
       std::vector<int> opts;
       std::vector<std::string> strs;
@@ -265,15 +265,15 @@ int main(int argc, char *argv[]){
       }
 
       std::cout << "\nAbout to initialize class" << std::endl;
-      //Initialize our base class using the appropriate model
+      // Initialize our base class using the appropriate model
       if (mat_model_str.compare("voce") == 0) {
          num_props = 17;
          num_hardness = mat_modela.nH;
          num_gdot = mat_modela.nslip;
          iHistLbGdot = mat_modela.iHistLbGdot;
 
-         //This check used to be in the loop used to read in the material properties
-         //However, if things we're re-arranged, so it's now during the class initialization
+         // This check used to be in the loop used to read in the material properties
+         // However, if things we're re-arranged, so it's now during the class initialization
          if (mp_nlines != num_props) {
             std::cerr << "Material prop file should have " << num_props
                       << " properties (each on their own line). A total of " << mp_nlines
@@ -281,7 +281,7 @@ int main(int argc, char *argv[]){
             return 1;
          }
 
-         //We really shouldn't see this change over time at least for our applications.
+         // We really shouldn't see this change over time at least for our applications.
          mat_modela.initFromParams(opts, params, strs, class_device);
          mat_modela.complete();
          mat_model_base = dynamic_cast<matModelBase*>(&mat_modela);
@@ -292,8 +292,8 @@ int main(int argc, char *argv[]){
          num_gdot = mat_modelb.nslip;
          iHistLbGdot = mat_modelb.iHistLbGdot;
 
-         //This check used to be in the loop used to read in the material properties
-         //However, if things we're re-arranged, so it's now during the class initialization
+         // This check used to be in the loop used to read in the material properties
+         // However, if things we're re-arranged, so it's now during the class initialization
          if (mp_nlines != num_props) {
             std::cerr << "Material prop file should have " << num_props
                       << " properties (each on their own line). A total of " << mp_nlines
@@ -301,7 +301,7 @@ int main(int argc, char *argv[]){
             return 1;
          }
 
-         //We really shouldn't see this change over time at least for our applications.
+         // We really shouldn't see this change over time at least for our applications.
          mat_modelb.initFromParams(opts, params, strs, class_device);
          //
          mat_modelb.complete();
@@ -314,8 +314,8 @@ int main(int argc, char *argv[]){
 
       std::cout << "Class has been completely initialized" << std::endl;
 
-      //We're now initializing our state variables and vgrad to be used in other parts
-      //of the simulations.
+      // We're now initializing our state variables and vgrad to be used in other parts
+      // of the simulations.
       state_vars = memoryManager::allocate<double>(num_state_vars * nqpts);
       vgrad = memoryManager::allocate<double>(nqpts * ecmech::ndim * ecmech::ndim);
 
@@ -327,15 +327,15 @@ int main(int argc, char *argv[]){
       setup_vgrad(vgrad, nqpts);
    }
 
-   //The stress array is the only one of the below variables that needs to be
-   //initialized to 0.
+   // The stress array is the only one of the below variables that needs to be
+   // initialized to 0.
    stress_array = memoryManager::allocate<double>(nqpts * ecmech::nsvec);
    for (int i = 0; i < nqpts * ecmech::nsvec; i++) {
       stress_array[i] = 0.0;
    }
 
-   //We'll leave these uninitialized for now since they're set in the
-   //setup_data function.
+   // We'll leave these uninitialized for now since they're set in the
+   // setup_data function.
    ddsdde_array = memoryManager::allocate<double>(nqpts * ecmech::nsvec * ecmech::nsvec);
    eng_int_array = memoryManager::allocate<double>(nqpts * ecmech::ne);
    w_vec_array = memoryManager::allocate<double>(nqpts * ecmech::nwvec);
@@ -357,9 +357,9 @@ int main(int argc, char *argv[]){
    run_time.start();
 
    // For profiling uses
-   // #if defined(RAJA_ENABLE_CUDA)
-   //    cudaProfilerStart();
-   // #endif
+   //#if defined(RAJA_ENABLE_CUDA)
+   //cudaProfilerStart();
+   //#endif
 
    for (int i = 0; i < nsteps; i++) {
       // std::cout << "About to setup data..." << std::endl;
@@ -367,13 +367,13 @@ int main(int argc, char *argv[]){
                  stress_svec_p_array, d_svec_p_array, w_vec_array, ddsdde_array,
                  vol_ratio_array, eng_int_array, temp_array);
       // std::cout << "Data is now setup and now to run material model" << std::endl;
-      //Now our kernel
+      // Now our kernel
       mat_model_kernel(mat_model_base, nqpts, dt,
                        num_state_vars, state_vars, stress_svec_p_array,
                        d_svec_p_array, w_vec_array, ddsdde_array,
                        vol_ratio_array, eng_int_array, temp_array, sdd_array);
       // std::cout << "Material model ran now to retrieve the data" << std::endl;
-      //retrieve all of the data and put it back in the global arrays
+      // retrieve all of the data and put it back in the global arrays
       retrieve_data(class_device, nqpts, num_state_vars,
                     stress_svec_p_array, vol_ratio_array,
                     eng_int_array, state_vars, stress_array);
@@ -381,8 +381,8 @@ int main(int argc, char *argv[]){
       if (class_device == ecmech::Accelerator::CPU) {
          if (NEVALS_COUNTS) {
             RAJA::ReduceSum<RAJA::seq_reduce, double> seq_sum(0.0);
-            RAJA::ReduceMin<RAJA::seq_reduce, double> seq_min(100.0);//We now this shouldn't ever be more than 100
-            RAJA::ReduceMax<RAJA::seq_reduce, double> seq_max(0.0);//We now this will always be at least 1.0
+            RAJA::ReduceMin<RAJA::seq_reduce, double> seq_min(100.0); // We now this shouldn't ever be more than 100
+            RAJA::ReduceMax<RAJA::seq_reduce, double> seq_max(0.0); // We now this will always be at least 1.0
             RAJA::forall<RAJA::loop_exec>(default_range, [ = ] (int i_qpts){
                double* nfunceval = &(state_vars[i_qpts * num_state_vars + 2]);
                seq_sum += wts * nfunceval[0];
@@ -401,12 +401,12 @@ int main(int argc, char *argv[]){
             stress_avg[j] = seq_sum.get();
          }
       }
-      #if defined(RAJA_ENABLE_OPENMP)
+#if defined(RAJA_ENABLE_OPENMP)
       if (class_device == ecmech::Accelerator::OPENMP) {
          if (NEVALS_COUNTS) {
             RAJA::ReduceSum<RAJA::omp_reduce_ordered, double> omp_sum(0.0);
-            RAJA::ReduceMin<RAJA::omp_reduce_ordered, double> omp_min(100.0);//We now this shouldn't ever be more than 100
-            RAJA::ReduceMax<RAJA::omp_reduce_ordered, double> omp_max(0.0);//We now this will always be at least 1.0
+            RAJA::ReduceMin<RAJA::omp_reduce_ordered, double> omp_min(100.0); // We now this shouldn't ever be more than 100
+            RAJA::ReduceMax<RAJA::omp_reduce_ordered, double> omp_max(0.0); // We now this will always be at least 1.0
             RAJA::forall<RAJA::omp_parallel_for_exec>(default_range, [ = ] (int i_qpts){
                double* nfunceval = &(state_vars[i_qpts * num_state_vars + 2]);
                omp_sum += wts * nfunceval[0];
@@ -425,13 +425,13 @@ int main(int argc, char *argv[]){
             stress_avg[j] = omp_sum.get();
          }
       }
-      #endif
-      #if defined(RAJA_ENABLE_CUDA)
+#endif
+#if defined(RAJA_ENABLE_CUDA)
       if (class_device == ecmech::Accelerator::CUDA) {
          if (NEVALS_COUNTS) {
             RAJA::ReduceSum<RAJA::cuda_reduce, double> cuda_sum(0.0);
-            RAJA::ReduceMin<RAJA::cuda_reduce, double> cuda_min(100.0);//We now this shouldn't ever be more than 100
-            RAJA::ReduceMax<RAJA::cuda_reduce, double> cuda_max(0.0);//We now this will always be at least 1.0
+            RAJA::ReduceMin<RAJA::cuda_reduce, double> cuda_min(100.0); // We now this shouldn't ever be more than 100
+            RAJA::ReduceMax<RAJA::cuda_reduce, double> cuda_max(0.0); // We now this will always be at least 1.0
             RAJA::forall<RAJA::cuda_exec<1024> >(default_range, [ = ] RAJA_DEVICE(int i_qpts){
                double* nfunceval = &(state_vars[i_qpts * num_state_vars + 2]);
                cuda_sum += wts * nfunceval[0];
@@ -450,10 +450,10 @@ int main(int argc, char *argv[]){
             stress_avg[j] = cuda_sum.get();
          }
       }
-      #endif
+#endif
 
-      //On Summit like architectures these print statements don't really add anything to the execution time.
-      //So, we're going to keep them to make things are correct.
+      // On Summit like architectures these print statements don't really add anything to the execution time.
+      // So, we're going to keep them to make things are correct.
       std::cout << "Step# " << i + 1 << " Stress: ";
       for (int i = 0; i < ecmech::nsvec; i++) {
          std::cout << stress_avg[i] << " ";
@@ -463,9 +463,9 @@ int main(int argc, char *argv[]){
    }
 
    // For profiling uses
-   // #if defined(RAJA_ENABLE_CUDA)
-   //    cudaProfilerStart();
-   // #endif
+   //#if defined(RAJA_ENABLE_CUDA)
+   //cudaProfilerStart();
+   //#endif
 
    run_time.stop();
 
@@ -476,7 +476,7 @@ int main(int argc, char *argv[]){
    std::cout << "Run time of set-up, material, and retrieve kernels over " <<
       nsteps << " time steps is: " << time << "(s)" << std::endl;
 
-   //Delete all variables declared using new now.
+   // Delete all variables declared using new now.
 
    memoryManager::deallocate(state_vars);
    memoryManager::deallocate(vgrad);

@@ -38,8 +38,8 @@ namespace ecmech {
    __ecmech_hdev__
    SlipGeomFCC::SlipGeomFCC()
    {
-      //   m = (/ sqr3i, sqr3i, sqr3i /)
-      //   s = (/ zero, sqr2i, -sqr2i /)
+      // m = (/ sqr3i, sqr3i, sqr3i /)
+      // s = (/ zero, sqr2i, -sqr2i /)
       //
       // do not yet bother with making slip systems from symmetry group -- just write them out
       const double mVecs[ nslip * ecmech::ndim ] = {

@@ -48,7 +48,7 @@ namespace ecmech {
                _rhvState(nullptr),
                _rhvStateLen(0)
             {
-               //Should the tangent stiff matrix be included in these stride calculations?
+               // Should the tangent stiff matrix be included in these stride calculations?
                _strides[0] = ecmech::nsvp;
                _strides[1] = ecmech::ndim;
                _strides[2] = ecmech::nvr;
@@ -78,90 +78,89 @@ namespace ecmech {
                uint nhist = NumHist<SlipGeom, Kinetics, ThermoElastN, EosModel>::numHist;
 
                if (stride_len != 8) {
-                  #ifdef __cuda_host_only__
+#ifdef __cuda_host_only__
                   std::ostringstream os;
                   os << "Stride vector needs to have a size of 8 with strides of: " <<
                      ecmech::nsvp << ", " << ecmech::ndim << ", " << ecmech::nvr << ", " <<
                      ecmech::ne << ", " << ecmech::nsvp << ", " << nhist << ", 1, " << ecmech::nsdd;
                   ECMECH_FAIL(__func__, os.str());
-                  #else
+#else
                   ECMECH_FAIL(__func__, "Stride vector needs to have a size of 8 with strides");
-                  #endif
+#endif
                }
 
-               //Need to make sure all of the strides provided at least make sense
+               // Need to make sure all of the strides provided at least make sense
                if (strides[0] < ecmech::nsvp) {
-                  #ifdef __cuda_host_only__
+#ifdef __cuda_host_only__
                   std::ostringstream os;
                   os << "strides[0] should have at least a length of: " << ecmech::nsvp;
                   ECMECH_FAIL(__func__, os.str());
-                  #else
+#else
                   ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
-                  #endif
+#endif
                }
                if (strides[1] < ecmech::ndim) {
-                  #ifdef __cuda_host_only__
+#ifdef __cuda_host_only__
                   std::ostringstream os;
                   os << "strides[1] should have at least a length of: " << ecmech::ndim;
                   ECMECH_FAIL(__func__, os.str());
-                  #else
+#else
                   ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
-                  #endif
-                  
+#endif
                }
                if (strides[2] < ecmech::nvr) {
-                  #ifdef __cuda_host_only__
+#ifdef __cuda_host_only__
                   std::ostringstream os;
                   os << "strides[2] should have at least a length of: " << ecmech::nvr;
                   ECMECH_FAIL(__func__, os.str());
-                  #else
+#else
                   ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
-                  #endif
+#endif
                }
                if (strides[3] < ecmech::ne) {
-                  #ifdef __cuda_host_only__
+#ifdef __cuda_host_only__
                   std::ostringstream os;
                   os << "strides[3] should have at least a length of: " << ecmech::ne;
                   ECMECH_FAIL(__func__, os.str());
-                  #else
+#else
                   ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
-                  #endif
+#endif
                }
                if (strides[4] < ecmech::nsvp) {
-                  #ifdef __cuda_host_only__
+#ifdef __cuda_host_only__
                   std::ostringstream os;
                   os << "strides[4] should have at least a length of: " << ecmech::nsvp;
                   ECMECH_FAIL(__func__, os.str());
-                  #else
+#else
                   ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
-                  #endif
+#endif
                }
                if (strides[5] < nhist) {
-                  #ifdef __cuda_host_only__
+#ifdef __cuda_host_only__
                   std::ostringstream os;
                   os << "strides[5] should have at least a length of: " << nhist;
                   ECMECH_FAIL(__func__, os.str());
-                  #else
+#else
                   ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
-                  #endif
+#endif
                }
                if (strides[6] < 1) {
-                  #ifdef __cuda_host_only__
+#ifdef __cuda_host_only__
                   std::ostringstream os;
                   os << "strides[6] should have at least a length of: " << 1;
                   ECMECH_FAIL(__func__, os.str());
-                  #else
+#else
                   ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
-                  #endif
+#endif
                }
                if (strides[7] < ecmech::nsdd) {
-                  #ifdef __cuda_host_only__
+#ifdef __cuda_host_only__
                   std::ostringstream os;
                   os << "strides[7] should have at least a length of: " << ecmech::nsdd;
                   ECMECH_FAIL(__func__, os.str());
-                  #else
+#else
                   ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
-                  #endif
+#endif
                }
 
                _strides[0] = strides[0];
@@ -249,10 +248,10 @@ namespace ecmech {
 #ifdef __cuda_host_only__
                //////////////////////////////
 
-               //In the new method we would need to delete all data for the pointers
-               //We would also set all of the lengths back to 0
-               //Here we would declare temporary std::vectors here we can just add temp to the names
-               //fix me...
+               // In the new method we would need to delete all data for the pointers
+               // We would also set all of the lengths back to 0
+               // Here we would declare temporary std::vectors here we can just add temp to the names
+               // fix me...
 
                std::vector<std::string> _rhvNamesTemp;
                std::vector<double> _rhvValsTemp;
@@ -265,11 +264,11 @@ namespace ecmech {
                delete _rhvState; _rhvState = 0;
 
                _rhvNamesTemp.push_back("shrate_eff"); _rhvValsTemp.push_back(0.); _rhvPlotTemp.push_back(true);
-               _rhvStateTemp.push_back(true);                                                                                                  // iHistA_shrateEff
+               _rhvStateTemp.push_back(true); // iHistA_shrateEff
                _rhvNamesTemp.push_back("shr_eff"); _rhvValsTemp.push_back(0.); _rhvPlotTemp.push_back(true);
-               _rhvStateTemp.push_back(true);                                                                                               // iHistA_shrEff
+               _rhvStateTemp.push_back(true); // iHistA_shrEff
                _rhvNamesTemp.push_back("n_feval"); _rhvValsTemp.push_back(0.); _rhvPlotTemp.push_back(true);
-               _rhvStateTemp.push_back(true);                                                                                               // iHistA_nFEval
+               _rhvStateTemp.push_back(true); // iHistA_nFEval
                // numHistAux
                //
                for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
@@ -305,9 +304,9 @@ namespace ecmech {
                   ECMECH_FAIL(__func__, "mismatch in numHist");
                }
 
-               //Now we can take all of the temp data stored in the vector and initialize all
-               //the data using the new construct. The double and bool data will be rather trivial.
-               //However, the string data will take a bit more effort then previously.
+               // Now we can take all of the temp data stored in the vector and initialize all
+               // the data using the new construct. The double and bool data will be rather trivial.
+               // However, the string data will take a bit more effort then previously.
 
                _rhvVals = new double [_rhvValsTemp.size()];
                _rhvValsLen = _rhvValsTemp.size();
@@ -320,11 +319,11 @@ namespace ecmech {
                std::copy(_rhvValsTemp.begin(), _rhvValsTemp.end(), _rhvVals);
                std::copy(_rhvStateTemp.begin(), _rhvStateTemp.end(), _rhvState);
                std::copy(_rhvPlotTemp.begin(), _rhvPlotTemp.end(), _rhvPlot);
-               //The below several lines are used to construct our raw char array
-               //from the std::vector<std::string>. We store all the strings
-               //contiguously in the raw char array with the null character included.
+               // The below several lines are used to construct our raw char array
+               // from the std::vector<std::string>. We store all the strings
+               // contiguously in the raw char array with the null character included.
                uint offset = 0;
-               //the _rhvNamesPtrEndLoc stores the starting loc for the next string
+               // the _rhvNamesPtrEndLoc stores the starting loc for the next string
                for (uint i = 0; i < _rhvNamesTemp.size(); i++) {
                   offset += _rhvNamesTemp[i].size() + 1;
                   _rhvNamesPtrEndLoc[i] = offset;
@@ -443,7 +442,7 @@ namespace ecmech {
                                                                               _outputLevel);
                });
                }
-            };//End of getResponse
+            }; // End of getResponse
 
             using matModelBase::getHistInfo;
             __ecmech_host__
@@ -455,9 +454,9 @@ namespace ecmech {
                   ECMECH_FAIL(__func__, "have not yet set up history information");
                }
 
-               //The below replaces all of the previous std::vector usages
-               //of _rhv* with the raw pointers. We still make use of
-               //std::vectors to pass things back to the users.
+               // The below replaces all of the previous std::vector usages
+               // of _rhv* with the raw pointers. We still make use of
+               // std::vectors to pass things back to the users.
                std::vector<std::string> _rhvNamesTemp;
 
                uint offset = 0;
@@ -500,28 +499,28 @@ namespace ecmech {
             uint _strides[8];
             ecmech::Accelerator _accel;
 
-            //I'm not sure we can even have these in here when dealing
-            //with host and device code. So, I've replaced them with
-            //raw ptr arrays instead along with the lengths of each array.
+            // I'm not sure we can even have these in here when dealing
+            // with host and device code. So, I've replaced them with
+            // raw ptr arrays instead along with the lengths of each array.
             // #ifdef __cuda_host_only__
-            // // TO_DO : it is a good idea to have these host-only?
+            //// TO_DO : it is a good idea to have these host-only?
             // std::vector<std::string> _rhvNames;
             // std::vector<double>       _rhvVals;
             // std::vector<bool>        _rhvPlot;
             // std::vector<bool>        _rhvState;
             // #else//Not used at all but it keeps the compiler happy
-            //If we want to have the equivalent of the std::vector for code that's
-            //works on both the Device and Host we might need to make due with something
-            //like the below where we hold raw arrays to everything. Since, we keep track
-            //of the number of elements and in the string case the various pointer locations
-            //we should be able to reconstruct the behavior of the vectors all the same...
+            // If we want to have the equivalent of the std::vector for code that's
+            // works on both the Device and Host we might need to make due with something
+            // like the below where we hold raw arrays to everything. Since, we keep track
+            // of the number of elements and in the string case the various pointer locations
+            // we should be able to reconstruct the behavior of the vectors all the same...
             char* _rhvNames; uint _rhvNamesLen; uint* _rhvNamesPtrEndLoc;
             double* _rhvVals; uint _rhvValsLen;
             bool* _rhvPlot; uint _rhvPlotLen;
             bool* _rhvState; uint _rhvStateLen;
             // #endif
       }; // class matModel
-   } //  namespace evptn
+   } // namespace evptn
 } // namespace ecmech
 
 #endif // ecmech_evptnWrap_include

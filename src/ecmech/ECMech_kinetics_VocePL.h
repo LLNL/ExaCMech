@@ -40,13 +40,13 @@ namespace ecmech {
             _xm = *parsIt; ++parsIt;
             _gam_w = *parsIt; ++parsIt;
 
-            //    CALL fill_power_law(pl)
+            // CALL fill_power_law(pl)
             // xmm  = xm - one ;
             _xnn = one / _xm;
             _xn = _xnn - one;
             // xMp1 = xnn + one
             //
-            //    CALL set_t_min_max(pl)
+            // CALL set_t_min_max(pl)
             _t_min = pow(ecmech::gam_ratio_min, _xm);
             _t_max = pow(ecmech::gam_ratio_ovf, _xm);
 
@@ -192,25 +192,25 @@ namespace ecmech {
          evalGdot(
             double & gdot,
             bool  & l_act,
-            double & dgdot_dtau,                // wrt resolved shear stress
-            double & dgdot_dg,                  // wrt slip system strength
+            double & dgdot_dtau, // wrt resolved shear stress
+            double & dgdot_dg, // wrt slip system strength
 #if MORE_DERIVS
-            double & dgdot_dmu,                 // wrt shear modulus, not through g
-            double & dgdot_dgamo,               // wrt reference rate for thermal part
-            double & dgdot_dgamr,               // wrt reference rate for drag limited part
-            double & dgdot_dtK,                 // wrt temperature, with other arguments fixed
+            double & dgdot_dmu, // wrt shear modulus, not through g
+            double & dgdot_dgamo, // wrt reference rate for thermal part
+            double & dgdot_dgamr, // wrt reference rate for drag limited part
+            double & dgdot_dtK, // wrt temperature, with other arguments fixed
 #endif
             double   gIn,
             double   tau,
-            double                 // mu, not currently used
+            double // mu, not currently used
 #if MORE_DERIVS
             ,
             double   tK
 #endif
             ) const
          {
-            //  zero things so that can more easily just return in inactive
-            // // gdot_w = zero; gdot_r = zero; ! not used by l_linear or l_pl
+            // zero things so that can more easily just return in inactive
+            //// gdot_w = zero; gdot_r = zero; ! not used by l_linear or l_pl
             gdot = zero;
             //
             dgdot_dtau = zero;
@@ -254,12 +254,12 @@ namespace ecmech {
                   // dgdot_dtK   = zero ; // already done
 
                   // IF (pl%tdp%T_dep) THEN
-                  //   dgdot_dtK   =  gdot * pl%tdp%qoverr / (tK * tK)
+                  // dgdot_dtK   =  gdot * pl%tdp%qoverr / (tK * tK)
                   // END IF
                   // IF (pl%tdp%T_dep_m) THEN !  .AND. pl%xm < XM_UB_p
-                  //   dxn_dtK = -(pl%xnn*pl%xnn) * pl%tdp%dxm_dtK_current
-                  //   dgdot_dtK = dgdot_dtK + &
-                  //        & gdot * abslog * dxn_dtK
+                  // dxn_dtK = -(pl%xnn*pl%xnn) * pl%tdp%dxm_dtK_current
+                  // dgdot_dtK = dgdot_dtK + &
+                  // & gdot * abslog * dxn_dtK
                   // END IF
 #endif
                }
@@ -317,7 +317,7 @@ namespace ecmech {
             double temp2 = sv_sat - _tausi;
 
             // IF (PRESENT(dfdtK)) THEN
-            //   dfdtK(1) = zero
+            // dfdtK(1) = zero
             // END IF
 
             sdot = 0.0;
@@ -339,4 +339,4 @@ namespace ecmech {
    }; // class KineticsVocePL
 } // namespace ecmech
 
-#endif  // ECMECH_KINETICS_VOCEPL_H
+#endif // ECMECH_KINETICS_VOCEPL_H

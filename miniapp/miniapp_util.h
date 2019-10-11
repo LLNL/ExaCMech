@@ -7,18 +7,18 @@
 #include "RAJA/policy/cuda/raja_cudaerrchk.hpp"
 #endif
 
-//We're going to use this to determine what RAJA code to run for our
-//kernels.
-//The HIP backend won't be able to run on AMD GPGPUs
-//until device function pointers are supported.
+// We're going to use this to determine what RAJA code to run for our
+// kernels.
+// The HIP backend won't be able to run on AMD GPGPUs
+// until device function pointers are supported.
 enum class Accelerator { CPU, CUDA, OPENMP };
 
-//The below is a simple memory manager taken directly from the RAJA repo and as such
-//the necessary copyright/LICENSE information is provided towards the bottom of this file
-//for it.
-//The memory manager is also sufficient for our basic needs for this miniapp. The CUDA calls
-//make use of unified memory which might not be sufficient for our needs later on if we need to start
-//experimenting with using pinned memory type models for GPU runs.
+// The below is a simple memory manager taken directly from the RAJA repo and as such
+// the necessary copyright/LICENSE information is provided towards the bottom of this file
+// for it.
+// The memory manager is also sufficient for our basic needs for this miniapp. The CUDA calls
+// make use of unified memory which might not be sufficient for our needs later on if we need to start
+// experimenting with using pinned memory type models for GPU runs.
 
 /*
   As RAJA does not manage memory we include a general purpose memory
@@ -53,7 +53,7 @@ namespace memoryManager
          ptr = nullptr;
       }
    }
-};  // namespace memoryManager
+}; // namespace memoryManager
 
 // Copyright (c) 2016-19, Lawrence Livermore National Security, LLC.
 // All rights reserved.
@@ -62,15 +62,15 @@ namespace memoryManager
 // modification, are permitted provided that the following conditions are met:
 
 // * Redistributions of source code must retain the above copyright notice,
-//   this list of conditions and the disclaimer below.
+// this list of conditions and the disclaimer below.
 
 // * Redistributions in binary form must reproduce the above copyright notice,
-//   this list of conditions and the disclaimer (as noted below) in the
-//   documentation and/or other materials provided with the distribution.
+// this list of conditions and the disclaimer (as noted below) in the
+// documentation and/or other materials provided with the distribution.
 
 // * Neither the name of the LLNS/LLNL nor the names of its contributors may be
-//   used to endorse or promote products derived from this software without
-//   specific prior written permission.
+// used to endorse or promote products derived from this software without
+// specific prior written permission.
 
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 // AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE

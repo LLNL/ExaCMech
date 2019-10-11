@@ -346,7 +346,7 @@ namespace ecmech {
       vecd[1] = sqr6i *
                 (two *
                  A[ECMECH_NN_INDX(2, 2,
-                                  ecmech::ndim)] - A[ECMECH_NN_INDX(0, 0, ecmech::ndim)] - A[ECMECH_NN_INDX(1, 1, ecmech::ndim)]);              // = sqr6i * (3*A33 - Akk) = sqr3b2 * (A33 - Akk/3) = sqr3b2 * Adev33
+                                  ecmech::ndim)] - A[ECMECH_NN_INDX(0, 0, ecmech::ndim)] - A[ECMECH_NN_INDX(1, 1, ecmech::ndim)]); // = sqr6i * (3*A33 - Akk) = sqr3b2 * (A33 - Akk/3) = sqr3b2 * Adev33
       vecd[2] = sqr2 * A[ECMECH_NN_INDX(1, 0, ecmech::ndim)];
       vecd[3] = sqr2 * A[ECMECH_NN_INDX(2, 0, ecmech::ndim)];
       vecd[4] = sqr2 * A[ECMECH_NN_INDX(2, 1, ecmech::ndim)];
@@ -409,15 +409,15 @@ namespace ecmech {
       double t1 = sqr2i * vecds[0];
       double t2 = sqr6i * vecds[1];
       //
-      svecp[0] = t1 - t2;         // 11'
-      svecp[1] = -t1 - t2;        // 22'
+      svecp[0] = t1 - t2; // 11'
+      svecp[1] = -t1 - t2; // 22'
       svecp[2] = sqr2b3 * vecds[1]; // 33'
       svecp[3] = sqr2i * vecds[4]; // 23
       svecp[4] = sqr2i * vecds[3]; // 31
       svecp[5] = sqr2i * vecds[2]; // 12
    }
 
-   //  SUBROUTINE svec_p_to_svec(a_svec, a_svec_p)
+   // SUBROUTINE svec_p_to_svec(a_svec, a_svec_p)
    __ecmech_hdev__
    inline void svecpToSvec(double* const a_svec,
                            const double* const a_svec_p
@@ -425,7 +425,7 @@ namespace ecmech {
    {
       double a_mean = -a_svec_p[iSvecP];
 
-      //std::copy(a_svec_p, a_svec_p + ecmech::nsvec, a_svec);
+      // std::copy(a_svec_p, a_svec_p + ecmech::nsvec, a_svec);
       for (int i_svec = 0; i_svec < ecmech::nsvec; i_svec++) {
          a_svec[i_svec] = a_svec_p[i_svec];
       }
@@ -438,8 +438,8 @@ namespace ecmech {
    __ecmech_hdev__
    inline
    void matToPQ(double* const P_vecd, // ntvec
-                double* const Q_veccp,        // nwvec
-                const double* const T        // ndim*ndim
+                double* const Q_veccp, // nwvec
+                const double* const T // ndim*ndim
                 )
    {
       // CALL mat_to_symm_3(crys%p_ref(:,:,is), crys%t_ref(:,:,is))
@@ -496,7 +496,7 @@ namespace ecmech {
    inline void get_c_quat(double* const c_quat,
                           const double* const dr_quat,
                           const double* const cn_quat) {
-      //  Compute : c = c_n * dr
+      // Compute : c = c_n * dr
       quat_prod(c_quat, cn_quat, dr_quat);
    }
 
@@ -550,15 +550,15 @@ namespace ecmech {
 #include "mc_vars_set.h"
 
 
-      //    IF ((UBOUND(c,DIM=1) /= DIMS) .OR. (UBOUND(c,DIM=2) /= DIMS)) &
-      //         & CALL consider_ierr(1,location,CIERR_DIMS_p,IERR_FATAL_p)
-      //    IF ((UBOUND(qr5x5,DIM=1) /= TVEC) .OR. (UBOUND(qr5x5,DIM=2) /= TVEC)) &
-      //         & CALL consider_ierr(1,location,CIERR_DIMS_p,IERR_FATAL_p)
+      // IF ((UBOUND(c,DIM=1) /= DIMS) .OR. (UBOUND(c,DIM=2) /= DIMS)) &
+      // & CALL consider_ierr(1,location,CIERR_DIMS_p,IERR_FATAL_p)
+      // IF ((UBOUND(qr5x5,DIM=1) /= TVEC) .OR. (UBOUND(qr5x5,DIM=2) /= TVEC)) &
+      // & CALL consider_ierr(1,location,CIERR_DIMS_p,IERR_FATAL_p)
 
       RAJA::View<double, RAJA::Layout<2> > qr5x5(qr5x5_raw, ecmech::ntvec, ecmech::ntvec);
 
-      //     ! if do not want to assume (c31**2+c32**2+c33**2=1)
-      //     qr5x5(1, 1)  =  c33 * c33 - onehalf * (c31 * c31 + c32 * c32)
+      // ! if do not want to assume (c31**2+c32**2+c33**2=1)
+      // qr5x5(1, 1)  =  c33 * c33 - onehalf * (c31 * c31 + c32 * c32)
 
       qr5x5(0, 0) = onehalf * (c11 * c11 - c12 * c12 - c21 * c21 + c22 * c22);
       qr5x5(0, 1) = sqr3 * onehalf * (c13 * c13 - c23 * c23);
@@ -666,7 +666,7 @@ namespace ecmech {
    __ecmech_hdev__
    inline
    void dquat_demap_T(double* const dqdeT_raw, // (EMAPDIM_p,QDIM_p)
-                      const double* const emap        // (EMAPDIM_p)
+                      const double* const emap // (EMAPDIM_p)
                       )
    {
       const double theta_sm_a = 1e-9;
@@ -924,14 +924,14 @@ namespace ecmech {
    inline
    void eval_d_dxi_impl_quat(double* const dC_quat_dxi_T, // (WVEC,QDIM_p)
                              // double* const dC_matx_dxi, // (DIMS,DIMS,WVEC)
-                             double* const dDapp_dxi,        // dDapp_dxi(TVEC, WVEC)
-                             double* const dWapp_dxi,        // dWapp_dxi(WVEC, WVEC)
-                             const double* const d_vecd_sm,        // (TVEC), or (SVEC) is fine too
-                             const double* const w_vec_sm,        // (WVEC)
-                             const double* const xi,        // (WVEC)
-                             const double* const Cn_quat,        // (QDIM_p)
-                             const double* const C_matx,        // (DIMS,DIMS)
-                             const double* const C_quat        // (QDIM_p)
+                             double* const dDapp_dxi, // dDapp_dxi(TVEC, WVEC)
+                             double* const dWapp_dxi, // dWapp_dxi(WVEC, WVEC)
+                             const double* const d_vecd_sm, // (TVEC), or (SVEC) is fine too
+                             const double* const w_vec_sm, // (WVEC)
+                             const double* const xi, // (WVEC)
+                             const double* const Cn_quat, // (QDIM_p)
+                             const double* const C_matx, // (DIMS,DIMS)
+                             const double* const C_quat // (QDIM_p)
                              // const double* const A_quat // (QDIM_p) // not used
                              ) {
       // working with quats, so do not call eval_d_cA_dxi(dc_dxi, dA_dxi, xi, c_n)
@@ -953,7 +953,7 @@ namespace ecmech {
          double dCmatx_dq[ (ecmech::ndim * ecmech::ndim) *ecmech::qdim ]; // (DIMS,DIMS,QDIM_p)
          // get dC_matx_dxi
          d_quat_to_tensor(dCmatx_dq, C_quat);
-         vecsMABT<ndim*ndim, nwvec, qdim>(dC_matx_dxi, dCmatx_dq, dC_quat_dxi_T);   // vecsMABT because _T on dC_quat_dxi_T
+         vecsMABT<ndim*ndim, nwvec, qdim>(dC_matx_dxi, dCmatx_dq, dC_quat_dxi_T); // vecsMABT because _T on dC_quat_dxi_T
       }
 
       {
@@ -1222,4 +1222,4 @@ namespace ecmech {
 #endif
 } // namespace ecmech
 
-#endif  // ECMECH_UTIL_H
+#endif // ECMECH_UTIL_H

@@ -1,7 +1,7 @@
 #ifndef __ECMECH_CONST_H__
 #define __ECMECH_CONST_H__
 
-//#include <math.h>
+// #include <math.h>
 #include "ECMech_port.h"
 #include "ECMech_cuda_portability.h"
 
@@ -57,12 +57,12 @@
 
 #define MORE_DERIVS 0
 
-//#include <limits>
+// #include <limits>
 
 namespace ecmech
 {
-   //We're going to use this to determine what RAJA code to run for our
-   //kernels.
+   // We're going to use this to determine what RAJA code to run for our
+   // kernels.
    enum class Accelerator { CPU, CUDA, OPENMP };
 
    const int nsvp = 7;
@@ -78,7 +78,7 @@ namespace ecmech
    const int invdim = 4;
    const int emapdim = 3;
 
-   const int iSvecS = nsvec - 1;     // index like SVEC in F90 coding
+   const int iSvecS = nsvec - 1; // index like SVEC in F90 coding
    const int iSvecP = nsvec;
 
    // indexing into array of outputs
@@ -130,6 +130,6 @@ namespace ecmech
    const double e_scale = 5e-4;
    const double r_scale = 0.01;
    const int st_max_iter = 200;
-}  // (namespace ecmech)
+} // (namespace ecmech)
 
-#endif  // __ECMECH_CONST_H__
+#endif // __ECMECH_CONST_H__

@@ -17,7 +17,7 @@
 // __device__.
 //
 // For non-CUDA builds, we need to declare empty macros for portability.
-//----------------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------------------
 
 #ifdef __CUDACC__
 #define __ecmech_host__   __host__
@@ -32,7 +32,7 @@
 #endif
 
 // declare a CUDA runtime error handler and macro...
-//----------------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------------------
 
 #ifdef __CUDACC__
 #ifndef CUDART_CHECK
@@ -46,7 +46,7 @@ extern void CUDART_Check(const cudaError_t err, const char *file, const char *fu
 
 // RAJA_CUDA_THREADS defines the number of cuda threads that we want to run for our material
 // model.
-//----------------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------------------
 // A 160 threads seems to work alright when used on a V100 Nvidia card. It provides a slight
 // improvement over a 128 threads for a Voce type material model.
 
@@ -56,7 +56,7 @@ extern void CUDART_Check(const cudaError_t err, const char *file, const char *fu
 
 // __CUDA_ARCH__ is defined when compiling for the device, the macro below is used
 // to filter code that cannot be compiled for the device.
-//----------------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------------------
 
 #ifdef __CUDA_ARCH__
 #define __cuda_device_only__
@@ -64,4 +64,4 @@ extern void CUDART_Check(const cudaError_t err, const char *file, const char *fu
 #define __cuda_host_only__
 #endif
 
-#endif  // __ECMECH_CUDA_PORTABILITY_H
+#endif // __ECMECH_CUDA_PORTABILITY_H

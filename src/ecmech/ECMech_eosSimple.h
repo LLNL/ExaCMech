@@ -155,4 +155,4 @@ namespace ecmech {
    }
 } // namespace ecmech
 
-#endif  // ECMECH_EOS_SIMPLE_H
+#endif // ECMECH_EOS_SIMPLE_H

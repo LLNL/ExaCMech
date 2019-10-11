@@ -95,9 +95,9 @@ namespace ecmech {
             inline
             void eval(double* const T_vecds,
                       const double* const Ee_vecds,
-                      double,        // tK
+                      double, // tK
                       double p_EOS,
-                      double        // eVref
+                      double // eVref
                       ) const {
                double ln_J = sqr3 * Ee_vecds[iSvecS]; // vecds_s_to_trace
                double J = exp(ln_J);
@@ -118,7 +118,7 @@ namespace ecmech {
             __ecmech_hdev__
             inline
             void multDTDepsT(double* const P, // ntvec*p
-                             const double* const A,        // ntvec*p
+                             const double* const A, // ntvec*p
                              double a_V_ri,
                              int p) const {
                for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
@@ -194,8 +194,8 @@ namespace ecmech {
             __ecmech_hdev__
             inline
             double getGmod(double, // tK
-                           double,        // p_EOS
-                           double        // eVref
+                           double, // p_EOS
+                           double // eVref
                            ) const {
                if (_K_gmod <= 0.0) {
                   ECMECH_FAIL(__func__, "effective shear modulus negative -- not initialized?");
@@ -318,21 +318,21 @@ namespace ecmech {
             void elastNEtoT(double* const T_vecds, // nsvec
                             const double* const e_vecd_f // ntvec
                             ) {
-               // // do not need to use elaw_T_BT here as T and BT are the same
+               //// do not need to use elaw_T_BT here as T and BT are the same
                //
                // specialize to cem%l_lin_lnsd
                // CALL elawn_T(s_meas, e_vecd_f, crys%elas, tK, .TRUE., a_V, &
-               //      & p_EOS, eVref, crys%i_eos_model, crys%eos_const &
-               //      &)
+               // & p_EOS, eVref, crys%i_eos_model, crys%eos_const &
+               // &)
                double Ee_vecds[ecmech::nsvec];
                vecsVxa<ntvec>(Ee_vecds, _a_V_ri, e_vecd_f);
-               // // tr_Ee = three * DLOG(a_V%r)
-               // // CALL trace_to_vecds_s(s_meas%Ee_vecds(SVEC), tr_Ee)
+               //// tr_Ee = three * DLOG(a_V%r)
+               //// CALL trace_to_vecds_s(s_meas%Ee_vecds(SVEC), tr_Ee)
                Ee_vecds[iSvecS] = sqr3 * log(_a_V); // could go into constructor
                //
-               // // Kirchhoff stress from Ee_vecds
-               //    CALL elawn_lin_op(s_meas%T_vecds, s_meas%Ee_vecds, cem, tK, &
-               //         & p_EOS, eVref, i_eos_model, eos_const)
+               //// Kirchhoff stress from Ee_vecds
+               // CALL elawn_lin_op(s_meas%T_vecds, s_meas%Ee_vecds, cem, tK, &
+               // & p_EOS, eVref, i_eos_model, eos_const)
                _thermoElastN.eval(T_vecds, Ee_vecds, _tK, _p_EOS, _eVref);
             }
 
@@ -367,7 +367,7 @@ namespace ecmech {
                }
 
                //////////////////////////////
-               //  PULL VALUES out of x, with scalings
+               // PULL VALUES out of x, with scalings
                //
                double edot_vecd[ecmech::ntvec];
                vecsVxa<ntvec>(edot_vecd, ecmech::e_scale, &(x[_i_sub_e]) ); // edot_vecd is now the delta, _not_ yet edot_vecd
@@ -380,8 +380,8 @@ namespace ecmech {
                vecsVxa<nwvec>(xi_f, ecmech::r_scale, &(x[_i_sub_r]) );
                //
                // not done in EvpC :
-               //    CALL exp_map_cpvec(A, xi_f)
-               //    CALL get_c(c, A, C_n)
+               // CALL exp_map_cpvec(A, xi_f)
+               // CALL get_c(c, A, C_n)
                //
                double A_quat[ecmech::qdim];
                emap_to_quat(A_quat, xi_f);
@@ -400,7 +400,7 @@ namespace ecmech {
                vecsVMTa<ntvec>(d_vecd_lat, qr5x5_ls, _d_vecd_sm);
                // d_vecds_lat(SVEC) = vel_grad_sm%d_vecds(SVEC)
                //
-               // // CALL rot_mat_vecd(A, qr5x5_A)
+               //// CALL rot_mat_vecd(A, qr5x5_A)
                //
                // CALL rot_mat_wveccp(C_matx, qr3x3_ls) // amounts to qr3x3_ls = C_matx
                // CALL matt_x_vec_3(qr3x3_ls, vel_grad_sm%w_veccp, w_vec_lat)
@@ -419,7 +419,7 @@ namespace ecmech {
                double pl_vecd[ecmech::ntvec] = { 0.0 };
                double pl_wvec[ecmech::nwvec] = { 0.0 }; // \pcDhat
                if (SlipGeom::nslip > 0) {
-                  //  resolve stress onto slip systems
+                  // resolve stress onto slip systems
                   // CALL resolve_tau_a_n(crys%tmp4_slp, s_meas%T_vecds, crys)
                   vecsVaTM<ntvec, SlipGeom::nslip>(taua, T_vecds, _slipGeom.getP() );
                   //
@@ -431,7 +431,7 @@ namespace ecmech {
                   vecsVMa<nwvec, SlipGeom::nslip>(pl_wvec, _slipGeom.getQ(), _gdot);
                }
                //
-               // // shrate_l%gdot => crys%tmp1_slp
+               //// shrate_l%gdot => crys%tmp1_slp
 
                // from e edot product term in spin (formerly neglected)
                //
@@ -463,8 +463,8 @@ namespace ecmech {
                   _dp_dis_rate_contrib = _detV_ri * vecsyadotb<SlipGeom::nslip>(taua, _gdot);
                }
 
-               // // need shrate%eff instead
-               // // CALL calc_pl_eff(dp_def_rate_contrib, pl_vecd, detV%ri)
+               //// need shrate%eff instead
+               //// CALL calc_pl_eff(dp_def_rate_contrib, pl_vecd, detV%ri)
                // CALL setup_ss_shrate_vals(shrate_l, crys%tmp1_slp, zero, .TRUE.)
                _shrate_eff_contrib = vecsssumabs<SlipGeom::nslip>(_gdot);
 
@@ -485,16 +485,16 @@ namespace ecmech {
                   double dpl_deps_skew[ ecmech::nwvec * ecmech::ntvec ] = { 0.0 };
                   if (SlipGeom::nslip > 0) {
                      // CALL elawn_T_dif(s_meas, e_vecd_f, crys%elas, tK, a_V, &
-                     //                  & p_EOS, eVref, crys%i_eos_model, crys%eos_const, &
-                     //                  & dpEOS_dtK, .FALSE., .FALSE., .FALSE.)
+                     // & p_EOS, eVref, crys%i_eos_model, crys%eos_const, &
+                     // & dpEOS_dtK, .FALSE., .FALSE., .FALSE.)
                      // CALL eval_dtaua_deps_n(dtaua_deps, s_meas%dT_deps, crys)
                      //
                      double dtaua_deps[ ecmech::ntvec * SlipGeom::nslip ];
                      _thermoElastN.multDTDepsT(dtaua_deps, _slipGeom.getP(), _a_V_ri, SlipGeom::nslip);
 
                      // CALL plaw_eval_dif_sn(TVEC, &
-                     //                       & dpl_deps_symm, dpl_deps_skew, dgdot_deps, &
-                     //                       & dtaua_deps, gss, crys, s_meas, .FALSE.)
+                     // & dpl_deps_symm, dpl_deps_skew, dgdot_deps, &
+                     // & dtaua_deps, gss, crys, s_meas, .FALSE.)
                      double dgdot_deps[ ecmech::ntvec * SlipGeom::nslip ] = { 0.0 };
                      for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
                         for (int iSlip = 0; iSlip < SlipGeom::nslip; ++iSlip) {
@@ -504,12 +504,12 @@ namespace ecmech {
                      }
 
                      // DO islip = 1, crys%nslip
-                     //   DO i_TVEC = 1, TVEC
-                     //     dpl_deps_symm(:,i_TVEC) +=
-                     //          & crys%P_ref_vec(:,islip) * dgdot_deps(i_TVEC,islip)
-                     //     dpl_deps_skew(:,i_TVEC) +=
-                     //          & crys%Q_ref_vec(:,islip) * dgdot_deps(i_TVEC,islip)
-                     //   END DO
+                     // DO i_TVEC = 1, TVEC
+                     // dpl_deps_symm(:,i_TVEC) +=
+                     // & crys%P_ref_vec(:,islip) * dgdot_deps(i_TVEC,islip)
+                     // dpl_deps_skew(:,i_TVEC) +=
+                     // & crys%Q_ref_vec(:,islip) * dgdot_deps(i_TVEC,islip)
+                     // END DO
                      // END DO
                      vecsMABT<ntvec, SlipGeom::nslip>(dpl_deps_symm, _slipGeom.getP(), dgdot_deps);
                      vecsMABT<nwvec, ntvec, SlipGeom::nslip>(dpl_deps_skew, _slipGeom.getQ(), dgdot_deps);
@@ -551,9 +551,9 @@ namespace ecmech {
                   //
                   // jacob_er = -dDsm_dxi(:,:)
                   {
-                     //RAJA::OffsetLayout<JDIM> layout = RAJA::make_offset_layout<JDIM>({{ 0, -_i_sub_r } }, {{ nDimSys - 1,
-                     //                                                                                        -_i_sub_r + nDimSys -
-                     //                                                                                          1 } });
+                     // RAJA::OffsetLayout<JDIM> layout = RAJA::make_offset_layout<JDIM>({{ 0, -_i_sub_r } }, {{ nDimSys - 1,
+                     // -_i_sub_r + nDimSys -
+                     // 1 } });
                      RAJA::View<double, RAJA::Layout<JDIM> > jacob_er(Jacobian, nDimSys, nDimSys);
                      for (int jWvec = 0; jWvec<ecmech::nwvec; ++jWvec) {
                         for (int iTvec = 0; iTvec<ecmech::ntvec; ++iTvec) {
@@ -567,8 +567,8 @@ namespace ecmech {
                   // d(B_xi)/d(e_vecds_f)
                   //
                   {
-                     //RAJA::OffsetLayout<JDIM> layout = RAJA::make_offset_layout<JDIM>({{ -_i_sub_r, 0 } },
-                     //                                                                  {{ -_i_sub_r + nDimSys - 1, nDimSys - 1 } });
+                     // RAJA::OffsetLayout<JDIM> layout = RAJA::make_offset_layout<JDIM>({{ -_i_sub_r, 0 } },
+                     // {{ -_i_sub_r + nDimSys - 1, nDimSys - 1 } });
                      RAJA::View<double, RAJA::Layout<JDIM> > jacob_re(Jacobian, nDimSys, nDimSys);
 
                      double A_edot_M35[ecmech::nwvec * ecmech::ntvec];
@@ -588,9 +588,9 @@ namespace ecmech {
                   // d(B_xi)/d(xi_f)
                   //
                   {
-                     //RAJA::OffsetLayout<JDIM> layout = RAJA::make_offset_layout<JDIM>({{ -_i_sub_r, -_i_sub_r } },
-                     //                                                                {{ -_i_sub_r + nDimSys - 1,
-                     //                                                                   -_i_sub_r + nDimSys - 1 } });
+                     // RAJA::OffsetLayout<JDIM> layout = RAJA::make_offset_layout<JDIM>({{ -_i_sub_r, -_i_sub_r } },
+                     // {{ -_i_sub_r + nDimSys - 1,
+                     // -_i_sub_r + nDimSys - 1 } });
                      RAJA::View<double, RAJA::Layout<JDIM> > jacob_rr(Jacobian, nDimSys, nDimSys);
 
                      for (int iWvec = 0; iWvec < ecmech::nwvec; ++iWvec) {
@@ -634,12 +634,12 @@ namespace ecmech {
                         // SYSTEM
                         //
                         double pfrac_sys[ _nXnDim ];
-                        //std::copy doesn't exist on the gpu so we need to do this manually
+                        // std::copy doesn't exist on the gpu so we need to do this manually
                         for (int i_jac = 0; i_jac < _nXnDim; i_jac++) {
                            pfrac_sys[i_jac] = Jacobian[i_jac];
                         }
 
-                        //std::copy(Jacobian, Jacobian + _nXnDim, pfrac_sys);
+                        // std::copy(Jacobian, Jacobian + _nXnDim, pfrac_sys);
                         int err = SNLS_LUP_SolveX<nDimSys>(pfrac_sys, pfrac_rhs_T, nRHS);
                         if (err != 0) {
                            ECMECH_FAIL(__func__, "error from SNLS_LUP_SolveX");
@@ -692,7 +692,7 @@ namespace ecmech {
                      // ! get dsigClat_dxi
                      // CALL eval_d_dxi_Slat(dsigClat_dxi, sigC_vecds_lat, dC_matx_dxi, C_matx)
                      // mtan_sI(1:TVEC,:) = mtan_sI(1:TVEC,:) + &
-                     //      & MATMUL(dsigClat_dxi(1:TVEC,:), dxi_dI(:,:))
+                     // & MATMUL(dsigClat_dxi(1:TVEC,:), dxi_dI(:,:))
                      //
                      // contribution: dSlat_dCmatx(i,p,q) . dCmatx_dCquat(p,q,r) . dCquat_dI(r,j)
                      //
@@ -811,8 +811,8 @@ namespace ecmech {
                            const EosModel& eos,
                            double    dt,
                            double    tolerance,
-                           const double  * d_svec_kk_sm,// defRate,
-                           const double  * w_veccp_sm,// spin
+                           const double  * d_svec_kk_sm, // defRate,
+                           const double  * w_veccp_sm, // spin
                            const double  * volRatio,
                            double  * eInt,
                            double  * stressSvecP,
@@ -845,8 +845,8 @@ namespace ecmech {
          // copies, to keep beginning-of-step state safe
          //
          double e_vecd_n[ecmech::ntvec];
-         //std::copy isn't available on the GPU so loops are required...
-         //std::copy(hist + iHistLbE, hist + iHistLbE + ecmech::ntvec, e_vecd_n);
+         // std::copy isn't available on the GPU so loops are required...
+         // std::copy(hist + iHistLbE, hist + iHistLbE + ecmech::ntvec, e_vecd_n);
          for (int i_hist = 0; i_hist < ecmech::ntvec; i_hist++) {
             e_vecd_n[i_hist] = hist[iHistLbE + i_hist];
          }
@@ -856,7 +856,7 @@ namespace ecmech {
             quat_n[i_hist] = hist[iHistLbQ + i_hist];
          }
 
-         //std::copy(hist + iHistLbQ, hist + iHistLbQ + ecmech::qdim, quat_n);
+         // std::copy(hist + iHistLbQ, hist + iHistLbQ + ecmech::qdim, quat_n);
          //
          // normalize quat just in case
          vecsVNormalize<qdim>(quat_n);
@@ -976,14 +976,14 @@ namespace ecmech {
             // store updated state
             //
             prob.stateFromX(e_vecd_u, quat_u, x);
-            //std::copy(h_state_u, h_state_u + Kinetics::nH, h_state);
+            // std::copy(h_state_u, h_state_u + Kinetics::nH, h_state);
             for (int i_hstate = 0; i_hstate < Kinetics::nH; i_hstate++) {
                h_state[i_hstate] = h_state_u[i_hstate];
             }
 
             {
                const double* gdot_u = prob.getGdot();
-               //std::copy(gdot_u, gdot_u + SlipGeom::nslip, gdot);
+               // std::copy(gdot_u, gdot_u + SlipGeom::nslip, gdot);
                for (int i_gdot = 0; i_gdot < SlipGeom::nslip; i_gdot++) {
                   gdot[i_gdot] = gdot_u[i_gdot];
                }
@@ -992,7 +992,7 @@ namespace ecmech {
             hist[iHistA_shrEff] += hist[iHistLbA + 0] * dt;
             hist[iHistA_nFEval] = solver.getNFEvals(); // does _not_ include updateH iterations
 
-            //  get Cauchy stress
+            // get Cauchy stress
             //
             prob.elastNEtoC(Cstr_vecds_lat, e_vecd_u);
 
@@ -1051,4 +1051,4 @@ namespace ecmech {
    } // namespace evptn
 } // namespace ecmech
 
-#endif  // ECMECH_EVPTN_H
+#endif // ECMECH_EVPTN_H

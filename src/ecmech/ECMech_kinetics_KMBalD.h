@@ -80,16 +80,16 @@ namespace ecmech {
 
             // plaw_from_elawRef
             //
-            //    pl%xm = getMtsxmEffective(pl, mu_ref, T_ref)
+            // pl%xm = getMtsxmEffective(pl, mu_ref, T_ref)
             double xm = one / (two * ((_c_1 / _tK_ref) * _mu_ref * _p * _q));
             //
-            //    CALL fill_power_law(pl)
+            // CALL fill_power_law(pl)
             // xmm  = xm - one ;
             _xnn = one / xm;
             _xn = _xnn - one;
             // xMp1 = xnn + one
             //
-            //    CALL set_t_min_max(pl)
+            // CALL set_t_min_max(pl)
             _t_min = pow(ecmech::gam_ratio_min, xm);
             _t_max = pow(ecmech::gam_ratio_ovf, xm);
 
@@ -292,7 +292,7 @@ namespace ecmech {
             double q_arg = one - p_func;
             double pq_fac;
             if (q_arg < idp_tiny_sqrt) {
-               //  peg
+               // peg
                q_arg = zero;
                mts_dfac = zero;
                pq_fac = zero;
@@ -321,13 +321,13 @@ namespace ecmech {
          evalGdot(
             double & gdot,
             bool  & l_act,
-            double & dgdot_dtau,                // wrt resolved shear stress
-            double & dgdot_dg,                  // wrt slip system strength
+            double & dgdot_dtau, // wrt resolved shear stress
+            double & dgdot_dg, // wrt slip system strength
 #if MORE_DERIVS
-            double & dgdot_dmu,                 // wrt shear modulus, not through g
-            double & dgdot_dgamo,               // wrt reference rate for thermal part
-            double & dgdot_dgamr,               // wrt reference rate for drag limited part
-            double & dgdot_dtK,                 // wrt temperature, with other arguments fixed
+            double & dgdot_dmu, // wrt shear modulus, not through g
+            double & dgdot_dgamo, // wrt reference rate for thermal part
+            double & dgdot_dgamr, // wrt reference rate for drag limited part
+            double & dgdot_dtK, // wrt temperature, with other arguments fixed
 #endif
             const double* const vals,
             double   tau,
@@ -384,7 +384,7 @@ namespace ecmech {
                double exp_arg = (fabs(tau) - gAth) / _wrD;
                double temp;
                if (exp_arg < gam_ratio_min) { // ! IF (gdot_r < gam_ratio_min) THEN
-                  //  note that this should catch tau <= g
+                  // note that this should catch tau <= g
                   return;
                }
                else if (exp_arg < idp_eps_sqrt) {
@@ -594,14 +594,14 @@ namespace ecmech {
             double k2 = evolVals[1];
 
             // IF (PRESENT(dfdtK)) THEN
-            //   dfdtK(1) = zero
+            // dfdtK(1) = zero
             // END IF
 
             // sdot = 0.0 ;
             // dsdot_ds = 0.0 ;
             //
             // if ( shrate_eff <= zero ) {
-            //    // do not get any evolution, and will get errors if proceed with calculations below
+            //// do not get any evolution, and will get errors if proceed with calculations below
             // }
             // else {
             double temp_hs_a = exp(-onehalf * h);
@@ -614,4 +614,4 @@ namespace ecmech {
    }; // class KineticsKMBalD
 } // namespace ecmech
 
-#endif  // ECMECH_KINETICS_KMBALD_H
+#endif // ECMECH_KINETICS_KMBALD_H
