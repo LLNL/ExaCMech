@@ -55,6 +55,26 @@ AUTHORS
 
 The principal developer of ECMech is Nathan Barton, nrbarton@llnl.gov. Robert Carson has also made contributions. 
 
+CITATION
+======
+
+ECMech may be cited using the following `bibtex` entry:
+```
+@Misc{ecmech,
+title = {{ECMech}},
+author = {Barton, Nathan R. and Carson, Robert A. and Wopschall, Steven R and USDOE National Nuclear Security Administration},
+abstractNote = {{ECMech} is a {GPU}-friendly library of constitutive models. Crystal-mechanics-based and porosity mechanics-based models are a principal focus.},
+url = {https://github.com/LLNL/ExaCMech},
+doi = {10.11578/dc.20190809.2},
+year = {2018},
+month = {12},
+annote = {
+   https://www.osti.gov//servlets/purl/1550790
+   https://www.osti.gov/biblio/1550790-llnl-exacmech
+}
+}
+```
+
 LICENSE
 ======
 
