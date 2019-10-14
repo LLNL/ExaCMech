@@ -22,7 +22,7 @@ namespace ecmech {
          double _rho0, _cvav, _v0, _e0;
 
          // constructor
-         __ecmech_hdev__
+         __ecmech_host__
          matModelBase() :
             _complete(false),
             _rho0(-1.0),
@@ -33,7 +33,7 @@ namespace ecmech {
 
       public:
          // deconstructor
-         __ecmech_hdev__
+         __ecmech_host__
          virtual ~matModelBase() {};
 
          virtual void initFromParams(const std::vector<int>& opts,
