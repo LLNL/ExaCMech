@@ -40,14 +40,14 @@ namespace ecmech {
                _outputLevel(0)
             {
                // Should the tangent stiff matrix be included in these stride calculations?
-               _strides[0] = ecmech::nsvp;
-               _strides[1] = ecmech::ndim;
-               _strides[2] = ecmech::nvr;
-               _strides[3] = ecmech::ne;
-               _strides[4] = ecmech::nsvp;
-               _strides[5] = NumHist<SlipGeom, Kinetics, ThermoElastN, EosModel>::numHist;
-               _strides[6] = 1;
-               _strides[7] = ecmech::nsdd;
+               _strides[istride_def_rate] = ecmech::nsvp;
+               _strides[istride_spin_v] = ecmech::ndim;
+               _strides[istride_vol_ratio] = ecmech::nvr;
+               _strides[istride_int_eng] = ecmech::ne;
+               _strides[istride_stress] = ecmech::nsvp;
+               _strides[istride_history] = NumHist<SlipGeom, Kinetics, ThermoElastN, EosModel>::numHist;
+               _strides[istride_tkelv] = 1;
+               _strides[istride_sdd ] = ecmech::nsdd;
             };
 
             // constructor
@@ -70,93 +70,86 @@ namespace ecmech {
                   ECMECH_FAIL(__func__, "Stride vector needs to have a size of 8 with strides");
 #endif
                }
-
                // Need to make sure all of the strides provided at least make sense
-               if (strides[0] < ecmech::nsvp) {
+               if (strides[istride_def_rate] < ecmech::nsvp) {
 #ifdef __cuda_host_only__
                   std::ostringstream os;
-                  os << "strides[0] should have at least a length of: " << ecmech::nsvp;
+                  os << "strides[istride_def_rate] should have at least a length of: " << ecmech::nsvp;
                   ECMECH_FAIL(__func__, os.str());
 #else
                   ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
 #endif
                }
-               if (strides[1] < ecmech::ndim) {
+               if (strides[istride_spin_v] < ecmech::ndim) {
 #ifdef __cuda_host_only__
                   std::ostringstream os;
-                  os << "strides[1] should have at least a length of: " << ecmech::ndim;
+                  os << "strides[istride_spin_v] should have at least a length of: " << ecmech::ndim;
                   ECMECH_FAIL(__func__, os.str());
 #else
                   ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
 #endif
                }
-               if (strides[2] < ecmech::nvr) {
+               if (strides[istride_vol_ratio] < ecmech::nvr) {
 #ifdef __cuda_host_only__
                   std::ostringstream os;
-                  os << "strides[2] should have at least a length of: " << ecmech::nvr;
+                  os << "strides[istride_int_eng] should have at least a length of: " << ecmech::nvr;
                   ECMECH_FAIL(__func__, os.str());
 #else
                   ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
 #endif
                }
-               if (strides[3] < ecmech::ne) {
+               if (strides[istride_int_eng] < ecmech::ne) {
 #ifdef __cuda_host_only__
                   std::ostringstream os;
-                  os << "strides[3] should have at least a length of: " << ecmech::ne;
+                  os << "strides[istride_int_eng] should have at least a length of: " << ecmech::ne;
                   ECMECH_FAIL(__func__, os.str());
 #else
                   ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
 #endif
                }
-               if (strides[4] < ecmech::nsvp) {
+               if (strides[istride_stress] < ecmech::nsvp) {
 #ifdef __cuda_host_only__
                   std::ostringstream os;
-                  os << "strides[4] should have at least a length of: " << ecmech::nsvp;
+                  os << "strides[istride_stress] should have at least a length of: " << ecmech::nsvp;
                   ECMECH_FAIL(__func__, os.str());
 #else
                   ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
 #endif
                }
-               if (strides[5] < nhist) {
+               if (strides[istride_history] < nhist) {
 #ifdef __cuda_host_only__
                   std::ostringstream os;
-                  os << "strides[5] should have at least a length of: " << nhist;
+                  os << "strides[istride_history] should have at least a length of: " << nhist;
                   ECMECH_FAIL(__func__, os.str());
 #else
                   ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
 #endif
                }
-               if (strides[6] < 1) {
+               if (strides[istride_tkelv] < 1) {
 #ifdef __cuda_host_only__
                   std::ostringstream os;
-                  os << "strides[6] should have at least a length of: " << 1;
+                  os << "strides[istride_tkelv] should have at least a length of: " << 1;
                   ECMECH_FAIL(__func__, os.str());
 #else
                   ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
 #endif
                }
-               if (strides[7] < ecmech::nsdd) {
+               if (strides[istride_sdd] < ecmech::nsdd) {
 #ifdef __cuda_host_only__
                   std::ostringstream os;
-                  os << "strides[7] should have at least a length of: " << ecmech::nsdd;
+                  os << "strides[istride_sdd] should have at least a length of: " << ecmech::nsdd;
                   ECMECH_FAIL(__func__, os.str());
 #else
                   ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
 #endif
                }
-
-               _strides[0] = strides[0];
-               _strides[1] = strides[1];
-               _strides[2] = strides[2];
-               _strides[3] = strides[3];
-               _strides[4] = strides[4];
-               _strides[5] = strides[5];
-               _strides[6] = strides[6];
-               _strides[7] = strides[7];
+               for (int i = 0; i < stride_len; i++) {
+                  _strides[i] = strides[i];
+               }
             };
 
             // deconstructor
-            __ecmech_hdev__
+            __ecmech_host__
             ~matModel(){}
 
             __ecmech_hdev__
@@ -297,6 +290,16 @@ namespace ecmech {
                              double * mtanSDV,
                              const int& nPassed) const override final {
                RAJA::RangeSegment default_range(0, nPassed);
+               //All of the stride lengths are constant within this function
+               const uint def_rate_stride = _strides[istride_def_rate];
+               const uint spin_v_stride = _strides[istride_spin_v];
+               const uint vol_ratio_stride = _strides[istride_vol_ratio];
+               const uint int_eng_stride = _strides[istride_int_eng];
+               const uint stress_stride = _strides[istride_stress];
+               const uint history_stride = _strides[istride_history];
+               const uint tkelv_stride = _strides[istride_tkelv];
+               const uint sdd_stride = _strides[istride_sdd];
+
 #if defined(RAJA_ENABLE_OPENMP)
                if (_accel == ecmech::Accelerator::OPENMP) {
                   RAJA::forall<RAJA::omp_parallel_for_exec>(default_range, [ = ] (int i) {
@@ -307,14 +310,14 @@ namespace ecmech {
                   getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>(_slipGeom, _kinetics, _elastN, _eosModel,
                                                                               dt,
                                                                               _tolerance,
-                                                                              &defRateV[_strides[0] * i],
-                                                                              &spinV[_strides[1] * i],
-                                                                              &volRatioV[_strides[2] * i],
-                                                                              &eIntV[_strides[3] * i],
-                                                                              &stressSvecPV[_strides[4] * i],
-                                                                              &histV[_strides[5] * i],
-                                                                              tkelvV[_strides[6] * i],
-                                                                              &sddV[_strides[7] * i],
+                                                                              &defRateV[def_rate_stride * i],
+                                                                              &spinV[spin_v_stride * i],
+                                                                              &volRatioV[vol_ratio_stride * i],
+                                                                              &eIntV[int_eng_stride * i],
+                                                                              &stressSvecPV[stress_stride * i],
+                                                                              &histV[history_stride * i],
+                                                                              tkelvV[tkelv_stride * i],
+                                                                              &sddV[sdd_stride * i],
                                                                               mtanSDThis,
                                                                               _outputLevel);
                });
@@ -330,14 +333,14 @@ namespace ecmech {
                   getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>(_slipGeom, _kinetics, _elastN, _eosModel,
                                                                               dt,
                                                                               _tolerance,
-                                                                              &defRateV[_strides[0] * i],
-                                                                              &spinV[_strides[1] * i],
-                                                                              &volRatioV[_strides[2] * i],
-                                                                              &eIntV[_strides[3] * i],
-                                                                              &stressSvecPV[_strides[4] * i],
-                                                                              &histV[_strides[5] * i],
-                                                                              tkelvV[_strides[6] * i],
-                                                                              &sddV[_strides[7] * i],
+                                                                              &defRateV[def_rate_stride * i],
+                                                                              &spinV[spin_v_stride * i],
+                                                                              &volRatioV[vol_ratio_stride * i],
+                                                                              &eIntV[int_eng_stride * i],
+                                                                              &stressSvecPV[stress_stride * i],
+                                                                              &histV[history_stride * i],
+                                                                              tkelvV[tkelv_stride * i],
+                                                                              &sddV[sdd_stride * i],
                                                                               mtanSDThis,
                                                                               _outputLevel);
                });
@@ -352,14 +355,14 @@ namespace ecmech {
                   getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>(_slipGeom, _kinetics, _elastN, _eosModel,
                                                                               dt,
                                                                               _tolerance,
-                                                                              &defRateV[_strides[0] * i],
-                                                                              &spinV[_strides[1] * i],
-                                                                              &volRatioV[_strides[2] * i],
-                                                                              &eIntV[_strides[3] * i],
-                                                                              &stressSvecPV[_strides[4] * i],
-                                                                              &histV[_strides[5] * i],
-                                                                              tkelvV[_strides[6] * i],
-                                                                              &sddV[_strides[7] * i],
+                                                                              &defRateV[def_rate_stride * i],
+                                                                              &spinV[spin_v_stride * i],
+                                                                              &volRatioV[vol_ratio_stride * i],
+                                                                              &eIntV[int_eng_stride * i],
+                                                                              &stressSvecPV[stress_stride * i],
+                                                                              &histV[history_stride * i],
+                                                                              tkelvV[tkelv_stride * i],
+                                                                              &sddV[sdd_stride * i],
                                                                               mtanSDThis,
                                                                               _outputLevel);
                });
@@ -407,7 +410,6 @@ namespace ecmech {
             std::vector<double>       _rhvVals;
             std::vector<bool>        _rhvPlot;
             std::vector<bool>        _rhvState;
-
       }; // class matModel
    } // namespace evptn
 } // namespace ecmech

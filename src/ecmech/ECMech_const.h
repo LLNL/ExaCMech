@@ -54,6 +54,15 @@
 #define M_TWOSQRT3 3.46410161513775458705489268302
 #endif
 
+#define ISTRIDE_DEF_RATE 0
+#define ISTRIDE_SPIN_V 1
+#define ISTRIDE_VOL_RATIO 2
+#define ISTRIDE_INT_ENG 3
+#define ISTRIDE_STRESS 4
+#define ISTRIDE_HISTORY 5
+#define ISTRIDE_TKELV 6
+#define ISTRIDE_SDD 7
+
 #define MORE_DERIVS 0
 
 namespace ecmech
@@ -68,6 +77,17 @@ namespace ecmech
    const int nsvec = 6;
    const int nsvec2 = 36;
    const int nvr = 4;
+
+   // Provide indices for the matModel stride array so codes outside of the library
+   // can use them.
+   const int istride_def_rate = ISTRIDE_DEF_RATE;
+   const int istride_spin_v = ISTRIDE_SPIN_V;
+   const int istride_vol_ratio = ISTRIDE_VOL_RATIO;
+   const int istride_int_eng = ISTRIDE_INT_ENG;
+   const int istride_stress = ISTRIDE_STRESS;
+   const int istride_history = ISTRIDE_HISTORY;
+   const int istride_tkelv = ISTRIDE_TKELV;
+   const int istride_sdd = ISTRIDE_SDD;
 
    const int ntvec = 5;
    const int nwvec = 3;

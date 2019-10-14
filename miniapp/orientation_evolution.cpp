@@ -61,13 +61,21 @@ int main(int argc, char *argv[]){
    // our different use cases...
 
    std::vector<uint> strides;
+   //Deformation rate stride
    strides.push_back(ecmech::nsvp);
+   //Spin rate stride
    strides.push_back(ecmech::ndim);
+   //Volume ratio stride
    strides.push_back(ecmech::nvr);
+   //Internal energy stride
    strides.push_back(ecmech::ne);
+   //Stress vector stride
    strides.push_back(ecmech::nsvp);
+   //History variable stride
    strides.push_back(num_state_vars);
+   //Temperature stride
    strides.push_back(1);
+   //SDD stride
    strides.push_back(ecmech::nsdd);
 
    // The  Voce model (matModelEvptn_FCC_A) requires the properties file to have the following parameters

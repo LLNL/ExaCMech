@@ -549,7 +549,6 @@ namespace ecmech {
                   //
                   // jacob_er = -dDsm_dxi(:,:)
                   {
-
                      RAJA::View<double, RAJA::Layout<JDIM> > jacob_er(Jacobian, nDimSys, nDimSys);
                      for (int jWvec = 0; jWvec<ecmech::nwvec; ++jWvec) {
                         for (int iTvec = 0; iTvec<ecmech::ntvec; ++iTvec) {
