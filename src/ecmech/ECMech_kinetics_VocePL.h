@@ -163,7 +163,7 @@ namespace ecmech {
          }
 
          __ecmech_hdev__
-         // inline
+         inline
          void
          evalGdots(double* const gdot,
                    double* const dgdot_dtau,
@@ -187,7 +187,7 @@ namespace ecmech {
           * see kinetics_pl_d
           */
          __ecmech_hdev__
-         // inline
+         inline
          void
          evalGdot(
             double & gdot,

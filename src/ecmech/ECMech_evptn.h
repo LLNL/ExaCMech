@@ -153,7 +153,7 @@ namespace ecmech {
              * (instead of ntvec) to make things easier elsewhere
              */
             __ecmech_hdev__
-            // inline
+            inline
             void multCauchyDif(double* const M6,
                                const double* const A,
                                double detVi,
@@ -293,7 +293,7 @@ namespace ecmech {
              * () not necessarily safe if e_vecd is the same memory as _e_vecd_n or quat is the same as _Cn_quat
              */
             __ecmech_hdev__
-            // inline
+            inline
             void stateFromX(double* const e_vecd,
                             double* const quat,
                             const double* const x) {
@@ -313,7 +313,7 @@ namespace ecmech {
             }
 
             __ecmech_hdev__
-            // inline
+            inline
             void elastNEtoT(double* const T_vecds, // nsvec
                             const double* const e_vecd_f // ntvec
                             ) {
@@ -346,7 +346,7 @@ namespace ecmech {
             }
 
             __ecmech_hdev__
-            // inline
+            inline
             bool computeRJ(double* const resid,
                            double* const Jacobian,
                            const double* const x) {
@@ -794,7 +794,7 @@ namespace ecmech {
        */
       template<class SlipGeom, class Kinetics, class ThermoElastN, class EosModel>
       __ecmech_hdev__
-      // inline
+      inline
       void getResponseSngl(const SlipGeom& slipGeom,
                            const Kinetics& kinetics,
                            const ThermoElastN& elastN,

@@ -236,7 +236,7 @@ namespace ecmech {
          }
 
          __ecmech_hdev__
-         // inline
+         inline
          void
          evalGdots(double* const gdot,
                    double* const dgdot_dtau,
@@ -259,7 +259,7 @@ namespace ecmech {
           * like mts_dG, but with output args first
           */
          __ecmech_hdev__
-         // inline
+         inline
          void
          get_mts_dG(double &exp_arg,
                     double &mts_dfac,
@@ -316,7 +316,7 @@ namespace ecmech {
           * see subroutine kinetics_mtspwr_d in mdef
           */
          __ecmech_hdev__
-         // inline
+         inline
          void
          evalGdot(
             double & gdot,
@@ -542,7 +542,7 @@ namespace ecmech {
          } // evalGdot
 
          __ecmech_hdev__
-         // inline
+         inline
          int
          updateH(double* const hs_u,
                  const double* const hs_o,
