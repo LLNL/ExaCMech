@@ -24,8 +24,8 @@ set(ECMECH_HEADERS
     vw_vars_set.h)
 
 set(ECMECH_SOURCES
-    ECMech_kinetics.cpp)
-#    ECMech_slipgeom.cpp)
+    ECMech_kinetics.cxx)
+#    ECMech_slipgeom.cxx)
 
 #------------------------------------------------------------------------------
 # Dependencies
