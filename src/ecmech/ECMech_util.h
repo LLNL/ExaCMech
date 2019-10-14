@@ -425,7 +425,6 @@ namespace ecmech {
    {
       double a_mean = -a_svec_p[iSvecP];
 
-      // std::copy(a_svec_p, a_svec_p + ecmech::nsvec, a_svec);
       for (int i_svec = 0; i_svec < ecmech::nsvec; i_svec++) {
          a_svec[i_svec] = a_svec_p[i_svec];
       }

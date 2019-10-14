@@ -3,7 +3,6 @@
 #ifndef ECMech_matModelBase_include
 #define ECMech_matModelBase_include
 
-// #include <iostream>
 #include <string>
 #include <vector>
 

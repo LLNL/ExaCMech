@@ -1,7 +1,6 @@
 #ifndef __ECMECH_CONST_H__
 #define __ECMECH_CONST_H__
 
-// #include <math.h>
 #include "ECMech_port.h"
 #include "ECMech_cuda_portability.h"
 
@@ -56,8 +55,6 @@
 #endif
 
 #define MORE_DERIVS 0
-
-// #include <limits>
 
 namespace ecmech
 {

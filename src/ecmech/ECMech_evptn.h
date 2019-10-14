@@ -309,7 +309,6 @@ namespace ecmech {
                //
                // double C_quat[ecmech::qdim] ;
                // get_c_quat(C_quat, A_quat, _Cn_quat) ;
-               // std::copy(C_quat, C_quat+ecmech:qdim, quat) ;
                get_c_quat(quat, A_quat, _Cn_quat);
             }
 
@@ -477,7 +476,6 @@ namespace ecmech {
                   // RAJA defaults to "row-major" -- final dimension indexing the fastest
                   //
                   const int JDIM = 2;
-
                   //
                   // preliminaries
                   //
@@ -551,9 +549,7 @@ namespace ecmech {
                   //
                   // jacob_er = -dDsm_dxi(:,:)
                   {
-                     // RAJA::OffsetLayout<JDIM> layout = RAJA::make_offset_layout<JDIM>({{ 0, -_i_sub_r } }, {{ nDimSys - 1,
-                     // -_i_sub_r + nDimSys -
-                     // 1 } });
+
                      RAJA::View<double, RAJA::Layout<JDIM> > jacob_er(Jacobian, nDimSys, nDimSys);
                      for (int jWvec = 0; jWvec<ecmech::nwvec; ++jWvec) {
                         for (int iTvec = 0; iTvec<ecmech::ntvec; ++iTvec) {
@@ -567,8 +563,6 @@ namespace ecmech {
                   // d(B_xi)/d(e_vecds_f)
                   //
                   {
-                     // RAJA::OffsetLayout<JDIM> layout = RAJA::make_offset_layout<JDIM>({{ -_i_sub_r, 0 } },
-                     // {{ -_i_sub_r + nDimSys - 1, nDimSys - 1 } });
                      RAJA::View<double, RAJA::Layout<JDIM> > jacob_re(Jacobian, nDimSys, nDimSys);
 
                      double A_edot_M35[ecmech::nwvec * ecmech::ntvec];
@@ -588,9 +582,6 @@ namespace ecmech {
                   // d(B_xi)/d(xi_f)
                   //
                   {
-                     // RAJA::OffsetLayout<JDIM> layout = RAJA::make_offset_layout<JDIM>({{ -_i_sub_r, -_i_sub_r } },
-                     // {{ -_i_sub_r + nDimSys - 1,
-                     // -_i_sub_r + nDimSys - 1 } });
                      RAJA::View<double, RAJA::Layout<JDIM> > jacob_rr(Jacobian, nDimSys, nDimSys);
 
                      for (int iWvec = 0; iWvec < ecmech::nwvec; ++iWvec) {
@@ -634,12 +625,11 @@ namespace ecmech {
                         // SYSTEM
                         //
                         double pfrac_sys[ _nXnDim ];
-                        // std::copy doesn't exist on the gpu so we need to do this manually
+
                         for (int i_jac = 0; i_jac < _nXnDim; i_jac++) {
                            pfrac_sys[i_jac] = Jacobian[i_jac];
                         }
 
-                        // std::copy(Jacobian, Jacobian + _nXnDim, pfrac_sys);
                         int err = SNLS_LUP_SolveX<nDimSys>(pfrac_sys, pfrac_rhs_T, nRHS);
                         if (err != 0) {
                            ECMECH_FAIL(__func__, "error from SNLS_LUP_SolveX");
@@ -845,8 +835,7 @@ namespace ecmech {
          // copies, to keep beginning-of-step state safe
          //
          double e_vecd_n[ecmech::ntvec];
-         // std::copy isn't available on the GPU so loops are required...
-         // std::copy(hist + iHistLbE, hist + iHistLbE + ecmech::ntvec, e_vecd_n);
+
          for (int i_hist = 0; i_hist < ecmech::ntvec; i_hist++) {
             e_vecd_n[i_hist] = hist[iHistLbE + i_hist];
          }
@@ -856,7 +845,6 @@ namespace ecmech {
             quat_n[i_hist] = hist[iHistLbQ + i_hist];
          }
 
-         // std::copy(hist + iHistLbQ, hist + iHistLbQ + ecmech::qdim, quat_n);
          //
          // normalize quat just in case
          vecsVNormalize<qdim>(quat_n);
@@ -976,14 +964,12 @@ namespace ecmech {
             // store updated state
             //
             prob.stateFromX(e_vecd_u, quat_u, x);
-            // std::copy(h_state_u, h_state_u + Kinetics::nH, h_state);
             for (int i_hstate = 0; i_hstate < Kinetics::nH; i_hstate++) {
                h_state[i_hstate] = h_state_u[i_hstate];
             }
 
             {
                const double* gdot_u = prob.getGdot();
-               // std::copy(gdot_u, gdot_u + SlipGeom::nslip, gdot);
                for (int i_gdot = 0; i_gdot < SlipGeom::nslip; i_gdot++) {
                   gdot[i_gdot] = gdot_u[i_gdot];
                }
