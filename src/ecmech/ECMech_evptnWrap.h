@@ -80,7 +80,7 @@ namespace ecmech {
                if (stride_len != 8) {
 #ifdef __cuda_host_only__
                   std::ostringstream os;
-                  os << "Stride vector needs to have a size of 8 with strides of: " <<
+                  os << "Stride vector needs to have a size of 8 with strides of at least: " <<
                      ecmech::nsvp << ", " << ecmech::ndim << ", " << ecmech::nvr << ", " <<
                      ecmech::ne << ", " << ecmech::nsvp << ", " << nhist << ", 1, " << ecmech::nsdd;
                   ECMECH_FAIL(__func__, os.str());

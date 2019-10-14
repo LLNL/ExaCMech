@@ -8,9 +8,7 @@ namespace {
    void init_data_cpu(const double* ori, const std::vector<double>& histInit_vec,
                       const int nqpts, const int num_hardness, const int ind_gdot,
                       const int num_slip, const int vdim, double* state_vars){
-      // Probably going to replace this all with just a constant index array and
-      // a constant num_item array. We can then use that to pass into other function handles
-      // easily.
+
       const int ind_dp_eff = ecmech::evptn::iHistA_shrateEff;
       const int ind_eql_pl_strain = ecmech::evptn::iHistA_shrEff;
       const int ind_num_evals = ecmech::evptn::iHistA_nFEval;
@@ -26,13 +24,9 @@ namespace {
 
 
       // We're going to use RAJA here to initialize everything all at once
-      // We should be able to just use OpenMP here. Since, we can assume everything is on the
-      // host originally. We'll later want to migrate everything over to the GPU if we're
-      // running things on there.
       RAJA::RangeSegment default_range(0, nqpts);
 
       RAJA::forall<RAJA::loop_exec>(default_range, [ = ](int i) {
-         // for (int i = 0; i < nqpts; i++) {
          int ind = i * vdim;
          int ind_ori = i * ecmech::qdim;
 
@@ -89,11 +83,9 @@ namespace {
       RAJA::View<const double, RAJA::Layout<DIM, RAJA::Index_type, 0> > vgrad_view(vel_grad_array, layout);
 
       // All of the below we could setup in one big RAJA loop/kernel
-      // RAJA::RangeSegment default_range(0, nqpts);
       RAJA::RangeSegment default_range(0, nqpts);
 
       RAJA::forall<RAJA::loop_exec>(default_range, [ = ](int i_qpts) {
-         // for (int i_qpts = 0; i_qpts < nqpts; i_qpts++) {
          // Might want to eventually set these all up using RAJA views. It might simplify
          // things later on.
          // These are our inputs
@@ -130,7 +122,7 @@ namespace {
 
          // Really we're looking at the negative of J but this will do...
          double d_mean = -ecmech::onethird * (vgrad_view(0, 0, i_qpts) + vgrad_view(1, 1, i_qpts) + vgrad_view(2, 2, i_qpts));
-         // The 1st 6 components are the symmetric deviatoric portion of our velocitu gradient
+         // The 1st 6 components are the symmetric deviatoric portion of our velocity gradient
          // The last value is simply the trace of the deformation rate
          d_svec_p[0] = vgrad_view(0, 0, i_qpts) + d_mean;
          d_svec_p[1] = vgrad_view(1, 1, i_qpts) + d_mean;
@@ -159,9 +151,7 @@ namespace {
    void init_data_openmp(const double* ori, const std::vector<double>& histInit_vec,
                          const int nqpts, const int num_hardness, const int ind_gdot,
                          const int num_slip, const int vdim, double* state_vars){
-      // Probably going to replace this all with just a constant index array and
-      // a constant num_item array. We can then use that to pass into other function handles
-      // easily.
+
       const int ind_dp_eff = ecmech::evptn::iHistA_shrateEff;
       const int ind_eql_pl_strain = ecmech::evptn::iHistA_shrEff;
       const int ind_num_evals = ecmech::evptn::iHistA_nFEval;
@@ -183,7 +173,6 @@ namespace {
       RAJA::RangeSegment default_range(0, nqpts);
 
       RAJA::forall<RAJA::omp_parallel_for_exec>(default_range, [ = ](int i) {
-         // for (int i = 0; i < nqpts; i++) {
          int ind = i * vdim;
          int ind_ori = i * ecmech::qdim;
 
@@ -240,11 +229,9 @@ namespace {
       RAJA::View<const double, RAJA::Layout<DIM, RAJA::Index_type, 0> > vgrad_view(vel_grad_array, layout);
 
       // All of the below we could setup in one big RAJA loop/kernel
-      // RAJA::RangeSegment default_range(0, nqpts);
       RAJA::RangeSegment default_range(0, nqpts);
 
       RAJA::forall<RAJA::omp_parallel_for_exec>(default_range, [ = ](int i_qpts) {
-         // for (int i_qpts = 0; i_qpts < nqpts; i_qpts++) {
          // Might want to eventually set these all up using RAJA views. It might simplify
          // things later on.
          // These are our inputs
@@ -281,7 +268,7 @@ namespace {
 
          // Really we're looking at the negative of J but this will do...
          double d_mean = -ecmech::onethird * (vgrad_view(0, 0, i_qpts) + vgrad_view(1, 1, i_qpts) + vgrad_view(2, 2, i_qpts));
-         // The 1st 6 components are the symmetric deviatoric portion of our velocitu gradient
+         // The 1st 6 components are the symmetric deviatoric portion of our velocity gradient
          // The last value is simply the trace of the deformation rate
          d_svec_p[0] = vgrad_view(0, 0, i_qpts) + d_mean;
          d_svec_p[1] = vgrad_view(1, 1, i_qpts) + d_mean;
@@ -331,11 +318,9 @@ namespace {
       RAJA::View<const double, RAJA::Layout<DIM, RAJA::Index_type, 0> > vgrad_view(vel_grad_array, layout);
 
       // All of the below we could setup in one big RAJA loop/kernel
-      // RAJA::RangeSegment default_range(0, nqpts);
       RAJA::RangeSegment default_range(0, nqpts);
 
       RAJA::forall<RAJA::cuda_exec<384> >(default_range, [ = ] RAJA_DEVICE(int i_qpts) {
-         // for (int i_qpts = 0; i_qpts < nqpts; i_qpts++) {
          // Might want to eventually set these all up using RAJA views. It might simplify
          // things later on.
          // These are our inputs
@@ -372,7 +357,7 @@ namespace {
 
          // Really we're looking at the negative of J but this will do...
          double d_mean = -ecmech::onethird * (vgrad_view(0, 0, i_qpts) + vgrad_view(1, 1, i_qpts) + vgrad_view(2, 2, i_qpts));
-         // The 1st 6 components are the symmetric deviatoric portion of our velocitu gradient
+         // The 1st 6 components are the symmetric deviatoric portion of our velocity gradient
          // The last value is simply the trace of the deformation rate
          d_svec_p[0] = vgrad_view(0, 0, i_qpts) + d_mean;
          d_svec_p[1] = vgrad_view(1, 1, i_qpts) + d_mean;
@@ -387,7 +372,6 @@ namespace {
          vol_ratio[3] = vol_ratio[1] - vol_ratio[0];
          vol_ratio[2] = vol_ratio[3] / (dt * 0.5 * (vol_ratio[0] + vol_ratio[1]));
 
-         // std::copy(stress, stress + ecmech::nsvec, stress_svec_p);
          for (int i = 0; i < ecmech::nsvec; i++) {
             stress_svec_p[i] = stress[i];
          }
@@ -450,7 +434,6 @@ void setup_vgrad(double* vgrad, const int nqpts){
    RAJA::RangeSegment default_range(0, nqpts);
 
    RAJA::forall<RAJA::loop_exec>(default_range, [ = ](int i) {
-      // for (int i = 0; i < nqpts; i++) {
       vgrad_view(0, 0, i) = -0.5;
       vgrad_view(0, 1, i) = 0.0;
       vgrad_view(0, 2, i) = 0.0;

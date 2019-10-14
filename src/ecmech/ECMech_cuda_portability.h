@@ -48,7 +48,7 @@ extern void CUDART_Check(const cudaError_t err, const char *file, const char *fu
 // model.
 // ----------------------------------------------------------------------------------------
 // A 160 threads seems to work alright when used on a V100 Nvidia card. It provides a slight
-// improvement over a 128 threads for a Voce type material model.
+// improvement over 128 threads for a Voce type material model.
 
 #ifndef RAJA_CUDA_THREADS
 #define RAJA_CUDA_THREADS 160

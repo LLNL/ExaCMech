@@ -263,7 +263,7 @@ namespace ecmech {
                _rotincr_scale_inv = _dt_ri * _epsdot_scale_inv;
             }
 
-            // constructor
+            // deconstructor
             __ecmech_hdev__
             ~EvptnUpdstProblem() {}
 

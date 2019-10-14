@@ -24,22 +24,9 @@ using namespace ecmech;
 
 int main(int argc, char *argv[]){
    // TODO:
-   // Read in options (orientation file, material model,
-   // material model params file, device type (CPU, OpenMP, CUDA, HIP))
-   // Read in data file for the orientations
-   // Read in data file for material model params
-   // Create material model
-   // Setup all of the various variables being used on the device:
-   // state variables, stress field, all of the temporary variables,
-   // material tangent stiffness matrix, and velocity gradient.
-   //
-   // The below initialization should work just fine for setting up the material model
-   // Place various kernels in the areas they need to be.
-   // Put a giant loop around the inner kernels to allow things to evolve in time.
-   // Compare first the OpenMP versus the serial implementation results
    // Compare GPU versus the serial results (We need to figure out what the bounds on our
-   // differences are between our results. We should see some due to CPU and GPU being different
-   // devices with potentially subtle different ways of dealing with floating point arrithmetic)
+   // differences are between our results. We could see some due to CPU and GPU being different
+   // devices with potentially subtle different ways of dealing with floating point arithmetic)
 
    if (argc != 2) {
       std::cerr << "Usage: " << argv[0] <<
@@ -83,7 +70,39 @@ int main(int argc, char *argv[]){
    strides.push_back(1);
    strides.push_back(ecmech::nsdd);
 
+   // The  Voce model (matModelEvptn_FCC_A) requires the properties file to have the following parameters
+   // in this order:
+   // Property file start off with:
+   //  initial density, heat capacity at constant volume, and a tolerance param
+   // Property file then includes elastic constants:
+   //  c11, c12, c44 for cubic crystals
+   // Property file then includes the following: 
+   //  shear modulus, m parameter seen in slip kinetics, gdot_0 term found in slip kinetic eqn,
+   //  hardening coeff. defined for g_crss evolution eqn, initial CRSS value,
+   //  initial CRSS saturation strength, CRSS saturation strength scaling exponent,
+   //  CRSS saturation strength rate scaling coeff, and initial CRSS value
+   // Property file then includes the following:
+   //  the Grüneisen parameter and reference internal energy
+
    ecmech::matModelEvptn_FCC_A mat_modela(strides.data(), strides.size());
+
+   // The MTS model (matModelEvptn_FCC_B) requires the properties file to have the following parameters
+   // in this order:
+   // Property file start off with:
+   // initial density, heat capacity at constant volume, and a tolerance param
+   // Property file then include elastic constants:
+   //  c11, c12, c44 for cubic crystals
+   // Property file then includes the following: 
+   //  reference shear modulus, reference temperature, g_0 * b^3 / \kappa where b is the 
+   //  magnitude of the burger's vector and \kappa is Boltzmann's constant, Peierls barrier,
+   //  MTS curve shape parameter (p), MTS curve shape parameter (q), reference thermally activated
+   //  slip rate, reference drag limited slip rate, drag reference stress, slip resistance const (g_0),
+   //  slip resistance const (s), dislocation density production constant (k_1), 
+   //  dislocation density production constant (k_{2_0}), dislocation density exponential constant,
+   //  reference net slip rate constant, and reference relative dislocation density
+   // Property file then includes the following:
+   //  the Grüneisen parameter and reference internal energy
+
    ecmech::matModelEvptn_FCC_B mat_modelb(strides.data(), strides.size());
 
    ecmech::Accelerator class_device;
@@ -170,7 +189,7 @@ int main(int argc, char *argv[]){
          if (quat_random) {
             // provide a seed so things are reproducible
             std::default_random_engine gen(42);
-            // std::normal_distribution<double> distrib(0.0, 1.0);
+            // std::normal_distribution<double> distrib(0.0, 1.0); // An alternative way to initialize the quats
             std::uniform_real_distribution<double> udistrib(-1.0, 1.0);
             std::vector<double> q_state = { 1., 0., 0., 0. };
 
@@ -219,7 +238,6 @@ int main(int argc, char *argv[]){
             double prop;
 
             mp_nlines += 1;
-            // std::cout << line << std::endl;
             if (!(iss >> prop)) {
                std::cerr << "Material prop file has a malformed line on line: " << mp_nlines << std::endl;
                return 1;
@@ -273,7 +291,7 @@ int main(int argc, char *argv[]){
          iHistLbGdot = mat_modela.iHistLbGdot;
 
          // This check used to be in the loop used to read in the material properties
-         // However, if things we're re-arranged, so it's now during the class initialization
+         // However, things were re-arranged, so it's now during the class initialization
          if (mp_nlines != num_props) {
             std::cerr << "Material prop file should have " << num_props
                       << " properties (each on their own line). A total of " << mp_nlines
@@ -293,7 +311,7 @@ int main(int argc, char *argv[]){
          iHistLbGdot = mat_modelb.iHistLbGdot;
 
          // This check used to be in the loop used to read in the material properties
-         // However, if things we're re-arranged, so it's now during the class initialization
+         // However, things were re-arranged, so it's now during the class initialization
          if (mp_nlines != num_props) {
             std::cerr << "Material prop file should have " << num_props
                       << " properties (each on their own line). A total of " << mp_nlines
@@ -303,7 +321,6 @@ int main(int argc, char *argv[]){
 
          // We really shouldn't see this change over time at least for our applications.
          mat_modelb.initFromParams(opts, params, strs, class_device);
-         //
          mat_modelb.complete();
          mat_model_base = dynamic_cast<matModelBase*>(&mat_modelb);
       }
@@ -334,7 +351,7 @@ int main(int argc, char *argv[]){
       stress_array[i] = 0.0;
    }
 
-   // We'll leave these uninitialized for now since they're set in the
+   // We'll leave these uninitialized for now, since they're set in the
    // setup_data function.
    ddsdde_array = memoryManager::allocate<double>(nqpts * ecmech::nsvec * ecmech::nsvec);
    eng_int_array = memoryManager::allocate<double>(nqpts * ecmech::ne);
@@ -344,8 +361,6 @@ int main(int argc, char *argv[]){
    d_svec_p_array = memoryManager::allocate<double>(nqpts * ecmech::nsvp);
    temp_array = memoryManager::allocate<double>(nqpts);
    sdd_array = memoryManager::allocate<double>(nqpts * ecmech::nsdd);
-
-   std::cout << std::endl;
 
    double stress_avg[6];
    double wts = 1.0 / nqpts;
@@ -362,17 +377,15 @@ int main(int argc, char *argv[]){
    //#endif
 
    for (int i = 0; i < nsteps; i++) {
-      // std::cout << "About to setup data..." << std::endl;
+      // set up our data in the correct format that the material model kernel expects
       setup_data(class_device, nqpts, num_state_vars, dt, vgrad, stress_array, state_vars,
                  stress_svec_p_array, d_svec_p_array, w_vec_array, ddsdde_array,
                  vol_ratio_array, eng_int_array, temp_array);
-      // std::cout << "Data is now setup and now to run material model" << std::endl;
-      // Now our kernel
+      // run our material model
       mat_model_kernel(mat_model_base, nqpts, dt,
                        num_state_vars, state_vars, stress_svec_p_array,
                        d_svec_p_array, w_vec_array, ddsdde_array,
                        vol_ratio_array, eng_int_array, temp_array, sdd_array);
-      // std::cout << "Material model ran now to retrieve the data" << std::endl;
       // retrieve all of the data and put it back in the global arrays
       retrieve_data(class_device, nqpts, num_state_vars,
                     stress_svec_p_array, vol_ratio_array,
@@ -381,8 +394,8 @@ int main(int argc, char *argv[]){
       if (class_device == ecmech::Accelerator::CPU) {
          if (NEVALS_COUNTS) {
             RAJA::ReduceSum<RAJA::seq_reduce, double> seq_sum(0.0);
-            RAJA::ReduceMin<RAJA::seq_reduce, double> seq_min(100.0); // We now this shouldn't ever be more than 100
-            RAJA::ReduceMax<RAJA::seq_reduce, double> seq_max(0.0); // We now this will always be at least 1.0
+            RAJA::ReduceMin<RAJA::seq_reduce, double> seq_min(100.0); // We know this shouldn't ever be more than 100
+            RAJA::ReduceMax<RAJA::seq_reduce, double> seq_max(0.0); // We know this will always be at least 1.0
             RAJA::forall<RAJA::loop_exec>(default_range, [ = ] (int i_qpts){
                double* nfunceval = &(state_vars[i_qpts * num_state_vars + 2]);
                seq_sum += wts * nfunceval[0];
@@ -405,8 +418,8 @@ int main(int argc, char *argv[]){
       if (class_device == ecmech::Accelerator::OPENMP) {
          if (NEVALS_COUNTS) {
             RAJA::ReduceSum<RAJA::omp_reduce_ordered, double> omp_sum(0.0);
-            RAJA::ReduceMin<RAJA::omp_reduce_ordered, double> omp_min(100.0); // We now this shouldn't ever be more than 100
-            RAJA::ReduceMax<RAJA::omp_reduce_ordered, double> omp_max(0.0); // We now this will always be at least 1.0
+            RAJA::ReduceMin<RAJA::omp_reduce_ordered, double> omp_min(100.0); // We know this shouldn't ever be more than 100
+            RAJA::ReduceMax<RAJA::omp_reduce_ordered, double> omp_max(0.0); // We know this will always be at least 1.0
             RAJA::forall<RAJA::omp_parallel_for_exec>(default_range, [ = ] (int i_qpts){
                double* nfunceval = &(state_vars[i_qpts * num_state_vars + 2]);
                omp_sum += wts * nfunceval[0];
@@ -430,8 +443,8 @@ int main(int argc, char *argv[]){
       if (class_device == ecmech::Accelerator::CUDA) {
          if (NEVALS_COUNTS) {
             RAJA::ReduceSum<RAJA::cuda_reduce, double> cuda_sum(0.0);
-            RAJA::ReduceMin<RAJA::cuda_reduce, double> cuda_min(100.0); // We now this shouldn't ever be more than 100
-            RAJA::ReduceMax<RAJA::cuda_reduce, double> cuda_max(0.0); // We now this will always be at least 1.0
+            RAJA::ReduceMin<RAJA::cuda_reduce, double> cuda_min(100.0); // We know this shouldn't ever be more than 100
+            RAJA::ReduceMax<RAJA::cuda_reduce, double> cuda_max(0.0); // We know this will always be at least 1.0
             RAJA::forall<RAJA::cuda_exec<1024> >(default_range, [ = ] RAJA_DEVICE(int i_qpts){
                double* nfunceval = &(state_vars[i_qpts * num_state_vars + 2]);
                cuda_sum += wts * nfunceval[0];
@@ -452,8 +465,8 @@ int main(int argc, char *argv[]){
       }
 #endif
 
-      // On Summit like architectures these print statements don't really add anything to the execution time.
-      // So, we're going to keep them to make things are correct.
+      // On CORAL architectures these print statements don't really add anything to the execution time.
+      // So, we're going to keep them to make sure things are correct between the different runs.
       std::cout << "Step# " << i + 1 << " Stress: ";
       for (int i = 0; i < ecmech::nsvec; i++) {
          std::cout << stress_avg[i] << " ";
@@ -476,7 +489,7 @@ int main(int argc, char *argv[]){
    std::cout << "Run time of set-up, material, and retrieve kernels over " <<
       nsteps << " time steps is: " << time << "(s)" << std::endl;
 
-   // Delete all variables declared using new now.
+   // Delete all variables declared using the memory allocator now.
 
    memoryManager::deallocate(state_vars);
    memoryManager::deallocate(vgrad);

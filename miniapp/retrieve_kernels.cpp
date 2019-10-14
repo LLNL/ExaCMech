@@ -14,7 +14,6 @@ namespace {
       RAJA::RangeSegment default_range(0, nqpts);
 
       RAJA::forall<RAJA::loop_exec>(default_range, [ = ](int i_qpts) {
-         // for (int i_qpts = 0; i_qpts < nqpts; i_qpts++){
          // These are our outputs
          double* state_vars = &(state_vars_array[i_qpts * nstatev]);
          double* stress = &(stress_array[i_qpts * ecmech::nsvec]);
@@ -53,7 +52,6 @@ namespace {
       RAJA::RangeSegment default_range(0, nqpts);
 
       RAJA::forall<RAJA::omp_parallel_for_exec>(default_range, [ = ](int i_qpts) {
-         // for (int i_qpts = 0; i_qpts < nqpts; i_qpts++){
          // These are our outputs
          double* state_vars = &(state_vars_array[i_qpts * nstatev]);
          double* stress = &(stress_array[i_qpts * ecmech::nsvec]);
@@ -94,7 +92,6 @@ namespace {
       RAJA::RangeSegment default_range(0, nqpts);
 
       RAJA::forall<RAJA::cuda_exec<384> >(default_range, [ = ] RAJA_DEVICE(int i_qpts) {
-         // for (int i_qpts = 0; i_qpts < nqpts; i_qpts++){
          // These are our outputs
          double* state_vars = &(state_vars_array[i_qpts * nstatev]);
          double* stress = &(stress_array[i_qpts * ecmech::nsvec]);
@@ -119,7 +116,6 @@ namespace {
             stress[i] = stress_svec_p[i];
          }
 
-         // std::copy(stress_svec_p, stress_svec_p + ecmech::nsvec, stress);
          stress[0] += stress_mean;
          stress[1] += stress_mean;
          stress[2] += stress_mean;
@@ -130,9 +126,7 @@ namespace {
 } // end of private namespace
 
 // This will then be the final function/kernel to save off all the data at
-// each time step. We could also show this kernel being used to compute the
-// internal force (divergence of the Cauchy stress) for each point. However,
-// we might make one last kernel to accomplish that goal.
+// each time step.
 void retrieve_data(ecmech::Accelerator accel, const int nqpts, const int nstatev,
                    const double* stress_svec_p_array, const double* vol_ratio_array,
                    const double* eng_int_array, double* state_vars_array,
