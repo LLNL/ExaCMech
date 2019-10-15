@@ -4,7 +4,7 @@
 #include "ECMech_port.h"
 #include "ECMech_cuda_portability.h"
 
-//Apparently uint is recognized by various compilers depending on what system your on...
+//For certain compilers uint is not always defined.
 #ifndef uint
 #define uint unsigned int
 #endif
