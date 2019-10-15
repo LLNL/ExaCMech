@@ -4,8 +4,7 @@ using namespace ecmech;
 
 // All of the parallelization operations are within the getResponse function of the material class.
 void mat_model_kernel(const ecmech::matModelBase* mat_model_base,
-                      const int nqpts, const double dt,
-                      const int nstatev, double* state_vars_array,
+                      const int nqpts, const double dt, double* state_vars_array,
                       double* stress_svec_p_array, double* d_svec_p_array,
                       double* w_vec_array, double* ddsdde_array,
                       double* vol_ratio_array, double* eng_int_array,

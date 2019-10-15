@@ -201,7 +201,7 @@ int main(int argc, char *argv[]){
             std::uniform_real_distribution<double> udistrib(-1.0, 1.0);
             std::vector<double> q_state = { 1., 0., 0., 0. };
 
-            for (int i = 0; i < quat_nrand; i++) {
+            for (uint i = 0; i < quat_nrand; i++) {
                q_state[0] = udistrib(gen);
                q_state[1] = udistrib(gen);
                q_state[2] = udistrib(gen);
@@ -391,7 +391,7 @@ int main(int argc, char *argv[]){
                  vol_ratio_array, eng_int_array, temp_array);
       // run our material model
       mat_model_kernel(mat_model_base, nqpts, dt,
-                       num_state_vars, state_vars, stress_svec_p_array,
+                       state_vars, stress_svec_p_array,
                        d_svec_p_array, w_vec_array, ddsdde_array,
                        vol_ratio_array, eng_int_array, temp_array, sdd_array);
       // retrieve all of the data and put it back in the global arrays

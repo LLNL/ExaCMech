@@ -143,7 +143,7 @@ namespace ecmech {
                   ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
 #endif
                }
-               for (int i = 0; i < stride_len; i++) {
+               for (uint i = 0; i < stride_len; i++) {
                   _strides[i] = strides[i];
                }
             };
@@ -261,7 +261,7 @@ namespace ecmech {
             __ecmech_host__
             void getParams(std::vector<int>& opts,
                            std::vector<double>& pars,
-                           std::vector<std::string>& strs) const {
+                           std::vector<std::string>& strs) const override {
                // ...*** ;
                opts.clear();
                strs.clear();
@@ -270,7 +270,7 @@ namespace ecmech {
             };
 
             __ecmech_host__
-            void logParameters(std::ostringstream& oss) const {
+            void logParameters(std::ostringstream& oss) const override {
                // ...*** ;
                oss << "evptn constitutive model" << std::endl;
                ECMECH_FAIL(__func__, "logParameters not yet implemented");
@@ -374,7 +374,7 @@ namespace ecmech {
             void getHistInfo(std::vector<std::string> & names,
                              std::vector<double>       & vals,
                              std::vector<bool>        & plot,
-                             std::vector<bool>        & state) const {
+                             std::vector<bool>        & state) const override{
                if (_rhvNames.size() != numHist) {
                   ECMECH_FAIL(__func__, "have not yet set up history information");
                }
@@ -385,7 +385,7 @@ namespace ecmech {
             };
 
             __ecmech_hdev__
-            int getNumHist( ) const {
+            int getNumHist( ) const override{
                return numHist;
             };
 

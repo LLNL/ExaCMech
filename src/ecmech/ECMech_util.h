@@ -675,10 +675,10 @@ namespace ecmech {
       double theta = vecNorm<emapdim>(emap);
 
       double theta_inv, sthhbyth, halfsthh, na, nb, nc;
-      if (abs(theta) < theta_sm_a) {
+      if (fabs(theta) < theta_sm_a) {
          sthhbyth = onehalf - theta * theta * oo48; // truncated Taylor seriers; probably safe to just use onehalf and be done with it
          halfsthh = theta * oneqrtr; // truncated Taylor seriers
-         if (abs(theta) < idp_tiny_sqrt) {
+         if (fabs(theta) < idp_tiny_sqrt) {
             // n is arbitrary, as theta is effectively zero
             na = one; nb = zero; nc = zero;
          }
