@@ -17,6 +17,10 @@
 #include <sstream>
 #include <string>
 
+#ifndef uint
+#define uint unsigned int
+#endif
+
 #define NEVALS_COUNTS false
 
 
