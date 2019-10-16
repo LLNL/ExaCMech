@@ -17,10 +17,6 @@
 #include <sstream>
 #include <string>
 
-#ifndef uint
-#define uint unsigned int
-#endif
-
 #define NEVALS_COUNTS false
 
 
@@ -64,7 +60,7 @@ int main(int argc, char *argv[]){
    // Could probably do this in a smarter way where we don't create two class objects for
    // our different use cases...
 
-   std::vector<uint> strides;
+   std::vector<unsigned int> strides;
    //Deformation rate stride
    strides.push_back(ecmech::nsvp);
    //Spin rate stride
@@ -176,7 +172,7 @@ int main(int argc, char *argv[]){
       // This next chunk reads in all of the quaternions and pushes them to a vector.
       // It will exit if 4 values are not read on a line.
       bool quat_random = false;
-      uint quat_nrand = 0;
+      unsigned int quat_nrand = 0;
       {
          std::ifstream qfile(ori_file);
          std::string line;
@@ -205,7 +201,7 @@ int main(int argc, char *argv[]){
             std::uniform_real_distribution<double> udistrib(-1.0, 1.0);
             std::vector<double> q_state = { 1., 0., 0., 0. };
 
-            for (uint i = 0; i < quat_nrand; i++) {
+            for (unsigned int i = 0; i < quat_nrand; i++) {
                q_state[0] = udistrib(gen);
                q_state[1] = udistrib(gen);
                q_state[2] = udistrib(gen);
@@ -290,7 +286,7 @@ int main(int argc, char *argv[]){
       std::vector<int> opts;
       std::vector<std::string> strs;
 
-      for (uint i = 0; i < mat_props.size(); i++) {
+      for (unsigned int i = 0; i < mat_props.size(); i++) {
          params.push_back(mat_props.at(i));
       }
 

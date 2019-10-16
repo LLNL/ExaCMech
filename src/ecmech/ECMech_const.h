@@ -4,10 +4,6 @@
 #include "ECMech_port.h"
 #include "ECMech_cuda_portability.h"
 
-//Apparently uint is recognized by various compilers depending on what system your on...
-#ifndef uint
-#define uint unsigned int
-#endif
 
 /* [J/deg. K] */
 #ifndef M_BOLTZ_J_K

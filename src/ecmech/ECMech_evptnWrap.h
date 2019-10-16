@@ -52,12 +52,12 @@ namespace ecmech {
 
             // constructor
             __ecmech_host__
-            matModel(const uint* strides, const uint stride_len)
+            matModel(const unsigned int* strides, const unsigned int stride_len)
                : matModelBase(),
                _kinetics(SlipGeom::nslip),
                _outputLevel(0)
             {
-               uint nhist = NumHist<SlipGeom, Kinetics, ThermoElastN, EosModel>::numHist;
+               unsigned int nhist = NumHist<SlipGeom, Kinetics, ThermoElastN, EosModel>::numHist;
 
                if (stride_len != 8) {
 #ifdef __cuda_host_only__
@@ -143,7 +143,7 @@ namespace ecmech {
                   ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
 #endif
                }
-               for (uint i = 0; i < stride_len; i++) {
+               for (unsigned int i = 0; i < stride_len; i++) {
                   _strides[i] = strides[i];
                }
             };
@@ -291,14 +291,14 @@ namespace ecmech {
                              const int& nPassed) const override final {
                RAJA::RangeSegment default_range(0, nPassed);
                //All of the stride lengths are constant within this function
-               const uint def_rate_stride = _strides[istride_def_rate];
-               const uint spin_v_stride = _strides[istride_spin_v];
-               const uint vol_ratio_stride = _strides[istride_vol_ratio];
-               const uint int_eng_stride = _strides[istride_int_eng];
-               const uint stress_stride = _strides[istride_stress];
-               const uint history_stride = _strides[istride_history];
-               const uint tkelv_stride = _strides[istride_tkelv];
-               const uint sdd_stride = _strides[istride_sdd];
+               const unsigned int def_rate_stride = _strides[istride_def_rate];
+               const unsigned int spin_v_stride = _strides[istride_spin_v];
+               const unsigned int vol_ratio_stride = _strides[istride_vol_ratio];
+               const unsigned int int_eng_stride = _strides[istride_int_eng];
+               const unsigned int stress_stride = _strides[istride_stress];
+               const unsigned int history_stride = _strides[istride_history];
+               const unsigned int tkelv_stride = _strides[istride_tkelv];
+               const unsigned int sdd_stride = _strides[istride_sdd];
 
 #if defined(RAJA_ENABLE_OPENMP)
                if (_accel == ecmech::Accelerator::OPENMP) {
@@ -403,7 +403,7 @@ namespace ecmech {
 
             double _tolerance;
             int _outputLevel;
-            uint _strides[8];
+            unsigned int _strides[8];
             ecmech::Accelerator _accel;
 
             std::vector<std::string> _rhvNames;
