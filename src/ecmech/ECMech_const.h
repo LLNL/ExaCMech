@@ -4,7 +4,6 @@
 #include "ECMech_port.h"
 #include "ECMech_cuda_portability.h"
 
-
 /* [J/deg. K] */
 #ifndef M_BOLTZ_J_K
 #define M_BOLTZ_J_K 1.3806504e-23
