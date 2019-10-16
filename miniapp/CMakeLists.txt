@@ -18,10 +18,10 @@ if(ENABLE_CUDA)
 endif()
 
 set(MINIAPP_SOURCES
-    orientation_evolution.cpp
-    material_kernels.cpp
-    retrieve_kernels.cpp
-    setup_kernels.cpp
+    orientation_evolution.cxx
+    material_kernels.cxx
+    retrieve_kernels.cxx
+    setup_kernels.cxx
     )
 
 set(MINIAPP_HEADERS
