@@ -33,8 +33,16 @@ set(MINIAPP_HEADERS
 
 
 
-blt_add_executable(NAME       orientation_evolution
+set(ECMECH_MINIAPP_EXEC orientation_evolution)
+
+blt_add_executable(NAME       ${ECMECH_MINIAPP_EXEC}
                    HEADERS    ${MINIAPP_HEADERS}
                    SOURCES    ${MINIAPP_SOURCES}
                    OUTPUT_DIR ${MINIAPP_OUTPUT_DIRECTORY}
                    DEPENDS_ON ${ECMECH_MINIAPP_DEPENDS})
+
+#------------------------------------------------------------------------------
+# Install files
+#------------------------------------------------------------------------------
+
+install(TARGETS ${ECMECH_MINIAPP_EXEC} DESTINATION bin)
