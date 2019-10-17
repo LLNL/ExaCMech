@@ -1,8 +1,8 @@
 #ifndef __ECMECH_CONST_H__
 #define __ECMECH_CONST_H__
 
-#include <math.h>
 #include "ECMech_port.h"
+#include "ECMech_cuda_portability.h"
 
 /* [J/deg. K] */
 #ifndef M_BOLTZ_J_K
@@ -14,10 +14,63 @@
 #define M_AVOGADRO 6.02214179e23
 #endif
 
+#ifndef M_SQRT2
+#define M_SQRT2 1.41421356237309504880168872421
+#endif
+
+#ifndef M_SQRT3
+#define M_SQRT3 1.73205080756887729352744634151
+#endif
+
+#ifndef M_SQRT3B2
+#define M_SQRT3B2 1.22474487139158904909864203735
+#endif
+
+#ifndef M_SQRT2I
+#define M_SQRT2I 0.707106781186547524400844362105
+#endif
+
+#ifndef M_SQRT3I
+#define M_SQRT3I 0.577350269189625764509148780501
+#endif
+
+#ifndef M_SQRT6
+#define M_SQRT6 2.44948974278317809819728407471
+#endif
+
+#ifndef M_SQRT6I
+#define M_SQRT6I 0.408248290463863016366214012450
+#endif
+
+#ifndef M_SQRT2B3
+#define M_SQRT2B3 0.816496580927726032732428024904
+#endif
+
+#ifndef M_HALFSQRT3
+#define M_HALFSQRT3 0.866025403784438646763723170755
+#endif
+
+#ifndef M_TWOSQRT3
+#define M_TWOSQRT3 3.46410161513775458705489268302
+#endif
+
+#define ISTRIDE_DEF_RATE 0
+#define ISTRIDE_SPIN_V 1
+#define ISTRIDE_VOL_RATIO 2
+#define ISTRIDE_INT_ENG 3
+#define ISTRIDE_STRESS 4
+#define ISTRIDE_HISTORY 5
+#define ISTRIDE_TKELV 6
+#define ISTRIDE_SDD 7
+
 #define MORE_DERIVS 0
 
 namespace ecmech
 {
+   // We're going to use this to determine what RAJA code to run for our
+   // kernels.
+   enum class Accelerator { CPU, CUDA, OPENMP };
+
    const int nsvp = 7;
    const int ndim = 3;
    const int ne = 1;
@@ -25,13 +78,24 @@ namespace ecmech
    const int nsvec2 = 36;
    const int nvr = 4;
 
+   // Provide indices for the matModel stride array so codes outside of the library
+   // can use them.
+   const int istride_def_rate = ISTRIDE_DEF_RATE;
+   const int istride_spin_v = ISTRIDE_SPIN_V;
+   const int istride_vol_ratio = ISTRIDE_VOL_RATIO;
+   const int istride_int_eng = ISTRIDE_INT_ENG;
+   const int istride_stress = ISTRIDE_STRESS;
+   const int istride_history = ISTRIDE_HISTORY;
+   const int istride_tkelv = ISTRIDE_TKELV;
+   const int istride_sdd = ISTRIDE_SDD;
+
    const int ntvec = 5;
    const int nwvec = 3;
    const int qdim = 4;
    const int invdim = 4;
    const int emapdim = 3;
 
-   const int iSvecS = nsvec - 1;     // index like SVEC in F90 coding
+   const int iSvecS = nsvec - 1; // index like SVEC in F90 coding
    const int iSvecP = nsvec;
 
    // indexing into array of outputs
@@ -56,16 +120,16 @@ namespace ecmech
    const double fourthirds = 4.0 / 3.0;
    const double twothird = 2.0 / 3.0;
 
-   const double sqr2 = sqrt(two);
-   const double sqr3 = sqrt(three);
-   const double sqr3b2 = sqrt(thrhalf);
-   const double sqr2i = one / sqr2;
-   const double sqr3i = one / sqr3;
-   const double sqr6 = sqrt(six);
-   const double sqr6i = one / sqr6;
-   const double sqr2b3 = one / sqr3b2;
-   const double halfsqr3 = sqr3 / two;
-   const double twosqr3 = two * sqr3;
+   const double sqr2 = M_SQRT2;
+   const double sqr3 = M_SQRT3;
+   const double sqr3b2 = M_SQRT3B2;
+   const double sqr2i = M_SQRT2I;
+   const double sqr3i = M_SQRT3I;
+   const double sqr6 = M_SQRT6;
+   const double sqr6i = M_SQRT6I;
+   const double sqr2b3 = M_SQRT2B3;
+   const double halfsqr3 = M_HALFSQRT3;
+   const double twosqr3 = M_TWOSQRT3;
 
    const double idp_tiny_sqrt = 1.0e-90;
    const double idp_eps_sqrt = 1.0e-8;
@@ -83,6 +147,6 @@ namespace ecmech
    const double e_scale = 5e-4;
    const double r_scale = 0.01;
    const int st_max_iter = 200;
-}  // (namespace ecmech)
+} // (namespace ecmech)
 
-#endif  // __ECMECH_CONST_H__
+#endif // __ECMECH_CONST_H__

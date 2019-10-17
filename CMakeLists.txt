@@ -11,6 +11,11 @@ message(STATUS "Using cmake version ${CMAKE_VERSION}")
 
 project(ECMECH LANGUAGES CXX)
 
+set(CMAKE_CXX_STANDARD 14)
+#This is currently what's available on Summit/Sierra
+#We should come up with some way to automatically detect all of this...
+set(CUDA_ARCH "sm_70")
+
 ################################
 # BLT
 ################################
@@ -50,6 +55,10 @@ set(BUILD_SHARED_LIBS ON CACHE BOOL "Build shared libraries")
 # Include standard build system logic and options
 ################################
 include(cmake/CMakeBasics.cmake)
+
+if(ENABLE_CUDA)
+  set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -restrict -arch ${CUDA_ARCH} --expt-extended-lambda --expt-relaxed-constexpr")
+endif()
 
 ################################
 # SNLS
@@ -91,3 +100,7 @@ add_subdirectory(src/ecmech)
 if(ENABLE_TESTS)
     add_subdirectory(test)
 endif(ENABLE_TESTS)
+
+if(ENABLE_MINIAPPS)
+    add_subdirectory(miniapp)
+endif(ENABLE_MINIAPPS)

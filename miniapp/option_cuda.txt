@@ -1,0 +1,7 @@
+./rand_quats_cuda.txt
+voce
+./props.txt
+CUDA
+
+
+

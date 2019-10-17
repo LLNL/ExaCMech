@@ -24,6 +24,8 @@ Examples of work that has made use of similar models and algorithms:
   * [Journal publication](https://dx.doi.org/10.1088/1361-651X/aa841c) on application to an alpha-beta titanium alloy
   * [Journal publication](https://dx.doi.org/10.1016/j.actamat.2017.02.042) for comparison to diffraction data
 
+A target platform for ExaCMech is the CORAL platform which for a typical node on a CORAL machine has between 40 - 42 IBM Power9 processors and between 4 - 6 Nvidia V100 GPUs. Additional information on CORAL can be found at: https://hpc.llnl.gov/training/tutorials/using-lcs-sierra-system#CORAL .
+
 BUILDING
 ======
 
@@ -38,6 +40,7 @@ Dependencies:
   - use `git submodule` commands, or specify with `-DSNLS_DIR=...`
 * raja -- required
   - https://github.com/LLNL/RAJA
+  - A RAJA for the miniapp on a CORAL architecture was built with the following commands `cmake ../ -DCMAKE_INSTALL_PREFIX=../install_dir/ -DENABLE_OPENMP=ON -DENABLE_CUDA=ON -DRAJA_TIMER=chrono -DCUDA_ARCH=sm_70`
   - specify with `-DRAJA_DIR=...`
 
 TESTING
@@ -49,6 +52,13 @@ DEVELOPMENT
 ======
 
 The develop branch is the main development branch. Changes to develop are by pull request.
+
+MINIAPP
+======
+
+A miniapp is provided which provides a guide for how the library might be used in a real library. It provides several compute kernels that contain CPU, OpenMP, and CUDA code through the use of RAJA. A bash script is provided for a CORAL machine that runs a few different examples using the CPU, OpenMP, and CUDA for realistic size data.
+
+If all of the features are used it can be built with the following commands when used on a CORAL architecture: `cmake ../ -DCMAKE_INSTALL_PREFIX=../install_dir/ -DRAJA_DIR={$RAJA_PATH}/raja/install_dir/share/raja/cmake/ -DENABLE_OPENMP=ON -DENABLE_CUDA=ON -DENABLE_TESTS=ON -DENABLE_MINIAPPS=ON -DCMAKE_BUILD_TYPE=Release`
 
 AUTHORS
 ======

@@ -1,0 +1,7 @@
+./rand_quats_openmp.txt
+voce
+./props.txt
+OpenMP
+
+
+

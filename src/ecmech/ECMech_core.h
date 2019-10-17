@@ -7,4 +7,4 @@
 #include "ECMech_cuda_portability.h"
 #include "ECMech_port.h"
 
-#endif  // ECMECH_CORE_H
+#endif // ECMECH_CORE_H

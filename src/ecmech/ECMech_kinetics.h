@@ -88,6 +88,10 @@ namespace ecmech {
             _res_scale = one / _x_scale;
          }
 
+         // deconstructor
+         __ecmech_hdev__
+         ~Kinetics_H1Problem() {}
+
          __ecmech_hdev__
          inline
          double getHn(const double* const x) const {
@@ -153,7 +157,7 @@ namespace ecmech {
 
       double* x = solver.getXPntr();
       // for (int iX = 0; iX < prob.nDimSys; ++iX) {
-      //    x[iX] = 0e0 ;
+      // x[iX] = 0e0 ;
       // }
       x[0] = 0.0;
 
@@ -175,4 +179,4 @@ namespace ecmech {
 #include "ECMech_kinetics_KMBalD.h"
 #include "ECMech_kinetics_VocePL.h"
 
-#endif  // ECMECH_KINETICS_H
+#endif // ECMECH_KINETICS_H
