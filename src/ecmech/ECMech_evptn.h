@@ -904,9 +904,9 @@ namespace ecmech {
 
             // set initial guess
             //
-            double* x = solver.getXPntr();
+            //double* x = solver.getXPntr();
             for (int iX = 0; iX < prob.nDimSys; ++iX) {
-               x[iX] = 0e0;
+               solver._x[iX] = 0e0;
             }
 
             snls::SNLSStatus_t status = solver.solve( );
@@ -922,7 +922,7 @@ namespace ecmech {
                //
                // reset initial guess
                for (int iX = 0; iX < prob.nDimSys; ++iX) {
-                  x[iX] = 0e0;
+                  solver._x[iX] = 0e0;
                }
 
                //
@@ -937,7 +937,12 @@ namespace ecmech {
             if (haveMtan) {
                double mtanSD_vecds[ ecmech::nsvec2 ];
                prob.provideMTan(mtanSD_vecds);
-               solver.computeRJ();
+
+	       {  
+		 double residual[prob.nDimSys], Jacobian[prob.nDimSys * prob.nDimSys];
+		 solver.computeRJ(&residual[0], &Jacobian[0]);
+	       }
+	       
                prob.clearMTan();
 
                // currently have derivative with-respsect-to deformation rate ;
@@ -962,7 +967,7 @@ namespace ecmech {
 
             // store updated state
             //
-            prob.stateFromX(e_vecd_u, quat_u, x);
+            prob.stateFromX(e_vecd_u, quat_u, solver._x);
             for (int i_hstate = 0; i_hstate < Kinetics::nH; i_hstate++) {
                h_state[i_hstate] = h_state_u[i_hstate];
             }
