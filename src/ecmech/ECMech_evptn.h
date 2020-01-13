@@ -904,7 +904,6 @@ namespace ecmech {
 
             // set initial guess
             //
-            //double* x = solver.getXPntr();
             for (int iX = 0; iX < prob.nDimSys; ++iX) {
                solver._x[iX] = 0e0;
             }
@@ -938,11 +937,11 @@ namespace ecmech {
                double mtanSD_vecds[ ecmech::nsvec2 ];
                prob.provideMTan(mtanSD_vecds);
 
-	       {  
-		 double residual[prob.nDimSys], Jacobian[prob.nDimSys * prob.nDimSys];
-		 solver.computeRJ(&residual[0], &Jacobian[0]);
-	       }
-	       
+               {
+                  double residual[prob.nDimSys], Jacobian[prob.nDimSys * prob.nDimSys];
+                  solver.computeRJ(&residual[0], &Jacobian[0]);
+               }
+               
                prob.clearMTan();
 
                // currently have derivative with-respsect-to deformation rate ;
