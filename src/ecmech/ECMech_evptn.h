@@ -941,7 +941,7 @@ namespace ecmech {
                   double residual[prob.nDimSys], Jacobian[prob.nDimSys * prob.nDimSys];
                   solver.computeRJ(&residual[0], &Jacobian[0]);
                }
-               
+
                prob.clearMTan();
 
                // currently have derivative with-respsect-to deformation rate ;
