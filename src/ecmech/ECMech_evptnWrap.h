@@ -290,7 +290,7 @@ namespace ecmech {
                              double * mtanSDV,
                              const int& nPassed) const override final {
                RAJA::RangeSegment default_range(0, nPassed);
-               //All of the stride lengths are constant within this function
+               // All of the stride lengths are constant within this function
                const unsigned int def_rate_stride = _strides[istride_def_rate];
                const unsigned int spin_v_stride = _strides[istride_spin_v];
                const unsigned int vol_ratio_stride = _strides[istride_vol_ratio];
@@ -374,7 +374,7 @@ namespace ecmech {
             void getHistInfo(std::vector<std::string> & names,
                              std::vector<double>       & vals,
                              std::vector<bool>        & plot,
-                             std::vector<bool>        & state) const override{
+                             std::vector<bool>        & state) const override {
                if (_rhvNames.size() != numHist) {
                   ECMECH_FAIL(__func__, "have not yet set up history information");
                }
@@ -385,7 +385,7 @@ namespace ecmech {
             };
 
             __ecmech_hdev__
-            int getNumHist( ) const override{
+            int getNumHist( ) const override {
                return numHist;
             };
 

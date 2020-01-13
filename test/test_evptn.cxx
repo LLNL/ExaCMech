@@ -83,9 +83,8 @@ TEST(ecmech, evptn_a)
       solver.setupSolver(maxIter, tolerance, &deltaControl, outputLevel);
    }
 
-   double* x = solver.getXPntr();
    for (int iX = 0; iX < prob.nDimSys; ++iX) {
-      x[iX] = 0e0;
+      solver._x[iX] = 0e0;
    }
 
    snls::SNLSStatus_t status = solver.solve( );

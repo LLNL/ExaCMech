@@ -114,7 +114,7 @@ namespace ecmech {
    inline void vecsVsa(double* const a,
                        double s) {
       for (int i = 0; i<n; ++i) {
-         a[i] = s * a[i];
+         a[i] *= s;
       }
    }
 
@@ -204,11 +204,10 @@ namespace ecmech {
          P[ij] = 0.0;
       }
 
-      for (int jN = 0; jN < n; ++jN) {
-         for (int iQ = 0; iQ < q; ++iQ) {
-            double temp = B[ECMECH_NM_INDX(jN, iQ, n, q)];
-            for (int iN = 0; iN < n; ++iN) {
-               P[ECMECH_NM_INDX(iN, jN, n, n)] += A[ECMECH_NM_INDX(iN, iQ, n, q)] * temp;
+      for (int iN = 0; iN < n; ++iN) {
+         for (int jN = 0; jN < n; ++jN) {
+            for (int iQ = 0; iQ < q; ++iQ) {
+               P[ECMECH_NM_INDX(iN, jN, n, n)] += A[ECMECH_NM_INDX(iN, iQ, n, q)] * B[ECMECH_NM_INDX(jN, iQ, n, q)];
             }
          }
       }
@@ -226,11 +225,10 @@ namespace ecmech {
          P[ij] = 0.0;
       }
 
-      for (int jM = 0; jM < m; ++jM) {
-         for (int iQ = 0; iQ < q; ++iQ) {
-            double temp = B[ECMECH_NM_INDX(jM, iQ, m, q)];
-            for (int iN = 0; iN < n; ++iN) {
-               P[ECMECH_NM_INDX(iN, jM, n, m)] += A[ECMECH_NM_INDX(iN, iQ, n, q)] * temp;
+      for (int iN = 0; iN < n; ++iN) {
+         for (int jM = 0; jM < m; ++jM) {
+            for (int iQ = 0; iQ < q; ++iQ) {
+               P[ECMECH_NM_INDX(iN, jM, n, m)] += A[ECMECH_NM_INDX(iN, iQ, n, q)] * B[ECMECH_NM_INDX(jM, iQ, m, q)];
             }
          }
       }
@@ -249,8 +247,8 @@ namespace ecmech {
       }
 
       for (int iN = 0; iN < n; ++iN) {
-         for (int jM = 0; jM < m; ++jM) {
-            for (int iQ = 0; iQ < q; ++iQ) {
+         for (int iQ = 0; iQ < q; ++iQ) {
+            for (int jM = 0; jM < m; ++jM) {
                P[ECMECH_NM_INDX(iN, jM, n, m)] += A[ECMECH_NM_INDX(iN, iQ, n, q)] * B[ECMECH_NM_INDX(iQ, jM, q, m)];
             }
          }

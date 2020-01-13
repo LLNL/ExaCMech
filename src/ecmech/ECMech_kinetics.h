@@ -155,11 +155,9 @@ namespace ecmech {
          solver.setupSolver(maxIter, tolerance, &deltaControl, outputLevel);
       }
 
-      double* x = solver.getXPntr();
-      // for (int iX = 0; iX < prob.nDimSys; ++iX) {
-      // x[iX] = 0e0 ;
-      // }
-      x[0] = 0.0;
+      for (int iX = 0; iX < prob.nDimSys; ++iX) {
+         solver._x[iX] = 0e0;
+      }
 
       snls::SNLSStatus_t status = solver.solve( );
       if (status != snls::converged) {
@@ -167,7 +165,7 @@ namespace ecmech {
       }
       int nFevals = solver.getNFEvals();
 
-      hs_n = prob.getHn(x);
+      hs_n = prob.getHn(solver._x);
 
       return nFevals;
    } // updateH1
