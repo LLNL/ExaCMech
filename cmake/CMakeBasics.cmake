@@ -4,7 +4,7 @@
 set(PACKAGE_BUGREPORT "barton22@llnl.gov")
 
 set(ECMech_VERSION_MAJOR 0)
-set(ECMech_VERSION_MINOR 1)
+set(ECMech_VERSION_MINOR 2)
 set(ECMech_VERSION_PATCH \"0\")
 
 set(HEADER_INCLUDE_DIR
