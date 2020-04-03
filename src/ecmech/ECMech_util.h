@@ -74,6 +74,17 @@ namespace ecmech {
       return s;
    }
 
+   template<int n>
+   __ecmech_hdev__
+   inline double vecsssum(const double* const a) {
+      double s = 0.0;
+      for (int i = 0; i<n; ++i) {
+         s += a[i];
+      }
+
+      return s;
+   }
+
    __ecmech_hdev__
    inline double vecsssumabs_n(const double* const a, int n) {
       double s = 0.0;
