@@ -16,12 +16,13 @@
 
 namespace ecmech {
    namespace evptn {
-      const int numHistAux = 3; // effective shearing rate, accumulated shear, nFEval
+      const int numHistAux = 4; // effective shearing rate, accumulated shear, flow strength, nFEval
       //
       const int iHistLbA = 0;
       const int iHistA_shrateEff = iHistLbA + 0;
       const int iHistA_shrEff = iHistLbA + 1;
-      const int iHistA_nFEval = iHistLbA + 2;
+      const int iHistA_flowStr = iHistLbA + 2;
+      const int iHistA_nFEval = iHistLbA + 3;
       const int iHistLbE = numHistAux;
       const int iHistLbQ = numHistAux + ecmech::ntvec;
       const int iHistLbH = numHistAux + ecmech::ntvec + ecmech::qdim;
@@ -441,7 +442,7 @@ namespace ecmech {
                _a_V = pow(detV, onethird);
                _a_V_ri = 1.0 / _a_V;
 
-               _kinetics.getVals(_kin_vals, _p_EOS, _tK, _h_state);
+               _hdn_scale = _kinetics.getVals(_kin_vals, _p_EOS, _tK, _h_state);
 
                double adots_ref = _kinetics.getFixedRefRate(_kin_vals);
                double eff = vecNorm<ntvec>(_d_vecd_sm); // do not worry about factor of sqrt(twothird)
@@ -956,6 +957,7 @@ namespace ecmech {
             double _dt, _detV, _eVref, _p_EOS, _tK, _a_V;
             double _dt_ri, _a_V_ri, _detV_ri;
 
+            double _hdn_scale ; 
             double _epsdot_scale_inv, _rotincr_scale_inv;
 
             double _gdot[SlipGeom::nslip]; // crys%tmp1_slp
@@ -1014,9 +1016,6 @@ namespace ecmech {
          //
          double d_vecd_sm[ecmech::ntvec];
          svecToVecd(d_vecd_sm, d_svec_kk_sm);
-#ifdef NEED_SCALAR_FLOW_STRENGTH
-         double dEff = vecd_Deff(d_vecd_sm);
-#endif
 
          // pointers to state
          //
@@ -1050,7 +1049,7 @@ namespace ecmech {
 
          // EOS
          //
-         double eOld = eInt[0];
+         double eOld = eInt[ecmech::i_ne_total];
          double pOld = stressSvecP[6];
          double pEOS, eNew, bulkNew;
          //
@@ -1061,10 +1060,13 @@ namespace ecmech {
             eos.evalPT(pBOS, tkelv, vOld, eOld);
          }
          //
+         double tkelvNew;
          {
-            double tkelvNew;
+            double dpde, dpdv;
             updateSimple<EosModel>(eos, pEOS, tkelvNew, eNew, bulkNew,
-                                   volRatio, eOld, pOld);
+                                   dpde, dpdv,
+                                   volRatio[1], volRatio[3],
+                                   eOld, pOld);
          }
 
          // update hardness state to the end of the step
@@ -1077,8 +1079,8 @@ namespace ecmech {
          //
          double* e_vecd_u = &(hist[iHistLbE]);
          double* quat_u = &(hist[iHistLbQ]);
+         double vNew = volRatio[1];
          {
-            double vNew = volRatio[1];
             EvptnUpdstProblem<SlipGeom, Kinetics, ThermoElastN> prob(slipGeom, kinetics, elastN,
                                                                      dt,
                                                                      vNew, eNew, pEOS, tkelv,
@@ -1162,27 +1164,32 @@ namespace ecmech {
             for (int i_hstate = 0; i_hstate < Kinetics::nH; i_hstate++) {
                h_state[i_hstate] = h_state_u[i_hstate];
             }
-
+            //
             {
                const double* gdot_u = prob.getGdot();
                for (int i_gdot = 0; i_gdot < SlipGeom::nslip; i_gdot++) {
                   gdot[i_gdot] = gdot_u[i_gdot];
                }
             }
+            //
             hist[iHistA_shrateEff] = prob.getShrateEff();
-            hist[iHistA_shrEff] += hist[iHistLbA + 0] * dt;
+            hist[iHistA_shrEff] += hist[iHistA_shrateEff] * dt;
+            //
+            {
+               double dEff = vecd_Deff(d_vecd_sm);
+               double flow_strength = _hdn_scale;
+               if (dEff > idp_tiny_sqrt) {
+                  flow_strength = prob.getDisRate() / dEff;
+               }
+               hist[iHistA_flowStr] = flow_strength ;
+            }
+            //
             hist[iHistA_nFEval] = solver.getNFEvals(); // does _not_ include updateH iterations
 
             // get Cauchy stress
             //
             prob.elastNEtoC(Cstr_vecds_lat, e_vecd_u);
 
-#ifdef NEED_SCALAR_FLOW_STRENGTH
-            double flow_strength = 0.0; // TO_DO : consider setting this instead to a reference value (dependent on the current state?)?
-            if (dEff > idp_tiny_sqrt) {
-               flow_strength = prob.getDisRate() / dEff;
-            }
-#endif
          }
 
          double C_matx[ecmech::ndim * ecmech::ndim];
@@ -1203,7 +1210,8 @@ namespace ecmech {
          eDevTot += halfVMidDt * vecsInnerSvecDev(stressSvecP, d_svec_kk_sm);
 
          // adjust sign on quat so that as close as possible to quat_o;
-         // more likely to keep orientations clustered this way
+         // more likely to keep orientations clustered this way;
+         // this flip through the origin is equivalent under antipodal symmetry
          //
          if (vecsyadotb<qdim>(quat_u, quat_n) < zero) {
             for (int iQ = 0; iQ<ecmech::qdim; ++iQ) {
@@ -1228,6 +1236,7 @@ namespace ecmech {
 #ifdef DEBUG
          assert(ecmech::ne == 1);
 #endif
+         
       } // getResponseSngl
    } // namespace evptn
 } // namespace ecmech

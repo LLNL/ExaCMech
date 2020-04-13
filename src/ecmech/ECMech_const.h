@@ -62,6 +62,7 @@
 #define ISTRIDE_HISTORY 5
 #define ISTRIDE_TKELV 6
 #define ISTRIDE_SDD 7
+#define ECMECH_NSTRIDE 8
 
 #define MORE_DERIVS 0
 
@@ -90,6 +91,7 @@ namespace ecmech
    const int istride_history = ISTRIDE_HISTORY;
    const int istride_tkelv = ISTRIDE_TKELV;
    const int istride_sdd = ISTRIDE_SDD;
+   const int nstride = ECMECH_NSTRIDE;
 
    const int ntvec = 5;
    const int nwvec = 3;
@@ -101,13 +103,11 @@ namespace ecmech
    const int iSvecP = nsvec;
 
    // indexing into array of outputs
-   const int i_sdd_bulk = 0;
-   const int i_sdd_gmod = 1;
+   const int i_sdd_bulk   = 0;
+   const int i_sdd_gmod   = 1;
    const int nsdd = 2;
 
    const int i_ne_total = 0;
-   // const int i_ne_cold    = ? ; // generally not needed
-   // const int i_ne_melt    = ? ; // generally not needed
 
    const double zero = 0.0;
    const double one = 1.0;

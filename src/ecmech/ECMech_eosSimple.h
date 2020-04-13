@@ -9,6 +9,7 @@
 #include <vector>
 
 namespace ecmech {
+   
    template<bool isothermal>
    class EosModelConst
    {
@@ -115,10 +116,20 @@ namespace ecmech {
 
          __ecmech_hdev__
          inline
-         void getEV0(double &e0,
-                     double &v0) const {
+         void getInfo(double &vMin,
+                      double &vMax,
+                      double &e0,
+                      double &v0) const {
+            vMin = 0.1;
+            vMax = 10.0;
             e0 = 0.0;
             v0 = 1.0;
+         }
+
+         __ecmech_hdev__
+         inline
+         double getBulkRef() const {
+            return _bulkMod ;
          }
 
       private:
@@ -128,28 +139,29 @@ namespace ecmech {
 
          // derived from parameters
          double _dtde, _tK0;
-   }; // class KineticsVocePL
+   }; // class EosModelConst
 
    template<class EosModel>
    __ecmech_hdev__
    inline
    void updateSimple(const EosModel& eos,
-                     double &p,
+                     double &press,
                      double &tK,
                      double &eNew,
                      double &bulkNew,
-                     const double* volRatio,
+                     double &dpde,
+                     double &dpdv,
+                     double  vNew,
+                     double  volInc,
                      double  eOld,
-                     double  pOld) {
+                     double  pOld)
+   {
       // double vOld = volRatio[0] ; // not needed
-      double vNew = volRatio[1];
-      double delv = volRatio[3];
 
-      eNew = eOld - delv * pOld;
+      eNew = eOld - volInc * pOld;
 
-      double dpde;
-      eos.evalPTDiff(p, tK, bulkNew, dpde, vNew, eNew);
-      // dpdv = - bulkNew / vNew ; // not needed
+      eos.evalPTDiff(press, tK, bulkNew, dpde, vNew, eNew);
+      dpdv = - bulkNew / vNew ;
 
       bulkNew = bulkNew + dpde * pOld * vNew;
    }

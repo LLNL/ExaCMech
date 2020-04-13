@@ -230,27 +230,33 @@ namespace ecmech {
           */
          __ecmech_hdev__
          inline
-         void
+         double
          getVals(double* const vals, // [nVals]
                  double, // p, not used
                  double tK,
                  const double* const h_state
                  ) const
          {
-
+            double const nVPerInv = 1.0 / nVPer;
+            
             // double sqrtDDens = exp(onehalf * h_state[0]) ; // this is for h_state[0] storing the log of the dislocation density
             double sqrtDDens = sqrt(h_state[0]);
 
             vals[0] = _gam_wo / sqrtDDens; // _gam_w
             vals[1] = _gam_ro * sqrtDDens * sqrtDDens; // _gam_r
             
+            double hdnScale = 0.;
             for ( int iVal=0; iVal<nVPer; ++iVal) {
-               vals[2+iVal]       = _go[iVal] + _s[iVal] * sqrtDDens; // _gAll
+               double hdnI = _go[iVal] + _s[iVal] * sqrtDDens; // _gAll
+               hdnScale += hdnI;
+               vals[2+iVal]       = hdnI;
                vals[2+nVPer+iVal] = _c_1[iVal] / tK; // _c_t
                if ( !withGAthermal ) { 
                   assert(vals[2+iVal] > zero);
                }
             }
+            hdnScale = hdnScale * nVPerInv;
+
             if (withGAthermal) {
                assert(_tau_a > 0);
             }

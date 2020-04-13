@@ -30,11 +30,11 @@
  *                   std::vector<bool>        & plot,
  *                   std::vector<bool>        & state) const ;
  *
- *  void getVals( double* const vals,
- *                double p,
- *                double tK,
- *                const double* const h_state
- *                ) const ;
+ *  double getVals( double* const vals,
+ *                  double p,
+ *                  double tK,
+ *                  const double* const h_state
+ *                  ) const ;
  *
  *  void
  *  evalGdots( double* const gdot,
