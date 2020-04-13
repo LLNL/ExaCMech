@@ -78,6 +78,8 @@ namespace ecmech
    const int nsvec2 = 36;
    const int nvr = 4;
 
+   const int nMiller = 4;
+
    // Provide indices for the matModel stride array so codes outside of the library
    // can use them.
    const int istride_def_rate = ISTRIDE_DEF_RATE;

@@ -19,13 +19,13 @@ namespace ecmech {
    typedef snls::SNLSTrDlDenseG<EvptnUpsdtProblem_FCC_B> EvptnSolver_FCC_B;
    typedef evptn::matModel<SlipGeomFCC, Kin_KMBalD_FFF, evptn::ThermoElastNCubic, EosModelConst<false> > matModelEvptn_FCC_B;
 
-   typedef KineticsKMBalD<false, true, true, true, 4> Kin_KMBalD_FTT4;
-   typedef evptn::EvptnUpdstProblem<SlipGeomHCPaBRYcaY1...,
-                                    Kin_KMBalD_FTT4,
-                                    evptn::ThermoElastNHexag...> EvptnUpsdtProblem_HCP_A;
+   typedef KineticsKMBalD<false, true, true, true, SlipGeomHCPaBRYcaY1::nslip> Kin_KMBalD_FTT_HCP_A;
+   typedef evptn::EvptnUpdstProblem<SlipGeomHCPaBRYcaY1,
+                                    Kin_KMBalD_FTT_HCP_A,
+                                    evptn::ThermoElastNHexag> EvptnUpsdtProblem_HCP_A;
    typedef snls::SNLSTrDlDenseG<EvptnUpsdtProblem_HCP_A> EvptnSolver_HCP_A;
    typedef evptn::matModel<SlipGeomHCPaBRYcaY1,
-                           Kin_KMBalD_FTT4,
+                           Kin_KMBalD_FTT_HCP_A,
                            evptn::ThermoElastNHexag,
                            EosModelConst<false> > matModelEvptn_HCP_A;
 }

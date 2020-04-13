@@ -260,7 +260,9 @@ namespace ecmech {
                double K_vecds_s = twothird * _c11 + twothird * _c12 + fourthirds * _c13 + _c33 * onethird ;
                _K_sdax3 = sqr2 * (-_c11-_c12+_c13+_c33) * onethird ;
                _K_bulkMod = onethird * K_vecds_s;
-               _K_gmod = 0.2 * vecsssum<ecmech::ntvec>(_K_diag); // average of _K_diag entries
+               //
+               // _K_gmod below ignores the _K_sdax3 contribution, but it is just meant to be approximate anyway
+               _K_gmod = 0.5 * 0.2 * vecsssum<ecmech::ntvec>(_K_diag); // 0.5 * (average of _K_diag entries)
                
             }
 
@@ -523,7 +525,6 @@ namespace ecmech {
                // CALL elawn_lin_op(s_meas%T_vecds, s_meas%Ee_vecds, cem, tK, &
                // & p_EOS, eVref, i_eos_model, eos_const)
                _thermoElastN.eval(T_vecds, Ee_vecds, _tK, _p_EOS, _eVref);
-               ...*** ; // T_vecds gets a pressure contribution that gets rolled back in somewhere?
             }
 
             __ecmech_hdev__

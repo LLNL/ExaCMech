@@ -17,9 +17,18 @@ namespace ecmech {
               int nslip)
    {
       for (int iSlip = 0; iSlip<nslip; ++iSlip) {
+
+         double mVec = &(mVecs[iSlip * ecmech::ndim]);
+         double sVec = &(sVecs[iSlip * ecmech::ndim]);
+#ifndef NO_CHECKS
+         if ( fabs(vecsyadotb<ecmech::ndim>(mVec,sVec)) > idp_eps_sqrt ) {
+            ECMECH_FAIL(__func__, "internal error");
+         }
+#endif
+         
          // CALL vec_x_vect_mn(crys%vecs(:,is),crys%vecm(:,is),crys%t_ref(:,:,is),DIMS,DIMS)
          double T_ref[ ecmech::ndim*ecmech::ndim ];
-         vecsMaTb<ndim>(T_ref, &(sVecs[iSlip * ecmech::ndim]), &(mVecs[iSlip * ecmech::ndim]) );
+         vecsMaTb<ndim>(T_ref, sVec, mVec );
 
          double P_vecd[ ecmech::ntvec ];
          double Q_veccp[ ecmech::nwvec ];
@@ -92,7 +101,130 @@ namespace ecmech {
       private:
          double _P_ref_vec[ ecmech::ntvec * nslip ];
          double _Q_ref_vec[ ecmech::nwvec * nslip ];
-   };
+   }; // SlipGeomFCC
+
+   /**
+    * NOTE : the coding below is a hack just to get things going
+    *
+    * it is not the best way of doing things, and modifications should be made with great care
+    */
+   class SlipGeomHCPaBRYcaY1 // EVP_HCP_a_BRY_ca_Y1 32 in Fortran coding
+   {
+      public:
+
+         //    3  slip systems in basal <a> family
+         //    3  slip systems in prismatic <a> family
+         //    6  slip systems in pyramidal <a> family
+         //   12  slip systems in pyramidal 1 <c+a> family
+         static const int nslip = 3+3+6+12;
+
+         // constructor and destructor
+         __ecmech_hdev__
+         SlipGeomHCPaBRYcaY1(double cOverA)
+            : _cOverA(cOverA)
+         {
+            
+            //  pyramidal 10-11 1-210 depends on c/a
+            //
+            double m_ya[ecmech::ndim], s_ya[ecmech::ndim];
+            {
+               double an[ecmech::nMiller] = { one, zero, -one,  one } ; // plane
+               double ab[ecmech::nMiller] = { one, -two,  one,  zero } ; // direction
+               //
+               miller_to_orthog_sngl(an, ab, 
+                                     m_ya, s_ya,
+                                     _cOverA);
+            }
+            double m_ya_pp = sqrt(1.0-m_ya[2]*m_ya[2]);
+
+            // pyramidal 10-11 -1-123 depends on c/a
+            //
+            double m_y1ca[ecmech::ndim], s_y1ca[ecmech::ndim];
+            {
+               double an[ecmech::nMiller] = { one, zero, -one,  one } ; // plane
+               double ab[ecmech::nMiller] = { -one, -one,  two,  three } ; // direction
+               //
+               miller_to_orthog_sngl(an, ab, 
+                                     m_y1ca, s_y1ca,
+                                     _cOverA);
+            }
+            double m_y1ca_pp = sqrt(1.0-m_y1ca[2]*m_y1ca[2]);
+            double s_y1ca_pp = sqrt(1.0-s_y1ca[2]*s_y1ca[2]);
+
+            const double mVecs[ nslip * ecmech::ndim ] = {
+               zero,  zero,  one,
+               zero,  zero,  one,
+               zero,  zero,  one,
+
+               -halfsqr3,   onehalf,   zero,
+               -halfsqr3,  -onehalf,   zero,
+               zero,  -one,   zero,
+
+               m_ya[0],   m_ya[1],   m_ya[2],
+               m_ya[0],  -m_ya[1],  -m_ya[2],
+               m_ya[0],   m_ya[1],  -m_ya[2],
+              -m_ya[0],   m_ya[1],  -m_ya[2],
+                  zero,   m_ya_pp,  -m_ya[2],
+                  zer0,  -m_ya_pp,  -m_ya[2],
+
+               m_y1ca[0],   m_y1ca[1],   m_y1ca[2],
+               m_y1ca[0],  -m_y1ca[1],  -m_y1ca[2],
+               m_y1ca[0],   m_y1ca[1],  -m_y1ca[2],
+                    zero,   m_y1ca_pp,  -m_y1ca[2],
+              -m_y1ca[0],   m_y1ca[1],  -m_y1ca[2],
+              -m_y1ca[0],  -m_y1ca[1],  -m_y1ca[2],
+                    zero,  -m_y1ca_pp,  -m_y1ca[2],
+                    zero,   m_y1ca_pp,   m_y1ca[2],
+              -m_y1ca[0],   m_y1ca[1],   m_y1ca[2],
+              -m_y1ca[0],  -m_y1ca[1],   m_y1ca[2],
+               m_y1ca[0],  -m_y1ca[1],   m_y1ca[2],
+                    zero,  -m_y1ca_pp,   m_y1ca[2]
+            };
+            const double sVecs[ nslip * ecmech::ndim ] = {
+               onehalf,   halfsqr3,   zero,
+               onehalf,  -halfsqr3,   zero,
+               one,   zero,   zero,
+
+               onehalf,   halfsqr3,   zero,
+               onehalf,  -halfsqr3,   zero,
+               one,   zero,   zero,
+               
+                s_ya[0],   s_ya[1],   zero,
+                s_ya[0],  -s_ya[1],   zero,               
+               -s_ya[0],  -s_ya[1],   zero,
+               -s_ya[0],   s_ya[1],   zero,
+               -one,  zero,  zero,
+                one,  zero,  zero,
+
+                s_y1ca[0],   s_y1ca[1],   s_y1ca[2], 
+                s_y1ca[0],  -s_y1ca[1],  -s_y1ca[2],
+               -s_y1ca_pp,        zero,  -s_y1ca[2],
+                s_y1ca[0],   s_y1ca[1],  -s_y1ca[2],
+               -s_y1ca[0],   s_y1ca[1],  -s_y1ca[2],
+                s_y1ca_pp,        zero,  -s_y1ca[2],
+               -s_y1ca[0],  -s_y1ca[1],  -s_y1ca[2],
+               -s_y1ca[0],   s_y1ca[1],   s_y1ca[2],
+                s_y1ca_pp,        zero,   s_y1ca[2],
+               -s_y1ca[0],  -s_y1ca[1],   s_y1ca[2],
+               -s_y1ca_pp,        zero,   s_y1ca[2],
+                s_y1ca[0],  -s_y1ca[1],   s_y1ca[2]
+            };
+
+            fillFromMS(this->_P_ref_vec, this->_Q_ref_vec,
+                       mVecs, sVecs, this->nslip);
+         };
+
+         __ecmech_hdev__ ~SlipGeomHCPaBRYcaY1(){};
+
+         __ecmech_hdev__ inline const double* getP() const { return _P_ref_vec; };
+         __ecmech_hdev__ inline const double* getQ() const { return _Q_ref_vec; };
+
+      private:
+         double _cOverA;
+         double _P_ref_vec[ ecmech::ntvec * nslip ];
+         double _Q_ref_vec[ ecmech::nwvec * nslip ];
+   }; // SlipGeomHCPaBRYcaY1
+   
 } // namespace ecmech
 
 #endif // ECMECH_SLIPGEOM_H
