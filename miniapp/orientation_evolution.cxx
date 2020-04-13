@@ -308,8 +308,9 @@ int main(int argc, char *argv[]){
          }
 
          // We really shouldn't see this change over time at least for our applications.
-         mat_modela.initFromParams(opts, params, strs, class_device);
+         mat_modela.initFromParams(opts, params, strs);
          mat_modela.complete();
+         mat_modela.setAccelerator(class_device);
          mat_model_base = dynamic_cast<matModelBase*>(&mat_modela);
       }
       else if (mat_model_str.compare("mts") == 0) {
@@ -328,8 +329,9 @@ int main(int argc, char *argv[]){
          }
 
          // We really shouldn't see this change over time at least for our applications.
-         mat_modelb.initFromParams(opts, params, strs, class_device);
+         mat_modelb.initFromParams(opts, params, strs);
          mat_modelb.complete();
+         mat_modela.setAccelerator(class_device);
          mat_model_base = dynamic_cast<matModelBase*>(&mat_modelb);
       }
       else {
