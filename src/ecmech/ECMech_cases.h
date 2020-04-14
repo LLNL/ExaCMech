@@ -11,21 +11,24 @@ namespace ecmech {
    typedef KineticsKMBalD<true,  false, false, false, 1> Kin_KMBalD_TFF;
    typedef KineticsKMBalD<false, false, false, false, 1> Kin_KMBalD_FFF;
 
-   typedef evptn::EvptnUpdstProblem<SlipGeomFCC, KineticsVocePL, evptn::ThermoElastNCubic> EvptnUpsdtProblem_FCC_A;
+   typedef KineticsVocePL Kin_FCC_A;
+   typedef evptn::EvptnUpdstProblem<SlipGeomFCC, Kin_FCC_A, evptn::ThermoElastNCubic> EvptnUpsdtProblem_FCC_A;
    typedef snls::SNLSTrDlDenseG<EvptnUpsdtProblem_FCC_A> EvptnSolver_FCC_A;
-   typedef evptn::matModel<SlipGeomFCC, KineticsVocePL, evptn::ThermoElastNCubic, EosModelConst<false> > matModelEvptn_FCC_A;
+   typedef evptn::matModel<SlipGeomFCC, Kin_FCC_A, evptn::ThermoElastNCubic, EosModelConst<false> > matModelEvptn_FCC_A;
 
-   typedef evptn::EvptnUpdstProblem<SlipGeomFCC, Kin_KMBalD_FFF, evptn::ThermoElastNCubic> EvptnUpsdtProblem_FCC_B;
+   typedef Kin_KMBalD_FFF Kin_FCC_B;
+   typedef evptn::EvptnUpdstProblem<SlipGeomFCC, Kin_FCC_B, evptn::ThermoElastNCubic> EvptnUpsdtProblem_FCC_B;
    typedef snls::SNLSTrDlDenseG<EvptnUpsdtProblem_FCC_B> EvptnSolver_FCC_B;
-   typedef evptn::matModel<SlipGeomFCC, Kin_KMBalD_FFF, evptn::ThermoElastNCubic, EosModelConst<false> > matModelEvptn_FCC_B;
+   typedef evptn::matModel<SlipGeomFCC, Kin_FCC_B, evptn::ThermoElastNCubic, EosModelConst<false> > matModelEvptn_FCC_B;
 
-   typedef KineticsKMBalD<true, true, true, true, SlipGeomHCPaBRYcaY1::nslip> Kin_KMBalD_TTT_HCP_A;
-   typedef evptn::EvptnUpdstProblem<SlipGeomHCPaBRYcaY1,
-                                    Kin_KMBalD_TTT_HCP_A,
+   typedef SlipGeomHCPaBRYcaY1 SlipGeom_HCP_A;
+   typedef KineticsKMBalD<true, true, true, true, SlipGeom_HCP_A::nslip> Kin_HCP_A;
+   typedef evptn::EvptnUpdstProblem<SlipGeom_HCP_A,
+                                    Kin_HCP_A,
                                     evptn::ThermoElastNHexag> EvptnUpsdtProblem_HCP_A;
    typedef snls::SNLSTrDlDenseG<EvptnUpsdtProblem_HCP_A> EvptnSolver_HCP_A;
-   typedef evptn::matModel<SlipGeomHCPaBRYcaY1,
-                           Kin_KMBalD_TTT_HCP_A,
+   typedef evptn::matModel<SlipGeom_HCP_A,
+                           Kin_HCP_A,
                            evptn::ThermoElastNHexag,
                            EosModelConst<false> > matModelEvptn_HCP_A;
 }

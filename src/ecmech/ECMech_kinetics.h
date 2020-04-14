@@ -21,6 +21,8 @@
  *
  * and member functions:
  *
+ *  constructor(int nslip) ;
+ *
  *  void setParams( const std::vector<double> & params ) ;
  *
  *  void getParams( std::vector<double> & params ) const ;

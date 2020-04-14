@@ -189,6 +189,10 @@ namespace ecmech {
                _tolerance = *parsIt; ++parsIt;
 
                {
+                  const std::vector<double> paramsThese(parsIt, parsIt + SlipGeom::nParams);
+                  _slipGeom.setParams(paramsThese); parsIt += SlipGeom::nParams;
+               }
+               {
                   const std::vector<double> paramsThese(parsIt, parsIt + ThermoElastN::nParams);
                   _elastN.setParams(paramsThese); parsIt += ThermoElastN::nParams;
                }

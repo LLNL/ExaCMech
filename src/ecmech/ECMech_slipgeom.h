@@ -52,10 +52,18 @@ namespace ecmech {
       public:
 
          static const int nslip = 12;
+         static const int nParams = 0 ;
+      
          // constructor and destructor
-         __ecmech_hdev__
-         SlipGeomFCC()
+         __ecmech_hdev__  SlipGeomFCC() {};
+         __ecmech_hdev__ ~SlipGeomFCC() {};
+
+         __ecmech_host__
+         void setParams(const std::vector<double> & params
+                        )
          {
+            std::vector<double>::const_iterator parsIt = params.begin();
+         
             // m = (/ sqr3i, sqr3i, sqr3i /)
             // s = (/ zero, sqr2i, -sqr2i /)
             //
@@ -91,10 +99,23 @@ namespace ecmech {
 
             fillFromMS(this->_P_ref_vec, this->_Q_ref_vec,
                        mVecs, sVecs, this->nslip);
+
+            int iParam = parsIt - params.begin();
+            assert(iParam == nParams);
          };
 
-         __ecmech_hdev__ ~SlipGeomFCC(){};
+         __ecmech_host__
+         void getParams(std::vector<double> & params
+                        ) const {
+            // do not clear params in case adding to an existing set
+            int paramsStart = params.size();
 
+            // params.push_back(); // no parameters
+            
+            int iParam = params.size() - paramsStart;
+            assert(iParam == nParams);
+         }
+      
          __ecmech_hdev__ inline const double* getP() const { return _P_ref_vec; };
          __ecmech_hdev__ inline const double* getQ() const { return _Q_ref_vec; };
 
@@ -117,12 +138,19 @@ namespace ecmech {
          //    6  slip systems in pyramidal <a> family
          //   12  slip systems in pyramidal 1 <c+a> family
          static const int nslip = 3+3+6+12;
-
+         static const int nParams = 1 ;
+      
          // constructor and destructor
-         __ecmech_hdev__
-         SlipGeomHCPaBRYcaY1(double cOverA)
-            : _cOverA(cOverA)
+         __ecmech_hdev__  SlipGeomHCPaBRYcaY1() {} ;
+         __ecmech_hdev__ ~SlipGeomHCPaBRYcaY1() {};
+
+         __ecmech_host__
+         void setParams(const std::vector<double> & params
+                        )
          {
+            std::vector<double>::const_iterator parsIt = params.begin();
+
+            _cOverA = *parsIt; ++parsIt;
             
             //  pyramidal 10-11 1-210 depends on c/a
             //
@@ -212,10 +240,23 @@ namespace ecmech {
 
             fillFromMS(this->_P_ref_vec, this->_Q_ref_vec,
                        mVecs, sVecs, this->nslip);
+
+            int iParam = parsIt - params.begin();
+            assert(iParam == nParams);
          };
 
-         __ecmech_hdev__ ~SlipGeomHCPaBRYcaY1(){};
+         __ecmech_host__
+         void getParams(std::vector<double> & params
+                        ) const {
+            // do not clear params in case adding to an existing set
+            int paramsStart = params.size();
 
+            params.push_back(_cOverA);
+            
+            int iParam = params.size() - paramsStart;
+            assert(iParam == nParams);
+         }
+      
          __ecmech_hdev__ inline const double* getP() const { return _P_ref_vec; };
          __ecmech_hdev__ inline const double* getQ() const { return _Q_ref_vec; };
 

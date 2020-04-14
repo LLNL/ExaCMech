@@ -1,7 +1,3 @@
-
-// so far, all models work well enough that ahould be getting close to rho=1 at final iteration
-static const double rhoLasttol = 1e-3;
-
 #if KIN_TYPE
 static const int   expectedNFEvals = 23;
 static const double expectedGdotVal = 0.2398180885495;
