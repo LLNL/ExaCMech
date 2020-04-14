@@ -1205,7 +1205,10 @@ namespace ecmech {
       val[1] = -v1[0]*v2[2] + v1[2]*v2[0];
       val[2] =  v1[0]*v2[1] - v1[1]*v2[0];
    }
-   
+
+   /**
+    * @brief covert Miller indices into a cartesian vector
+    */
    __ecmech_hdev__
    inline
    void
@@ -1248,8 +1251,8 @@ namespace ecmech {
       //
       vecsVNormalize<ecmech::ndim>(vecs);
 
-      // now do plane; this is a very kludge method, but should work;
-      // I really should find something that is better
+      // now do plane;
+      // fix me : this algorithm is clunky and not particularly efficient
       //
       if ( vecsssumabs<ecmech::ndim>(ann) < idp_eps_sqrt ) { // sum over only first three entries on purpose
          // basal plane

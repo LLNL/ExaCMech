@@ -125,11 +125,14 @@ namespace ecmech {
    }; // SlipGeomFCC
 
    /**
-    * NOTE : the coding below is a hack just to get things going
+    * HCP with <a> slip on basal, prisamtic, and pyramidal families and type-1 <c+a> pyramidal slip
     *
+    * the name aBRYcaY1 traces back to EVP_HCP_a_BRY_ca_Y1 (integer code 32) in the old Fortran coding
+    * 
+    * fix me : the coding below is a hack just to get things going ;
     * it is not the best way of doing things, and modifications should be made with great care
     */
-   class SlipGeomHCPaBRYcaY1 // EVP_HCP_a_BRY_ca_Y1 32 in Fortran coding
+   class SlipGeomHCPaBRYcaY1 // 
    {
       public:
 
