@@ -261,6 +261,7 @@ namespace ecmech {
                assert(_tau_a > 0);
             }
 
+            return hdnScale ;
          }
 
          __ecmech_hdev__
@@ -372,15 +373,25 @@ namespace ecmech {
 
             double gam_w = vals[0];
             double gam_r = vals[1];
+            double gIn, c_t, xn, xnn, t_max, t_min ;
             if ( perSS ) {
                int iVal = iSlip;
-               double gIn   = vals[2+iVal];
-               double c_t   = vals[2+nVPer+iVal];
+               gIn   = vals[2+iVal];
+               c_t   = vals[2+nVPer+iVal];
+               xn    = _xn[iVal];
+               xnn   = _xnn[iVal];
+               t_max = _t_max[iVal];
+               t_min = _t_min[iVal];
             }
             else {
-               const int iVal=0
-               double gIn   = vals[2+iVal];
-               double c_t   = vals[2+nVPer+iVal];
+               // hopefully the compiler will optimize this nicely
+               const int iVal=0;
+               gIn   = vals[2+iVal];
+               c_t   = vals[2+nVPer+iVal];
+               xn    = _xn[iVal];
+               xnn   = _xnn[iVal];
+               t_max = _t_max[iVal];
+               t_min = _t_min[iVal];
             }
 
             // zero things so that can more easily just return if inactive
@@ -445,7 +456,7 @@ namespace ecmech {
 #endif
             }
             //
-            if (at_0 > _t_max) {
+            if (at_0 > t_max) {
                // have overflow of thermally activated kinetics, purely drag limited
 
                gdot = gdot_r;
@@ -526,17 +537,17 @@ namespace ecmech {
                }
             }
 
-            if (at_0 > _t_min) {
+            if (at_0 > t_min) {
                // need power-law part
 
                double abslog = log(at_0);
-               double blog = _xn * abslog;
+               double blog = xn * abslog;
                double temp = (gam_w * gdot_w_pl_scaling) * exp(blog);
 
                double gdot_w_pl = temp * at_0; // not signed ! copysign(at_0,tau)
                gdot_w = gdot_w + gdot_w_pl;
 
-               double contrib = temp * _xnn * g_i;
+               double contrib = temp * xnn * g_i;
                dgdot_w = dgdot_w + contrib;
                if (!withGAthermal) {
                   dgdot_wg = dgdot_wg + contrib * at_0;

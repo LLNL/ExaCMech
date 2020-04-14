@@ -18,8 +18,8 @@ namespace ecmech {
    {
       for (int iSlip = 0; iSlip<nslip; ++iSlip) {
 
-         double mVec = &(mVecs[iSlip * ecmech::ndim]);
-         double sVec = &(sVecs[iSlip * ecmech::ndim]);
+         const double* mVec = &(mVecs[iSlip * ecmech::ndim]);
+         const double* sVec = &(sVecs[iSlip * ecmech::ndim]);
 #ifndef NO_CHECKS
          if ( fabs(vecsyadotb<ecmech::ndim>(mVec,sVec)) > idp_eps_sqrt ) {
             ECMECH_FAIL(__func__, "internal error");
@@ -165,7 +165,7 @@ namespace ecmech {
                m_ya[0],   m_ya[1],  -m_ya[2],
               -m_ya[0],   m_ya[1],  -m_ya[2],
                   zero,   m_ya_pp,  -m_ya[2],
-                  zer0,  -m_ya_pp,  -m_ya[2],
+                  zero,  -m_ya_pp,  -m_ya[2],
 
                m_y1ca[0],   m_y1ca[1],   m_y1ca[2],
                m_y1ca[0],  -m_y1ca[1],  -m_y1ca[2],

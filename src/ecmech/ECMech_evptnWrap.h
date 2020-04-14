@@ -161,7 +161,9 @@ namespace ecmech {
             void initFromParams(const std::vector<int>& opts,
                                 const std::vector<double>& pars,
                                 const std::vector<std::string>& strs,
-                                void * callBackVoid ) override final {
+                                void* /*callBackVoid*/ = nullptr
+                                ) override final
+            {
                const int nParamsEOS = EosModel::nParams - nParamsEOSHave;
                int nParams =
                   2 + 1 + // rho0, cvav, tolerance
@@ -206,7 +208,7 @@ namespace ecmech {
 
                   {
                      double vMin, vMax ;
-                     _eosModel.getEV0(vMin, vMax, _e0, _v0);
+                     _eosModel.getInfo(vMin, vMax, _e0, _v0);
                   }
                }
 

@@ -3,6 +3,8 @@
 #ifndef ECMECH_UTIL_H
 #define ECMECH_UTIL_H
 
+#include "ECMech_core.h"
+
 #include <cmath>
 
 #ifdef DEBUG
@@ -14,7 +16,6 @@
 #endif
 #endif
 
-#include "ECMech_const.h"
 #include "RAJA/RAJA.hpp"
 
 //
@@ -1205,7 +1206,8 @@ namespace ecmech {
       val[2] =  v1[0]*v2[1] - v1[1]*v2[0];
    }
    
-   __ecmech_host__
+   __ecmech_hdev__
+   inline
    void
    m_to_o_dir( double* const dir_o, // ecmech::ndim
                const double* const dir_m, // ecmech::nMiller
@@ -1221,7 +1223,8 @@ namespace ecmech {
     * convert slip systems (planes and directions) from miller indices to
     * vectors in an orthogonal coordinate system
     */
-   __ecmech_host__
+   __ecmech_hdev__
+   inline
    void
    miller_to_orthog_sngl( const double* const ann,
                           const double* const abb,
@@ -1241,7 +1244,7 @@ namespace ecmech {
 
       // first do direction
       //
-      m_to_o_dir(vecs, abb);
+      m_to_o_dir(vecs, abb, cOverA);
       //
       vecsVNormalize<ecmech::ndim>(vecs);
 
@@ -1274,9 +1277,9 @@ namespace ecmech {
          }
          //
          double pnt_a[ecmech::ndim];
-         m_to_o_dir(pnt_a, m_a);
+         m_to_o_dir(pnt_a, m_a, cOverA);
          double pnt_b[ecmech::ndim];
-         m_to_o_dir(pnt_b, m_b);
+         m_to_o_dir(pnt_b, m_b, cOverA);
          double vec_basal[ecmech::ndim];
          for ( int iN=0; iN<ecmech::ndim; ++iN) {
             vec_basal[iN] = pnt_a[iN] - pnt_b[iN];
@@ -1293,7 +1296,7 @@ namespace ecmech {
             double m_c[ecmech::nMiller] = {0.};
             m_c[3] = one/ann[3];
             double pnt_c[ecmech::ndim];
-            m_to_o_dir(pnt_c, m_c);
+            m_to_o_dir(pnt_c, m_c, cOverA);
             for ( int iN=0; iN<ecmech::ndim; ++iN) {
                vec_nb[iN] = pnt_c[iN] - pnt_b[iN];
             }

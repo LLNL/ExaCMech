@@ -394,7 +394,7 @@ namespace ecmech {
             }
 
          private:
-            double _c11, _c12, _c12, _c33, _c44;
+            double _c11, _c12, _c13, _c33, _c44;
             double _K_sdax3 ;
             double _g_vecd2 ;
             double _K_diag[ecmech::ntvec];
@@ -479,6 +479,10 @@ namespace ecmech {
             __ecmech_hdev__
             inline
             double getDisRate() const { return _dp_dis_rate_contrib; }
+
+            __ecmech_hdev__
+            inline
+            double getHdnScale() const { return _hdn_scale; }
 
             /*
              * NOTES :
@@ -1177,7 +1181,7 @@ namespace ecmech {
             //
             {
                double dEff = vecd_Deff(d_vecd_sm);
-               double flow_strength = _hdn_scale;
+               double flow_strength = prob.getHdnScale();
                if (dEff > idp_tiny_sqrt) {
                   flow_strength = prob.getDisRate() / dEff;
                }
