@@ -40,12 +40,13 @@ blt_add_executable(NAME       test_evptn_1
 blt_add_test(NAME    test_evptn_1
              COMMAND test_evptn_1)
 
-blt_add_executable(NAME       test_evptn_hcp
-                   SOURCES    test_evptn_hcp.cxx
+blt_add_executable(NAME       test_evptn_2
+                   SOURCES    test_evptn.cxx
+                   DEFINES    KIN_TYPE=2
                    OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
                    DEPENDS_ON ${ECMECH_TEST_DEPENDS} gtest)
-blt_add_test(NAME    test_evptn_hcp
-             COMMAND test_evptn_hcp)
+blt_add_test(NAME    test_evptn_2
+             COMMAND test_evptn_2)
 
 blt_add_executable(NAME       test_updst
                    SOURCES    test_updst.cxx
