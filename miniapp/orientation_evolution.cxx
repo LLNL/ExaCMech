@@ -55,7 +55,6 @@ int main(int argc, char *argv[]){
    // internal energy(ecmech::ne)
    int num_state_vars_voce = ecmech::matModelEvptn_FCC_A::numHist + ecmech::ne + 1;
    int num_state_vars_mts = ecmech::matModelEvptn_FCC_B::numHist + ecmech::ne + 1;
-   int num_state_vars;
 
    ecmech::matModelBase* mat_model_base;
    // Could probably do this in a smarter way where we don't create two class objects for
@@ -294,6 +293,7 @@ int main(int argc, char *argv[]){
       }
 
       std::cout << "\nAbout to initialize class" << std::endl;
+      int num_state_vars;
       // Initialize our base class using the appropriate model
       if (mat_model_str.compare("voce") == 0) {
          num_state_vars = num_state_vars_voce;
