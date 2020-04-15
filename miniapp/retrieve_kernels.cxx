@@ -148,3 +148,4 @@ void retrieve_data(ecmech::Accelerator accel, const int nqpts, const int nstatev
                         eng_int_array, state_vars_array, stress_array);
    }
 } // end of retrieve_data
+

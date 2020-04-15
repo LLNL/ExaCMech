@@ -37,7 +37,8 @@ namespace ecmech {
             matModel()
                : matModelBase(),
                _kinetics(SlipGeom::nslip),
-               _outputLevel(0)
+               _outputLevel(0),
+               _accel(ecmech::Accelerator::CPU)
             {
                // Should the tangent stiff matrix be included in these stride calculations?
                _strides[istride_def_rate] = ecmech::nsvp;
@@ -59,7 +60,7 @@ namespace ecmech {
             {
                unsigned int nhist = NumHist<SlipGeom, Kinetics, ThermoElastN, EosModel>::numHist;
 
-               if (stride_len != 8) {
+               if (stride_len != ecmech::nstride) {
 #ifdef __cuda_host_only__
                   std::ostringstream os;
                   os << "Stride vector needs to have a size of 8 with strides of at least: " <<
@@ -160,7 +161,9 @@ namespace ecmech {
             void initFromParams(const std::vector<int>& opts,
                                 const std::vector<double>& pars,
                                 const std::vector<std::string>& strs,
-                                const ecmech::Accelerator& accel = ecmech::Accelerator::CPU) override final {
+                                void* /*callBackVoid*/ = nullptr
+                                ) override final
+            {
                const int nParamsEOS = EosModel::nParams - nParamsEOSHave;
                int nParams =
                   2 + 1 + // rho0, cvav, tolerance
@@ -178,8 +181,6 @@ namespace ecmech {
                   ECMECH_FAIL(__func__, "wrong number of strs");
                }
 
-               _accel = accel;
-
                std::vector<double>::const_iterator parsIt = pars.begin();
 
                _rho0 = *parsIt; ++parsIt;
@@ -187,6 +188,10 @@ namespace ecmech {
 
                _tolerance = *parsIt; ++parsIt;
 
+               {
+                  const std::vector<double> paramsThese(parsIt, parsIt + SlipGeom::nParams);
+                  _slipGeom.setParams(paramsThese); parsIt += SlipGeom::nParams;
+               }
                {
                   const std::vector<double> paramsThese(parsIt, parsIt + ThermoElastN::nParams);
                   _elastN.setParams(paramsThese); parsIt += ThermoElastN::nParams;
@@ -205,7 +210,10 @@ namespace ecmech {
 
                   _eosModel.setParams(paramsThese); parsIt += nParamsEOS;
 
-                  _eosModel.getEV0(_e0, _v0);
+                  {
+                     double vMin, vMax;
+                     _eosModel.getInfo(vMin, vMax, _e0, _v0);
+                  }
                }
 
                int iParam = parsIt - pars.begin();
@@ -223,7 +231,8 @@ namespace ecmech {
 
                _rhvNames.push_back("shrate_eff"); _rhvVals.push_back(0.); _rhvPlot.push_back(true); _rhvState.push_back(true); // iHistA_shrateEff
                _rhvNames.push_back("shr_eff"); _rhvVals.push_back(0.); _rhvPlot.push_back(true); _rhvState.push_back(true); // iHistA_shrEff
-               _rhvNames.push_back("n_feval"); _rhvVals.push_back(0.); _rhvPlot.push_back(true); _rhvState.push_back(true); // iHistA_nFEval
+               _rhvNames.push_back("flow_str"); _rhvVals.push_back(0.); _rhvPlot.push_back(true); _rhvState.push_back(false); // iHistA_flowStr
+               _rhvNames.push_back("n_feval"); _rhvVals.push_back(0.); _rhvPlot.push_back(true); _rhvState.push_back(false); // iHistA_nFEval
                // numHistAux
                //
                for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
@@ -288,7 +297,12 @@ namespace ecmech {
                              double * tkelvV,
                              double * sddV,
                              double * mtanSDV,
-                             const int& nPassed) const override final {
+                             const int& nPassed) const override final
+            {
+               if (!_complete) {
+                  ECMECH_FAIL(__func__, "not complete");
+               }
+
                RAJA::RangeSegment default_range(0, nPassed);
                // All of the stride lengths are constant within this function
                const unsigned int def_rate_stride = _strides[istride_def_rate];
@@ -392,7 +406,13 @@ namespace ecmech {
             __ecmech_host__
             void setAccelerator(ecmech::Accelerator accel) override final {
                _accel = accel;
-            }
+            };
+
+            __ecmech_hdev__
+            void complete() {
+               _bulkRef = _eosModel.getBulkRef();
+               _complete = true;
+            };
 
          private:
 
@@ -403,11 +423,11 @@ namespace ecmech {
 
             double _tolerance;
             int _outputLevel;
-            unsigned int _strides[8];
+            unsigned int _strides[ecmech::nstride];
             ecmech::Accelerator _accel;
 
             std::vector<std::string> _rhvNames;
-            std::vector<double>       _rhvVals;
+            std::vector<double>      _rhvVals;
             std::vector<bool>        _rhvPlot;
             std::vector<bool>        _rhvState;
       }; // class matModel

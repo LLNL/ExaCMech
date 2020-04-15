@@ -3,6 +3,8 @@
 #ifndef ECMECH_UTIL_H
 #define ECMECH_UTIL_H
 
+#include "ECMech_core.h"
+
 #include <cmath>
 
 #ifdef DEBUG
@@ -14,7 +16,6 @@
 #endif
 #endif
 
-#include "ECMech_const.h"
 #include "RAJA/RAJA.hpp"
 
 //
@@ -69,6 +70,17 @@ namespace ecmech {
       double s = 0.0;
       for (int i = 0; i<n; ++i) {
          s += fabs(a[i]);
+      }
+
+      return s;
+   }
+
+   template<int n>
+   __ecmech_hdev__
+   inline double vecsssum(const double* const a) {
+      double s = 0.0;
+      for (int i = 0; i<n; ++i) {
+         s += a[i];
       }
 
       return s;
@@ -443,13 +455,13 @@ namespace ecmech {
       // CALL symm_to_vecds(P_ref_svec, crys%p_ref(:,:,is))
       // crys%P_ref_vec(:, is) = P_ref_svec(1:TVEC)
       //
-      double P[ ecmech::ndim*ecmech::ndim ];
+      double P[ ecmech::ndim * ecmech::ndim ];
       vecsMsymm<ndim>(P, T);
       symmToVecd(P_vecd, P);
 
       // CALL mat_to_skew_3(crys%q_ref(:,:,is), crys%t_ref(:,:,is))
       // CALL skew_to_veccp(crys%q_ref_vec(:,is), crys%q_ref(:,:,is))
-      double Q[ ecmech::ndim*ecmech::ndim ];
+      double Q[ ecmech::ndim * ecmech::ndim ];
       vecsMskew<ndim>(Q, T);
       skewToVeccp(Q_veccp, Q);
    }
@@ -939,9 +951,9 @@ namespace ecmech {
 
          // can get away with these three calls as quat_prod is bilinear in the input arguments
          //
-         quat_prod(&(dC_quat_dxi_T[ecmech::qdim*0]), Cn_quat, &(dA_quat_dxi_T[ecmech::qdim*0]) );
-         quat_prod(&(dC_quat_dxi_T[ecmech::qdim*1]), Cn_quat, &(dA_quat_dxi_T[ecmech::qdim*1]) );
-         quat_prod(&(dC_quat_dxi_T[ecmech::qdim*2]), Cn_quat, &(dA_quat_dxi_T[ecmech::qdim*2]) );
+         quat_prod(&(dC_quat_dxi_T[ecmech::qdim * 0]), Cn_quat, &(dA_quat_dxi_T[ecmech::qdim * 0]) );
+         quat_prod(&(dC_quat_dxi_T[ecmech::qdim * 1]), Cn_quat, &(dA_quat_dxi_T[ecmech::qdim * 1]) );
+         quat_prod(&(dC_quat_dxi_T[ecmech::qdim * 2]), Cn_quat, &(dA_quat_dxi_T[ecmech::qdim * 2]) );
       }
       // now have dC_quat_dxi
 
@@ -1181,6 +1193,136 @@ namespace ecmech {
          }
       }
    } // mtan_conv_sd_svec
+
+   __ecmech_hdev__
+   inline
+   void
+   vecCrossProd( // vec_cross_prod
+      double* const val,
+      const double* const v1,
+      const double* const v2) {
+      val[0] = v1[1] * v2[2] - v1[2] * v2[1];
+      val[1] = -v1[0] * v2[2] + v1[2] * v2[0];
+      val[2] = v1[0] * v2[1] - v1[1] * v2[0];
+   }
+
+   /**
+    * @brief covert Miller indices into a cartesian vector
+    */
+   __ecmech_hdev__
+   inline
+   void
+   m_to_o_dir(double* const dir_o, // ecmech::ndim
+              const double* const dir_m,  // ecmech::nMiller
+              double cOverA
+              ) {
+      // note: this does not assume SUM(dir_m[:]) = 0
+      dir_o[0] = dir_m[0] - onehalf * (dir_m[1] + dir_m[2]);
+      dir_o[1] = sqr3 * onehalf * (dir_m[1] - dir_m[2]);
+      dir_o[2] = dir_m[3] * cOverA;
+   } // m_to_o_dir
+
+   /**
+    * convert slip systems (planes and directions) from miller indices to
+    * vectors in an orthogonal coordinate system
+    */
+   __ecmech_hdev__
+   inline
+   void
+   miller_to_orthog_sngl(const double* const ann,
+                         const double* const abb,
+                         double* const vecm,
+                         double* const vecs,
+                         double cOverA
+                         ) {
+#ifndef NO_CHECKS
+      // these are ecmech::nMiller, but sum over only first three entries on purpose
+      if (fabs(vecsssum<ecmech::ndim>(ann)) > idp_eps_sqrt) {
+         ECMECH_FAIL(__func__, "bad ann");
+      }
+      if (fabs(vecsssum<ecmech::ndim>(abb)) > idp_eps_sqrt) {
+         ECMECH_FAIL(__func__, "bad abb");
+      }
+#endif
+
+      // first do direction
+      //
+      m_to_o_dir(vecs, abb, cOverA);
+      //
+      vecsVNormalize<ecmech::ndim>(vecs);
+
+      // now do plane;
+      // fix me : this algorithm is clunky and not particularly efficient
+      //
+      if (vecsssumabs<ecmech::ndim>(ann) < idp_eps_sqrt) { // sum over only first three entries on purpose
+         // basal plane
+         vecm[0] = 0.; vecm[1] = 0.; vecm[2] = 1.;
+      }
+      else {
+         double m_a[ecmech::nMiller] = { 0. };
+         double m_b[ecmech::nMiller] = { 0. };
+         //
+         if (fabs(ann[0]) < idp_eps_sqrt) {
+            // use second two axes for basal plane points
+            m_a[1] = one / ann[1];
+            m_b[2] = one / ann[2];
+         }
+         else if (fabs(ann[1]) < idp_eps_sqrt) {
+            // use first and third axes for basal plane points
+            m_a[0] = one / ann[0];
+            m_b[2] = one / ann[2];
+         }
+         else {
+            // use first and second axes for basal plane points
+            m_a[0] = one / ann[0];
+            m_b[1] = one / ann[1];
+         }
+         //
+         double pnt_a[ecmech::ndim];
+         m_to_o_dir(pnt_a, m_a, cOverA);
+         double pnt_b[ecmech::ndim];
+         m_to_o_dir(pnt_b, m_b, cOverA);
+         double vec_basal[ecmech::ndim];
+         for (int iN = 0; iN<ecmech::ndim; ++iN) {
+            vec_basal[iN] = pnt_a[iN] - pnt_b[iN];
+         }
+
+         //
+         double vec_nb[ecmech::ndim];
+         if (fabs(ann[3]) < idp_eps_sqrt) {
+            // normal is in basal plane
+            vec_nb[0] = 0.; vec_nb[1] = 0.; vec_nb[2] = 1.;
+            vecCrossProd(vecm, vec_basal, vec_nb);
+         }
+         else {
+            // normal is not in basal plane
+            double m_c[ecmech::nMiller] = { 0. };
+            m_c[3] = one / ann[3];
+            double pnt_c[ecmech::ndim];
+            m_to_o_dir(pnt_c, m_c, cOverA);
+            for (int iN = 0; iN<ecmech::ndim; ++iN) {
+               vec_nb[iN] = pnt_c[iN] - pnt_b[iN];
+            }
+
+            vecCrossProd(vecm, vec_basal, vec_nb);
+         }
+      }
+      //
+      vecsVNormalize<ecmech::ndim>(vecm);
+      //
+      // align vecm with ann; this can be important for unidirectional modes like twinning
+      if (vecm[2] * ann[3] < 0.) {
+         for (int iN = 0; iN<ecmech::ndim; ++iN) {
+            vecm[iN] = -vecm[iN];
+         }
+      }
+
+#ifndef NO_CHECKS
+      if (fabs(vecsyadotb<ecmech::ndim>(vecm, vecs)) > idp_eps_sqrt) {
+         ECMECH_FAIL(__func__, "internal error");
+      }
+#endif
+   } // miller_to_orthog_sngl
 
 #ifdef DEBUG
 #ifdef __cuda_host_only__

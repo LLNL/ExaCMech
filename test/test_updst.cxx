@@ -42,9 +42,9 @@ TEST(ecmech, updst_a)
    matModelBase* mmb = dynamic_cast<matModelBase*>(mmodel);
 
 #include "setup_base.h"
-   std::vector<int>           opts;  // none
-   std::vector<std::string>   strs;  // none
-   std::vector<double>         params{ rho0, cvav, tolerance };
+   std::vector<int>           opts; // none
+   std::vector<std::string>   strs; // none
+   std::vector<double>         params { rho0, cvav, tolerance };
 #if KIN_TYPE
 
 #include "setup_elastn.h"
@@ -85,9 +85,9 @@ TEST(ecmech, updst_a)
 
    // int numHist = hist_vec.size() ; // should equal mmodel->numHist
 
-   const int nPassed = 1;  // just do a single point here as a simple example
+   const int nPassed = 1; // just do a single point here as a simple example
 
-   mmodel->setOutputLevel(outputLevel);    // would not normally do this in a production setting
+   mmodel->setOutputLevel(outputLevel); // would not normally do this in a production setting
 
    static const int iHistLbGdot = mmodel->iHistLbGdot;
    double* gdot = &(hist[iHistLbGdot]);
@@ -101,7 +101,7 @@ TEST(ecmech, updst_a)
       double stressSvecP[ecmech::nsvp] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                                            0.0 };
       double tkelv[nPassed];
-      double sdd[ecmech::nsdd*nPassed];
+      double sdd[ecmech::nsdd * nPassed];
 
       mmb->getResponse(dt, d_svec_kk_sm, w_veccp_sm, volRatio,
                        eInt, stressSvecP, hist, tkelv, sdd, nullptr,
@@ -142,9 +142,9 @@ TEST(ecmech, driver_a)
    matModelBase* mmb = dynamic_cast<matModelBase*>(mmodel);
 
 #include "setup_base.h"
-   std::vector<int>           opts;  // none
-   std::vector<std::string>   strs;  // none
-   std::vector<double>         params{ rho0, cvav, tolerance };
+   std::vector<int>           opts; // none
+   std::vector<std::string>   strs; // none
+   std::vector<double>         params { rho0, cvav, tolerance };
 #if KIN_TYPE
 
 #include "setup_elastn.h"
@@ -185,9 +185,9 @@ TEST(ecmech, driver_a)
 
    // int numHist = hist_vec.size() ; // should equal mmodel->numHist
 
-   const int nPassed = 1;  // just do a single point here as a simple example
+   const int nPassed = 1; // just do a single point here as a simple example
 
-   mmodel->setOutputLevel(outputLevel);    // would not normally do this in a production setting
+   mmodel->setOutputLevel(outputLevel); // would not normally do this in a production setting
 
    double relRate = 1e-6;
    double d_svec_kk_sm[ecmech::nsvp] = { -0.5 * relRate, -0.5 * relRate, 1.0 * relRate,
@@ -211,7 +211,7 @@ TEST(ecmech, driver_a)
    double stressSvecP[ecmech::nsvp] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                                         0.0 };
    double tkelv[nPassed];
-   double sdd[ecmech::nsdd*nPassed];
+   double sdd[ecmech::nsdd * nPassed];
 
 #if !(DO_FD_CHECK_MTAN)
    std::cout << "# time, Axial deviatoric stress, h[0], p : " << std::endl;
@@ -312,9 +312,9 @@ TEST(ecmech, driver_a)
          std::copy(stressSvecP_ref.begin(), stressSvecP_ref.end(), stressSvecP_pert);
 
          double tkelv_pert[nPassed];
-         double sdd_pert[ecmech::nsdd*nPassed];
+         double sdd_pert[ecmech::nsdd * nPassed];
 
-         std::copy(hist_ref.begin(), hist_ref.end(), hist);  // make hist equal to hist_ref again
+         std::copy(hist_ref.begin(), hist_ref.end(), hist); // make hist equal to hist_ref again
 
          mmb->getResponse(dt, d_svec_kk_sm_pert, w_veccp_sm, volRatio,
                           eInt_pert, stressSvecP_pert, hist, tkelv_pert, sdd_pert, nullptr,
@@ -355,3 +355,4 @@ int main(int argc, char *argv[])
 
    return RUN_ALL_TESTS();
 }
+

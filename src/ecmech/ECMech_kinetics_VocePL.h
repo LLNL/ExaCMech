@@ -151,7 +151,7 @@ namespace ecmech {
 
          __ecmech_hdev__
          inline
-         void
+         double
          getVals(double* const vals,
                  double, // p, not currently used
                  double, // tK, not currently used
@@ -160,6 +160,7 @@ namespace ecmech {
          {
             vals[0] = h_state[0]; // _gAll
             assert(vals[0] > zero);
+            return vals[0];
          }
 
          __ecmech_hdev__

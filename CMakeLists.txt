@@ -11,10 +11,7 @@ message(STATUS "Using cmake version ${CMAKE_VERSION}")
 
 project(ECMECH LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 14)
-#This is currently what's available on Summit/Sierra
-#We should come up with some way to automatically detect all of this...
-set(CUDA_ARCH "sm_70")
+set(CMAKE_CXX_STANDARD 11)
 
 ################################
 # BLT

@@ -8,7 +8,6 @@ namespace {
    void init_data_cpu(const double* ori, const std::vector<double>& histInit_vec,
                       const int nqpts, const int num_hardness, const int ind_gdot,
                       const int num_slip, const int vdim, double* state_vars){
-
       const int ind_dp_eff = ecmech::evptn::iHistA_shrateEff;
       const int ind_eql_pl_strain = ecmech::evptn::iHistA_shrEff;
       const int ind_num_evals = ecmech::evptn::iHistA_nFEval;
@@ -78,8 +77,8 @@ namespace {
       const int ind_vols = ind_int_eng - 1;
 
       const int DIM = 3;
-      std::array<RAJA::idx_t, DIM> perm {{ 2, 1, 0 } };
-      RAJA::Layout<DIM> layout = RAJA::make_permuted_layout({{ ecmech::ndim, ecmech::ndim, nqpts } }, perm);
+      std::array<RAJA::idx_t, DIM> perm { { 2, 1, 0 } };
+      RAJA::Layout<DIM> layout = RAJA::make_permuted_layout({ { ecmech::ndim, ecmech::ndim, nqpts } }, perm);
       RAJA::View<const double, RAJA::Layout<DIM, RAJA::Index_type, 0> > vgrad_view(vel_grad_array, layout);
 
       // All of the below we could setup in one big RAJA loop/kernel
@@ -151,7 +150,6 @@ namespace {
    void init_data_openmp(const double* ori, const std::vector<double>& histInit_vec,
                          const int nqpts, const int num_hardness, const int ind_gdot,
                          const int num_slip, const int vdim, double* state_vars){
-
       const int ind_dp_eff = ecmech::evptn::iHistA_shrateEff;
       const int ind_eql_pl_strain = ecmech::evptn::iHistA_shrEff;
       const int ind_num_evals = ecmech::evptn::iHistA_nFEval;
@@ -224,8 +222,8 @@ namespace {
       const int ind_vols = ind_int_eng - 1;
 
       const int DIM = 3;
-      std::array<RAJA::idx_t, DIM> perm {{ 2, 1, 0 } };
-      RAJA::Layout<DIM> layout = RAJA::make_permuted_layout({{ ecmech::ndim, ecmech::ndim, nqpts } }, perm);
+      std::array<RAJA::idx_t, DIM> perm { { 2, 1, 0 } };
+      RAJA::Layout<DIM> layout = RAJA::make_permuted_layout({ { ecmech::ndim, ecmech::ndim, nqpts } }, perm);
       RAJA::View<const double, RAJA::Layout<DIM, RAJA::Index_type, 0> > vgrad_view(vel_grad_array, layout);
 
       // All of the below we could setup in one big RAJA loop/kernel
@@ -313,8 +311,8 @@ namespace {
       const int ind_vols = ind_int_eng - 1;
 
       const int DIM = 3;
-      std::array<RAJA::idx_t, DIM> perm {{ 2, 1, 0 } };
-      RAJA::Layout<DIM> layout = RAJA::make_permuted_layout({{ ecmech::ndim, ecmech::ndim, nqpts } }, perm);
+      std::array<RAJA::idx_t, DIM> perm { { 2, 1, 0 } };
+      RAJA::Layout<DIM> layout = RAJA::make_permuted_layout({ { ecmech::ndim, ecmech::ndim, nqpts } }, perm);
       RAJA::View<const double, RAJA::Layout<DIM, RAJA::Index_type, 0> > vgrad_view(vel_grad_array, layout);
 
       // All of the below we could setup in one big RAJA loop/kernel
@@ -427,8 +425,8 @@ void setup_vgrad(double* vgrad, const int nqpts){
    // It might be nice to eventually create a type alias for the below or
    // maybe something like it.
    const int DIM = 3;
-   std::array<RAJA::idx_t, DIM> perm {{ 2, 1, 0 } };
-   RAJA::Layout<DIM> layout = RAJA::make_permuted_layout({{ ecmech::ndim, ecmech::ndim, nqpts } }, perm);
+   std::array<RAJA::idx_t, DIM> perm { { 2, 1, 0 } };
+   RAJA::Layout<DIM> layout = RAJA::make_permuted_layout({ { ecmech::ndim, ecmech::ndim, nqpts } }, perm);
    RAJA::View<double, RAJA::Layout<DIM, RAJA::Index_type, 0> > vgrad_view(vgrad, layout);
 
    RAJA::RangeSegment default_range(0, nqpts);
@@ -476,3 +474,4 @@ void setup_data(ecmech::Accelerator accel, const int nqpts, const int nstatev,
                      vol_ratio_array, eng_int_array, temp_array);
    }
 } // end setup_data
+

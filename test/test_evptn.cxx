@@ -24,30 +24,47 @@ TEST(ecmech, evptn_a)
    // some convenience stuff
    using namespace ecmech;
 
-#if KIN_TYPE
-   typedef Kin_KMBalD_FFF Kinetics;
+#if KIN_TYPE == 2
+   typedef ecmech::SlipGeom_HCP_A SlipGeom;
+   typedef Kin_HCP_A Kinetics;
+   typedef EvptnUpsdtProblem_HCP_A Prob;
+   typedef EvptnSolver_HCP_A Solver;
+   typedef evptn::ThermoElastNHexag ThermoElastN;
+#elif KIN_TYPE == 1
+   typedef ecmech::SlipGeomFCC SlipGeom;
+   typedef Kin_FCC_B Kinetics;
    typedef EvptnUpsdtProblem_FCC_B Prob;
    typedef EvptnSolver_FCC_B Solver;
+   typedef evptn::ThermoElastNCubic ThermoElastN;
 #else
-   typedef KineticsVocePL Kinetics;
+   typedef ecmech::SlipGeomFCC SlipGeom;
+   typedef Kin_FCC_A Kinetics;
    typedef EvptnUpsdtProblem_FCC_A Prob;
    typedef EvptnSolver_FCC_A Solver;
-#endif
-
-   typedef ecmech::SlipGeomFCC SlipGeom;
-   SlipGeom slipGeom;
-
-#if KIN_TYPE
-   Kinetics kinetics(slipGeom.nslip);
-#include "setup_kin_KMBalD_FFF.h"
-#else
-   Kinetics kinetics(slipGeom.nslip);
-#include "setup_kin_VocePL.h"
-#endif
-
    typedef evptn::ThermoElastNCubic ThermoElastN;
+#endif
+
+   SlipGeom slipGeom;
+   Kinetics kinetics(slipGeom.nslip);
    ThermoElastN elastN;
+
+#if KIN_TYPE == 2
+#include "setup_slipGeom_HCP.h"
+#include "setup_kin_KMBalD_TTT_HCP_A.h"
+#include "setup_elastn_HCP.h"
+   const int iGdotExpected = 12;
+#elif KIN_TYPE == 1
+#include "setup_slipGeom.h"
+#include "setup_kin_KMBalD_FFF.h"
 #include "setup_elastn.h"
+   const int iGdotExpected = 1;
+#else
+#include "setup_slipGeom.h"
+#include "setup_kin_VocePL.h"
+#include "setup_elastn.h"
+   const int iGdotExpected = 1;
+#endif
+
 
    //////////////////////////////
 
@@ -100,8 +117,8 @@ TEST(ecmech, evptn_a)
    EXPECT_TRUE(solver.getNFEvals() == expectedNFEvals) << "Not the expected number of function evaluations";
    {
       const double* gdot = prob.getGdot();
-      EXPECT_LT(fabs(gdot[1] - expectedGdotVal), 1e-8) <<
-         "Did not get expected value for gdot[1]";
+      EXPECT_LT(fabs(gdot[iGdotExpected] - expectedGdotVal), 1e-8) <<
+         "Did not get expected value for gdot[iGdotExpected]";
    }
    EXPECT_LT(solver.getRhoLast() - 1.0, 1e-3) << "Final 'rho' from solver not as close to 1 as expected";
 
@@ -122,7 +139,7 @@ TEST(ecmech, evptn_a)
    double hist[numHist] = { 0.0 };
    std::copy(Cn_quat, Cn_quat + ecmech::qdim, hist + evptn::iHistLbQ);
    std::copy(h_state, h_state + kinetics.nH, hist + evptn::iHistLbH);
-   double* gdot = &(hist[iHistLbGdot]);  // already zerod
+   double* gdot = &(hist[iHistLbGdot]); // already zerod
    // do not bother with other stuff (like e_vecd_n) that is all zero above
    //
    double tkelv;
@@ -151,8 +168,8 @@ TEST(ecmech, evptn_a)
       "Did not get expected value for lattice strain component";
    EXPECT_LT(fabs(hist[evptn::iHistLbQ] - expectedQ1), 1e-8) <<
       "Did not get expected value for quat_1";
-   EXPECT_LT(fabs(gdot[1] - expectedGdotVal), 1e-8) <<
-      "Did not get expected value for gdot[1]";
+   EXPECT_LT(fabs(gdot[iGdotExpected] - expectedGdotVal), 1e-8) <<
+      "Did not get expected value for gdot[iGdotExpected]";
 }
 
 int main(int argc, char *argv[])
@@ -165,3 +182,4 @@ int main(int argc, char *argv[])
 
    return RUN_ALL_TESTS();
 }
+
