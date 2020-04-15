@@ -48,13 +48,14 @@ int main(int argc, char *argv[]){
    int num_hardness = 0;
    int num_gdot = 0;
    int iHistLbGdot = 0;
-   // We have 24 state variables plus the 4 from quaternions for
-   // a total of 28 for FCC materials using either the
-   // voce or mts model.
-   // They are in order:
-   // dp_eff(1), eq_pl_strain(2), flow_str(3), n_evals(4), dev. elastic strain(5-9),
-   // quats(10-13), h(14), gdot(15-26), rel_vol(27), int_eng(28)
-   int num_state_vars = 28;
+   // For FCC material models we have the following state variables
+   // and their number of components
+   // effective shear rate(1), effective shear(1), flow strength(1), n_evals(1), deviatoric elastic strain(5),
+   // quaternions(4), h(Kinetics::nH), gdot(SlipGeom::nslip), relative volume(1),
+   // internal energy(ecmech::ne)
+   int num_state_vars_voce = ecmech::matModelEvptn_FCC_A::numHist + ecmech::ne + 1;
+   int num_state_vars_mts = ecmech::matModelEvptn_FCC_B::numHist + ecmech::ne + 1;
+   int num_state_vars;
 
    ecmech::matModelBase* mat_model_base;
    // Could probably do this in a smarter way where we don't create two class objects for
@@ -72,7 +73,7 @@ int main(int argc, char *argv[]){
    // Stress vector stride
    strides.push_back(ecmech::nsvp);
    // History variable stride
-   strides.push_back(num_state_vars);
+   strides.push_back(num_state_vars_voce);
    // Temperature stride
    strides.push_back(1);
    // SDD stride
@@ -110,6 +111,8 @@ int main(int argc, char *argv[]){
    // reference net slip rate constant, and reference relative dislocation density
    // Property file then includes the following:
    // the Grüneisen parameter and reference internal energy
+
+   strides.at(5) = num_state_vars_mts;
 
    ecmech::matModelEvptn_FCC_B mat_modelb(strides.data(), strides.size());
 
@@ -293,6 +296,7 @@ int main(int argc, char *argv[]){
       std::cout << "\nAbout to initialize class" << std::endl;
       // Initialize our base class using the appropriate model
       if (mat_model_str.compare("voce") == 0) {
+         num_state_vars = num_state_vars_voce;
          num_props = 17;
          num_hardness = mat_modela.nH;
          num_gdot = mat_modela.nslip;
@@ -314,6 +318,7 @@ int main(int argc, char *argv[]){
          mat_model_base = dynamic_cast<matModelBase*>(&mat_modela);
       }
       else if (mat_model_str.compare("mts") == 0) {
+         num_state_vars = num_state_vars_mts;
          num_props = 24;
          num_hardness = mat_modelb.nH;
          num_gdot = mat_modelb.nslip;
