@@ -48,13 +48,13 @@ int main(int argc, char *argv[]){
    int num_hardness = 0;
    int num_gdot = 0;
    int iHistLbGdot = 0;
-   // We have 23 state variables plus the 4 from quaternions for
-   // a total of 27 for FCC materials using either the
+   // We have 24 state variables plus the 4 from quaternions for
+   // a total of 28 for FCC materials using either the
    // voce or mts model.
    // They are in order:
-   // dp_eff(1), eq_pl_strain(2), n_evals(3), dev. elastic strain(4-8),
-   // quats(9-12), h(13), gdot(14-25), rel_vol(26), int_eng(27)
-   int num_state_vars = 27;
+   // dp_eff(1), eq_pl_strain(2), flow_str(3), n_evals(4), dev. elastic strain(5-9),
+   // quats(10-13), h(14), gdot(15-26), rel_vol(27), int_eng(28)
+   int num_state_vars = 28;
 
    ecmech::matModelBase* mat_model_base;
    // Could probably do this in a smarter way where we don't create two class objects for
