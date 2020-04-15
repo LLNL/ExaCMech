@@ -211,7 +211,7 @@ namespace ecmech {
                   _eosModel.setParams(paramsThese); parsIt += nParamsEOS;
 
                   {
-                     double vMin, vMax ;
+                     double vMin, vMax;
                      _eosModel.getInfo(vMin, vMax, _e0, _v0);
                   }
                }
@@ -299,10 +299,10 @@ namespace ecmech {
                              double * mtanSDV,
                              const int& nPassed) const override final
             {
-               if ( !_complete ) {
-                  ECMECH_FAIL(__func__,"not complete");
+               if (!_complete) {
+                  ECMECH_FAIL(__func__, "not complete");
                }
-               
+
                RAJA::RangeSegment default_range(0, nPassed);
                // All of the stride lengths are constant within this function
                const unsigned int def_rate_stride = _strides[istride_def_rate];
@@ -410,7 +410,7 @@ namespace ecmech {
 
             __ecmech_hdev__
             void complete() {
-               _bulkRef = _eosModel.getBulkRef() ;
+               _bulkRef = _eosModel.getBulkRef();
                _complete = true;
             };
 
@@ -430,7 +430,6 @@ namespace ecmech {
             std::vector<double>      _rhvVals;
             std::vector<bool>        _rhvPlot;
             std::vector<bool>        _rhvState;
-         
       }; // class matModel
    } // namespace evptn
 } // namespace ecmech

@@ -34,9 +34,9 @@ TEST(ecmech, px_a)
    matModelBase* mmb = dynamic_cast<matModelBase*>(mmodel);
 
 #include "setup_base.h"
-   std::vector<int>           opts;  // none
-   std::vector<std::string>   strs;  // none
-   std::vector<double>         params{ rho0, cvav, tolerance };
+   std::vector<int>           opts; // none
+   std::vector<std::string>   strs; // none
+   std::vector<double>         params { rho0, cvav, tolerance };
 #if KIN_TYPE
 
 #include "setup_elastn.h"
@@ -55,7 +55,7 @@ TEST(ecmech, px_a)
    //
    mmb->complete();
 
-   mmodel->setOutputLevel(outputLevel);    // would not normally do this in a production setting
+   mmodel->setOutputLevel(outputLevel); // would not normally do this in a production setting
 
    std::vector<double> histInit_vec;
    {
@@ -94,26 +94,26 @@ TEST(ecmech, px_a)
    double d_svec_kk_sm[ecmech::nsvp] = { -0.5 * relRate, -0.5 * relRate, 1.0 * relRate,
                                          0.0, 0.0, 0.0,
                                          0.0 };
-   double V_d_svec_kk_sm[ecmech::nsvp*nPassed];
+   double V_d_svec_kk_sm[ecmech::nsvp * nPassed];
    for (int iPassed = 0; iPassed < nPassed; iPassed++) {
       int pOffsetSVP = ecmech::nsvp * iPassed;
       std::copy(d_svec_kk_sm, d_svec_kk_sm + ecmech::nsvp, &(V_d_svec_kk_sm[pOffsetSVP]));
    }
 
-   std::vector<double> w_veccp_sm_vec(ecmech::nwvec*nPassed, 0.0);
+   std::vector<double> w_veccp_sm_vec(ecmech::nwvec * nPassed, 0.0);
    double* V_w_veccp_sm = &(w_veccp_sm_vec[0]);
 
-   std::vector<double> volRatio_vec(ecmech::nvr*nPassed, 1.0);  // not really 1 for all entries, but this works given what happens below
+   std::vector<double> volRatio_vec(ecmech::nvr * nPassed, 1.0); // not really 1 for all entries, but this works given what happens below
    double* V_volRatio = &(volRatio_vec[0]);
 
-   std::vector<double> eInt_vec(ecmech::ne*nPassed, 0.0);
+   std::vector<double> eInt_vec(ecmech::ne * nPassed, 0.0);
    double* V_eInt = &(eInt_vec[0]);
 
-   std::vector<double> stressSvecP_vec(ecmech::nsvp*nPassed, 0.0);
+   std::vector<double> stressSvecP_vec(ecmech::nsvp * nPassed, 0.0);
    double* V_stressSvecP = &(stressSvecP_vec[0]);
 
    double V_tkelv[nPassed];
-   double V_sdd[ecmech::nsdd*nPassed];
+   double V_sdd[ecmech::nsdd * nPassed];
    //
    std::cout << "# time, Axial deviatoric stress : " << std::endl;
    double time = 0.0;
@@ -169,3 +169,4 @@ int main(int argc, char *argv[])
 
    return RUN_ALL_TESTS();
 }
+

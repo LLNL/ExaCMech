@@ -47,7 +47,7 @@ TEST(ecmech, evptn_a)
    SlipGeom slipGeom;
    Kinetics kinetics(slipGeom.nslip);
    ThermoElastN elastN;
-   
+
 #if KIN_TYPE == 2
 #include "setup_slipGeom_HCP.h"
 #include "setup_kin_KMBalD_TTT_HCP_A.h"
@@ -139,7 +139,7 @@ TEST(ecmech, evptn_a)
    double hist[numHist] = { 0.0 };
    std::copy(Cn_quat, Cn_quat + ecmech::qdim, hist + evptn::iHistLbQ);
    std::copy(h_state, h_state + kinetics.nH, hist + evptn::iHistLbH);
-   double* gdot = &(hist[iHistLbGdot]);  // already zerod
+   double* gdot = &(hist[iHistLbGdot]); // already zerod
    // do not bother with other stuff (like e_vecd_n) that is all zero above
    //
    double tkelv;
@@ -182,3 +182,4 @@ int main(int argc, char *argv[])
 
    return RUN_ALL_TESTS();
 }
+

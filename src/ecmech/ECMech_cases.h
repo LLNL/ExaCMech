@@ -8,7 +8,7 @@
 #include "ECMech_slipgeom.h"
 
 namespace ecmech {
-   typedef KineticsKMBalD<true,  false, false, false, 1> Kin_KMBalD_TFF;
+   typedef KineticsKMBalD<true, false, false, false, 1> Kin_KMBalD_TFF;
    typedef KineticsKMBalD<false, false, false, false, 1> Kin_KMBalD_FFF;
 
    typedef KineticsVocePL Kin_FCC_A;

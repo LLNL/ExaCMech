@@ -61,36 +61,36 @@ int main(int argc, char *argv[]){
    // our different use cases...
 
    std::vector<unsigned int> strides;
-   //Deformation rate stride
+   // Deformation rate stride
    strides.push_back(ecmech::nsvp);
-   //Spin rate stride
+   // Spin rate stride
    strides.push_back(ecmech::ndim);
-   //Volume ratio stride
+   // Volume ratio stride
    strides.push_back(ecmech::nvr);
-   //Internal energy stride
+   // Internal energy stride
    strides.push_back(ecmech::ne);
-   //Stress vector stride
+   // Stress vector stride
    strides.push_back(ecmech::nsvp);
-   //History variable stride
+   // History variable stride
    strides.push_back(num_state_vars);
-   //Temperature stride
+   // Temperature stride
    strides.push_back(1);
-   //SDD stride
+   // SDD stride
    strides.push_back(ecmech::nsdd);
 
    // The  Voce model (matModelEvptn_FCC_A) requires the properties file to have the following parameters
    // in this order:
    // Property file start off with:
-   //  initial density, heat capacity at constant volume, and a tolerance param
+   // initial density, heat capacity at constant volume, and a tolerance param
    // Property file then includes elastic constants:
-   //  c11, c12, c44 for cubic crystals
-   // Property file then includes the following: 
-   //  shear modulus, m parameter seen in slip kinetics, gdot_0 term found in slip kinetic eqn,
-   //  hardening coeff. defined for g_crss evolution eqn, initial CRSS value,
-   //  initial CRSS saturation strength, CRSS saturation strength scaling exponent,
-   //  CRSS saturation strength rate scaling coeff, and initial CRSS value
+   // c11, c12, c44 for cubic crystals
    // Property file then includes the following:
-   //  the Grüneisen parameter and reference internal energy
+   // shear modulus, m parameter seen in slip kinetics, gdot_0 term found in slip kinetic eqn,
+   // hardening coeff. defined for g_crss evolution eqn, initial CRSS value,
+   // initial CRSS saturation strength, CRSS saturation strength scaling exponent,
+   // CRSS saturation strength rate scaling coeff, and initial CRSS value
+   // Property file then includes the following:
+   // the Grüneisen parameter and reference internal energy
 
    ecmech::matModelEvptn_FCC_A mat_modela(strides.data(), strides.size());
 
@@ -99,17 +99,17 @@ int main(int argc, char *argv[]){
    // Property file start off with:
    // initial density, heat capacity at constant volume, and a tolerance param
    // Property file then include elastic constants:
-   //  c11, c12, c44 for cubic crystals
-   // Property file then includes the following: 
-   //  reference shear modulus, reference temperature, g_0 * b^3 / \kappa where b is the 
-   //  magnitude of the burger's vector and \kappa is Boltzmann's constant, Peierls barrier,
-   //  MTS curve shape parameter (p), MTS curve shape parameter (q), reference thermally activated
-   //  slip rate, reference drag limited slip rate, drag reference stress, slip resistance const (g_0),
-   //  slip resistance const (s), dislocation density production constant (k_1), 
-   //  dislocation density production constant (k_{2_0}), dislocation density exponential constant,
-   //  reference net slip rate constant, and reference relative dislocation density
+   // c11, c12, c44 for cubic crystals
    // Property file then includes the following:
-   //  the Grüneisen parameter and reference internal energy
+   // reference shear modulus, reference temperature, g_0 * b^3 / \kappa where b is the
+   // magnitude of the burger's vector and \kappa is Boltzmann's constant, Peierls barrier,
+   // MTS curve shape parameter (p), MTS curve shape parameter (q), reference thermally activated
+   // slip rate, reference drag limited slip rate, drag reference stress, slip resistance const (g_0),
+   // slip resistance const (s), dislocation density production constant (k_1),
+   // dislocation density production constant (k_{2_0}), dislocation density exponential constant,
+   // reference net slip rate constant, and reference relative dislocation density
+   // Property file then includes the following:
+   // the Grüneisen parameter and reference internal energy
 
    ecmech::matModelEvptn_FCC_B mat_modelb(strides.data(), strides.size());
 
@@ -382,9 +382,9 @@ int main(int argc, char *argv[]){
    run_time.start();
 
    // For profiling uses
-   //#if defined(RAJA_ENABLE_CUDA)
-   //cudaProfilerStart();
-   //#endif
+   // #if defined(RAJA_ENABLE_CUDA)
+   // cudaProfilerStart();
+   // #endif
 
    for (int i = 0; i < nsteps; i++) {
       // set up our data in the correct format that the material model kernel expects
@@ -486,9 +486,9 @@ int main(int argc, char *argv[]){
    }
 
    // For profiling uses
-   //#if defined(RAJA_ENABLE_CUDA)
-   //cudaProfilerStart();
-   //#endif
+   // #if defined(RAJA_ENABLE_CUDA)
+   // cudaProfilerStart();
+   // #endif
 
    run_time.stop();
 
@@ -515,3 +515,4 @@ int main(int argc, char *argv[]){
 
    return 0;
 }
+

@@ -9,7 +9,6 @@
 #include <vector>
 
 namespace ecmech {
-   
    template<bool isothermal>
    class EosModelConst
    {
@@ -129,7 +128,7 @@ namespace ecmech {
          __ecmech_hdev__
          inline
          double getBulkRef() const {
-            return _bulkMod ;
+            return _bulkMod;
          }
 
       private:
@@ -161,7 +160,7 @@ namespace ecmech {
       eNew = eOld - volInc * pOld;
 
       eos.evalPTDiff(press, tK, bulkNew, dpde, vNew, eNew);
-      dpdv = - bulkNew / vNew ;
+      dpdv = -bulkNew / vNew;
 
       bulkNew = bulkNew + dpde * pOld * vNew;
    }

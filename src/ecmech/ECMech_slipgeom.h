@@ -17,18 +17,17 @@ namespace ecmech {
               int nslip)
    {
       for (int iSlip = 0; iSlip<nslip; ++iSlip) {
-
          const double* mVec = &(mVecs[iSlip * ecmech::ndim]);
          const double* sVec = &(sVecs[iSlip * ecmech::ndim]);
 #ifndef NO_CHECKS
-         if ( fabs(vecsyadotb<ecmech::ndim>(mVec,sVec)) > idp_eps_sqrt ) {
+         if (fabs(vecsyadotb<ecmech::ndim>(mVec, sVec)) > idp_eps_sqrt) {
             ECMECH_FAIL(__func__, "internal error");
          }
 #endif
-         
+
          // CALL vec_x_vect_mn(crys%vecs(:,is),crys%vecm(:,is),crys%t_ref(:,:,is),DIMS,DIMS)
-         double T_ref[ ecmech::ndim*ecmech::ndim ];
-         vecsMaTb<ndim>(T_ref, sVec, mVec );
+         double T_ref[ ecmech::ndim * ecmech::ndim ];
+         vecsMaTb<ndim>(T_ref, sVec, mVec);
 
          double P_vecd[ ecmech::ntvec ];
          double Q_veccp[ ecmech::nwvec ];
@@ -52,8 +51,8 @@ namespace ecmech {
       public:
 
          static const int nslip = 12;
-         static const int nParams = 0 ;
-      
+         static const int nParams = 0;
+
          // constructor and destructor
          __ecmech_hdev__  SlipGeomFCC() {};
          __ecmech_hdev__ ~SlipGeomFCC() {};
@@ -63,7 +62,7 @@ namespace ecmech {
                         )
          {
             std::vector<double>::const_iterator parsIt = params.begin();
-         
+
             // m = (/ sqr3i, sqr3i, sqr3i /)
             // s = (/ zero, sqr2i, -sqr2i /)
             //
@@ -111,11 +110,11 @@ namespace ecmech {
             int paramsStart = params.size();
 
             // params.push_back(); // no parameters
-            
+
             int iParam = params.size() - paramsStart;
             assert(iParam == nParams);
          }
-      
+
          __ecmech_hdev__ inline const double* getP() const { return _P_ref_vec; };
          __ecmech_hdev__ inline const double* getQ() const { return _Q_ref_vec; };
 
@@ -128,23 +127,23 @@ namespace ecmech {
     * HCP with <a> slip on basal, prisamtic, and pyramidal families and type-1 <c+a> pyramidal slip
     *
     * the name aBRYcaY1 traces back to EVP_HCP_a_BRY_ca_Y1 (integer code 32) in the old Fortran coding
-    * 
+    *
     * fix me : the coding below is a hack just to get things going ;
     * it is not the best way of doing things, and modifications should be made with great care
     */
-   class SlipGeomHCPaBRYcaY1 // 
+   class SlipGeomHCPaBRYcaY1
    {
       public:
 
-         //    3  slip systems in basal <a> family
-         //    3  slip systems in prismatic <a> family
-         //    6  slip systems in pyramidal <a> family
-         //   12  slip systems in pyramidal 1 <c+a> family
-         static const int nslip = 3+3+6+12;
-         static const int nParams = 1 ;
-      
+         // 3  slip systems in basal <a> family
+         // 3  slip systems in prismatic <a> family
+         // 6  slip systems in pyramidal <a> family
+         // 12  slip systems in pyramidal 1 <c+a> family
+         static const int nslip = 3 + 3 + 6 + 12;
+         static const int nParams = 1;
+
          // constructor and destructor
-         __ecmech_hdev__  SlipGeomHCPaBRYcaY1() {} ;
+         __ecmech_hdev__  SlipGeomHCPaBRYcaY1() {};
          __ecmech_hdev__ ~SlipGeomHCPaBRYcaY1() {};
 
          __ecmech_host__
@@ -154,91 +153,91 @@ namespace ecmech {
             std::vector<double>::const_iterator parsIt = params.begin();
 
             _cOverA = *parsIt; ++parsIt;
-            
-            //  pyramidal 10-11 1-210 depends on c/a
+
+            // pyramidal 10-11 1-210 depends on c/a
             //
             double m_ya[ecmech::ndim], s_ya[ecmech::ndim];
             {
-               double an[ecmech::nMiller] = { one, zero, -one,  one } ; // plane
-               double ab[ecmech::nMiller] = { one, -two,  one,  zero } ; // direction
+               double an[ecmech::nMiller] = { one, zero, -one, one }; // plane
+               double ab[ecmech::nMiller] = { one, -two, one, zero }; // direction
                //
-               miller_to_orthog_sngl(an, ab, 
+               miller_to_orthog_sngl(an, ab,
                                      m_ya, s_ya,
                                      _cOverA);
             }
-            double m_ya_pp = sqrt(1.0-m_ya[2]*m_ya[2]);
+            double m_ya_pp = sqrt(1.0 - m_ya[2] * m_ya[2]);
 
             // pyramidal 10-11 -1-123 depends on c/a
             //
             double m_y1ca[ecmech::ndim], s_y1ca[ecmech::ndim];
             {
-               double an[ecmech::nMiller] = { one, zero, -one,  one } ; // plane
-               double ab[ecmech::nMiller] = { -one, -one,  two,  three } ; // direction
+               double an[ecmech::nMiller] = { one, zero, -one, one }; // plane
+               double ab[ecmech::nMiller] = { -one, -one, two, three }; // direction
                //
-               miller_to_orthog_sngl(an, ab, 
+               miller_to_orthog_sngl(an, ab,
                                      m_y1ca, s_y1ca,
                                      _cOverA);
             }
-            double m_y1ca_pp = sqrt(1.0-m_y1ca[2]*m_y1ca[2]);
-            double s_y1ca_pp = sqrt(1.0-s_y1ca[2]*s_y1ca[2]);
+            double m_y1ca_pp = sqrt(1.0 - m_y1ca[2] * m_y1ca[2]);
+            double s_y1ca_pp = sqrt(1.0 - s_y1ca[2] * s_y1ca[2]);
 
             const double mVecs[ nslip * ecmech::ndim ] = {
-               zero,  zero,  one,
-               zero,  zero,  one,
-               zero,  zero,  one,
+               zero, zero, one,
+               zero, zero, one,
+               zero, zero, one,
 
-               -halfsqr3,   onehalf,   zero,
-               -halfsqr3,  -onehalf,   zero,
-               zero,  -one,   zero,
+               -halfsqr3, onehalf, zero,
+               -halfsqr3, -onehalf, zero,
+               zero, -one, zero,
 
-               m_ya[0],   m_ya[1],   m_ya[2],
-               m_ya[0],  -m_ya[1],  -m_ya[2],
-               m_ya[0],   m_ya[1],  -m_ya[2],
-              -m_ya[0],   m_ya[1],  -m_ya[2],
-                  zero,   m_ya_pp,  -m_ya[2],
-                  zero,  -m_ya_pp,  -m_ya[2],
+               m_ya[0], m_ya[1], m_ya[2],
+               m_ya[0], -m_ya[1], -m_ya[2],
+               m_ya[0], m_ya[1], -m_ya[2],
+               -m_ya[0], m_ya[1], -m_ya[2],
+               zero, m_ya_pp, -m_ya[2],
+               zero, -m_ya_pp, -m_ya[2],
 
-               m_y1ca[0],   m_y1ca[1],   m_y1ca[2],
-               m_y1ca[0],  -m_y1ca[1],  -m_y1ca[2],
-               m_y1ca[0],   m_y1ca[1],  -m_y1ca[2],
-                    zero,   m_y1ca_pp,  -m_y1ca[2],
-              -m_y1ca[0],   m_y1ca[1],  -m_y1ca[2],
-              -m_y1ca[0],  -m_y1ca[1],  -m_y1ca[2],
-                    zero,  -m_y1ca_pp,  -m_y1ca[2],
-                    zero,   m_y1ca_pp,   m_y1ca[2],
-              -m_y1ca[0],   m_y1ca[1],   m_y1ca[2],
-              -m_y1ca[0],  -m_y1ca[1],   m_y1ca[2],
-               m_y1ca[0],  -m_y1ca[1],   m_y1ca[2],
-                    zero,  -m_y1ca_pp,   m_y1ca[2]
+               m_y1ca[0], m_y1ca[1], m_y1ca[2],
+               m_y1ca[0], -m_y1ca[1], -m_y1ca[2],
+               m_y1ca[0], m_y1ca[1], -m_y1ca[2],
+               zero, m_y1ca_pp, -m_y1ca[2],
+               -m_y1ca[0], m_y1ca[1], -m_y1ca[2],
+               -m_y1ca[0], -m_y1ca[1], -m_y1ca[2],
+               zero, -m_y1ca_pp, -m_y1ca[2],
+               zero, m_y1ca_pp, m_y1ca[2],
+               -m_y1ca[0], m_y1ca[1], m_y1ca[2],
+               -m_y1ca[0], -m_y1ca[1], m_y1ca[2],
+               m_y1ca[0], -m_y1ca[1], m_y1ca[2],
+               zero, -m_y1ca_pp, m_y1ca[2]
             };
             const double sVecs[ nslip * ecmech::ndim ] = {
-               onehalf,   halfsqr3,   zero,
-               onehalf,  -halfsqr3,   zero,
-               one,   zero,   zero,
+               onehalf, halfsqr3, zero,
+               onehalf, -halfsqr3, zero,
+               one, zero, zero,
 
-               onehalf,   halfsqr3,   zero,
-               onehalf,  -halfsqr3,   zero,
-               one,   zero,   zero,
-               
-                s_ya[0],   s_ya[1],   zero,
-                s_ya[0],  -s_ya[1],   zero,               
-               -s_ya[0],  -s_ya[1],   zero,
-               -s_ya[0],   s_ya[1],   zero,
-               -one,  zero,  zero,
-                one,  zero,  zero,
+               onehalf, halfsqr3, zero,
+               onehalf, -halfsqr3, zero,
+               one, zero, zero,
 
-                s_y1ca[0],   s_y1ca[1],   s_y1ca[2], 
-                s_y1ca[0],  -s_y1ca[1],  -s_y1ca[2],
-               -s_y1ca_pp,        zero,  -s_y1ca[2],
-                s_y1ca[0],   s_y1ca[1],  -s_y1ca[2],
-               -s_y1ca[0],   s_y1ca[1],  -s_y1ca[2],
-                s_y1ca_pp,        zero,  -s_y1ca[2],
-               -s_y1ca[0],  -s_y1ca[1],  -s_y1ca[2],
-               -s_y1ca[0],   s_y1ca[1],   s_y1ca[2],
-                s_y1ca_pp,        zero,   s_y1ca[2],
-               -s_y1ca[0],  -s_y1ca[1],   s_y1ca[2],
-               -s_y1ca_pp,        zero,   s_y1ca[2],
-                s_y1ca[0],  -s_y1ca[1],   s_y1ca[2]
+               s_ya[0], s_ya[1], zero,
+               s_ya[0], -s_ya[1], zero,
+               -s_ya[0], -s_ya[1], zero,
+               -s_ya[0], s_ya[1], zero,
+               -one, zero, zero,
+               one, zero, zero,
+
+               s_y1ca[0], s_y1ca[1], s_y1ca[2],
+               s_y1ca[0], -s_y1ca[1], -s_y1ca[2],
+               -s_y1ca_pp, zero, -s_y1ca[2],
+               s_y1ca[0], s_y1ca[1], -s_y1ca[2],
+               -s_y1ca[0], s_y1ca[1], -s_y1ca[2],
+               s_y1ca_pp, zero, -s_y1ca[2],
+               -s_y1ca[0], -s_y1ca[1], -s_y1ca[2],
+               -s_y1ca[0], s_y1ca[1], s_y1ca[2],
+               s_y1ca_pp, zero, s_y1ca[2],
+               -s_y1ca[0], -s_y1ca[1], s_y1ca[2],
+               -s_y1ca_pp, zero, s_y1ca[2],
+               s_y1ca[0], -s_y1ca[1], s_y1ca[2]
             };
 
             fillFromMS(this->_P_ref_vec, this->_Q_ref_vec,
@@ -255,11 +254,11 @@ namespace ecmech {
             int paramsStart = params.size();
 
             params.push_back(_cOverA);
-            
+
             int iParam = params.size() - paramsStart;
             assert(iParam == nParams);
          }
-      
+
          __ecmech_hdev__ inline const double* getP() const { return _P_ref_vec; };
          __ecmech_hdev__ inline const double* getQ() const { return _Q_ref_vec; };
 
@@ -268,7 +267,6 @@ namespace ecmech {
          double _P_ref_vec[ ecmech::ntvec * nslip ];
          double _Q_ref_vec[ ecmech::nwvec * nslip ];
    }; // SlipGeomHCPaBRYcaY1
-   
 } // namespace ecmech
 
 #endif // ECMECH_SLIPGEOM_H

@@ -103,8 +103,8 @@ namespace ecmech
    const int iSvecP = nsvec;
 
    // indexing into array of outputs
-   const int i_sdd_bulk   = 0;
-   const int i_sdd_gmod   = 1;
+   const int i_sdd_bulk = 0;
+   const int i_sdd_gmod = 1;
    const int nsdd = 2;
 
    const int i_ne_total = 0;

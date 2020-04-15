@@ -160,7 +160,7 @@ namespace ecmech {
          {
             vals[0] = h_state[0]; // _gAll
             assert(vals[0] > zero);
-            return vals[0] ;
+            return vals[0];
          }
 
          __ecmech_hdev__

@@ -36,23 +36,23 @@ namespace ecmech {
             bool pOne, // l_p_1
             bool qOne, // l_q_1
             bool perSS,
-            int  nVPer> 
+            int  nVPer>
    class KineticsKMBalD
    {
       public:
          static const int nH = 1;
-         static const int nParams = 8+3*nVPer + 4 + nH;
-         static const int nVals = 2+nVPer+nVPer;
+         static const int nParams = 8 + 3 * nVPer + 4 + nH;
+         static const int nVals = 2 + nVPer + nVPer;
          static const int nEvolVals = 2;
 
          // constructor
          __ecmech_hdev__
          KineticsKMBalD(int nslip) : _nslip(nslip) {
-            if ( perSS ) {
-               assert( _nslip == nVPer );
+            if (perSS) {
+               assert(_nslip == nVPer);
             }
             else {
-               assert( nVPer == 1 );
+               assert(nVPer == 1);
             }
          };
          // deconstructor
@@ -69,19 +69,21 @@ namespace ecmech {
 
             _mu_ref = *parsIt; ++parsIt;
             _tK_ref = *parsIt; ++parsIt;
-            for ( int iVal=0; iVal<nVPer; ++iVal) {
+            for (int iVal = 0; iVal<nVPer; ++iVal) {
                _c_1[iVal] = *parsIt; ++parsIt;
             }
+
             _tau_a = *parsIt; ++parsIt;
             _p = *parsIt; ++parsIt;
             _q = *parsIt; ++parsIt;
             _gam_wo = *parsIt; ++parsIt;
             _gam_ro = *parsIt; ++parsIt;
             _wrD = *parsIt; ++parsIt;
-            for ( int iVal=0; iVal<nVPer; ++iVal) {
+            for (int iVal = 0; iVal<nVPer; ++iVal) {
                _go[iVal] = *parsIt; ++parsIt;
             }
-            for ( int iVal=0; iVal<nVPer; ++iVal) {
+
+            for (int iVal = 0; iVal<nVPer; ++iVal) {
                _s[iVal] = *parsIt; ++parsIt;
             }
 
@@ -94,7 +96,7 @@ namespace ecmech {
 
             // plaw_from_elawRef
             //
-            for ( int iVal=0; iVal<nVPer; ++iVal) {
+            for (int iVal = 0; iVal<nVPer; ++iVal) {
                // pl%xm = getMtsxmEffective(pl, mu_ref, T_ref)
                double xm = one / (two * ((_c_1[iVal] / _tK_ref) * _mu_ref * _p * _q));
                //
@@ -141,15 +143,23 @@ namespace ecmech {
 
             params.push_back(_mu_ref);
             params.push_back(_tK_ref);
-            for ( int iVal=0; iVal<nVPer; ++iVal) { params.push_back(_c_1[iVal]); }
+            for (int iVal = 0; iVal<nVPer; ++iVal) {
+               params.push_back(_c_1[iVal]);
+            }
+
             params.push_back(_tau_a);
             params.push_back(_p);
             params.push_back(_q);
             params.push_back(_gam_wo);
             params.push_back(_gam_ro);
             params.push_back(_wrD);
-            for ( int iVal=0; iVal<nVPer; ++iVal) { params.push_back(_go[iVal]); }
-            for ( int iVal=0; iVal<nVPer; ++iVal) { params.push_back(_s[iVal]); }
+            for (int iVal = 0; iVal<nVPer; ++iVal) {
+               params.push_back(_go[iVal]);
+            }
+
+            for (int iVal = 0; iVal<nVPer; ++iVal) {
+               params.push_back(_s[iVal]);
+            }
 
             //////////////////////////////
             // Kocks-Mecking stuff
@@ -238,30 +248,31 @@ namespace ecmech {
                  ) const
          {
             double const nVPerInv = 1.0 / nVPer;
-            
+
             // double sqrtDDens = exp(onehalf * h_state[0]) ; // this is for h_state[0] storing the log of the dislocation density
             double sqrtDDens = sqrt(h_state[0]);
 
             vals[0] = _gam_wo / sqrtDDens; // _gam_w
             vals[1] = _gam_ro * sqrtDDens * sqrtDDens; // _gam_r
-            
+
             double hdnScale = 0.;
-            for ( int iVal=0; iVal<nVPer; ++iVal) {
+            for (int iVal = 0; iVal<nVPer; ++iVal) {
                double hdnI = _go[iVal] + _s[iVal] * sqrtDDens; // _gAll
                hdnScale += hdnI;
-               vals[2+iVal]       = hdnI;
-               vals[2+nVPer+iVal] = _c_1[iVal] / tK; // _c_t
-               if ( !withGAthermal ) { 
-                  assert(vals[2+iVal] > zero);
+               vals[2 + iVal] = hdnI;
+               vals[2 + nVPer + iVal] = _c_1[iVal] / tK; // _c_t
+               if (!withGAthermal) {
+                  assert(vals[2 + iVal] > zero);
                }
             }
+
             hdnScale = hdnScale * nVPerInv;
 
             if (withGAthermal) {
                assert(_tau_a > 0);
             }
 
-            return hdnScale ;
+            return hdnScale;
          }
 
          __ecmech_hdev__
@@ -373,23 +384,23 @@ namespace ecmech {
 
             double gam_w = vals[0];
             double gam_r = vals[1];
-            double gIn, c_t, xn, xnn, t_max, t_min ;
-            if ( perSS ) {
+            double gIn, c_t, xn, xnn, t_max, t_min;
+            if (perSS) {
                int iVal = iSlip;
-               gIn   = vals[2+iVal];
-               c_t   = vals[2+nVPer+iVal];
-               xn    = _xn[iVal];
-               xnn   = _xnn[iVal];
+               gIn = vals[2 + iVal];
+               c_t = vals[2 + nVPer + iVal];
+               xn = _xn[iVal];
+               xnn = _xnn[iVal];
                t_max = _t_max[iVal];
                t_min = _t_min[iVal];
             }
             else {
                // hopefully the compiler will optimize this nicely
-               const int iVal=0;
-               gIn   = vals[2+iVal];
-               c_t   = vals[2+nVPer+iVal];
-               xn    = _xn[iVal];
-               xnn   = _xnn[iVal];
+               const int iVal = 0;
+               gIn = vals[2 + iVal];
+               c_t = vals[2 + nVPer + iVal];
+               xn = _xn[iVal];
+               xnn = _xnn[iVal];
                t_max = _t_max[iVal];
                t_min = _t_min[iVal];
             }

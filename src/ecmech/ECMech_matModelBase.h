@@ -9,7 +9,6 @@
 #include "ECMech_core.h"
 
 namespace ecmech {
-
    // **************** //
    // Class Definition //
    // **************** //
@@ -18,7 +17,7 @@ namespace ecmech {
    {
       protected:
          bool  _complete;
-         double _rho0, _cvav, _v0, _e0, _bulkRef ;
+         double _rho0, _cvav, _v0, _e0, _bulkRef;
 
          // constructor
          __ecmech_host__
@@ -39,7 +38,7 @@ namespace ecmech {
          virtual void initFromParams(const std::vector<int>& opts,
                                      const std::vector<double>& pars,
                                      const std::vector<std::string>& strs,
-                                     void* call_back = nullptr ) = 0;
+                                     void* call_back = nullptr) = 0;
 
          virtual void getParams(std::vector<int>& opts,
                                 std::vector<double>& pars,
@@ -209,7 +208,6 @@ namespace ecmech {
          __ecmech_hdev__
          virtual bool isComplete() { return _complete; };
    }; // class matModelBase
-   
 } // ecmech namespace
 
 #endif // ECMech_matModelBase_include

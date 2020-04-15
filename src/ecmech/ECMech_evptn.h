@@ -125,7 +125,7 @@ namespace ecmech {
                for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
                   double dTdepsThis = _K_diag[iTvec] * a_V_ri;
                   for (int iP = 0; iP < p; ++iP) {
-                     int ii = ECMECH_NM_INDX(iTvec, iP, ecmech::ntvec, p) ;
+                     int ii = ECMECH_NM_INDX(iTvec, iP, ecmech::ntvec, p);
                      P[ii] = dTdepsThis * A[ii];
                   }
                }
@@ -218,11 +218,11 @@ namespace ecmech {
        *
        * Gruneisen gamma is diag(g_a,g_a,g_b)
        * g_vecd is
-       * 	(g11-g22)/sqrt(2.) = 0
-       * 	(2. * g33 - g11 - g22)/sqrt(6.) = 2.0 * (g_b - g_a) / sqrt(6.)
-       * 	sqrt(2.) * g12 = 0
-       * 	sqrt(2.) * g13 = 0
-       * 	sqrt(2.) * g23 = 0
+       *    (g11-g22)/sqrt(2.) = 0
+       *    (2. * g33 - g11 - g22)/sqrt(6.) = 2.0 * (g_b - g_a) / sqrt(6.)
+       *    sqrt(2.) * g12 = 0
+       *    sqrt(2.) * g13 = 0
+       *    sqrt(2.) * g23 = 0
        * and just store the one non-zero as _g_vecd2
        *
        */
@@ -241,7 +241,7 @@ namespace ecmech {
             inline void setParams(const std::vector<double> & params // const double* const params
                                   ) {
                std::vector<double>::const_iterator parsIt = params.begin();
-               
+
                _c11 = *parsIt; ++parsIt;
                _c12 = *parsIt; ++parsIt;
                _c13 = *parsIt; ++parsIt;
@@ -254,17 +254,16 @@ namespace ecmech {
                assert(iParam == nParams);
 
                _K_diag[0] = _c11 - _c12;
-               _K_diag[1] = _c11 * onethird + _c12 * onethird - fourthirds * _c13 + twothird * _c33 ;
+               _K_diag[1] = _c11 * onethird + _c12 * onethird - fourthirds * _c13 + twothird * _c33;
                _K_diag[2] = _c11 - _c12;
                _K_diag[3] = two * _c44;
                _K_diag[4] = two * _c44;
-               double K_vecds_s = twothird * _c11 + twothird * _c12 + fourthirds * _c13 + _c33 * onethird ;
-               _K_sdax3 = sqr2 * (-_c11-_c12+_c13+_c33) * onethird ;
+               double K_vecds_s = twothird * _c11 + twothird * _c12 + fourthirds * _c13 + _c33 * onethird;
+               _K_sdax3 = sqr2 * (-_c11 - _c12 + _c13 + _c33) * onethird;
                _K_bulkMod = onethird * K_vecds_s;
                //
                // _K_gmod below ignores the _K_sdax3 contribution, but it is just meant to be approximate anyway
                _K_gmod = 0.5 * 0.2 * vecsssum<ecmech::ntvec>(_K_diag); // 0.5 * (average of _K_diag entries)
-               
             }
 
             __ecmech_host__
@@ -301,16 +300,15 @@ namespace ecmech {
                T_vecds[iSvecS] = Ts_bulk; // _K_vecds_s * Ee_vecds(SVEC)
 
                T_vecds[iTvecHex] += _K_sdax3 * Ee_vecds[iSvecS];
-               T_vecds[iSvecS]   += _K_sdax3 * Ee_vecds[iTvecHex];
+               T_vecds[iSvecS] += _K_sdax3 * Ee_vecds[iTvecHex];
 
                // anisotropic Gruneisen contribution; pressure part of Gruneisen tensor contribution should already be in p_EOS
-               //  CALL eos_eval_e_Csdev(Cauchy_eos_vecd, eVref, J, &
-               //     & i_eos_model, eos_const)
+               // CALL eos_eval_e_Csdev(Cauchy_eos_vecd, eVref, J, &
+               // & i_eos_model, eos_const)
                // -(Gamma' + a' * mu) * eVref // but do not do a'*mu part
                // Cauchy_eos_vecd(:) = -eos_const(4:8) * eVref
                // T_vecds(1:TVEC) = T_vecds(1:TVEC) + J * Cauchy_eos_vecd(:)
-               T_vecds[iTvecHex] += J * (-_g_vecd2 * eVref) ;
-               
+               T_vecds[iTvecHex] += J * (-_g_vecd2 * eVref);
             }
 
             /**
@@ -325,7 +323,7 @@ namespace ecmech {
                for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
                   double dTdepsThis = _K_diag[iTvec] * a_V_ri;
                   for (int iP = 0; iP < p; ++iP) {
-                     int ii = ECMECH_NM_INDX(iTvec, iP, ecmech::ntvec, p) ;
+                     int ii = ECMECH_NM_INDX(iTvec, iP, ecmech::ntvec, p);
                      P[ii] = dTdepsThis * A[ii];
                   }
                }
@@ -349,7 +347,6 @@ namespace ecmech {
                                double detVi,
                                double a_V_ri
                                ) const {
-
                for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
                   double vFact = detVi * a_V_ri * _K_diag[iTvec];
                   for (int jTvec = 0; jTvec < ecmech::ntvec; ++jTvec) {
@@ -360,7 +357,7 @@ namespace ecmech {
                // M6[iSvecS,:] = dsigC_de[iSvecS, iTvecHex] * A[iTvecHex,:] // for hexagonal specifically
                // dsigC_de[iTvecHex, iSvecS] does not end up getting used
                {
-                  double vFact = detVi * a_V_ri * _K_sdax3 ;
+                  double vFact = detVi * a_V_ri * _K_sdax3;
                   for (int jTvec = 0; jTvec < ecmech::ntvec; ++jTvec) {
                      M6[ECMECH_NN_INDX(iSvecS, jTvec, ecmech::nsvec)] = vFact * A[ECMECH_NN_INDX(iTvecHex, jTvec, ecmech::ntvec)];
                   }
@@ -369,7 +366,6 @@ namespace ecmech {
                for (int iSvec = 0; iSvec < ecmech::nsvec; ++iSvec) {
                   M6[ECMECH_NN_INDX(iSvec, iSvecS, ecmech::nsvec)] = 0.0;
                }
-
             }
 
             __ecmech_hdev__
@@ -395,8 +391,8 @@ namespace ecmech {
 
          private:
             double _c11, _c12, _c13, _c33, _c44;
-            double _K_sdax3 ;
-            double _g_vecd2 ;
+            double _K_sdax3;
+            double _g_vecd2;
             double _K_diag[ecmech::ntvec];
             double _K_bulkMod, _K_gmod;
             static const int iTvecHex = 1;
@@ -712,9 +708,9 @@ namespace ecmech {
                   //
                   //
                   // derivatives with respect to lattice orientation changes
-                  double dC_quat_dxi_T[ ecmech::nwvec*ecmech::qdim ];
-                  double dDsm_dxi[ ecmech::ntvec*ecmech::nwvec ];
-                  double dWsm_dxi[ ecmech::nwvec*ecmech::nwvec ];
+                  double dC_quat_dxi_T[ ecmech::nwvec * ecmech::qdim ];
+                  double dDsm_dxi[ ecmech::ntvec * ecmech::nwvec ];
+                  double dWsm_dxi[ ecmech::nwvec * ecmech::nwvec ];
                   eval_d_dxi_impl_quat(dC_quat_dxi_T, dDsm_dxi, dWsm_dxi,
                                        _d_vecd_sm, _w_veccp_sm,
                                        xi_f, _Cn_quat, C_matx, C_quat);
@@ -856,7 +852,7 @@ namespace ecmech {
                      // temp_M6I = MATMUL(dsigClat_def(:,1:TVEC), de_dI(:,:))
                      {
                         // TODO : get rid of the need for this memory copy (with transpose) into de_dI
-                        double de_dI[ ecmech::ntvec*nRHS ]; // nRHS=ecmech::ntvec, but put nRHS in here for clarity, and thus use ECMECH_NM_INDX instead of ECMECH_NN_INDX
+                        double de_dI[ ecmech::ntvec * nRHS ]; // nRHS=ecmech::ntvec, but put nRHS in here for clarity, and thus use ECMECH_NM_INDX instead of ECMECH_NN_INDX
                         for (int iTvec = 0; iTvec<ecmech::ntvec; ++iTvec) {
                            for (int jTvec = 0; jTvec<nRHS; ++jTvec) {
                               de_dI[ECMECH_NM_INDX(iTvec, jTvec, ecmech::ntvec,
@@ -961,7 +957,7 @@ namespace ecmech {
             double _dt, _detV, _eVref, _p_EOS, _tK, _a_V;
             double _dt_ri, _a_V_ri, _detV_ri;
 
-            double _hdn_scale ; 
+            double _hdn_scale;
             double _epsdot_scale_inv, _rotincr_scale_inv;
 
             double _gdot[SlipGeom::nslip]; // crys%tmp1_slp
@@ -1168,6 +1164,7 @@ namespace ecmech {
             for (int i_hstate = 0; i_hstate < Kinetics::nH; i_hstate++) {
                h_state[i_hstate] = h_state_u[i_hstate];
             }
+
             //
             {
                const double* gdot_u = prob.getGdot();
@@ -1185,7 +1182,7 @@ namespace ecmech {
                if (dEff > idp_tiny_sqrt) {
                   flow_strength = prob.getDisRate() / dEff;
                }
-               hist[iHistA_flowStr] = flow_strength ;
+               hist[iHistA_flowStr] = flow_strength;
             }
             //
             hist[iHistA_nFEval] = solver.getNFEvals(); // does _not_ include updateH iterations
@@ -1193,7 +1190,6 @@ namespace ecmech {
             // get Cauchy stress
             //
             prob.elastNEtoC(Cstr_vecds_lat, e_vecd_u);
-
          }
 
          double C_matx[ecmech::ndim * ecmech::ndim];
@@ -1240,7 +1236,6 @@ namespace ecmech {
 #ifdef DEBUG
          assert(ecmech::ne == 1);
 #endif
-         
       } // getResponseSngl
    } // namespace evptn
 } // namespace ecmech
