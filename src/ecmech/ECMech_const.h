@@ -70,7 +70,7 @@ namespace ecmech
 {
    // We're going to use this to determine what RAJA code to run for our
    // kernels.
-   enum class Accelerator { CPU, CUDA, OPENMP };
+   enum class VectorizationStrategy { CPU, CUDA, OPENMP };
 
    const int nsvp = 7;
    const int ndim = 3;

@@ -13,7 +13,7 @@ using namespace ecmech;
 // Here we're going to initialize all of the data that's going inside of
 // of our material update function call.
 // This function is used to initialize the data originally
-void init_data(ecmech::Accelerator accel, const double* ori, const ecmech::matModelBase* mat_model_base,
+void init_data(ecmech::VectorizationStrategy accel, const double* ori, const ecmech::matModelBase* mat_model_base,
                const int nqpts, const int num_hardness,
                const int num_slip, const int ind_gdot,
                const int state_var_vdim, double* state_vars);
@@ -24,7 +24,7 @@ void init_data(ecmech::Accelerator accel, const double* ori, const ecmech::matMo
 void setup_vgrad(double* vgrad, const int nqpts);
 
 // This function/kernel is used to set-up the problem at each time step
-void setup_data(ecmech::Accelerator accel, const int nqpts, const int nstatev,
+void setup_data(ecmech::VectorizationStrategy accel, const int nqpts, const int nstatev,
                 const double dt, const double* vel_grad_array,
                 const double* stress_array, const double* state_vars_array,
                 double* stress_svec_p_array, double* d_svec_p_array,
