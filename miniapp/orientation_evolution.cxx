@@ -90,7 +90,7 @@ int main(int argc, char *argv[]){
    // initial CRSS saturation strength, CRSS saturation strength scaling exponent,
    // CRSS saturation strength rate scaling coeff, and initial CRSS value
    // Property file then includes the following:
-   // the Grüneisen parameter and reference internal energy
+   // the Gruneisen parameter and reference internal energy
 
    ecmech::matModelEvptn_FCC_A mat_modela(strides.data(), strides.size());
 
@@ -109,7 +109,7 @@ int main(int argc, char *argv[]){
    // dislocation density production constant (k_{2_0}), dislocation density exponential constant,
    // reference net slip rate constant, and reference relative dislocation density
    // Property file then includes the following:
-   // the Grüneisen parameter and reference internal energy
+   // the Gruneisen parameter and reference internal energy
 
    strides.at(5) = num_state_vars_mts;
 
