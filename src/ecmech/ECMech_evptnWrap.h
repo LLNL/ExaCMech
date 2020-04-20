@@ -62,13 +62,15 @@ namespace ecmech {
 
                if (stride_len != ecmech::nstride) {
 #ifdef __cuda_host_only__
+                  // the order here needs to be consistent with ISTRIDE_* macros in ECMECH_const.h
                   std::ostringstream os;
-                  os << "Stride vector needs to have a size of 8 with strides of at least: " <<
+                  os << "Stride vector needs to have a size of " << ecmech::nstride << " with strides of at least: " <<
                      ecmech::nsvp << ", " << ecmech::ndim << ", " << ecmech::nvr << ", " <<
-                     ecmech::ne << ", " << ecmech::nsvp << ", " << nhist << ", 1, " << ecmech::nsdd;
+                     ecmech::ne << ", " << ecmech::nsvp << ", " << nhist << ", 1, " << ecmech::nsdd
+                     ;
                   ECMECH_FAIL(__func__, os.str());
 #else
-                  ECMECH_FAIL(__func__, "Stride vector needs to have a size of 8 with strides");
+                  ECMECH_FAIL(__func__, "Stride vector is the wrong size");
 #endif
                }
                // Need to make sure all of the strides provided at least make sense
@@ -299,8 +301,8 @@ namespace ecmech {
                              double * mtanSDV,
                              const int& nPassed) const override final
             {
-               if (!_complete) {
-                  ECMECH_FAIL(__func__, "not complete");
+               if ( !_complete ) {
+                  ECMECH_FAIL(__func__,"not complete");
                }
 
                RAJA::RangeSegment default_range(0, nPassed);
@@ -317,10 +319,7 @@ namespace ecmech {
 #if defined(RAJA_ENABLE_OPENMP)
                if (_accel == ecmech::Accelerator::OPENMP) {
                   RAJA::forall<RAJA::omp_parallel_for_exec>(default_range, [ = ] (int i) {
-                  double *mtanSDThis = nullptr;
-                  if (mtanSDV != nullptr) {
-                     mtanSDThis = &mtanSDV[ecmech::nsvec2 * i];
-                  }
+                  double *mtanSDThis       = ( mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr );
                   getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>(_slipGeom, _kinetics, _elastN, _eosModel,
                                                                               dt,
                                                                               _tolerance,
@@ -340,10 +339,7 @@ namespace ecmech {
 #if defined(RAJA_ENABLE_CUDA)
                if (_accel == ecmech::Accelerator::CUDA) {
                   RAJA::forall<RAJA::cuda_exec<RAJA_CUDA_THREADS> >(default_range, [ = ] RAJA_DEVICE(int i) {
-                  double *mtanSDThis = nullptr;
-                  if (mtanSDV != nullptr) {
-                     mtanSDThis = &mtanSDV[ecmech::nsvec2 * i];
-                  }
+                  double *mtanSDThis       = ( mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr );
                   getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>(_slipGeom, _kinetics, _elastN, _eosModel,
                                                                               dt,
                                                                               _tolerance,
@@ -362,10 +358,7 @@ namespace ecmech {
 #endif
                if (_accel == ecmech::Accelerator::CPU) {
                   RAJA::forall<RAJA::loop_exec>(default_range, [ = ] (int i) {
-                  double *mtanSDThis = nullptr;
-                  if (mtanSDV != nullptr) {
-                     mtanSDThis = &mtanSDV[ecmech::nsvec2 * i];
-                  }
+                  double *mtanSDThis       = ( mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr );
                   getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>(_slipGeom, _kinetics, _elastN, _eosModel,
                                                                               dt,
                                                                               _tolerance,
@@ -386,7 +379,7 @@ namespace ecmech {
             using matModelBase::getHistInfo;
             __ecmech_host__
             void getHistInfo(std::vector<std::string> & names,
-                             std::vector<double>       & vals,
+                             std::vector<double>      & vals,
                              std::vector<bool>        & plot,
                              std::vector<bool>        & state) const override {
                if (_rhvNames.size() != numHist) {

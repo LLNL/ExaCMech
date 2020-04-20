@@ -35,7 +35,7 @@ set(ECMECH_DEPENDS)
 ecmech_fill_depends_list(LIST_NAME  ECMECH_DEPENDS
                         DEPENDS_ON raja snls cuda openmp)
 
-message("ECMECH_DEPENDS: ${ECMECH_DEPENDS}")
+message("-- ECMECH_DEPENDS: ${ECMECH_DEPENDS}")
 
 #------------------------------------------------------------------------------
 # Defines

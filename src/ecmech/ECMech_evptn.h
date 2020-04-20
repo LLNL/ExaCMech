@@ -1062,9 +1062,9 @@ namespace ecmech {
          //
          double tkelvNew;
          {
-            double dpde, dpdv;
+            double dpde, dpdv, dtde;
             updateSimple<EosModel>(eos, pEOS, tkelvNew, eNew, bulkNew,
-                                   dpde, dpdv,
+                                   dpde, dpdv, dtde,
                                    volRatio[1], volRatio[3],
                                    eOld, pOld);
          }

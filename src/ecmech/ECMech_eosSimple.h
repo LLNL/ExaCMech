@@ -9,6 +9,7 @@
 #include <vector>
 
 namespace ecmech {
+   
    template<bool isothermal>
    class EosModelConst
    {
@@ -95,6 +96,7 @@ namespace ecmech {
                          double &tK,
                          double &bulkNew,
                          double &dpde,
+                         double &dtde,
                          double  v,
                          double  e) const {
             double eta = one / v;
@@ -104,11 +106,13 @@ namespace ecmech {
                p = _bulkMod * mu;
                tK = _tK0;
                dpde = zero;
+               dtde = 1e-8 * _dtde; // instead of zero, to prevent divide-by-zero elsewhere
             }
             else {
                p = _bulkMod * mu + _gamma * e;
                tK = _tK0 + e * _dtde;
                dpde = _gamma;
+               dtde = _dtde ;
             }
             bulkNew = _bulkMod * eta;
          }
@@ -131,6 +135,12 @@ namespace ecmech {
             return _bulkMod;
          }
 
+         __ecmech_hdev__
+         inline
+         double getRho0() const {
+            return _rho0;
+         }
+
       private:
 
          // parameters
@@ -150,6 +160,7 @@ namespace ecmech {
                      double &bulkNew,
                      double &dpde,
                      double &dpdv,
+                     double &dtde,
                      double  vNew,
                      double  volInc,
                      double  eOld,
@@ -159,7 +170,7 @@ namespace ecmech {
 
       eNew = eOld - volInc * pOld;
 
-      eos.evalPTDiff(press, tK, bulkNew, dpde, vNew, eNew);
+      eos.evalPTDiff(press, tK, bulkNew, dpde, dtde, vNew, eNew);
       dpdv = -bulkNew / vNew;
 
       bulkNew = bulkNew + dpde * pOld * vNew;
