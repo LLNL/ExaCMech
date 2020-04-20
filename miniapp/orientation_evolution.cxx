@@ -142,6 +142,9 @@ int main(int argc, char *argv[]){
    // We're currently doing this to ensure that memory used during the set-up is freed
    // early on before we start doing all of our computations. We could probably keep everything
    // in scope without running into memory issues.
+   //
+   int num_state_vars;
+   //
    {
       // All the input arguments
       std::string option_file(argv[1]);
@@ -293,7 +296,6 @@ int main(int argc, char *argv[]){
       }
 
       std::cout << "\nAbout to initialize class" << std::endl;
-      int num_state_vars;
       // Initialize our base class using the appropriate model
       if (mat_model_str.compare("voce") == 0) {
          num_state_vars = num_state_vars_voce;
