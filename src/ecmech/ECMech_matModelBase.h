@@ -29,7 +29,7 @@ namespace ecmech {
             _v0(-1.0),
             _e0(-1.0),
             _bulkRef(-1.0),
-            _accel(ecmech::VectorizationStrategy::CUDA)
+            _accel(ecmech::VectorizationStrategy::CPU)
          {};
 
       public:
