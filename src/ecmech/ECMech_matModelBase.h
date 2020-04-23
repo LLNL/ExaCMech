@@ -18,6 +18,7 @@ namespace ecmech {
       protected:
          bool  _complete;
          double _rho0, _cvav, _v0, _e0, _bulkRef;
+         ecmech::ExecutionStrategy _accel;
 
          // constructor
          __ecmech_host__
@@ -27,7 +28,8 @@ namespace ecmech {
             _cvav(-1.0),
             _v0(-1.0),
             _e0(-1.0),
-            _bulkRef(-1.0)
+            _bulkRef(-1.0),
+            _accel(ecmech::ExecutionStrategy::CPU)
          {};
 
       public:
@@ -176,11 +178,12 @@ namespace ecmech {
 
          /**
           *  @brief
-          *  Set the accelerator to be used for getResponse
-          *  The available options are CPU, OPENMP, and CUDA.
+          *  Set the accelerator to be used for getResponse.
           */
          __ecmech_host__
-         virtual void setAccelerator(ecmech::Accelerator accel) = 0;
+         virtual void setExecutionStrategy(ecmech::ExecutionStrategy accel)  {
+            _accel = accel;
+         };
 
          /**
           * @brief Get the reference density

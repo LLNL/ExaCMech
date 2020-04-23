@@ -37,8 +37,7 @@ namespace ecmech {
             matModel()
                : matModelBase(),
                _kinetics(SlipGeom::nslip),
-               _outputLevel(0),
-               _accel(ecmech::Accelerator::CPU)
+               _outputLevel(0)
             {
                // Should the tangent stiff matrix be included in these stride calculations?
                _strides[istride_def_rate] = ecmech::nsvp;
@@ -316,64 +315,71 @@ namespace ecmech {
                const unsigned int tkelv_stride = _strides[istride_tkelv];
                const unsigned int sdd_stride = _strides[istride_sdd];
 
+               switch ( _accel ) {
 #if defined(RAJA_ENABLE_OPENMP)
-               if (_accel == ecmech::Accelerator::OPENMP) {
-                  RAJA::forall<RAJA::omp_parallel_for_exec>(default_range, [ = ] (int i) {
-                  double *mtanSDThis       = ( mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr );
-                  getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>(_slipGeom, _kinetics, _elastN, _eosModel,
-                                                                              dt,
-                                                                              _tolerance,
-                                                                              &defRateV[def_rate_stride * i],
-                                                                              &spinV[spin_v_stride * i],
-                                                                              &volRatioV[vol_ratio_stride * i],
-                                                                              &eIntV[int_eng_stride * i],
-                                                                              &stressSvecPV[stress_stride * i],
-                                                                              &histV[history_stride * i],
-                                                                              tkelvV[tkelv_stride * i],
-                                                                              &sddV[sdd_stride * i],
-                                                                              mtanSDThis,
-                                                                              _outputLevel);
-               });
-               }
+                  case ecmech::ExecutionStrategy::OPENMP :
+                     RAJA::forall<RAJA::omp_parallel_for_exec>(default_range, [ = ] (int i) {
+                           double *mtanSDThis       = ( mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr );
+                           getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
+                              (_slipGeom, _kinetics, _elastN, _eosModel,
+                               dt,
+                               _tolerance,
+                               &defRateV[def_rate_stride * i],
+                               &spinV[spin_v_stride * i],
+                               &volRatioV[vol_ratio_stride * i],
+                               &eIntV[int_eng_stride * i],
+                               &stressSvecPV[stress_stride * i],
+                               &histV[history_stride * i],
+                               tkelvV[tkelv_stride * i],
+                               &sddV[sdd_stride * i],
+                               mtanSDThis,
+                               _outputLevel);
+                        });
+                     break;
 #endif
 #if defined(RAJA_ENABLE_CUDA)
-               if (_accel == ecmech::Accelerator::CUDA) {
-                  RAJA::forall<RAJA::cuda_exec<RAJA_CUDA_THREADS> >(default_range, [ = ] RAJA_DEVICE(int i) {
-                  double *mtanSDThis       = ( mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr );
-                  getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>(_slipGeom, _kinetics, _elastN, _eosModel,
-                                                                              dt,
-                                                                              _tolerance,
-                                                                              &defRateV[def_rate_stride * i],
-                                                                              &spinV[spin_v_stride * i],
-                                                                              &volRatioV[vol_ratio_stride * i],
-                                                                              &eIntV[int_eng_stride * i],
-                                                                              &stressSvecPV[stress_stride * i],
-                                                                              &histV[history_stride * i],
-                                                                              tkelvV[tkelv_stride * i],
-                                                                              &sddV[sdd_stride * i],
-                                                                              mtanSDThis,
-                                                                              _outputLevel);
-               });
-               }
+                  case ecmech::ExecutionStrategy::CUDA :
+                     RAJA::forall<RAJA::cuda_exec<RAJA_CUDA_THREADS> >(default_range, [ = ] RAJA_DEVICE(int i) {
+                           double *mtanSDThis       = ( mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr );
+                           getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
+                              (_slipGeom, _kinetics, _elastN, _eosModel,
+                               dt,
+                               _tolerance,
+                               &defRateV[def_rate_stride * i],
+                               &spinV[spin_v_stride * i],
+                               &volRatioV[vol_ratio_stride * i],
+                               &eIntV[int_eng_stride * i],
+                               &stressSvecPV[stress_stride * i],
+                               &histV[history_stride * i],
+                               tkelvV[tkelv_stride * i],
+                               &sddV[sdd_stride * i],
+                               mtanSDThis,
+                               _outputLevel);
+                        });
+                     break;
 #endif
-               if (_accel == ecmech::Accelerator::CPU) {
-                  RAJA::forall<RAJA::loop_exec>(default_range, [ = ] (int i) {
-                  double *mtanSDThis       = ( mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr );
-                  getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>(_slipGeom, _kinetics, _elastN, _eosModel,
-                                                                              dt,
-                                                                              _tolerance,
-                                                                              &defRateV[def_rate_stride * i],
-                                                                              &spinV[spin_v_stride * i],
-                                                                              &volRatioV[vol_ratio_stride * i],
-                                                                              &eIntV[int_eng_stride * i],
-                                                                              &stressSvecPV[stress_stride * i],
-                                                                              &histV[history_stride * i],
-                                                                              tkelvV[tkelv_stride * i],
-                                                                              &sddV[sdd_stride * i],
-                                                                              mtanSDThis,
-                                                                              _outputLevel);
-               });
-               }
+                  case ecmech::ExecutionStrategy::CPU :
+                  default : // fall through to CPU if other options are not available
+                     RAJA::forall<RAJA::loop_exec>(default_range, [ = ] (int i) {
+                           double *mtanSDThis       = ( mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr );
+                           getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
+                              (_slipGeom, _kinetics, _elastN, _eosModel,
+                               dt,
+                               _tolerance,
+                               &defRateV[def_rate_stride * i],
+                               &spinV[spin_v_stride * i],
+                               &volRatioV[vol_ratio_stride * i],
+                               &eIntV[int_eng_stride * i],
+                               &stressSvecPV[stress_stride * i],
+                               &histV[history_stride * i],
+                               tkelvV[tkelv_stride * i],
+                               &sddV[sdd_stride * i],
+                               mtanSDThis,
+                               _outputLevel);
+                        });
+                     break;
+               } // switch _accel
+
             }; // End of getResponse
 
             using matModelBase::getHistInfo;
@@ -396,11 +402,6 @@ namespace ecmech {
                return numHist;
             };
 
-            __ecmech_host__
-            void setAccelerator(ecmech::Accelerator accel) override final {
-               _accel = accel;
-            };
-
             __ecmech_hdev__
             void complete() {
                _bulkRef = _eosModel.getBulkRef();
@@ -417,7 +418,6 @@ namespace ecmech {
             double _tolerance;
             int _outputLevel;
             unsigned int _strides[ecmech::nstride];
-            ecmech::Accelerator _accel;
 
             std::vector<std::string> _rhvNames;
             std::vector<double>      _rhvVals;
