@@ -317,7 +317,7 @@ namespace ecmech {
 
                switch ( _accel ) {
 #if defined(RAJA_ENABLE_OPENMP)
-                  case ecmech::VectorizationStrategy::OPENMP :
+                  case ecmech::ExecutionStrategy::OPENMP :
                      RAJA::forall<RAJA::omp_parallel_for_exec>(default_range, [ = ] (int i) {
                            double *mtanSDThis       = ( mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr );
                            getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
@@ -338,7 +338,7 @@ namespace ecmech {
                      break;
 #endif
 #if defined(RAJA_ENABLE_CUDA)
-                  case ecmech::VectorizationStrategy::CUDA :
+                  case ecmech::ExecutionStrategy::CUDA :
                      RAJA::forall<RAJA::cuda_exec<RAJA_CUDA_THREADS> >(default_range, [ = ] RAJA_DEVICE(int i) {
                            double *mtanSDThis       = ( mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr );
                            getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
@@ -358,7 +358,7 @@ namespace ecmech {
                         });
                      break;
 #endif
-                  case ecmech::VectorizationStrategy::CPU :
+                  case ecmech::ExecutionStrategy::CPU :
                   default : // fall through to CPU if other options are not available
                      RAJA::forall<RAJA::loop_exec>(default_range, [ = ] (int i) {
                            double *mtanSDThis       = ( mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr );

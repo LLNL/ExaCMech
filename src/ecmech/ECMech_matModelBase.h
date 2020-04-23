@@ -18,7 +18,7 @@ namespace ecmech {
       protected:
          bool  _complete;
          double _rho0, _cvav, _v0, _e0, _bulkRef;
-         ecmech::VectorizationStrategy _accel;
+         ecmech::ExecutionStrategy _accel;
 
          // constructor
          __ecmech_host__
@@ -29,7 +29,7 @@ namespace ecmech {
             _v0(-1.0),
             _e0(-1.0),
             _bulkRef(-1.0),
-            _accel(ecmech::VectorizationStrategy::CPU)
+            _accel(ecmech::ExecutionStrategy::CPU)
          {};
 
       public:
@@ -181,7 +181,7 @@ namespace ecmech {
           *  Set the accelerator to be used for getResponse.
           */
          __ecmech_host__
-         virtual void setVectorizationStrategy(ecmech::VectorizationStrategy accel)  {
+         virtual void setExecutionStrategy(ecmech::ExecutionStrategy accel)  {
             _accel = accel;
          };
 

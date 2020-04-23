@@ -127,13 +127,13 @@ namespace {
 
 // This will then be the final function/kernel to save off all the data at
 // each time step.
-void retrieve_data(ecmech::VectorizationStrategy accel, const int nqpts, const int nstatev,
+void retrieve_data(ecmech::ExecutionStrategy accel, const int nqpts, const int nstatev,
                    const double* stress_svec_p_array, const double* vol_ratio_array,
                    const double* eng_int_array, double* state_vars_array,
                    double* stress_array){
    switch ( accel ) {
 #if defined(RAJA_ENABLE_OPENMP)
-   case ecmech::VectorizationStrategy::OPENMP :
+   case ecmech::ExecutionStrategy::OPENMP :
    {
       retrieve_data_openmp(nqpts, nstatev, stress_svec_p_array, vol_ratio_array,
                            eng_int_array, state_vars_array, stress_array);
@@ -141,14 +141,14 @@ void retrieve_data(ecmech::VectorizationStrategy accel, const int nqpts, const i
    break;
 #endif
 #if defined(RAJA_ENABLE_CUDA)
-   case ecmech::VectorizationStrategy::CUDA :
+   case ecmech::ExecutionStrategy::CUDA :
    {
       retrieve_data_cuda(nqpts, nstatev, stress_svec_p_array, vol_ratio_array,
                          eng_int_array, state_vars_array, stress_array);
    }
    break;
 #endif
-   case ecmech::VectorizationStrategy::CPU :
+   case ecmech::ExecutionStrategy::CPU :
    default :
    {
       retrieve_data_cpu(nqpts, nstatev, stress_svec_p_array, vol_ratio_array,

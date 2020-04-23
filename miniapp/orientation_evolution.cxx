@@ -115,7 +115,7 @@ int main(int argc, char *argv[]){
 
    ecmech::matModelEvptn_FCC_B mat_modelb(strides.data(), strides.size());
 
-   ecmech::VectorizationStrategy class_device;
+   ecmech::ExecutionStrategy class_device;
 
    // Data structures needed for each time step
    // We really don't need to allocate these constantly, so we should just do it
@@ -268,16 +268,16 @@ int main(int argc, char *argv[]){
       // which values are available.
 
       if (device_type.compare("CPU") == 0) {
-         class_device = ecmech::VectorizationStrategy::CPU;
+         class_device = ecmech::ExecutionStrategy::CPU;
       }
 #if defined(RAJA_ENABLE_OPENMP)
       else if (device_type.compare("OpenMP") == 0) {
-         class_device = ecmech::VectorizationStrategy::OPENMP;
+         class_device = ecmech::ExecutionStrategy::OPENMP;
       }
 #endif
 #if defined(RAJA_ENABLE_CUDA)
       else if (device_type.compare("CUDA") == 0) {
-         class_device = ecmech::VectorizationStrategy::CUDA;
+         class_device = ecmech::ExecutionStrategy::CUDA;
       }
 #endif
       else {
@@ -316,7 +316,7 @@ int main(int argc, char *argv[]){
          // We really shouldn't see this change over time at least for our applications.
          mat_modela.initFromParams(opts, params, strs);
          mat_modela.complete();
-         mat_modela.setVectorizationStrategy(class_device);
+         mat_modela.setExecutionStrategy(class_device);
          mat_model_base = dynamic_cast<matModelBase*>(&mat_modela);
       }
       else if (mat_model_str.compare("mts") == 0) {
@@ -338,7 +338,7 @@ int main(int argc, char *argv[]){
          // We really shouldn't see this change over time at least for our applications.
          mat_modelb.initFromParams(opts, params, strs);
          mat_modelb.complete();
-         mat_modela.setVectorizationStrategy(class_device);
+         mat_modela.setExecutionStrategy(class_device);
          mat_model_base = dynamic_cast<matModelBase*>(&mat_modelb);
       }
       else {
@@ -410,7 +410,7 @@ int main(int argc, char *argv[]){
 
       switch ( class_device ) {
       default :
-      case ecmech::VectorizationStrategy::CPU :
+      case ecmech::ExecutionStrategy::CPU :
       {
          if (NEVALS_COUNTS) {
             RAJA::ReduceSum<RAJA::seq_reduce, double> seq_sum(0.0);
@@ -436,7 +436,7 @@ int main(int argc, char *argv[]){
       }
       break;
 #if defined(RAJA_ENABLE_OPENMP)
-      case ecmech::VectorizationStrategy::OPENMP :
+      case ecmech::ExecutionStrategy::OPENMP :
       {   
          if (NEVALS_COUNTS) {
             RAJA::ReduceSum<RAJA::omp_reduce_ordered, double> omp_sum(0.0);
@@ -463,7 +463,7 @@ int main(int argc, char *argv[]){
       break;
 #endif
 #if defined(RAJA_ENABLE_CUDA)
-      case ecmech::VectorizationStrategy::CUDA :
+      case ecmech::ExecutionStrategy::CUDA :
       {
          if (NEVALS_COUNTS) {
             RAJA::ReduceSum<RAJA::cuda_reduce, double> cuda_sum(0.0);

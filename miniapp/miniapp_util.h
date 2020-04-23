@@ -11,7 +11,7 @@
 // kernels.
 // The HIP backend won't be able to run on AMD GPGPUs
 // until device function pointers are supported.
-enum class VectorizationStrategy { CPU, CUDA, OPENMP };
+enum class ExecutionStrategy { CPU, CUDA, OPENMP };
 
 // The below is a simple memory manager taken directly from the RAJA repo and as such
 // the necessary copyright/LICENSE information is provided towards the bottom of this file

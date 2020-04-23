@@ -388,7 +388,7 @@ namespace {
 // Here we're going to initialize all of the data that's going inside of
 // of our material update function call.
 // This function is used to initialize the data originally
-void init_data(ecmech::VectorizationStrategy accel, const double* ori, const ecmech::matModelBase* mat_model_base,
+void init_data(ecmech::ExecutionStrategy accel, const double* ori, const ecmech::matModelBase* mat_model_base,
                const int nqpts, const int num_hardness,
                const int num_slip, const int ind_gdot,
                const int state_var_vdim, double* state_vars){
@@ -408,14 +408,14 @@ void init_data(ecmech::VectorizationStrategy accel, const double* ori, const ecm
 
    switch ( accel ) {
 #if defined(RAJA_ENABLE_OPENMP)
-   case ecmech::VectorizationStrategy::OPENMP:
+   case ecmech::ExecutionStrategy::OPENMP:
    {
       init_data_openmp(ori, histInit_vec, nqpts, num_hardness, ind_gdot, num_slip, vdim, state_vars);
    }
    break;
 #endif
-   case ecmech::VectorizationStrategy::CPU :
-   case ecmech::VectorizationStrategy::CUDA :
+   case ecmech::ExecutionStrategy::CPU :
+   case ecmech::ExecutionStrategy::CUDA :
    default :
    {      
       init_data_cpu(ori, histInit_vec, nqpts, num_hardness, ind_gdot, num_slip, vdim, state_vars);
@@ -455,7 +455,7 @@ void setup_vgrad(double* vgrad, const int nqpts){
 } // end of setup_vgrad
 
 // This function/kernel is used to set-up the problem at each time step
-void setup_data(ecmech::VectorizationStrategy accel, const int nqpts, const int nstatev,
+void setup_data(ecmech::ExecutionStrategy accel, const int nqpts, const int nstatev,
                 const double dt, const double* vel_grad_array,
                 const double* stress_array, const double* state_vars_array,
                 double* stress_svec_p_array, double* d_svec_p_array,
@@ -464,7 +464,7 @@ void setup_data(ecmech::VectorizationStrategy accel, const int nqpts, const int 
                 double* temp_array){
    switch ( accel ) {
 #if defined(RAJA_ENABLE_OPENMP)
-   case ecmech::VectorizationStrategy::OPENMP :
+   case ecmech::ExecutionStrategy::OPENMP :
    {
       setup_data_openmp(nqpts, nstatev, dt, vel_grad_array, stress_array, state_vars_array,
                         stress_svec_p_array, d_svec_p_array, w_vec_array, ddsdde_array,
@@ -473,7 +473,7 @@ void setup_data(ecmech::VectorizationStrategy accel, const int nqpts, const int 
    break;
 #endif
 #if defined(RAJA_ENABLE_CUDA)
-   case ecmech::VectorizationStrategy::CUDA :
+   case ecmech::ExecutionStrategy::CUDA :
    {
       setup_data_cuda(nqpts, nstatev, dt, vel_grad_array, stress_array, state_vars_array,
                       stress_svec_p_array, d_svec_p_array, w_vec_array, ddsdde_array,
@@ -481,7 +481,7 @@ void setup_data(ecmech::VectorizationStrategy accel, const int nqpts, const int 
    }
    break;
 #endif
-   case ecmech::VectorizationStrategy::CPU :
+   case ecmech::ExecutionStrategy::CPU :
    default :
    {
       setup_data_cpu(nqpts, nstatev, dt, vel_grad_array, stress_array, state_vars_array,
