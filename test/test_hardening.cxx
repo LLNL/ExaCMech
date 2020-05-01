@@ -33,7 +33,7 @@ TEST(ecmech, hard_voce_a)
       int nFEvals = kinetics.updateH(hs_u, &(init[0]), dt, gdot, outputLevel);
       std::cout << "Converged with nFEvals : " << nFEvals << std::endl;
       EXPECT_TRUE(nFEvals == 2) << "Not the expected number of function evaluations";
-#ifdef DEBUG
+#ifdef ECMECH_DEBUG
       std::cout << "Updated hardness state : ";
       printVec<kinetics.nH>(hs_u, std::cout);
 #endif
@@ -67,7 +67,7 @@ TEST(ecmech, hard_kmbaldfff_a)
       int nFEvals = kinetics.updateH(hs_u, &(init[0]), dt, gdot, outputLevel);
       std::cout << "Converged with nFEvals : " << nFEvals << std::endl;
       EXPECT_TRUE(nFEvals == 5) << "Not the expected number of function evaluations";
-#ifdef DEBUG
+#ifdef ECMECH_DEBUG
       std::cout << "Updated hardness state : ";
       printVec<kinetics.nH>(hs_u, std::cout);
 #endif

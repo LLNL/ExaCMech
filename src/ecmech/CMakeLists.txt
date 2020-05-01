@@ -42,8 +42,8 @@ message("-- ECMECH_DEPENDS: ${ECMECH_DEPENDS}")
 #------------------------------------------------------------------------------
 set(ECMECH_DEFINES HAVE_ECMECH)
 
-SET(CMAKE_C_FLAGS_DEBUG   "${CMAKE_C_FLAGS_DEBUG}   -DDEBUG")
-SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG")
+SET(CMAKE_C_FLAGS_DEBUG   "${CMAKE_C_FLAGS_DEBUG}   -DECMECH_DEBUG")
+SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DECMECH_DEBUG")
 
 #------------------------------------------------------------------------------
 # Includes

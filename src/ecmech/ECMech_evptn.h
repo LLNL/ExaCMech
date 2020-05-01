@@ -1223,7 +1223,7 @@ namespace ecmech {
             sdd[i_sdd_bulk] = bulkNew;
             sdd[i_sdd_gmod] = gmod;
          }
-#ifdef DEBUG
+#ifdef ECMECH_DEBUG
          assert(ecmech::nsdd == 2);
 #endif
 
@@ -1232,7 +1232,7 @@ namespace ecmech {
          // could update pressure and temperature again, but do not bother
 
          eInt[ecmech::i_ne_total] = eNew;
-#ifdef DEBUG
+#ifdef ECMECH_DEBUG
          assert(ecmech::ne == 1);
 #endif
       } // getResponseSngl

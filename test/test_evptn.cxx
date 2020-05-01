@@ -110,7 +110,7 @@ TEST(ecmech, evptn_a)
    }
    std::cout << "Function evaluations: " << solver.getNFEvals() << std::endl;
    std::cout << "Last 'rho' in solver: " << solver.getRhoLast() << std::endl;
-#ifdef DEBUG
+#ifdef ECMECH_DEBUG
    std::cout << "Slip system shearing rates : ";
    printVec<slipGeom.nslip>(prob.getGdot(), std::cout);
 #endif
@@ -155,7 +155,7 @@ TEST(ecmech, evptn_a)
       tkelv, sdd, mtanSD);
    int nFEvals = hist[evptn::iHistA_nFEval];
    std::cout << "Function evaluations: " << nFEvals << std::endl;
-#ifdef DEBUG
+#ifdef ECMECH_DEBUG
    std::cout << "Updated hist : ";
    printVec<numHist>(hist, std::cout);
 

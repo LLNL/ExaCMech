@@ -7,7 +7,7 @@
 
 #include <cmath>
 
-#ifdef DEBUG
+#ifdef ECMECH_DEBUG
 #ifdef __cuda_host_only__
 #include <iostream>
 #include <string>
@@ -1324,7 +1324,7 @@ namespace ecmech {
 #endif
    } // miller_to_orthog_sngl
 
-#ifdef DEBUG
+#ifdef ECMECH_DEBUG
 #ifdef __cuda_host_only__
    template<int n>
    inline void
