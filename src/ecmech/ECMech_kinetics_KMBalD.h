@@ -15,6 +15,8 @@ namespace ecmech {
     * based on a single Kocks-Mecking dislocation density
     * balanced thermally activated MTS-like slip kinetics with phonon drag effects
     *
+    * see \cite{hmx}
+    *
     * if withGAthermal then
     *  see subroutine kinetics_mtspwr_d in mdef : (l_mts, l_mtsp, l_plwr)
     *    ! like kinetics_mtswr_d, but with pl%tau_a (possible associated
