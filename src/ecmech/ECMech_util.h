@@ -510,7 +510,7 @@ namespace ecmech {
    }
 
    /**
-    * @breif after \cite{kri-etal-94a}
+    * @brief after \cite{kri-etal-94a}
     */
    __ecmech_hdev__
    inline void quat_to_tensor(double* const c, // ndim * ndim
