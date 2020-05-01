@@ -299,7 +299,7 @@ int main(int argc, char *argv[]){
       // Initialize our base class using the appropriate model
       if (mat_model_str.compare("voce") == 0) {
          num_state_vars = num_state_vars_voce;
-         num_props = 17;
+         num_props = ecmech::matModelEvptn_FCC_A::nParamsHave;
          num_hardness = mat_modela.nH;
          num_gdot = mat_modela.nslip;
          iHistLbGdot = mat_modela.iHistLbGdot;
@@ -321,7 +321,7 @@ int main(int argc, char *argv[]){
       }
       else if (mat_model_str.compare("mts") == 0) {
          num_state_vars = num_state_vars_mts;
-         num_props = 24;
+         num_props = ecmech::matModelEvptn_FCC_B::nParamsHave;
          num_hardness = mat_modelb.nH;
          num_gdot = mat_modelb.nslip;
          iHistLbGdot = mat_modelb.iHistLbGdot;
