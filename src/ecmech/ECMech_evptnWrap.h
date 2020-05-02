@@ -31,7 +31,8 @@ namespace ecmech {
 
             // this are assumed to go in first
             static constexpr int nParamsEOSHave = 3; // number that get from 'elsewhere'
-
+            static constexpr int nParams = 2 + 1 + Kinetics::nParams + ThermoElastN::nParams +
+                                               EosModel::nParams - nParamsEOSHave;
             // constructor
             __ecmech_host__
             matModel()

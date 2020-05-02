@@ -91,7 +91,7 @@ TEST(ecmech, updst_a)
 
    static const int iHistLbGdot = mmodel->iHistLbGdot;
    double* gdot = &(hist[iHistLbGdot]);
-#ifdef DEBUG
+#ifdef ECMECH_DEBUG
    std::cout << "Initial hist : ";
    printVec(hist, mmodel->numHist, std::cout);
 #endif
@@ -109,7 +109,7 @@ TEST(ecmech, updst_a)
 
       std::cout << "Function evaluations: " << hist[evptn::iHistA_nFEval] << std::endl;
    }
-#ifdef DEBUG
+#ifdef ECMECH_DEBUG
    std::cout << "Updated hist : ";
    printVec(hist, mmodel->numHist, std::cout);
 
@@ -277,7 +277,7 @@ TEST(ecmech, driver_a)
 
       double stressSvec[ecmech::nsvec];
       svecpToSvec(stressSvec, stressSvecP);
-#ifdef DEBUG
+#ifdef ECMECH_DEBUG
       std::cout << "mtanSD_an : " << std::endl;
       printMat<ecmech::nsvec>(mtanSD_an, std::cout);
 #endif
@@ -329,7 +329,7 @@ TEST(ecmech, driver_a)
          }
       }
 
-#ifdef DEBUG
+#ifdef ECMECH_DEBUG
       std::cout << "mtanSD_fd : " << std::endl;
       printMat<ecmech::nsvec>(mtanSD_fd, std::cout);
 #endif
