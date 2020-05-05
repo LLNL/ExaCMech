@@ -11,10 +11,15 @@ namespace ecmech {
    typedef KineticsKMBalD<true, false, false, false, 1> Kin_KMBalD_TFF;
    typedef KineticsKMBalD<false, false, false, false, 1> Kin_KMBalD_FFF;
 
-   typedef KineticsVocePL Kin_FCC_A;
+   typedef KineticsVocePL<false> Kin_FCC_A;
    typedef evptn::EvptnUpdstProblem<SlipGeomFCC, Kin_FCC_A, evptn::ThermoElastNCubic> EvptnUpsdtProblem_FCC_A;
    typedef snls::SNLSTrDlDenseG<EvptnUpsdtProblem_FCC_A> EvptnSolver_FCC_A;
    typedef evptn::matModel<SlipGeomFCC, Kin_FCC_A, evptn::ThermoElastNCubic, EosModelConst<false> > matModelEvptn_FCC_A;
+
+   typedef KineticsVocePL<true> Kin_FCC_AH;
+   typedef evptn::EvptnUpdstProblem<SlipGeomFCC, Kin_FCC_AH, evptn::ThermoElastNCubic> EvptnUpsdtProblem_FCC_AH;
+   typedef snls::SNLSTrDlDenseG<EvptnUpsdtProblem_FCC_AH> EvptnSolver_FCC_AH;
+   typedef evptn::matModel<SlipGeomFCC, Kin_FCC_AH, evptn::ThermoElastNCubic, EosModelConst<false> > matModelEvptn_FCC_AH;
 
    typedef Kin_KMBalD_FFF Kin_FCC_B;
    typedef evptn::EvptnUpdstProblem<SlipGeomFCC, Kin_FCC_B, evptn::ThermoElastNCubic> EvptnUpsdtProblem_FCC_B;

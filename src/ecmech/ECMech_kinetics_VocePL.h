@@ -12,12 +12,12 @@ namespace ecmech {
     *
     * power-law slip kinetics with Voce hardening law -- meant to be about as simple as it gets
     */
-
+   template<bool higher_order>
    class KineticsVocePL
    {
       public:
          static const int nH = 1;
-         static const int nParams = 3 + 5 + nH;
+         static const int nParams = 3 + 5 + nH + (higher_order ? 1 : 0);
          static const int nVals = 1;
          static const int nEvolVals = 2;
 
@@ -56,6 +56,14 @@ namespace ecmech {
             _h0 = *parsIt; ++parsIt;
             _tausi = *parsIt; ++parsIt;
             _taus0 = *parsIt; ++parsIt;
+            if (higher_order) {
+               _xmprime = *parsIt; ++parsIt;
+               _xmprime1 = _xmprime - one;
+            }
+            else {
+               _xmprime = one;
+               _xmprime = zero;
+            }
             _xms = *parsIt; ++parsIt;
             _gamss0 = *parsIt; ++parsIt;
 
@@ -135,6 +143,7 @@ namespace ecmech {
          // Voce hardening stuff
 
          double _h0, _tausi, _taus0, _xms, _gamss0;
+         double _xmprime, _xmprime1;
 
          //////////////////////////////
 
@@ -299,7 +308,6 @@ namespace ecmech {
             if (shrate_eff > ecmech::idp_tiny_sqrt) {
                sv_sat = _taus0 * pow((shrate_eff / _gamss0), _xms);
             }
-
             evolVals[0] = shrate_eff;
             evolVals[1] = sv_sat;
          }
@@ -315,7 +323,7 @@ namespace ecmech {
             double shrate_eff = evolVals[0];
             double sv_sat = evolVals[1];
 
-            double temp2 = sv_sat - _tausi;
+            double temp2 = one / (sv_sat - _tausi);
 
             // IF (PRESENT(dfdtK)) THEN
             // dfdtK(1) = zero
@@ -331,10 +339,17 @@ namespace ecmech {
                // sdot and dsdot_ds already set to zero
             }
             else {
-               double temp1 = _h0 * ((sv_sat - h) / temp2);
-               sdot = temp1 * shrate_eff;
-               // double dfdshr = temp1 + _h0 * ( (h - _tausi) / (temp2*temp2)) * _xms * sv_sat ;
-               dsdot_ds = -_h0 / temp2 * shrate_eff;
+               if (higher_order) {
+                  double temp1 = _h0 * pow((sv_sat - h) * temp2, _xmprime);
+                  sdot = temp1 * shrate_eff;
+                  dsdot_ds = -_h0 * temp2 * shrate_eff * _xmprime * pow((sv_sat - h) * temp2, _xmprime1);
+               }
+               else {
+                  double temp1 = _h0 * ((sv_sat - h) * temp2);
+                  sdot = temp1 * shrate_eff;
+                  // double dfdshr = temp1 + _h0 * ( (h - _tausi) / (temp2*temp2)) * _xms * sv_sat ;
+                  dsdot_ds = -_h0 * temp2 * shrate_eff;
+               }
             }
          }
    }; // class KineticsVocePL
