@@ -12,12 +12,20 @@ else()
     list(APPEND ECMECH_TEST_DEPENDS ecmech_shared ${SNLS_SHARED_TARGET})
 endif()
 
-blt_add_executable(NAME       test_hardening
+blt_add_executable(NAME       test_hardening_0
                    SOURCES    test_hardening.cxx
                    OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
                    DEPENDS_ON ${ECMECH_TEST_DEPENDS} gtest)
-blt_add_test(NAME    test_hardening
-             COMMAND test_hardening)
+blt_add_test(NAME    test_hardening_0
+             COMMAND test_hardening_0)
+
+blt_add_executable(NAME       test_hardening_1
+                   SOURCES    test_hardening.cxx
+                   DEFINES    KIN_NONLINEAR
+                   OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
+                   DEPENDS_ON ${ECMECH_TEST_DEPENDS} gtest)
+blt_add_test(NAME    test_hardening_1
+             COMMAND test_hardening_1)
 
 blt_add_executable(NAME       test_evptn_0
                    SOURCES    test_evptn.cxx
