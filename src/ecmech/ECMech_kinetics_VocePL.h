@@ -322,8 +322,8 @@ namespace ecmech {
          {
             double shrate_eff = evolVals[0];
             double sv_sat = evolVals[1];
-
-            double temp2 = ((sv_sat - _tausi) <= zero) ? zero : one / (sv_sat - _tausi);
+            //When the below ternary op is true then sdot and dsdot_ds remain zero.
+            double temp2 = (sv_sat <= _tausi) ? zero : one / (sv_sat - _tausi);
 
             // IF (PRESENT(dfdtK)) THEN
             // dfdtK(1) = zero
@@ -332,24 +332,16 @@ namespace ecmech {
             sdot = 0.0;
             dsdot_ds = 0.0;
             //
-            if (temp2 <= zero) {
-               // most likely, shrate is small enough that hs_sat has become
-               // small, but for small shrate have small rate of h change ;
-               //
-               // sdot and dsdot_ds already set to zero
+            if (nonlinear) {
+               double temp1 = pow((sv_sat - h) * temp2, _xmprime1);
+               sdot = _h0 * temp1 * (sv_sat - h) * temp2 * shrate_eff;
+               dsdot_ds = -_h0 * temp2 * shrate_eff * _xmprime * temp1;
             }
             else {
-               if (nonlinear) {
-                  double temp1 = pow((sv_sat - h) * temp2, _xmprime1);
-                  sdot = _h0 * temp1 * (sv_sat - h) * temp2 * shrate_eff;
-                  dsdot_ds = -_h0 * temp2 * shrate_eff * _xmprime * temp1;
-               }
-               else {
-                  double temp1 = _h0 * ((sv_sat - h) * temp2);
-                  sdot = temp1 * shrate_eff;
-                  // double dfdshr = temp1 + _h0 * ( (h - _tausi) / (temp2*temp2)) * _xms * sv_sat ;
-                  dsdot_ds = -_h0 * temp2 * shrate_eff;
-               }
+               double temp1 = _h0 * ((sv_sat - h) * temp2);
+               sdot = temp1 * shrate_eff;
+               // double dfdshr = temp1 + _h0 * ( (h - _tausi) / (temp2*temp2)) * _xms * sv_sat ;
+               dsdot_ds = -_h0 * temp2 * shrate_eff;
             }
          }
    }; // class KineticsVocePL
