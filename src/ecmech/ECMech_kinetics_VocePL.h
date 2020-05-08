@@ -12,12 +12,12 @@ namespace ecmech {
     *
     * power-law slip kinetics with Voce hardening law -- meant to be about as simple as it gets
     */
-   template<bool higher_order>
+   template<bool nonlinear>
    class KineticsVocePL
    {
       public:
          static const int nH = 1;
-         static const int nParams = 3 + 5 + nH + (higher_order ? 1 : 0);
+         static const int nParams = 3 + 5 + nH + (nonlinear ? 1 : 0);
          static const int nVals = 1;
          static const int nEvolVals = 2;
 
@@ -56,13 +56,13 @@ namespace ecmech {
             _h0 = *parsIt; ++parsIt;
             _tausi = *parsIt; ++parsIt;
             _taus0 = *parsIt; ++parsIt;
-            if (higher_order) {
+            if (nonlinear) {
                _xmprime = *parsIt; ++parsIt;
                _xmprime1 = _xmprime - one;
             }
             else {
                _xmprime = one;
-               _xmprime = zero;
+               _xmprime1 = zero;
             }
             _xms = *parsIt; ++parsIt;
             _gamss0 = *parsIt; ++parsIt;
@@ -323,7 +323,7 @@ namespace ecmech {
             double shrate_eff = evolVals[0];
             double sv_sat = evolVals[1];
 
-            double temp2 = one / (sv_sat - _tausi);
+            double temp2 = ((sv_sat - _tausi) <= zero) ? zero : one / (sv_sat - _tausi);
 
             // IF (PRESENT(dfdtK)) THEN
             // dfdtK(1) = zero
@@ -339,10 +339,10 @@ namespace ecmech {
                // sdot and dsdot_ds already set to zero
             }
             else {
-               if (higher_order) {
-                  double temp1 = _h0 * pow((sv_sat - h) * temp2, _xmprime);
-                  sdot = temp1 * shrate_eff;
-                  dsdot_ds = -_h0 * temp2 * shrate_eff * _xmprime * pow((sv_sat - h) * temp2, _xmprime1);
+               if (nonlinear) {
+                  double temp1 = pow((sv_sat - h) * temp2, _xmprime1);
+                  sdot = _h0 * temp1 * (sv_sat - h) * temp2 * shrate_eff;
+                  dsdot_ds = -_h0 * temp2 * shrate_eff * _xmprime * temp1;
                }
                else {
                   double temp1 = _h0 * ((sv_sat - h) * temp2);
