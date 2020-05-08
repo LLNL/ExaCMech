@@ -329,9 +329,6 @@ namespace ecmech {
             // dfdtK(1) = zero
             // END IF
 
-            sdot = 0.0;
-            dsdot_ds = 0.0;
-            //
             if (nonlinear) {
                double temp1 = pow((sv_sat - h) * temp2, _xmprime1);
                sdot = _h0 * temp1 * (sv_sat - h) * temp2 * shrate_eff;
