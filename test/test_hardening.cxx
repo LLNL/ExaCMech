@@ -10,10 +10,10 @@ static int outputLevel = 1;
 TEST(ecmech, hard_voce_a)
 {
    using namespace ecmech;
-#ifdef KIN_LINEAR
-   const double hUpdtVal = 0.001016620868315;
-#else
+#ifdef KIN_NONLINEAR
    const double hUpdtVal = 0.001016575445448;
+#else
+   const double hUpdtVal = 0.001016620868315;
 #endif
    const double hUpdtTol = 1e-11;
 
@@ -21,12 +21,8 @@ TEST(ecmech, hard_voce_a)
    double dt = 1e-1;
    double gdot[nslip] = { 1.0 / nslip };
 
-   for (int i = 1; i < nslip; i++) {
-      gdot[i] = 0.0;
-   }
-
    {
-#ifdef KIN_HIGHER
+#ifdef KIN_NONLINEAR
       KineticsVocePL<true> kinetics(nslip);
 #else
       KineticsVocePL<false> kinetics(nslip);
@@ -43,10 +39,10 @@ TEST(ecmech, hard_voce_a)
       double hs_u[kinetics.nH];
       int nFEvals = kinetics.updateH(hs_u, &(init[0]), dt, gdot, outputLevel);
       std::cout << "Converged with nFEvals : " << nFEvals << std::endl;
-#ifdef KIN_LINEAR
-      EXPECT_TRUE(nFEvals == 2) << "Not the expected number of function evaluations";
-#else
+#ifdef KIN_NONLINEAR
       EXPECT_TRUE(nFEvals == 3) << "Not the expected number of function evaluations";
+#else
+      EXPECT_TRUE(nFEvals == 2) << "Not the expected number of function evaluations";
 #endif
 #ifdef ECMECH_DEBUG
       std::cout << "Updated hardness state : ";
@@ -66,10 +62,6 @@ TEST(ecmech, hard_kmbaldfff_a)
    const int nslip = 12;
    double dt = 1e-1;
    double gdot[nslip] = { 1.0 / nslip };
-
-   for (int i = 1; i < nslip; i++) {
-      gdot[i] = 0.0;
-   }
 
    {
       Kin_KMBalD_FFF kinetics(nslip);

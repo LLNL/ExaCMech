@@ -14,7 +14,6 @@ endif()
 
 blt_add_executable(NAME       test_hardening_0
                    SOURCES    test_hardening.cxx
-                   DEFINES    KIN_LINEAR
                    OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
                    DEPENDS_ON ${ECMECH_TEST_DEPENDS} gtest)
 blt_add_test(NAME    test_hardening_0
@@ -22,7 +21,7 @@ blt_add_test(NAME    test_hardening_0
 
 blt_add_executable(NAME       test_hardening_1
                    SOURCES    test_hardening.cxx
-                   DEFINES    KIN_HIGHER
+                   DEFINES    KIN_NONLINEAR
                    OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
                    DEPENDS_ON ${ECMECH_TEST_DEPENDS} gtest)
 blt_add_test(NAME    test_hardening_1
