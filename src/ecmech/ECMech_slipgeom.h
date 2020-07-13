@@ -124,20 +124,29 @@ namespace ecmech {
    }; // SlipGeomFCC
 
    /**
-    * BCC with either 12 or 48 slip systems
+    * BCC with 12, 24, or 48 slip systems
     *
     */
    template<int nSlipTmplt>
    class SlipGeomBCC
    {
+      private:
+         static const int _nslipAddBase = 12;
+         static const int _nslipAddPGa  = 12;
+         static const int _nslipAddPGb  = 24;
+
       public:
 
          static const int nslip = nSlipTmplt;
          static const int nParams = 0;
 
+         static const int nslipBase = _nslipAddBase;
+         static const int nslipPGa  = _nslipAddBase+_nslipAddPGa;
+         static const int nslipPGb  = _nslipAddBase+_nslipAddPGa+_nslipAddPGb;
+
          // constructor and destructor
          __ecmech_hdev__  SlipGeomBCC() {
-            assert(nslip == nslipBase || nslip == nslipPG);
+            assert(nslip == nslipBase || nslip == nslipPGa || nslip == nslipPGb);
          };
          __ecmech_hdev__ ~SlipGeomBCC() {};
 
@@ -147,12 +156,16 @@ namespace ecmech {
          {
             std::vector<double>::const_iterator parsIt = params.begin();
 
-            if (nslip == nslipBase) {
+            std::vector<double> mVecs;
+            std::vector<double> sVecs;
+
+            {
                // m = (/ zero, sqr2i, -sqr2i /)
                // s = (/ sqr3i, sqr3i, sqr3i /)
+               const int nslipThese = _nslipAddBase;
                //
                // do not yet bother with making slip systems from symmetry group -- just write them out
-               const double mVecs[ nslipBase * ecmech::ndim ] = {
+               const double mVecsThese[ nslipThese * ecmech::ndim ] = {
                   zero, sqr2i, -sqr2i,
                   -sqr2i, zero, sqr2i,
                   sqr2i, -sqr2i, zero,
@@ -166,7 +179,7 @@ namespace ecmech {
                   zero, sqr2i, sqr2i,
                   -sqr2i, -sqr2i, zero,
                };
-               const double sVecs[ nslipBase * ecmech::ndim ] = {
+               const double sVecsThese[ nslipThese * ecmech::ndim ] = {
                   sqr3i, sqr3i, sqr3i,
                   sqr3i, sqr3i, sqr3i,
                   sqr3i, sqr3i, sqr3i,
@@ -180,34 +193,17 @@ namespace ecmech {
                   sqr3i, -sqr3i, sqr3i,
                   sqr3i, -sqr3i, sqr3i,
                };
-
-               fillFromMS(this->_P_ref_vec, this->_Q_ref_vec,
-                          mVecs, sVecs, this->nslip);
+               mVecs.insert(mVecs.end(), &(mVecsThese[0]), &(mVecsThese[nslipThese * ecmech::ndim]));
+               sVecs.insert(sVecs.end(), &(sVecsThese[0]), &(sVecsThese[nslipThese * ecmech::ndim]));
             }
-            else if (nslip == nslipPG) {
+
+            if ( nslip >= nslipPGa ) {
                const double twSqr6i = 2.0 * sqr6i;
-               const double mPg2a = 1.0 / sqrt(14.0);
-               const double mPg2b = 2.0 / sqrt(14.0);
-               const double mPg2c = 3.0 / sqrt(14.0);
 
-               const double mVecs[ nslipPG * ecmech::ndim ] = {
-                  // 12 {112}<111> slip systems
-                  // m = (/ zero, sqr2i, -sqr2i /)
-                  // s = (/ sqr3i, sqr3i, sqr3i /)
-                  zero, sqr2i, -sqr2i,
-                  -sqr2i, zero, sqr2i,
-                  sqr2i, -sqr2i, zero,
-                  -sqr2i, zero, -sqr2i,
-                  zero, -sqr2i, sqr2i,
-                  sqr2i, sqr2i, zero,
-                  zero, -sqr2i, -sqr2i,
-                  sqr2i, zero, sqr2i,
-                  -sqr2i, sqr2i, zero,
-                  sqr2i, zero, -sqr2i,
-                  zero, sqr2i, sqr2i,
-                  -sqr2i, -sqr2i, zero,
-
-                  // 12 {112}<111> slip systems
+               // 12 {112}<111> slip systems
+               const int nslipThese = _nslipAddPGa;
+               
+               const double mVecsThese[ nslipThese * ecmech::ndim ] = {
                   -twSqr6i, sqr6i, sqr6i,
                   sqr6i, -twSqr6i, sqr6i,
                   sqr6i, sqr6i, -twSqr6i,
@@ -220,8 +216,34 @@ namespace ecmech {
                   sqr6i, twSqr6i, sqr6i,
                   -twSqr6i, -sqr6i, sqr6i,
                   sqr6i, -sqr6i, -twSqr6i,
+               };
+               const double sVecsThese[ nslipThese * ecmech::ndim ] = {
+                  sqr3i, sqr3i, sqr3i,
+                  sqr3i, sqr3i, sqr3i,
+                  sqr3i, sqr3i, sqr3i,
+                  -sqr3i, sqr3i, sqr3i,
+                  -sqr3i, sqr3i, sqr3i,
+                  -sqr3i, sqr3i, sqr3i,
+                  -sqr3i, -sqr3i, sqr3i,
+                  -sqr3i, -sqr3i, sqr3i,
+                  -sqr3i, -sqr3i, sqr3i,
+                  sqr3i, -sqr3i, sqr3i,
+                  sqr3i, -sqr3i, sqr3i,
+                  sqr3i, -sqr3i, sqr3i,
+               };
+               mVecs.insert(mVecs.end(), &(mVecsThese[0]), &(mVecsThese[nslipThese * ecmech::ndim]));
+               sVecs.insert(sVecs.end(), &(sVecsThese[0]), &(sVecsThese[nslipThese * ecmech::ndim]));
+            }               
 
-                  // 24 {123}<111> slip systems
+            if ( nslip >= nslipPGb ) {
+               const double mPg2a = 1.0 / sqrt(14.0);
+               const double mPg2b = 2.0 / sqrt(14.0);
+               const double mPg2c = 3.0 / sqrt(14.0);
+               
+               // 24 {123}<111> slip systems
+               const int nslipThese = _nslipAddPGb;
+               
+               const double mVecsThese[ nslipThese * ecmech::ndim ] = {
                   mPg2c, -mPg2a, -mPg2b,
                   -mPg2b, mPg2c, -mPg2a,
                   -mPg2a, -mPg2b, mPg2c,
@@ -247,33 +269,7 @@ namespace ecmech {
                   -mPg2b, -mPg2c, mPg2a,
                   -mPg2a, mPg2b, -mPg2c,
                };
-               const double sVecs[ nslipPG * ecmech::ndim ] = {
-                  sqr3i, sqr3i, sqr3i,
-                  sqr3i, sqr3i, sqr3i,
-                  sqr3i, sqr3i, sqr3i,
-                  -sqr3i, sqr3i, sqr3i,
-                  -sqr3i, sqr3i, sqr3i,
-                  -sqr3i, sqr3i, sqr3i,
-                  -sqr3i, -sqr3i, sqr3i,
-                  -sqr3i, -sqr3i, sqr3i,
-                  -sqr3i, -sqr3i, sqr3i,
-                  sqr3i, -sqr3i, sqr3i,
-                  sqr3i, -sqr3i, sqr3i,
-                  sqr3i, -sqr3i, sqr3i,
-
-                  sqr3i, sqr3i, sqr3i,
-                  sqr3i, sqr3i, sqr3i,
-                  sqr3i, sqr3i, sqr3i,
-                  -sqr3i, sqr3i, sqr3i,
-                  -sqr3i, sqr3i, sqr3i,
-                  -sqr3i, sqr3i, sqr3i,
-                  -sqr3i, -sqr3i, sqr3i,
-                  -sqr3i, -sqr3i, sqr3i,
-                  -sqr3i, -sqr3i, sqr3i,
-                  sqr3i, -sqr3i, sqr3i,
-                  sqr3i, -sqr3i, sqr3i,
-                  sqr3i, -sqr3i, sqr3i,
-
+               const double sVecsThese[ nslipThese * ecmech::ndim ] = {
                   sqr3i, sqr3i, sqr3i,
                   sqr3i, sqr3i, sqr3i,
                   sqr3i, sqr3i, sqr3i,
@@ -299,10 +295,12 @@ namespace ecmech {
                   sqr3i, -sqr3i, -sqr3i,
                   sqr3i, -sqr3i, -sqr3i,
                };
-
-               fillFromMS(this->_P_ref_vec, this->_Q_ref_vec,
-                          mVecs, sVecs, this->nslip);
-            }
+               mVecs.insert(mVecs.end(), &(mVecsThese[0]), &(mVecsThese[nslipThese * ecmech::ndim]));
+               sVecs.insert(sVecs.end(), &(sVecsThese[0]), &(sVecsThese[nslipThese * ecmech::ndim]));
+            }               
+            
+            fillFromMS(this->_P_ref_vec, this->_Q_ref_vec,
+                       &(mVecs[0]), &(sVecs[0]), this->nslip);
 
             int iParam = parsIt - params.begin();
             assert(iParam == nParams);
@@ -327,9 +325,6 @@ namespace ecmech {
          double _P_ref_vec[ ecmech::ntvec * nslip ];
          double _Q_ref_vec[ ecmech::nwvec * nslip ];
 
-         const int nslipBase = 12;
-         const int nslipPG   = 48;
-      
    }; // SlipGeomBCC
 
    /**
