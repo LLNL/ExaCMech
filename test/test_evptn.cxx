@@ -24,7 +24,13 @@ TEST(ecmech, evptn_a)
    // some convenience stuff
    using namespace ecmech;
 
-#if KIN_TYPE == 2
+#if KIN_TYPE == 3
+   typedef ecmech::SlipGeom_BCC_A SlipGeom;
+   typedef Kin_BCC_A Kinetics;
+   typedef EvptnUpsdtProblem_BCC_A Prob;
+   typedef EvptnSolver_BCC_A Solver;
+   typedef evptn::ThermoElastNCubic ThermoElastN;
+#elif KIN_TYPE == 2
    typedef ecmech::SlipGeom_HCP_A SlipGeom;
    typedef Kin_HCP_A Kinetics;
    typedef EvptnUpsdtProblem_HCP_A Prob;
@@ -48,7 +54,12 @@ TEST(ecmech, evptn_a)
    Kinetics kinetics(slipGeom.nslip);
    ThermoElastN elastN;
 
-#if KIN_TYPE == 2
+#if KIN_TYPE == 3
+#include "setup_slipGeom.h"
+#include "setup_kin_KMBalD_TFF_BCC_A.h"
+#include "setup_elastn.h"
+   const int iGdotExpected = 1;
+#elif KIN_TYPE == 2
 #include "setup_slipGeom_HCP.h"
 #include "setup_kin_KMBalD_TTT_HCP_A.h"
 #include "setup_elastn_HCP.h"

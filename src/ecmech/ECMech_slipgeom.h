@@ -124,6 +124,215 @@ namespace ecmech {
    }; // SlipGeomFCC
 
    /**
+    * BCC with either 12 or 48 slip systems
+    *
+    */
+   template<int nSlipTmplt>
+   class SlipGeomBCC
+   {
+      public:
+
+         static const int nslip = nSlipTmplt;
+         static const int nParams = 0;
+
+         // constructor and destructor
+         __ecmech_hdev__  SlipGeomBCC() {
+            assert(nslip == nslipBase || nslip == nslipPG);
+         };
+         __ecmech_hdev__ ~SlipGeomBCC() {};
+
+         __ecmech_host__
+         void setParams(const std::vector<double> & params
+                        )
+         {
+            std::vector<double>::const_iterator parsIt = params.begin();
+
+            if (nslip == nslipBase) {
+               // m = (/ zero, sqr2i, -sqr2i /)
+               // s = (/ sqr3i, sqr3i, sqr3i /)
+               //
+               // do not yet bother with making slip systems from symmetry group -- just write them out
+               const double mVecs[ nslipBase * ecmech::ndim ] = {
+                  zero, sqr2i, -sqr2i,
+                  -sqr2i, zero, sqr2i,
+                  sqr2i, -sqr2i, zero,
+                  -sqr2i, zero, -sqr2i,
+                  zero, -sqr2i, sqr2i,
+                  sqr2i, sqr2i, zero,
+                  zero, -sqr2i, -sqr2i,
+                  sqr2i, zero, sqr2i,
+                  -sqr2i, sqr2i, zero,
+                  sqr2i, zero, -sqr2i,
+                  zero, sqr2i, sqr2i,
+                  -sqr2i, -sqr2i, zero,
+               };
+               const double sVecs[ nslipBase * ecmech::ndim ] = {
+                  sqr3i, sqr3i, sqr3i,
+                  sqr3i, sqr3i, sqr3i,
+                  sqr3i, sqr3i, sqr3i,
+                  -sqr3i, sqr3i, sqr3i,
+                  -sqr3i, sqr3i, sqr3i,
+                  -sqr3i, sqr3i, sqr3i,
+                  -sqr3i, -sqr3i, sqr3i,
+                  -sqr3i, -sqr3i, sqr3i,
+                  -sqr3i, -sqr3i, sqr3i,
+                  sqr3i, -sqr3i, sqr3i,
+                  sqr3i, -sqr3i, sqr3i,
+                  sqr3i, -sqr3i, sqr3i,
+               };
+
+               fillFromMS(this->_P_ref_vec, this->_Q_ref_vec,
+                          mVecs, sVecs, this->nslip);
+            }
+            else if (nslip == nslipPG) {
+               const double twSqr6i = 2.0 * sqr6i;
+               const double mPg2a = 1.0 / sqrt(14.0);
+               const double mPg2b = 2.0 / sqrt(14.0);
+               const double mPg2c = 3.0 / sqrt(14.0);
+
+               const double mVecs[ nslipPG * ecmech::ndim ] = {
+                  // 12 {112}<111> slip systems
+                  // m = (/ zero, sqr2i, -sqr2i /)
+                  // s = (/ sqr3i, sqr3i, sqr3i /)
+                  zero, sqr2i, -sqr2i,
+                  -sqr2i, zero, sqr2i,
+                  sqr2i, -sqr2i, zero,
+                  -sqr2i, zero, -sqr2i,
+                  zero, -sqr2i, sqr2i,
+                  sqr2i, sqr2i, zero,
+                  zero, -sqr2i, -sqr2i,
+                  sqr2i, zero, sqr2i,
+                  -sqr2i, sqr2i, zero,
+                  sqr2i, zero, -sqr2i,
+                  zero, sqr2i, sqr2i,
+                  -sqr2i, -sqr2i, zero,
+
+                  // 12 {112}<111> slip systems
+                  -twSqr6i, sqr6i, sqr6i,
+                  sqr6i, -twSqr6i, sqr6i,
+                  sqr6i, sqr6i, -twSqr6i,
+                  -sqr6i, -twSqr6i, sqr6i,
+                  twSqr6i, sqr6i, sqr6i,
+                  -sqr6i, sqr6i, -twSqr6i,
+                  twSqr6i, -sqr6i, sqr6i,
+                  -sqr6i, twSqr6i, sqr6i,
+                  -sqr6i, -sqr6i, -twSqr6i,
+                  sqr6i, twSqr6i, sqr6i,
+                  -twSqr6i, -sqr6i, sqr6i,
+                  sqr6i, -sqr6i, -twSqr6i,
+
+                  // 24 {123}<111> slip systems
+                  mPg2c, -mPg2a, -mPg2b,
+                  -mPg2b, mPg2c, -mPg2a,
+                  -mPg2a, -mPg2b, mPg2c,
+                  mPg2a, mPg2c, -mPg2b,
+                  -mPg2c, -mPg2b, -mPg2a,
+                  mPg2b, -mPg2a, mPg2c,
+                  -mPg2c, mPg2a, -mPg2b,
+                  mPg2b, -mPg2c, -mPg2a,
+                  mPg2a, mPg2b, mPg2c,
+                  -mPg2a, -mPg2c, -mPg2b,
+                  mPg2c, mPg2b, -mPg2a,
+                  -mPg2b, mPg2a, mPg2c,
+                  -mPg2a, mPg2c, mPg2b,
+                  mPg2c, -mPg2b, mPg2a,
+                  -mPg2b, -mPg2a, -mPg2c,
+                  -mPg2c, -mPg2a, mPg2b,
+                  mPg2b, mPg2c, mPg2a,
+                  mPg2a, -mPg2b, -mPg2c,
+                  mPg2a, -mPg2c, mPg2b,
+                  -mPg2c, mPg2b, mPg2a,
+                  mPg2b, mPg2a, -mPg2c,
+                  mPg2c, mPg2a, mPg2b,
+                  -mPg2b, -mPg2c, mPg2a,
+                  -mPg2a, mPg2b, -mPg2c,
+               };
+               const double sVecs[ nslipPG * ecmech::ndim ] = {
+                  sqr3i, sqr3i, sqr3i,
+                  sqr3i, sqr3i, sqr3i,
+                  sqr3i, sqr3i, sqr3i,
+                  -sqr3i, sqr3i, sqr3i,
+                  -sqr3i, sqr3i, sqr3i,
+                  -sqr3i, sqr3i, sqr3i,
+                  -sqr3i, -sqr3i, sqr3i,
+                  -sqr3i, -sqr3i, sqr3i,
+                  -sqr3i, -sqr3i, sqr3i,
+                  sqr3i, -sqr3i, sqr3i,
+                  sqr3i, -sqr3i, sqr3i,
+                  sqr3i, -sqr3i, sqr3i,
+
+                  sqr3i, sqr3i, sqr3i,
+                  sqr3i, sqr3i, sqr3i,
+                  sqr3i, sqr3i, sqr3i,
+                  -sqr3i, sqr3i, sqr3i,
+                  -sqr3i, sqr3i, sqr3i,
+                  -sqr3i, sqr3i, sqr3i,
+                  -sqr3i, -sqr3i, sqr3i,
+                  -sqr3i, -sqr3i, sqr3i,
+                  -sqr3i, -sqr3i, sqr3i,
+                  sqr3i, -sqr3i, sqr3i,
+                  sqr3i, -sqr3i, sqr3i,
+                  sqr3i, -sqr3i, sqr3i,
+
+                  sqr3i, sqr3i, sqr3i,
+                  sqr3i, sqr3i, sqr3i,
+                  sqr3i, sqr3i, sqr3i,
+                  -sqr3i, sqr3i, sqr3i,
+                  -sqr3i, sqr3i, sqr3i,
+                  -sqr3i, sqr3i, sqr3i,
+                  -sqr3i, -sqr3i, sqr3i,
+                  -sqr3i, -sqr3i, sqr3i,
+                  -sqr3i, -sqr3i, sqr3i,
+                  sqr3i, -sqr3i, sqr3i,
+                  sqr3i, -sqr3i, sqr3i,
+                  sqr3i, -sqr3i, sqr3i,
+                  sqr3i, sqr3i, -sqr3i,
+                  sqr3i, sqr3i, -sqr3i,
+                  sqr3i, sqr3i, -sqr3i,
+                  -sqr3i, sqr3i, -sqr3i,
+                  -sqr3i, sqr3i, -sqr3i,
+                  -sqr3i, sqr3i, -sqr3i,
+                  -sqr3i, -sqr3i, -sqr3i,
+                  -sqr3i, -sqr3i, -sqr3i,
+                  -sqr3i, -sqr3i, -sqr3i,
+                  sqr3i, -sqr3i, -sqr3i,
+                  sqr3i, -sqr3i, -sqr3i,
+                  sqr3i, -sqr3i, -sqr3i,
+               };
+
+               fillFromMS(this->_P_ref_vec, this->_Q_ref_vec,
+                          mVecs, sVecs, this->nslip);
+            }
+
+            int iParam = parsIt - params.begin();
+            assert(iParam == nParams);
+         };
+
+         __ecmech_host__
+         void getParams(std::vector<double> & params
+                        ) const {
+            // do not clear params in case adding to an existing set
+            int paramsStart = params.size();
+
+            // params.push_back(); // no parameters
+
+            int iParam = params.size() - paramsStart;
+            assert(iParam == nParams);
+         }
+
+         __ecmech_hdev__ inline const double* getP() const { return _P_ref_vec; };
+         __ecmech_hdev__ inline const double* getQ() const { return _Q_ref_vec; };
+
+      private:
+         double _P_ref_vec[ ecmech::ntvec * nslip ];
+         double _Q_ref_vec[ ecmech::nwvec * nslip ];
+
+         const int nslipBase = 12;
+         const int nslipPG   = 48;
+      
+   }; // SlipGeomBCC
+
+   /**
     * HCP with <a> slip on basal, prisamtic, and pyramidal families and type-1 <c+a> pyramidal slip
     *
     * the name aBRYcaY1 traces back to EVP_HCP_a_BRY_ca_Y1 (integer code 32) in the old Fortran coding

@@ -51,6 +51,14 @@ blt_add_executable(NAME       test_evptn_2
 blt_add_test(NAME    test_evptn_2
              COMMAND test_evptn_2)
 
+blt_add_executable(NAME       test_evptn_3
+                   SOURCES    test_evptn.cxx
+                   DEFINES    KIN_TYPE=3
+                   OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
+                   DEPENDS_ON ${ECMECH_TEST_DEPENDS} gtest)
+blt_add_test(NAME    test_evptn_3
+             COMMAND test_evptn_3)
+
 blt_add_executable(NAME       test_updst
                    SOURCES    test_updst.cxx
                    DEFINES    AS_DRIVER=0
