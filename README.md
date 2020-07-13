@@ -41,7 +41,7 @@ Dependencies:
 * raja -- required
   - https://github.com/LLNL/RAJA
   - A RAJA for the miniapp on a CORAL architecture was built with the following commands `cmake ../ -DCMAKE_INSTALL_PREFIX=../install_dir/ -DENABLE_OPENMP=ON -DENABLE_CUDA=ON -DRAJA_TIMER=chrono -DCUDA_ARCH=sm_70`
-  - specify with `-DRAJA_DIR=...`
+  - specify with `-DRAJA_DIR=.../share/raja/cmake`
 
 TESTING
 ======
