@@ -26,7 +26,10 @@ if (EXISTS "${RAJA_RELEASE_CMAKE}")
 endif()
 
 find_package(RAJA REQUIRED)
-find_package(camp)
+
+if( RAJA_VERSION_MINOR GREATER 10 OR RAJA_VERSION_MAJOR GREATER 0)
+   find_package(camp)
+endif()
 
 if(RAJA_CONFIG_LOADED)
    if(ENABLE_OPENMP)
