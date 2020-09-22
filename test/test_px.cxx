@@ -135,10 +135,10 @@ TEST(ecmech, px_a)
                                      (dt * 0.5 * (V_volRatio[0 + pOffsetVR] + V_volRatio[1 + pOffsetVR]) );
       }
 
-      mmb->getResponse(dt,
-                       V_d_svec_kk_sm, V_w_veccp_sm, V_volRatio,
-                       V_eInt, V_stressSvecP, V_hist, V_tkelv, V_sdd, nullptr,
-                       nPassed);
+      mmb->getResponseECM(dt,
+                          V_d_svec_kk_sm, V_w_veccp_sm, V_volRatio,
+                          V_eInt, V_stressSvecP, V_hist, V_tkelv, V_sdd, nullptr,
+                          nPassed);
 
       sAvg = 0.0;
       for (int iPassed = 0; iPassed<nPassed; ++iPassed) {

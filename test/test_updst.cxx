@@ -13,6 +13,7 @@
 
 #if DO_FD_CHECK_MTAN
 // if doing finite-difference check of tangent stiffness, then change some other defaults
+// it is useful to have a mushy rate sensitivity (more rate sensitive) for checking the tangent stiffness as the finite differencing gets a better result
 #define NON_I_QUAT 1
 #define KIN_TYPE 0
 #define XM_MUSHY 1
@@ -103,9 +104,9 @@ TEST(ecmech, updst_a)
       double tkelv[nPassed];
       double sdd[ecmech::nsdd * nPassed];
 
-      mmb->getResponse(dt, d_svec_kk_sm, w_veccp_sm, volRatio,
-                       eInt, stressSvecP, hist, tkelv, sdd, nullptr,
-                       nPassed);
+      mmb->getResponseECM(dt, d_svec_kk_sm, w_veccp_sm, volRatio,
+                          eInt, stressSvecP, hist, tkelv, sdd, nullptr,
+                          nPassed);
 
       std::cout << "Function evaluations: " << hist[evptn::iHistA_nFEval] << std::endl;
    }
@@ -229,9 +230,9 @@ TEST(ecmech, driver_a)
       volRatio[3] = volRatio[1] - volRatio[0];
       volRatio[2] = volRatio[3] / (dt * 0.5 * (volRatio[0] + volRatio[1]) );
 
-      mmb->getResponse(dt, d_svec_kk_sm, w_veccp_sm, volRatio,
-                       eInt, stressSvecP, hist, tkelv, sdd, nullptr,
-                       nPassed);
+      mmb->getResponseECM(dt, d_svec_kk_sm, w_veccp_sm, volRatio,
+                          eInt, stressSvecP, hist, tkelv, sdd, nullptr,
+                          nPassed);
 
 #if !(DO_FD_CHECK_MTAN)
       std::cout << time << " "
@@ -270,9 +271,9 @@ TEST(ecmech, driver_a)
       volRatio[2] = volRatio[3] / (dt * 0.5 * (volRatio[0] + volRatio[1]) );
 
       double mtanSD_an[ecmech::nsvec2];
-      mmb->getResponse(dt, d_svec_kk_sm, w_veccp_sm, volRatio,
-                       eInt, stressSvecP, hist, tkelv, sdd, mtanSD_an,
-                       nPassed);
+      mmb->getResponseECM(dt, d_svec_kk_sm, w_veccp_sm, volRatio,
+                          eInt, stressSvecP, hist, tkelv, sdd, mtanSD_an,
+                          nPassed);
 
 
       double stressSvec[ecmech::nsvec];
@@ -316,9 +317,9 @@ TEST(ecmech, driver_a)
 
          std::copy(hist_ref.begin(), hist_ref.end(), hist); // make hist equal to hist_ref again
 
-         mmb->getResponse(dt, d_svec_kk_sm_pert, w_veccp_sm, volRatio,
-                          eInt_pert, stressSvecP_pert, hist, tkelv_pert, sdd_pert, nullptr,
-                          nPassed);
+         mmb->getResponseECM(dt, d_svec_kk_sm_pert, w_veccp_sm, volRatio,
+                             eInt_pert, stressSvecP_pert, hist, tkelv_pert, sdd_pert, nullptr,
+                             nPassed);
 
          double stressSvec_pert[ecmech::nsvec];
          svecpToSvec(stressSvec_pert, stressSvecP_pert);

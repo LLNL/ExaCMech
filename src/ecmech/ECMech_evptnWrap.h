@@ -287,19 +287,19 @@ namespace ecmech {
                ECMECH_FAIL(__func__, "logParameters not yet implemented");
             };
 
-            using matModelBase::getResponse;
+            using matModelBase::getResponseECM;
             __ecmech_host__
-            void getResponse(const double & dt,
-                             const double * defRateV,
-                             const double * spinV,
-                             const double * volRatioV,
-                             double * eIntV,
-                             double * stressSvecPV,
-                             double * histV,
-                             double * tkelvV,
-                             double * sddV,
-                             double * mtanSDV,
-                             const int& nPassed) const override final
+            void getResponseECM(const double & dt,
+                                const double * defRateV,
+                                const double * spinV,
+                                const double * volRatioV,
+                                double * eIntV,
+                                double * stressSvecPV,
+                                double * histV,
+                                double * tkelvV,
+                                double * sddV,
+                                double * mtanSDV,
+                                const int& nPassed) const override final
             {
                if ( !_complete ) {
                   ECMECH_FAIL(__func__,"not complete");

@@ -147,17 +147,17 @@ namespace ecmech {
           */
 
          __ecmech_host__
-         virtual void getResponse(const double & dt,
-                                  const double * defRateV,
-                                  const double * spinV,
-                                  const double * volRatioV,
-                                  double * eIntV,
-                                  double * stressSvecPV,
-                                  double * histV,
-                                  double * tkelvV,
-                                  double * sddV,
-                                  double * mtanSDV,
-                                  const int & nPassed) const = 0;
+         virtual void getResponseECM(const double & dt,
+                                     const double * defRateV,
+                                     const double * spinV,
+                                     const double * volRatioV,
+                                     double * eIntV,
+                                     double * stressSvecPV,
+                                     double * histV,
+                                     double * tkelvV,
+                                     double * sddV,
+                                     double * mtanSDV,
+                                     const int & nPassed) const = 0;
 
          /**
           * @brief
