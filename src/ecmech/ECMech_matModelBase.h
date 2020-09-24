@@ -33,7 +33,7 @@ namespace ecmech {
             _e0(-1.0),
             _bulkRef(-1.0),
             _outputLevel(0),
-            _accel(ecmech::ExecutionStrategy::CPU)
+            _accel(ECM_EXEC_STRAT_CPU)
          {};
 
       public:

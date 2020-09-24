@@ -71,6 +71,9 @@ namespace ecmech
    // We're going to use this to determine what RAJA code to run for our
    // kernels.
    enum class ExecutionStrategy { CPU, CUDA, OPENMP };
+#define ECM_EXEC_STRAT_CPU    ecmech::ExecutionStrategy::CPU
+#define ECM_EXEC_STRAT_CUDA   ecmech::ExecutionStrategy::CUDA
+#define ECM_EXEC_STRAT_OPENMP ecmech::ExecutionStrategy::OPENMP
 
    const int nsvp = 7;
    const int ndim = 3;

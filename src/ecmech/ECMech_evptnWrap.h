@@ -161,6 +161,12 @@ namespace ecmech {
                                 void* /*callBackVoid*/ = nullptr
                                 ) override final
             {
+
+               // keep parameters for later
+               _opts = opts ;
+               _pars = pars ;
+               _strs = strs ;
+               
                const int nParamsEOS = EosModel::nParams - nParamsEOSHave;
                int nParams =
                   2 + 1 + // rho0, cvav, tolerance
@@ -306,7 +312,7 @@ namespace ecmech {
 
                switch ( _accel ) {
 #if defined(RAJA_ENABLE_OPENMP)
-                  case ecmech::ExecutionStrategy::OPENMP :
+                  case ECM_EXEC_STRAT_OPENMP :
                      RAJA::forall<RAJA::omp_parallel_for_exec>(default_range, [ = ] (int i) {
                            double *mtanSDThis       = ( mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr );
                            getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
@@ -327,7 +333,7 @@ namespace ecmech {
                      break;
 #endif
 #if defined(RAJA_ENABLE_CUDA)
-                  case ecmech::ExecutionStrategy::CUDA :
+                  case ECM_EXEC_STRAT_CUDA :
                      RAJA::forall<RAJA::cuda_exec<RAJA_CUDA_THREADS> >(default_range, [ = ] RAJA_DEVICE(int i) {
                            double *mtanSDThis       = ( mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr );
                            getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
@@ -347,7 +353,7 @@ namespace ecmech {
                         });
                      break;
 #endif
-                  case ecmech::ExecutionStrategy::CPU :
+                  case ECM_EXEC_STRAT_CPU :
                   default : // fall through to CPU if other options are not available
                      RAJA::forall<RAJA::loop_exec>(default_range, [ = ] (int i) {
                            double *mtanSDThis       = ( mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr );
