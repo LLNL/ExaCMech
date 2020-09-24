@@ -13,8 +13,6 @@
 #define KIN_TYPE 1
 #endif
 
-#define DUMPVEC(aname,a) std::cout << "# " << aname << " : "; for ( unsigned int iThing=0 ; iThing<a.size() ; ++iThing) { if ( iThing ) std::cout << ","; std::cout << a[iThing] ; } std::cout << std::endl;
-
 static int outputLevel = 0;
 
 TEST(ecmech, px_a)

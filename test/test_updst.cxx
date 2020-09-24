@@ -60,6 +60,10 @@ TEST(ecmech, updst_a)
 
 #endif
    //
+   DUMPVEC("opts",opts);
+   DUMPVEC("params",params);
+   DUMPVEC("strs",strs);
+   //
    mmb->initFromParams(opts, params, strs);
    //
    mmb->complete();
@@ -159,6 +163,10 @@ TEST(ecmech, driver_a)
 #include "setup_eos.h"
 
 #endif
+   //
+   DUMPVEC("opts",opts);
+   DUMPVEC("params",params);
+   DUMPVEC("strs",strs);
    //
    mmb->initFromParams(opts, params, strs);
    //
