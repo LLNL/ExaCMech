@@ -8,6 +8,8 @@
 
 #include "ECMech_core.h"
 
+#define DUMPVECOSS(aname,a) oss << aname << " : "; for ( unsigned int iThing=0 ; iThing<a.size() ; ++iThing) { if ( iThing ) oss << ", "; oss << a[iThing] ; } oss << std::endl;
+
 namespace ecmech {
    // **************** //
    // Class Definition //
@@ -18,6 +20,7 @@ namespace ecmech {
       protected:
          bool  _complete;
          double _rho0, _cvav, _v0, _e0, _bulkRef;
+         int _outputLevel;
          ecmech::ExecutionStrategy _accel;
 
          // constructor
@@ -29,6 +32,7 @@ namespace ecmech {
             _v0(-1.0),
             _e0(-1.0),
             _bulkRef(-1.0),
+            _outputLevel(0),
             _accel(ecmech::ExecutionStrategy::CPU)
          {};
 
@@ -37,11 +41,13 @@ namespace ecmech {
          __ecmech_host__
          virtual ~matModelBase() {};
 
+         __ecmech_host__
          virtual void initFromParams(const std::vector<int>& opts,
                                      const std::vector<double>& pars,
                                      const std::vector<std::string>& strs,
                                      void* call_back = nullptr) = 0;
 
+         __ecmech_host__
          virtual void getParams(std::vector<int>& opts,
                                 std::vector<double>& pars,
                                 std::vector<std::string>& strs) const = 0;
@@ -49,7 +55,17 @@ namespace ecmech {
          /**
           * @brief log parameters, including history information; more human-readable than getParams output
           */
-         virtual void logParameters(std::ostringstream& oss) const = 0;
+         __ecmech_host__
+         virtual void logParameters(std::ostringstream& oss) const {
+            std::vector<int>         opts;
+            std::vector<double>      pars;
+            std::vector<std::string> strs;
+            this->getParams(opts, pars, strs);
+            oss << "evptn constitutive model" << std::endl;
+            DUMPVECOSS("  opts",opts);
+            DUMPVECOSS("  pars",pars);
+            DUMPVECOSS("  strs",strs);
+         };
 
          /**
           * @brief Request response information for a group of host-code
@@ -195,6 +211,9 @@ namespace ecmech {
             }
             return _rho0;
          };
+
+         __ecmech_hdev__
+         void setOutputLevel(int outputLevel) { _outputLevel = outputLevel; };
 
 
          /**

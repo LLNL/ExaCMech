@@ -24,7 +24,8 @@ set(ECMECH_HEADERS
     vw_vars_set.h)
 
 set(ECMECH_SOURCES
-    ECMech_kinetics.cxx)
+    ECMech_kinetics.cxx
+    ECMech_cases.cxx)
 #    ECMech_slipgeom.cxx)
 
 #------------------------------------------------------------------------------

@@ -37,8 +37,7 @@ namespace ecmech {
             __ecmech_host__
             matModel()
                : matModelBase(),
-               _kinetics(SlipGeom::nslip),
-               _outputLevel(0)
+               _kinetics(SlipGeom::nslip)
             {
                // Should the tangent stiff matrix be included in these stride calculations?
                _strides[istride_def_rate] = ecmech::nsvp;
@@ -55,8 +54,7 @@ namespace ecmech {
             __ecmech_host__
             matModel(const unsigned int* strides, const unsigned int stride_len)
                : matModelBase(),
-               _kinetics(SlipGeom::nslip),
-               _outputLevel(0)
+               _kinetics(SlipGeom::nslip)
             {
                unsigned int nhist = NumHist<SlipGeom, Kinetics, ThermoElastN, EosModel>::numHist;
 
@@ -155,9 +153,6 @@ namespace ecmech {
             __ecmech_host__
             ~matModel(){}
 
-            __ecmech_hdev__
-            void setOutputLevel(int outputLevel) { _outputLevel = outputLevel; };
-
             using matModelBase::initFromParams;
             __ecmech_host__
             void initFromParams(const std::vector<int>& opts,
@@ -179,7 +174,8 @@ namespace ecmech {
                if (opts.size() != 0) {
                   ECMECH_FAIL(__func__, "wrong number of opts");
                }
-               if (strs.size() != 0) {
+               if (strs.size() > 1) {
+                  // strs[0] is optionally a name -- see makeMatModel
                   ECMECH_FAIL(__func__, "wrong number of strs");
                }
 
@@ -269,22 +265,14 @@ namespace ecmech {
 #endif
             };
 
+            using matModelBase::getParams;
             __ecmech_host__
             void getParams(std::vector<int>& opts,
                            std::vector<double>& pars,
                            std::vector<std::string>& strs) const override {
-               // ...*** ;
-               opts.clear();
-               strs.clear();
-               pars.clear();
-               ECMECH_FAIL(__func__, "getParams not yet implemented");
-            };
-
-            __ecmech_host__
-            void logParameters(std::ostringstream& oss) const override {
-               // ...*** ;
-               oss << "evptn constitutive model" << std::endl;
-               ECMECH_FAIL(__func__, "logParameters not yet implemented");
+               opts = _opts;
+               pars = _pars;
+               strs = _strs;
             };
 
             using matModelBase::getResponseECM;
@@ -417,13 +405,18 @@ namespace ecmech {
             EosModel _eosModel;
 
             double _tolerance;
-            int _outputLevel;
             unsigned int _strides[ecmech::nstride];
 
             std::vector<std::string> _rhvNames;
             std::vector<double>      _rhvVals;
             std::vector<bool>        _rhvPlot;
             std::vector<bool>        _rhvState;
+
+            // keep initFromParams vectors as a convenience
+            std::vector<int>          _opts;
+            std::vector<double>       _pars;
+            std::vector<std::string>  _strs;
+         
       }; // class matModel
    } // namespace evptn
 } // namespace ecmech

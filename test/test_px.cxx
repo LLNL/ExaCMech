@@ -26,6 +26,9 @@ TEST(ecmech, px_a)
 
    using namespace ecmech;
 
+   // it would be nice to try out calls like
+   //	   matModelBase* mmb = makeMatModel("evptn_FCC_A");
+   // here, but that does not play nicely with the parameter munging machinery used here
 #if KIN_TYPE
    matModelEvptn_FCC_B* mmodel = new matModelEvptn_FCC_B();
 #else
@@ -59,7 +62,7 @@ TEST(ecmech, px_a)
    //
    mmb->complete();
 
-   mmodel->setOutputLevel(outputLevel); // would not normally do this in a production setting
+   mmb->setOutputLevel(outputLevel); // would not normally do this in a production setting
 
    std::vector<double> histInit_vec;
    {
@@ -72,7 +75,7 @@ TEST(ecmech, px_a)
    //
    // set up hist and other state information
    //
-   const int numHist = mmodel->numHist;
+   const int numHist = mmb->getNumHist();
    double V_hist[numHist * nPassed];
    {
       std::default_random_engine gen;
