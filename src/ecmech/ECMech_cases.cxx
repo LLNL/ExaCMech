@@ -14,8 +14,16 @@ namespace ecmech {
          ecmech::matModelEvptn_FCC_A* mmECMEvptn = new ecmech::matModelEvptn_FCC_A() ;
          matModel = dynamic_cast<ecmech::matModelBase*>(mmECMEvptn) ;
       }
+      else if ( modelName == "evptn_FCC_AH" ) {
+         ecmech::matModelEvptn_FCC_AH* mmECMEvptn = new ecmech::matModelEvptn_FCC_AH() ;
+         matModel = dynamic_cast<ecmech::matModelBase*>(mmECMEvptn) ;
+      }
       else if ( modelName == "evptn_FCC_B" ) {
          ecmech::matModelEvptn_FCC_B* mmECMEvptn = new ecmech::matModelEvptn_FCC_B() ;
+         matModel = dynamic_cast<ecmech::matModelBase*>(mmECMEvptn) ;
+      }
+      else if ( modelName == "evptn_BCC_A" ) {
+         ecmech::matModelEvptn_BCC_A* mmECMEvptn = new ecmech::matModelEvptn_BCC_A() ;
          matModel = dynamic_cast<ecmech::matModelBase*>(mmECMEvptn) ;
       }
       else if ( modelName == "evptn_HCP_A" ) {
