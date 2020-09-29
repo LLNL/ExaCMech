@@ -189,7 +189,7 @@ namespace ecmech {
           * @brief
           * Get number of history variables
           */
-         __ecmech_hdev__
+         __ecmech_host__
          virtual int getNumHist( ) const = 0;
 
          /**
@@ -204,7 +204,7 @@ namespace ecmech {
          /**
           * @brief Get the reference density
           */
-         __ecmech_hdev__
+         __ecmech_host__
          virtual double getRhoRef() const {
             if (_rho0 < 0.0) { // want to be able to call this before _complete
                ECMECH_FAIL(__func__, "rho0 does not appear to have been set");
@@ -212,7 +212,7 @@ namespace ecmech {
             return _rho0;
          };
 
-         __ecmech_hdev__
+         __ecmech_host__
          void setOutputLevel(int outputLevel) { _outputLevel = outputLevel; };
 
 
@@ -220,14 +220,14 @@ namespace ecmech {
           * @brief
           * May end up requiring this to be called before the model may be used; and probably want to redefine this
           */
-         __ecmech_hdev__
+         __ecmech_host__
          virtual void complete() { _complete = true; };
 
          /**
           * @brief
           * Return whether or not complete has been called
           */
-         __ecmech_hdev__
+         __ecmech_host__
          virtual bool isComplete() { return _complete; };
    }; // class matModelBase
 } // ecmech namespace

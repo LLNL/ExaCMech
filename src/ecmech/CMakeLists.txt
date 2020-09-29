@@ -34,7 +34,7 @@ set(ECMECH_SOURCES
 set(ECMECH_DEPENDS)
 
 ecmech_fill_depends_list(LIST_NAME  ECMECH_DEPENDS
-                        DEPENDS_ON raja snls cuda openmp)
+                        DEPENDS_ON raja snls camp cuda openmp)
 
 message("-- ECMECH_DEPENDS: ${ECMECH_DEPENDS}")
 
@@ -53,6 +53,10 @@ set(ECMECH_INCLUDES ${CMAKE_SOURCE_DIR}/src/interface
                     ${HEADER_INCLUDE_DIR}
                     ${CMAKE_SOURCE_DIR}/src/ecmech)
 
+if(NOT USE_BUILT_SNLS)
+    list(APPEND ECMECH_INCLUDES ${CMAKE_SOURCE_DIR}/snls)
+endif()
+
 #------------------------------------------------------------------------------
 # Build Targets
 #------------------------------------------------------------------------------
@@ -62,7 +66,7 @@ if(BUILD_SHARED_LIBS)
                     OUTPUT_NAME ecmech
                     DEFINES     ${ECMECH_DEFINES}
                     INCLUDES    ${ECMECH_INCLUDES}
-                    DEPENDS_ON  ${ECMECH_DEPENDS} ${SNLS_SHARED_TARGET}
+                    DEPENDS_ON  ${ECMECH_DEPENDS} # ${SNLS_SHARED_TARGET}
                     HEADERS     ${ECMECH_HEADERS}
                     SOURCES     ${ECMECH_SOURCES}
                     SHARED      TRUE)
@@ -74,7 +78,7 @@ if(BUILD_STATIC_LIBS)
                     OUTPUT_NAME ecmech
                     DEFINES     ${ECMECH_DEFINES}
                     INCLUDES    ${ECMECH_INCLUDES}
-                    DEPENDS_ON  ${ECMECH_DEPENDS} ${SNLS_STATIC_TARGET}
+                    DEPENDS_ON  ${ECMECH_DEPENDS} # ${SNLS_STATIC_TARGET}
                     HEADERS     ${ECMECH_HEADERS}
                     SOURCES     ${ECMECH_SOURCES}
                     SHARED      FALSE)

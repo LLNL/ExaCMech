@@ -29,10 +29,12 @@ namespace ecmech {
             static constexpr int nH = Kinetics::nH;
             static constexpr int nslip = SlipGeom::nslip;
 
-            // this are assumed to go in first
-            static constexpr int nParamsEOSHave = 3; // number that get from 'elsewhere'
-            static constexpr int nParams = 2 + 1 + Kinetics::nParams + ThermoElastN::nParams +
-                                               EosModel::nParams - nParamsEOSHave;
+            static constexpr int nParamsEOSHave = 3; // number that get from 'elsewhere' // these are assumed to go in first
+            static constexpr int nParamsEOS = EosModel::nParams - nParamsEOSHave;
+            static constexpr int nParams = 
+               2 + 1 + // rho0, cvav, tolerance
+               Kinetics::nParams + ThermoElastN::nParams + nParamsEOS;
+         
             // constructor
             __ecmech_host__
             matModel()
@@ -167,13 +169,6 @@ namespace ecmech {
                _pars = pars ;
                _strs = strs ;
                
-               const int nParamsEOS = EosModel::nParams - nParamsEOSHave;
-               int nParams =
-                  2 + 1 + // rho0, cvav, tolerance
-                  Kinetics::nParams +
-                  ThermoElastN::nParams +
-                  nParamsEOS;
-
                if (pars.size() != (unsigned int) nParams) {
                   ECMECH_FAIL(__func__, "wrong number of pars");
                }
@@ -275,7 +270,8 @@ namespace ecmech {
             __ecmech_host__
             void getParams(std::vector<int>& opts,
                            std::vector<double>& pars,
-                           std::vector<std::string>& strs) const override {
+                           std::vector<std::string>& strs) const override final
+            {
                opts = _opts;
                pars = _pars;
                strs = _strs;
@@ -382,7 +378,7 @@ namespace ecmech {
             void getHistInfo(std::vector<std::string> & names,
                              std::vector<double>      & vals,
                              std::vector<bool>        & plot,
-                             std::vector<bool>        & state) const override {
+                             std::vector<bool>        & state) const override final {
                if (_rhvNames.size() != numHist) {
                   ECMECH_FAIL(__func__, "have not yet set up history information");
                }
@@ -392,13 +388,14 @@ namespace ecmech {
                state.resize(numHist); std::copy(_rhvState.begin(), _rhvState.end(), state.begin() );
             };
 
-            __ecmech_hdev__
-            int getNumHist( ) const override {
+            __ecmech_host__
+            int getNumHist( ) const override final {
                return numHist;
             };
 
-            __ecmech_hdev__
-            void complete() {
+            __ecmech_host__
+            void complete( ) override final
+            {
                _bulkRef = _eosModel.getBulkRef();
                _complete = true;
             };
