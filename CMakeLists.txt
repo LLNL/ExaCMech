@@ -55,6 +55,10 @@ include(cmake/CMakeBasics.cmake)
 if(ENABLE_CUDA)
   set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -restrict -arch ${CUDA_ARCH} --expt-extended-lambda --expt-relaxed-constexpr")
 endif()
+if(ENABLE_HIP)
+  
+set (HIP_HIPCC_FLAGS ${RAJA_HIPCC_FLAGS})
+endif()
 
 ################################
 # SNLS

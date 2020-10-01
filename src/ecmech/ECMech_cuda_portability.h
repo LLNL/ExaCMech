@@ -9,6 +9,10 @@
 #include <cuda_runtime_api.h>
 #endif
 
+#if defined(__HIPCC__)
+#include <hip/hip_runtime.h>
+#endif
+
 // When compiling using the Nvidia/CUDA tools, nvcc defines the host, device, and global
 // labels to identify the compilation target for a particular module. Routines that
 // are intended for the host need to be declared with __host__.  Similarly, routines
@@ -20,6 +24,11 @@
 // ----------------------------------------------------------------------------------------
 
 #ifdef __CUDACC__
+#define __ecmech_host__   __host__
+#define __ecmech_device__ __device__
+#define __ecmech_global__ __global__
+#define __ecmech_hdev__   __host__ __device__
+#elif defined(__HIPCC__)
 #define __ecmech_host__   __host__
 #define __ecmech_device__ __device__
 #define __ecmech_global__ __global__
@@ -37,7 +46,6 @@
 #ifdef __CUDACC__
 #ifndef CUDART_CHECK
 extern void CUDART_Check(const cudaError_t err, const char *file, const char *func, const int ln);
-
 #define CUDART_CHECK(err) CUDART_Check(err, __FILE__, __func__, __LINE__);
 #endif
 #else
@@ -58,7 +66,7 @@ extern void CUDART_Check(const cudaError_t err, const char *file, const char *fu
 // to filter code that cannot be compiled for the device.
 // ----------------------------------------------------------------------------------------
 
-#ifdef __CUDA_ARCH__
+#if (defined(__CUDA_ARCH__) && (__CUDA_ARCH__ > 0))  || defined(__HIP_DEVICE_COMPILE__)
 #define __cuda_device_only__
 #else
 #define __cuda_host_only__
