@@ -35,7 +35,7 @@ Dependencies:
 * blt -- required
   - https://github.com/LLNL/blt
   - use `git submodule` commands, or specify with `-DBLT_SOURCE_DIR=...`
-* snls -- required (currently, needs to be the `templated` branch)
+* snls -- required 
   - https://github.com/LLNL/SNLS
   - use `git submodule` commands, or specify with `-DSNLS_DIR=...`
 * raja -- required
