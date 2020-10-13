@@ -4,6 +4,7 @@
 #define ECMech_matModelBase_include
 
 #include <string>
+#include <sstream>
 #include <vector>
 
 #include "ECMech_core.h"
