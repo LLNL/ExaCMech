@@ -5,7 +5,15 @@ option(ENABLE_THROW "Enable throwing of exceptions" ON)
 
 option(ENABLE_TESTS "Enable tests" ON)
 
+option(ENABLE_GTEST "Enable gtest" ON)
+
+option(ENABLE_FRUIT "Enable fruit" OFF)
+
 option(ENABLE_CUDA "Enable CUDA" OFF)
+
+option(ENABLE_OPENMP "Enable openmp" ON)
+
+option(ENABLE_MINIAPPS "Enable miniapps" ON)
 
 # Force atleast static if user turns off both
 if(NOT BUILD_STATIC_LIBS AND NOT BUILD_SHARED_LIBS)

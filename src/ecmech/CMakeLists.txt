@@ -35,15 +35,15 @@ set(ECMECH_DEPENDS)
 ecmech_fill_depends_list(LIST_NAME  ECMECH_DEPENDS
                         DEPENDS_ON raja snls cuda openmp)
 
-message("ECMECH_DEPENDS: ${ECMECH_DEPENDS}")
+message("-- ECMECH_DEPENDS: ${ECMECH_DEPENDS}")
 
 #------------------------------------------------------------------------------
 # Defines
 #------------------------------------------------------------------------------
 set(ECMECH_DEFINES HAVE_ECMECH)
 
-SET(CMAKE_C_FLAGS_DEBUG   "${CMAKE_C_FLAGS_DEBUG}   -DDEBUG")
-SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG")
+SET(CMAKE_C_FLAGS_DEBUG   "${CMAKE_C_FLAGS_DEBUG}   -DECMECH_DEBUG")
+SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DECMECH_DEBUG")
 
 #------------------------------------------------------------------------------
 # Includes

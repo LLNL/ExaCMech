@@ -35,13 +35,13 @@ Dependencies:
 * blt -- required
   - https://github.com/LLNL/blt
   - use `git submodule` commands, or specify with `-DBLT_SOURCE_DIR=...`
-* snls -- required (currently, needs to be the `templated` branch)
+* snls -- required 
   - https://github.com/LLNL/SNLS
   - use `git submodule` commands, or specify with `-DSNLS_DIR=...`
 * raja -- required
   - https://github.com/LLNL/RAJA
   - A RAJA for the miniapp on a CORAL architecture was built with the following commands `cmake ../ -DCMAKE_INSTALL_PREFIX=../install_dir/ -DENABLE_OPENMP=ON -DENABLE_CUDA=ON -DRAJA_TIMER=chrono -DCUDA_ARCH=sm_70`
-  - specify with `-DRAJA_DIR=...`
+  - specify with `-DRAJA_DIR=.../share/raja/cmake`
 
 TESTING
 ======
@@ -58,7 +58,7 @@ MINIAPP
 
 A miniapp is provided which provides a guide for how the library might be used in a real library. It provides several compute kernels that contain CPU, OpenMP, and CUDA code through the use of RAJA. A bash script is provided for a CORAL machine that runs a few different examples using the CPU, OpenMP, and CUDA for realistic size data.
 
-If all of the features are used it can be built with the following commands when used on a CORAL architecture: `cmake ../ -DCMAKE_INSTALL_PREFIX=../install_dir/ -DRAJA_DIR={$RAJA_PATH}/raja/install_dir/share/raja/cmake/ -DENABLE_OPENMP=ON -DENABLE_CUDA=ON -DENABLE_TESTS=ON -DENABLE_MINIAPPS=ON -DCMAKE_BUILD_TYPE=Release`
+If all of the features are used it can be built with the following commands when used on a CORAL architecture: `cmake ../ -DCMAKE_INSTALL_PREFIX=../install_dir/ -DRAJA_DIR={$RAJA_PATH}/raja/install_dir/share/raja/cmake/ -DENABLE_OPENMP=ON -DENABLE_CUDA=ON -DCUDA_ARCH=sm_70 -DENABLE_TESTS=ON -DENABLE_MINIAPPS=ON -DCMAKE_BUILD_TYPE=Release`
 
 AUTHORS
 ======

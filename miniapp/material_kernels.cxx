@@ -13,3 +13,4 @@ void mat_model_kernel(const ecmech::matModelBase* mat_model_base,
                                eng_int_array, stress_svec_p_array, state_vars_array,
                                temp_array, sdd_array, ddsdde_array, nqpts);
 } // end of mat_model_kernel
+

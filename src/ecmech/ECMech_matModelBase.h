@@ -9,8 +9,6 @@
 #include "ECMech_core.h"
 
 namespace ecmech {
-   typedef void (*ECMechWarnFailFunc)(const char*, const char*, int);
-
    // **************** //
    // Class Definition //
    // **************** //
@@ -19,7 +17,8 @@ namespace ecmech {
    {
       protected:
          bool  _complete;
-         double _rho0, _cvav, _v0, _e0;
+         double _rho0, _cvav, _v0, _e0, _bulkRef;
+         ecmech::ExecutionStrategy _accel;
 
          // constructor
          __ecmech_host__
@@ -28,7 +27,9 @@ namespace ecmech {
             _rho0(-1.0),
             _cvav(-1.0),
             _v0(-1.0),
-            _e0(-1.0)
+            _e0(-1.0),
+            _bulkRef(-1.0),
+            _accel(ecmech::ExecutionStrategy::CPU)
          {};
 
       public:
@@ -39,7 +40,7 @@ namespace ecmech {
          virtual void initFromParams(const std::vector<int>& opts,
                                      const std::vector<double>& pars,
                                      const std::vector<std::string>& strs,
-                                     const ecmech::Accelerator& accel = ecmech::Accelerator::CPU) = 0;
+                                     void* call_back = nullptr) = 0;
 
          virtual void getParams(std::vector<int>& opts,
                                 std::vector<double>& pars,
@@ -177,11 +178,12 @@ namespace ecmech {
 
          /**
           *  @brief
-          *  Set the accelerator to be used for getResponse
-          *  The available options are CPU, OPENMP, and CUDA.
+          *  Set the accelerator to be used for getResponse.
           */
          __ecmech_host__
-         virtual void setAccelerator(ecmech::Accelerator accel) = 0;
+         virtual void setExecutionStrategy(ecmech::ExecutionStrategy accel)  {
+            _accel = accel;
+         };
 
          /**
           * @brief Get the reference density
@@ -208,7 +210,7 @@ namespace ecmech {
           */
          __ecmech_hdev__
          virtual bool isComplete() { return _complete; };
-   };
+   }; // class matModelBase
 } // ecmech namespace
 
 #endif // ECMech_matModelBase_include

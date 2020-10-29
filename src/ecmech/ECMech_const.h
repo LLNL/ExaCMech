@@ -62,6 +62,7 @@
 #define ISTRIDE_HISTORY 5
 #define ISTRIDE_TKELV 6
 #define ISTRIDE_SDD 7
+#define ECMECH_NSTRIDE 8
 
 #define MORE_DERIVS 0
 
@@ -69,7 +70,7 @@ namespace ecmech
 {
    // We're going to use this to determine what RAJA code to run for our
    // kernels.
-   enum class Accelerator { CPU, CUDA, OPENMP };
+   enum class ExecutionStrategy { CPU, CUDA, OPENMP };
 
    const int nsvp = 7;
    const int ndim = 3;
@@ -77,6 +78,8 @@ namespace ecmech
    const int nsvec = 6;
    const int nsvec2 = 36;
    const int nvr = 4;
+
+   const int nMiller = 4;
 
    // Provide indices for the matModel stride array so codes outside of the library
    // can use them.
@@ -88,6 +91,7 @@ namespace ecmech
    const int istride_history = ISTRIDE_HISTORY;
    const int istride_tkelv = ISTRIDE_TKELV;
    const int istride_sdd = ISTRIDE_SDD;
+   const int nstride = ECMECH_NSTRIDE;
 
    const int ntvec = 5;
    const int nwvec = 3;
@@ -104,8 +108,6 @@ namespace ecmech
    const int nsdd = 2;
 
    const int i_ne_total = 0;
-   // const int i_ne_cold    = ? ; // generally not needed
-   // const int i_ne_melt    = ? ; // generally not needed
 
    const double zero = 0.0;
    const double one = 1.0;

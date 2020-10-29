@@ -15,6 +15,8 @@ namespace ecmech {
     * based on a single Kocks-Mecking dislocation density
     * balanced thermally activated MTS-like slip kinetics with phonon drag effects
     *
+    * see \cite{hmx}
+    *
     * if withGAthermal then
     *  see subroutine kinetics_mtspwr_d in mdef : (l_mts, l_mtsp, l_plwr)
     *    ! like kinetics_mtswr_d, but with pl%tau_a (possible associated
@@ -31,22 +33,30 @@ namespace ecmech {
     *
     * templated on p and q being 1 or not;
     * might eventually template on number of slip systems, but to not do so just yet
-
-    TODO : ...*** state update for hardness vector?
-
     */
-   template<bool withGAthermal, bool pOne, bool qOne> // l_p_1, l_q_1
+   template<bool withGAthermal,
+            bool pOne, // l_p_1
+            bool qOne, // l_q_1
+            bool perSS,
+            int  nVPer>
    class KineticsKMBalD
    {
       public:
          static const int nH = 1;
-         static const int nParams = 11 + 4 + nH;
-         static const int nVals = 4;
+         static const int nParams = 8 + 3 * nVPer + 4 + nH;
+         static const int nVals = 2 + nVPer + nVPer;
          static const int nEvolVals = 2;
 
          // constructor
          __ecmech_hdev__
-         KineticsKMBalD(int nslip) : _nslip(nslip) {};
+         KineticsKMBalD(int nslip) : _nslip(nslip) {
+            if (perSS) {
+               assert(_nslip == nVPer);
+            }
+            else {
+               assert(nVPer == 1);
+            }
+         };
          // deconstructor
          __ecmech_hdev__
          ~KineticsKMBalD() {}
@@ -61,15 +71,23 @@ namespace ecmech {
 
             _mu_ref = *parsIt; ++parsIt;
             _tK_ref = *parsIt; ++parsIt;
-            _c_1 = *parsIt; ++parsIt;
+            for (int iVal = 0; iVal<nVPer; ++iVal) {
+               _c_1[iVal] = *parsIt; ++parsIt;
+            }
+
             _tau_a = *parsIt; ++parsIt;
             _p = *parsIt; ++parsIt;
             _q = *parsIt; ++parsIt;
             _gam_wo = *parsIt; ++parsIt;
             _gam_ro = *parsIt; ++parsIt;
             _wrD = *parsIt; ++parsIt;
-            _go = *parsIt; ++parsIt;
-            _s = *parsIt; ++parsIt;
+            for (int iVal = 0; iVal<nVPer; ++iVal) {
+               _go[iVal] = *parsIt; ++parsIt;
+            }
+
+            for (int iVal = 0; iVal<nVPer; ++iVal) {
+               _s[iVal] = *parsIt; ++parsIt;
+            }
 
             if (pOne) {
                assert(_p == one);
@@ -80,18 +98,20 @@ namespace ecmech {
 
             // plaw_from_elawRef
             //
-            // pl%xm = getMtsxmEffective(pl, mu_ref, T_ref)
-            double xm = one / (two * ((_c_1 / _tK_ref) * _mu_ref * _p * _q));
-            //
-            // CALL fill_power_law(pl)
-            // xmm  = xm - one ;
-            _xnn = one / xm;
-            _xn = _xnn - one;
-            // xMp1 = xnn + one
-            //
-            // CALL set_t_min_max(pl)
-            _t_min = pow(ecmech::gam_ratio_min, xm);
-            _t_max = pow(ecmech::gam_ratio_ovf, xm);
+            for (int iVal = 0; iVal<nVPer; ++iVal) {
+               // pl%xm = getMtsxmEffective(pl, mu_ref, T_ref)
+               double xm = one / (two * ((_c_1[iVal] / _tK_ref) * _mu_ref * _p * _q));
+               //
+               // CALL fill_power_law(pl)
+               // xmm  = xm - one ;
+               _xnn[iVal] = one / xm;
+               _xn[iVal] = _xnn[iVal] - one;
+               // xMp1 = xnn + one
+               //
+               // CALL set_t_min_max(pl)
+               _t_min[iVal] = pow(ecmech::gam_ratio_min, xm);
+               _t_max[iVal] = pow(ecmech::gam_ratio_ovf, xm);
+            }
 
             //////////////////////////////
             // Kocks-Mecking stuff
@@ -125,15 +145,23 @@ namespace ecmech {
 
             params.push_back(_mu_ref);
             params.push_back(_tK_ref);
-            params.push_back(_c_1);
+            for (int iVal = 0; iVal<nVPer; ++iVal) {
+               params.push_back(_c_1[iVal]);
+            }
+
             params.push_back(_tau_a);
             params.push_back(_p);
             params.push_back(_q);
             params.push_back(_gam_wo);
             params.push_back(_gam_ro);
             params.push_back(_wrD);
-            params.push_back(_go);
-            params.push_back(_s);
+            for (int iVal = 0; iVal<nVPer; ++iVal) {
+               params.push_back(_go[iVal]);
+            }
+
+            for (int iVal = 0; iVal<nVPer; ++iVal) {
+               params.push_back(_s[iVal]);
+            }
 
             //////////////////////////////
             // Kocks-Mecking stuff
@@ -180,12 +208,12 @@ namespace ecmech {
          double _q; // only used if qOne is false
          double _gam_ro;
          double _gam_wo; // adots0
-         double _c_1;
+         double _c_1[nVPer];
          double _wrD;
-         double _go, _s;
+         double _go[nVPer], _s[nVPer];
 
          // derived from parameters
-         double _t_max, _t_min, _xn, _xnn;
+         double _t_max[nVPer], _t_min[nVPer], _xn[nVPer], _xnn[nVPer];
 
          //////////////////////////////
          // Kocks-Mecking stuff
@@ -203,7 +231,7 @@ namespace ecmech {
          double
          getFixedRefRate(const double* const vals) const
          {
-            return vals[1] + vals[2]; // _gam_w + _gam_r ;
+            return vals[0] + vals[1]; // _gam_w + _gam_r ;
          }
 
          /**
@@ -214,25 +242,39 @@ namespace ecmech {
           */
          __ecmech_hdev__
          inline
-         void
-         getVals(double* const vals,
+         double
+         getVals(double* const vals, // [nVals]
                  double, // p, not used
                  double tK,
                  const double* const h_state
                  ) const
          {
-            vals[3] = _c_1 / tK; // _c_t
-            double sqrtDDens = sqrt(h_state[0]);
+            double const nVPerInv = 1.0 / nVPer;
+
             // double sqrtDDens = exp(onehalf * h_state[0]) ; // this is for h_state[0] storing the log of the dislocation density
-            vals[0] = _go + _s * sqrtDDens; // _gAll
-            vals[1] = _gam_wo / sqrtDDens; // _gam_w
-            vals[2] = _gam_ro * sqrtDDens * sqrtDDens; // _gam_r
+            double sqrtDDens = sqrt(h_state[0]);
+
+            vals[0] = _gam_wo / sqrtDDens; // _gam_w
+            vals[1] = _gam_ro * sqrtDDens * sqrtDDens; // _gam_r
+
+            double hdnScale = 0.;
+            for (int iVal = 0; iVal<nVPer; ++iVal) {
+               double hdnI = _go[iVal] + _s[iVal] * sqrtDDens; // _gAll
+               hdnScale += hdnI;
+               vals[2 + iVal] = hdnI;
+               vals[2 + nVPer + iVal] = _c_1[iVal] / tK; // _c_t
+               if (!withGAthermal) {
+                  assert(vals[2 + iVal] > zero);
+               }
+            }
+
+            hdnScale = hdnScale * nVPerInv;
+
             if (withGAthermal) {
                assert(_tau_a > 0);
             }
-            else {
-               assert(vals[0] > zero);
-            }
+
+            return hdnScale;
          }
 
          __ecmech_hdev__
@@ -248,7 +290,7 @@ namespace ecmech {
             for (int iSlip = 0; iSlip<this->_nslip; ++iSlip) {
                bool l_act;
                this->evalGdot(gdot[iSlip], l_act, dgdot_dtau[iSlip], dgdot_dg[iSlip],
-                              vals,
+                              vals, iSlip,
                               tau[iSlip],
                               _mu_ref // gss%ctrl%mu(islip)
                               );
@@ -320,7 +362,7 @@ namespace ecmech {
          void
          evalGdot(
             double & gdot,
-            bool  & l_act,
+            bool   & l_act,
             double & dgdot_dtau, // wrt resolved shear stress
             double & dgdot_dg, // wrt slip system strength
 #if MORE_DERIVS
@@ -330,6 +372,7 @@ namespace ecmech {
             double & dgdot_dtK, // wrt temperature, with other arguments fixed
 #endif
             const double* const vals,
+            int      iSlip,
             double   tau,
             double   mu
 #if MORE_DERIVS
@@ -341,10 +384,28 @@ namespace ecmech {
             static const double gdot_w_pl_scaling = 10.0;
             static const double one = 1.0, zero = 0.0;
 
-            double gIn = vals[0];
-            double gam_w = vals[1];
-            double gam_r = vals[2];
-            double c_t = vals[3];
+            double gam_w = vals[0];
+            double gam_r = vals[1];
+            double gIn, c_t, xn, xnn, t_max, t_min;
+            if (perSS) {
+               int iVal = iSlip;
+               gIn = vals[2 + iVal];
+               c_t = vals[2 + nVPer + iVal];
+               xn = _xn[iVal];
+               xnn = _xnn[iVal];
+               t_max = _t_max[iVal];
+               t_min = _t_min[iVal];
+            }
+            else {
+               // hopefully the compiler will optimize this nicely
+               const int iVal = 0;
+               gIn = vals[2 + iVal];
+               c_t = vals[2 + nVPer + iVal];
+               xn = _xn[iVal];
+               xnn = _xnn[iVal];
+               t_max = _t_max[iVal];
+               t_min = _t_min[iVal];
+            }
 
             // zero things so that can more easily just return if inactive
             gdot = zero;
@@ -408,7 +469,7 @@ namespace ecmech {
 #endif
             }
             //
-            if (at_0 > _t_max) {
+            if (at_0 > t_max) {
                // have overflow of thermally activated kinetics, purely drag limited
 
                gdot = gdot_r;
@@ -489,17 +550,17 @@ namespace ecmech {
                }
             }
 
-            if (at_0 > _t_min) {
+            if (at_0 > t_min) {
                // need power-law part
 
                double abslog = log(at_0);
-               double blog = _xn * abslog;
+               double blog = xn * abslog;
                double temp = (gam_w * gdot_w_pl_scaling) * exp(blog);
 
                double gdot_w_pl = temp * at_0; // not signed ! copysign(at_0,tau)
                gdot_w = gdot_w + gdot_w_pl;
 
-               double contrib = temp * _xnn * g_i;
+               double contrib = temp * xnn * g_i;
                dgdot_w = dgdot_w + contrib;
                if (!withGAthermal) {
                   dgdot_wg = dgdot_wg + contrib * at_0;

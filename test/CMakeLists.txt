@@ -1,7 +1,10 @@
 set(ECMECH_TEST_DEPENDS )
 
-SET(CMAKE_C_FLAGS_DEBUG   "${CMAKE_C_FLAGS_DEBUG}   -DDEBUG")
-SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG")
+SET(CMAKE_C_FLAGS_DEBUG   "${CMAKE_C_FLAGS_DEBUG}   -DECMECH_DEBUG")
+SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DECMECH_DEBUG")
+
+ecmech_fill_depends_list(LIST_NAME  ECMECH_TEST_DEPENDS
+                        DEPENDS_ON raja snls cuda openmp)
 
 if(BUILD_STATIC_LIBS)
     list(APPEND ECMECH_TEST_DEPENDS ecmech_static ${SNLS_STATIC_TARGET})
@@ -9,20 +12,20 @@ else()
     list(APPEND ECMECH_TEST_DEPENDS ecmech_shared ${SNLS_SHARED_TARGET})
 endif()
 
-if(ENABLE_OPENMP)
-   list(APPEND ECMECH_TEST_DEPENDS openmp)
-endif()
-
-if(ENABLE_CUDA)
-   list(APPEND ECMECH_TEST_DEPENDS cuda)
-endif()
-
-blt_add_executable(NAME       test_hardening
+blt_add_executable(NAME       test_hardening_0
                    SOURCES    test_hardening.cxx
                    OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
                    DEPENDS_ON ${ECMECH_TEST_DEPENDS} gtest)
-blt_add_test(NAME    test_hardening
-             COMMAND test_hardening)
+blt_add_test(NAME    test_hardening_0
+             COMMAND test_hardening_0)
+
+blt_add_executable(NAME       test_hardening_1
+                   SOURCES    test_hardening.cxx
+                   DEFINES    KIN_NONLINEAR
+                   OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
+                   DEPENDS_ON ${ECMECH_TEST_DEPENDS} gtest)
+blt_add_test(NAME    test_hardening_1
+             COMMAND test_hardening_1)
 
 blt_add_executable(NAME       test_evptn_0
                    SOURCES    test_evptn.cxx
@@ -39,6 +42,22 @@ blt_add_executable(NAME       test_evptn_1
                    DEPENDS_ON ${ECMECH_TEST_DEPENDS} gtest)
 blt_add_test(NAME    test_evptn_1
              COMMAND test_evptn_1)
+
+blt_add_executable(NAME       test_evptn_2
+                   SOURCES    test_evptn.cxx
+                   DEFINES    KIN_TYPE=2
+                   OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
+                   DEPENDS_ON ${ECMECH_TEST_DEPENDS} gtest)
+blt_add_test(NAME    test_evptn_2
+             COMMAND test_evptn_2)
+
+blt_add_executable(NAME       test_evptn_3
+                   SOURCES    test_evptn.cxx
+                   DEFINES    KIN_TYPE=3
+                   OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
+                   DEPENDS_ON ${ECMECH_TEST_DEPENDS} gtest)
+blt_add_test(NAME    test_evptn_3
+             COMMAND test_evptn_3)
 
 blt_add_executable(NAME       test_updst
                    SOURCES    test_updst.cxx

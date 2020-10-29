@@ -1,12 +1,24 @@
+#if KIN_TYPE == 3
 
-// so far, all models work well enough that ahould be getting close to rho=1 at final iteration
-static const double rhoLasttol = 1e-3;
+static const int   expectedNFEvals = 9;
+static const double expectedGdotVal = 0.24401180817524;
+static const double expectedE2 = 0.0023952767304669;
+static const double expectedQ1 = 0.9996875162757;
 
-#if KIN_TYPE
+#elif KIN_TYPE == 2
+
+static const int   expectedNFEvals = 16;
+static const double expectedGdotVal = 0.15704792600045;
+static const double expectedE2 = 0.0067661223196391;
+static const double expectedQ1 = 0.9996875162757;
+
+#elif KIN_TYPE == 1
+
 static const int   expectedNFEvals = 23;
 static const double expectedGdotVal = 0.2398180885495;
 static const double expectedE2 = 0.00407276458021;
 static const double expectedQ1 = 0.999687516276;
+
 #else
 
 #if XM_MUSHY

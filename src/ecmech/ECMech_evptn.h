@@ -16,12 +16,13 @@
 
 namespace ecmech {
    namespace evptn {
-      const int numHistAux = 3; // effective shearing rate, accumulated shear, nFEval
+      const int numHistAux = 4; // effective shearing rate, accumulated shear, flow strength, nFEval
       //
       const int iHistLbA = 0;
       const int iHistA_shrateEff = iHistLbA + 0;
       const int iHistA_shrEff = iHistLbA + 1;
-      const int iHistA_nFEval = iHistLbA + 2;
+      const int iHistA_flowStr = iHistLbA + 2;
+      const int iHistA_nFEval = iHistLbA + 3;
       const int iHistLbE = numHistAux;
       const int iHistLbQ = numHistAux + ecmech::ntvec;
       const int iHistLbH = numHistAux + ecmech::ntvec + ecmech::qdim;
@@ -124,7 +125,8 @@ namespace ecmech {
                for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
                   double dTdepsThis = _K_diag[iTvec] * a_V_ri;
                   for (int iP = 0; iP < p; ++iP) {
-                     P[ECMECH_NM_INDX(iTvec, iP, ecmech::ntvec, p)] = dTdepsThis * A[ECMECH_NM_INDX(iTvec, iP, ecmech::ntvec, p)];
+                     int ii = ECMECH_NM_INDX(iTvec, iP, ecmech::ntvec, p);
+                     P[ii] = dTdepsThis * A[ii];
                   }
                }
             }
@@ -209,6 +211,193 @@ namespace ecmech {
             double _K_bulkMod, _K_gmod;
       };
 
+      /**
+       * for hexagonal cyrstal symmetry
+       *
+       * in Fortran mdef coding, corresponds to cem%l_lin_lnsd, cem%l_h
+       *
+       * Gruneisen gamma is diag(g_a,g_a,g_b)
+       * g_vecd is
+       *    (g11-g22)/sqrt(2.) = 0
+       *    (2. * g33 - g11 - g22)/sqrt(6.) = 2.0 * (g_b - g_a) / sqrt(6.)
+       *    sqrt(2.) * g12 = 0
+       *    sqrt(2.) * g13 = 0
+       *    sqrt(2.) * g23 = 0
+       * and just store the one non-zero as _g_vecd2
+       *
+       */
+      class ThermoElastNHexag
+      {
+         public:
+            static const int nParams = 6;
+
+            // constructor and destructor
+            __ecmech_hdev__
+            inline ThermoElastNHexag() : _K_bulkMod(-1.0), _K_gmod(-1.0) {};
+            __ecmech_hdev__
+            inline ~ThermoElastNHexag() {};
+
+            __ecmech_host__
+            inline void setParams(const std::vector<double> & params // const double* const params
+                                  ) {
+               std::vector<double>::const_iterator parsIt = params.begin();
+
+               _c11 = *parsIt; ++parsIt;
+               _c12 = *parsIt; ++parsIt;
+               _c13 = *parsIt; ++parsIt;
+               _c33 = *parsIt; ++parsIt;
+               _c44 = *parsIt; ++parsIt;
+               //
+               _g_vecd2 = *parsIt; ++parsIt;
+               //
+               int iParam = parsIt - params.begin();
+               assert(iParam == nParams);
+
+               _K_diag[0] = _c11 - _c12;
+               _K_diag[1] = _c11 * onethird + _c12 * onethird - fourthirds * _c13 + twothird * _c33;
+               _K_diag[2] = _c11 - _c12;
+               _K_diag[3] = two * _c44;
+               _K_diag[4] = two * _c44;
+               double K_vecds_s = twothird * _c11 + twothird * _c12 + fourthirds * _c13 + _c33 * onethird;
+               _K_sdax3 = sqr2 * (-_c11 - _c12 + _c13 + _c33) * onethird;
+               _K_bulkMod = onethird * K_vecds_s;
+               //
+               // _K_gmod below ignores the _K_sdax3 contribution, but it is just meant to be approximate anyway
+               _K_gmod = 0.5 * 0.2 * vecsssum<ecmech::ntvec>(_K_diag); // 0.5 * (average of _K_diag entries)
+            }
+
+            __ecmech_host__
+            inline void getParams(std::vector<double> & params
+                                  ) const {
+               // do not clear params in case adding to an existing set
+               int paramsStart = params.size();
+
+               params.push_back(_c11);
+               params.push_back(_c12);
+               params.push_back(_c13);
+               params.push_back(_c33);
+               params.push_back(_c44);
+               //
+               params.push_back(_g_vecd2);
+
+               int iParam = params.size() - paramsStart;
+               assert(iParam == nParams);
+            }
+
+            __ecmech_hdev__
+            inline
+            void eval(double* const T_vecds,
+                      const double* const Ee_vecds,
+                      double, // tK
+                      double p_EOS,
+                      double eVref
+                      ) const {
+               double ln_J = sqr3 * Ee_vecds[iSvecS]; // vecds_s_to_trace
+               double J = exp(ln_J);
+               double Ts_bulk = -sqr3 * J * p_EOS;
+
+               vecsVAdiagB<ntvec>(T_vecds, _K_diag, Ee_vecds);
+               T_vecds[iSvecS] = Ts_bulk; // _K_vecds_s * Ee_vecds(SVEC)
+
+               T_vecds[iTvecHex] += _K_sdax3 * Ee_vecds[iSvecS];
+               T_vecds[iSvecS] += _K_sdax3 * Ee_vecds[iTvecHex];
+
+               // anisotropic Gruneisen contribution; pressure part of Gruneisen tensor contribution should already be in p_EOS
+               // CALL eos_eval_e_Csdev(Cauchy_eos_vecd, eVref, J, &
+               // & i_eos_model, eos_const)
+               // -(Gamma' + a' * mu) * eVref // but do not do a'*mu part
+               // Cauchy_eos_vecd(:) = -eos_const(4:8) * eVref
+               // T_vecds(1:TVEC) = T_vecds(1:TVEC) + J * Cauchy_eos_vecd(:)
+               T_vecds[iTvecHex] += J * (-_g_vecd2 * eVref);
+            }
+
+            /**
+             * multDTDepsT ends up looking the same as in the cubic case because _K_sdax3 does not enter
+             */
+            __ecmech_hdev__
+            inline
+            void multDTDepsT(double* const P, // ntvec*p
+                             const double* const A, // ntvec*p
+                             double a_V_ri,
+                             int p) const {
+               for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
+                  double dTdepsThis = _K_diag[iTvec] * a_V_ri;
+                  for (int iP = 0; iP < p; ++iP) {
+                     int ii = ECMECH_NM_INDX(iTvec, iP, ecmech::ntvec, p);
+                     P[ii] = dTdepsThis * A[ii];
+                  }
+               }
+            }
+
+            __ecmech_hdev__
+            inline
+            void getCauchy(double* const sigC_vecds_lat,
+                           const double* const T_vecds,
+                           double detVi) const
+            {
+               for (int iSvec = 0; iSvec < ecmech::nsvec; ++iSvec) {
+                  sigC_vecds_lat[iSvec] = detVi * T_vecds[iSvec];
+               }
+            }
+
+            __ecmech_hdev__
+            inline
+            void multCauchyDif(double* const M6,
+                               const double* const A,
+                               double detVi,
+                               double a_V_ri
+                               ) const {
+               for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
+                  double vFact = detVi * a_V_ri * _K_diag[iTvec];
+                  for (int jTvec = 0; jTvec < ecmech::ntvec; ++jTvec) {
+                     M6[ECMECH_NN_INDX(iTvec, jTvec, ecmech::nsvec)] = vFact * A[ECMECH_NN_INDX(iTvec, jTvec, ecmech::ntvec)];
+                  }
+               }
+
+               // M6[iSvecS,:] = dsigC_de[iSvecS, iTvecHex] * A[iTvecHex,:] // for hexagonal specifically
+               // dsigC_de[iTvecHex, iSvecS] does not end up getting used
+               {
+                  double vFact = detVi * a_V_ri * _K_sdax3;
+                  for (int jTvec = 0; jTvec < ecmech::ntvec; ++jTvec) {
+                     M6[ECMECH_NN_INDX(iSvecS, jTvec, ecmech::nsvec)] = vFact * A[ECMECH_NN_INDX(iTvecHex, jTvec, ecmech::ntvec)];
+                  }
+               }
+
+               for (int iSvec = 0; iSvec < ecmech::nsvec; ++iSvec) {
+                  M6[ECMECH_NN_INDX(iSvec, iSvecS, ecmech::nsvec)] = 0.0;
+               }
+            }
+
+            __ecmech_hdev__
+            inline
+            double getBulkMod( ) const {
+               if (_K_bulkMod <= 0.0) {
+                  ECMECH_FAIL(__func__, "bulk modulus negative -- not initialized?");
+               }
+               return _K_bulkMod;
+            }
+
+            __ecmech_hdev__
+            inline
+            double getGmod(double, // tK
+                           double, // p_EOS
+                           double // eVref
+                           ) const {
+               if (_K_gmod <= 0.0) {
+                  ECMECH_FAIL(__func__, "effective shear modulus negative -- not initialized?");
+               }
+               return _K_gmod;
+            }
+
+         private:
+            double _c11, _c12, _c13, _c33, _c44;
+            double _K_sdax3;
+            double _g_vecd2;
+            double _K_diag[ecmech::ntvec];
+            double _K_bulkMod, _K_gmod;
+            static const int iTvecHex = 1;
+      };
+
       template<class SlipGeom, class Kinetics, class ThermoElastN>
       class EvptnUpdstProblem
       {
@@ -249,7 +438,7 @@ namespace ecmech {
                _a_V = pow(detV, onethird);
                _a_V_ri = 1.0 / _a_V;
 
-               _kinetics.getVals(_kin_vals, _p_EOS, _tK, _h_state);
+               _hdn_scale = _kinetics.getVals(_kin_vals, _p_EOS, _tK, _h_state);
 
                double adots_ref = _kinetics.getFixedRefRate(_kin_vals);
                double eff = vecNorm<ntvec>(_d_vecd_sm); // do not worry about factor of sqrt(twothird)
@@ -286,6 +475,10 @@ namespace ecmech {
             __ecmech_hdev__
             inline
             double getDisRate() const { return _dp_dis_rate_contrib; }
+
+            __ecmech_hdev__
+            inline
+            double getHdnScale() const { return _hdn_scale; }
 
             /*
              * NOTES :
@@ -515,9 +708,9 @@ namespace ecmech {
                   //
                   //
                   // derivatives with respect to lattice orientation changes
-                  double dC_quat_dxi_T[ ecmech::nwvec*ecmech::qdim ];
-                  double dDsm_dxi[ ecmech::ntvec*ecmech::nwvec ];
-                  double dWsm_dxi[ ecmech::nwvec*ecmech::nwvec ];
+                  double dC_quat_dxi_T[ ecmech::nwvec * ecmech::qdim ];
+                  double dDsm_dxi[ ecmech::ntvec * ecmech::nwvec ];
+                  double dWsm_dxi[ ecmech::nwvec * ecmech::nwvec ];
                   eval_d_dxi_impl_quat(dC_quat_dxi_T, dDsm_dxi, dWsm_dxi,
                                        _d_vecd_sm, _w_veccp_sm,
                                        xi_f, _Cn_quat, C_matx, C_quat);
@@ -659,7 +852,7 @@ namespace ecmech {
                      // temp_M6I = MATMUL(dsigClat_def(:,1:TVEC), de_dI(:,:))
                      {
                         // TODO : get rid of the need for this memory copy (with transpose) into de_dI
-                        double de_dI[ ecmech::ntvec*nRHS ]; // nRHS=ecmech::ntvec, but put nRHS in here for clarity, and thus use ECMECH_NM_INDX instead of ECMECH_NN_INDX
+                        double de_dI[ ecmech::ntvec * nRHS ]; // nRHS=ecmech::ntvec, but put nRHS in here for clarity, and thus use ECMECH_NM_INDX instead of ECMECH_NN_INDX
                         for (int iTvec = 0; iTvec<ecmech::ntvec; ++iTvec) {
                            for (int jTvec = 0; jTvec<nRHS; ++jTvec) {
                               de_dI[ECMECH_NM_INDX(iTvec, jTvec, ecmech::ntvec,
@@ -764,6 +957,7 @@ namespace ecmech {
             double _dt, _detV, _eVref, _p_EOS, _tK, _a_V;
             double _dt_ri, _a_V_ri, _detV_ri;
 
+            double _hdn_scale;
             double _epsdot_scale_inv, _rotincr_scale_inv;
 
             double _gdot[SlipGeom::nslip]; // crys%tmp1_slp
@@ -822,9 +1016,6 @@ namespace ecmech {
          //
          double d_vecd_sm[ecmech::ntvec];
          svecToVecd(d_vecd_sm, d_svec_kk_sm);
-#ifdef NEED_SCALAR_FLOW_STRENGTH
-         double dEff = vecd_Deff(d_vecd_sm);
-#endif
 
          // pointers to state
          //
@@ -858,7 +1049,7 @@ namespace ecmech {
 
          // EOS
          //
-         double eOld = eInt[0];
+         double eOld = eInt[ecmech::i_ne_total];
          double pOld = stressSvecP[6];
          double pEOS, eNew, bulkNew;
          //
@@ -869,10 +1060,13 @@ namespace ecmech {
             eos.evalPT(pBOS, tkelv, vOld, eOld);
          }
          //
+         double tkelvNew;
          {
-            double tkelvNew;
+            double dpde, dpdv, dtde;
             updateSimple<EosModel>(eos, pEOS, tkelvNew, eNew, bulkNew,
-                                   volRatio, eOld, pOld);
+                                   dpde, dpdv, dtde,
+                                   volRatio[1], volRatio[3],
+                                   eOld, pOld);
          }
 
          // update hardness state to the end of the step
@@ -885,8 +1079,8 @@ namespace ecmech {
          //
          double* e_vecd_u = &(hist[iHistLbE]);
          double* quat_u = &(hist[iHistLbQ]);
+         double vNew = volRatio[1];
          {
-            double vNew = volRatio[1];
             EvptnUpdstProblem<SlipGeom, Kinetics, ThermoElastN> prob(slipGeom, kinetics, elastN,
                                                                      dt,
                                                                      vNew, eNew, pEOS, tkelv,
@@ -970,27 +1164,31 @@ namespace ecmech {
             for (int i_hstate = 0; i_hstate < Kinetics::nH; i_hstate++) {
                h_state[i_hstate] = h_state_u[i_hstate];
             }
-
+            //
             {
                const double* gdot_u = prob.getGdot();
                for (int i_gdot = 0; i_gdot < SlipGeom::nslip; i_gdot++) {
                   gdot[i_gdot] = gdot_u[i_gdot];
                }
             }
+            //
             hist[iHistA_shrateEff] = prob.getShrateEff();
-            hist[iHistA_shrEff] += hist[iHistLbA + 0] * dt;
+            hist[iHistA_shrEff] += hist[iHistA_shrateEff] * dt;
+            //
+            {
+               double dEff = vecd_Deff(d_vecd_sm);
+               double flow_strength = prob.getHdnScale();
+               if (dEff > idp_tiny_sqrt) {
+                  flow_strength = prob.getDisRate() / dEff;
+               }
+               hist[iHistA_flowStr] = flow_strength;
+            }
+            //
             hist[iHistA_nFEval] = solver.getNFEvals(); // does _not_ include updateH iterations
 
             // get Cauchy stress
             //
             prob.elastNEtoC(Cstr_vecds_lat, e_vecd_u);
-
-#ifdef NEED_SCALAR_FLOW_STRENGTH
-            double flow_strength = 0.0; // TO_DO : consider setting this instead to a reference value (dependent on the current state?)?
-            if (dEff > idp_tiny_sqrt) {
-               flow_strength = prob.getDisRate() / dEff;
-            }
-#endif
          }
 
          double C_matx[ecmech::ndim * ecmech::ndim];
@@ -1011,7 +1209,8 @@ namespace ecmech {
          eDevTot += halfVMidDt * vecsInnerSvecDev(stressSvecP, d_svec_kk_sm);
 
          // adjust sign on quat so that as close as possible to quat_o;
-         // more likely to keep orientations clustered this way
+         // more likely to keep orientations clustered this way;
+         // this flip through the origin is equivalent under antipodal symmetry
          //
          if (vecsyadotb<qdim>(quat_u, quat_n) < zero) {
             for (int iQ = 0; iQ<ecmech::qdim; ++iQ) {
@@ -1024,7 +1223,7 @@ namespace ecmech {
             sdd[i_sdd_bulk] = bulkNew;
             sdd[i_sdd_gmod] = gmod;
          }
-#ifdef DEBUG
+#ifdef ECMECH_DEBUG
          assert(ecmech::nsdd == 2);
 #endif
 
@@ -1033,7 +1232,7 @@ namespace ecmech {
          // could update pressure and temperature again, but do not bother
 
          eInt[ecmech::i_ne_total] = eNew;
-#ifdef DEBUG
+#ifdef ECMECH_DEBUG
          assert(ecmech::ne == 1);
 #endif
       } // getResponseSngl

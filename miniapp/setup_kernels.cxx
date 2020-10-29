@@ -8,7 +8,6 @@ namespace {
    void init_data_cpu(const double* ori, const std::vector<double>& histInit_vec,
                       const int nqpts, const int num_hardness, const int ind_gdot,
                       const int num_slip, const int vdim, double* state_vars){
-
       const int ind_dp_eff = ecmech::evptn::iHistA_shrateEff;
       const int ind_eql_pl_strain = ecmech::evptn::iHistA_shrEff;
       const int ind_num_evals = ecmech::evptn::iHistA_nFEval;
@@ -78,8 +77,8 @@ namespace {
       const int ind_vols = ind_int_eng - 1;
 
       const int DIM = 3;
-      std::array<RAJA::idx_t, DIM> perm {{ 2, 1, 0 } };
-      RAJA::Layout<DIM> layout = RAJA::make_permuted_layout({{ ecmech::ndim, ecmech::ndim, nqpts } }, perm);
+      std::array<RAJA::idx_t, DIM> perm { { 2, 1, 0 } };
+      RAJA::Layout<DIM> layout = RAJA::make_permuted_layout({ { ecmech::ndim, ecmech::ndim, nqpts } }, perm);
       RAJA::View<const double, RAJA::Layout<DIM, RAJA::Index_type, 0> > vgrad_view(vel_grad_array, layout);
 
       // All of the below we could setup in one big RAJA loop/kernel
@@ -151,7 +150,6 @@ namespace {
    void init_data_openmp(const double* ori, const std::vector<double>& histInit_vec,
                          const int nqpts, const int num_hardness, const int ind_gdot,
                          const int num_slip, const int vdim, double* state_vars){
-
       const int ind_dp_eff = ecmech::evptn::iHistA_shrateEff;
       const int ind_eql_pl_strain = ecmech::evptn::iHistA_shrEff;
       const int ind_num_evals = ecmech::evptn::iHistA_nFEval;
@@ -224,8 +222,8 @@ namespace {
       const int ind_vols = ind_int_eng - 1;
 
       const int DIM = 3;
-      std::array<RAJA::idx_t, DIM> perm {{ 2, 1, 0 } };
-      RAJA::Layout<DIM> layout = RAJA::make_permuted_layout({{ ecmech::ndim, ecmech::ndim, nqpts } }, perm);
+      std::array<RAJA::idx_t, DIM> perm { { 2, 1, 0 } };
+      RAJA::Layout<DIM> layout = RAJA::make_permuted_layout({ { ecmech::ndim, ecmech::ndim, nqpts } }, perm);
       RAJA::View<const double, RAJA::Layout<DIM, RAJA::Index_type, 0> > vgrad_view(vel_grad_array, layout);
 
       // All of the below we could setup in one big RAJA loop/kernel
@@ -313,8 +311,8 @@ namespace {
       const int ind_vols = ind_int_eng - 1;
 
       const int DIM = 3;
-      std::array<RAJA::idx_t, DIM> perm {{ 2, 1, 0 } };
-      RAJA::Layout<DIM> layout = RAJA::make_permuted_layout({{ ecmech::ndim, ecmech::ndim, nqpts } }, perm);
+      std::array<RAJA::idx_t, DIM> perm { { 2, 1, 0 } };
+      RAJA::Layout<DIM> layout = RAJA::make_permuted_layout({ { ecmech::ndim, ecmech::ndim, nqpts } }, perm);
       RAJA::View<const double, RAJA::Layout<DIM, RAJA::Index_type, 0> > vgrad_view(vel_grad_array, layout);
 
       // All of the below we could setup in one big RAJA loop/kernel
@@ -390,7 +388,7 @@ namespace {
 // Here we're going to initialize all of the data that's going inside of
 // of our material update function call.
 // This function is used to initialize the data originally
-void init_data(ecmech::Accelerator accel, const double* ori, const ecmech::matModelBase* mat_model_base,
+void init_data(ecmech::ExecutionStrategy accel, const double* ori, const ecmech::matModelBase* mat_model_base,
                const int nqpts, const int num_hardness,
                const int num_slip, const int ind_gdot,
                const int state_var_vdim, double* state_vars){
@@ -408,13 +406,21 @@ void init_data(ecmech::Accelerator accel, const double* ori, const ecmech::matMo
 
    const int vdim = state_var_vdim;
 
+   switch ( accel ) {
 #if defined(RAJA_ENABLE_OPENMP)
-   if (accel == ecmech::Accelerator::OPENMP) {
+   case ecmech::ExecutionStrategy::OPENMP:
+   {
       init_data_openmp(ori, histInit_vec, nqpts, num_hardness, ind_gdot, num_slip, vdim, state_vars);
    }
+   break;
 #endif
-   if (accel == ecmech::Accelerator::CPU || accel == ecmech::Accelerator::CUDA) {
+   case ecmech::ExecutionStrategy::CPU :
+   case ecmech::ExecutionStrategy::CUDA :
+   default :
+   {      
       init_data_cpu(ori, histInit_vec, nqpts, num_hardness, ind_gdot, num_slip, vdim, state_vars);
+   }
+   break;
    }
 } // end of init_data
 
@@ -427,8 +433,8 @@ void setup_vgrad(double* vgrad, const int nqpts){
    // It might be nice to eventually create a type alias for the below or
    // maybe something like it.
    const int DIM = 3;
-   std::array<RAJA::idx_t, DIM> perm {{ 2, 1, 0 } };
-   RAJA::Layout<DIM> layout = RAJA::make_permuted_layout({{ ecmech::ndim, ecmech::ndim, nqpts } }, perm);
+   std::array<RAJA::idx_t, DIM> perm { { 2, 1, 0 } };
+   RAJA::Layout<DIM> layout = RAJA::make_permuted_layout({ { ecmech::ndim, ecmech::ndim, nqpts } }, perm);
    RAJA::View<double, RAJA::Layout<DIM, RAJA::Index_type, 0> > vgrad_view(vgrad, layout);
 
    RAJA::RangeSegment default_range(0, nqpts);
@@ -449,30 +455,40 @@ void setup_vgrad(double* vgrad, const int nqpts){
 } // end of setup_vgrad
 
 // This function/kernel is used to set-up the problem at each time step
-void setup_data(ecmech::Accelerator accel, const int nqpts, const int nstatev,
+void setup_data(ecmech::ExecutionStrategy accel, const int nqpts, const int nstatev,
                 const double dt, const double* vel_grad_array,
                 const double* stress_array, const double* state_vars_array,
                 double* stress_svec_p_array, double* d_svec_p_array,
                 double* w_vec_array, double* ddsdde_array,
                 double* vol_ratio_array, double* eng_int_array,
                 double* temp_array){
+   switch ( accel ) {
 #if defined(RAJA_ENABLE_OPENMP)
-   if (accel == ecmech::Accelerator::OPENMP) {
+   case ecmech::ExecutionStrategy::OPENMP :
+   {
       setup_data_openmp(nqpts, nstatev, dt, vel_grad_array, stress_array, state_vars_array,
                         stress_svec_p_array, d_svec_p_array, w_vec_array, ddsdde_array,
                         vol_ratio_array, eng_int_array, temp_array);
    }
+   break;
 #endif
 #if defined(RAJA_ENABLE_CUDA)
-   if (accel == ecmech::Accelerator::CUDA) {
+   case ecmech::ExecutionStrategy::CUDA :
+   {
       setup_data_cuda(nqpts, nstatev, dt, vel_grad_array, stress_array, state_vars_array,
                       stress_svec_p_array, d_svec_p_array, w_vec_array, ddsdde_array,
                       vol_ratio_array, eng_int_array, temp_array);
    }
+   break;
 #endif
-   if (accel == ecmech::Accelerator::CPU) {
+   case ecmech::ExecutionStrategy::CPU :
+   default :
+   {
       setup_data_cpu(nqpts, nstatev, dt, vel_grad_array, stress_array, state_vars_array,
                      stress_svec_p_array, d_svec_p_array, w_vec_array, ddsdde_array,
                      vol_ratio_array, eng_int_array, temp_array);
    }
+   break;
+   }
 } // end setup_data
+

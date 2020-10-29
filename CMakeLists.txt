@@ -11,10 +11,7 @@ message(STATUS "Using cmake version ${CMAKE_VERSION}")
 
 project(ECMECH LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 14)
-#This is currently what's available on Summit/Sierra
-#We should come up with some way to automatically detect all of this...
-set(CUDA_ARCH "sm_70")
+set(CMAKE_CXX_STANDARD 11)
 
 ################################
 # BLT
@@ -40,7 +37,6 @@ else()
     endif()
 endif()
 
-set(ENABLE_GTEST OFF CACHE BOOL "")
 set(ENABLE_FRUIT OFF CACHE BOOL "")
 if(ENABLE_TESTS)
     set(ENABLE_GTEST ON CACHE BOOL "" FORCE)
@@ -69,9 +65,6 @@ if (DEFINED SNLS_DIR)
     message(STATUS "Using pre-built SNLS: ${SNLS_DIR}")
     set(USE_BUILT_SNLS ON CACHE BOOL "" FORCE)
 
-    # If using prebuilt SNLS use BLT's created registered target
-    set(SNLS_SHARED_TARGET snls CACHE STRING "")
-    set(SNLS_STATIC_TARGET snls CACHE STRING "")
 else()
     # Use internal SNLS submodule if no SNLS_DIR is given
     set(SNLS_SOURCE_DIR "${PROJECT_SOURCE_DIR}/snls" CACHE PATH "")
@@ -85,12 +78,11 @@ else()
             "Or you can point to an already built SNLS with SNLS_DIR." )
     endif()
 
-    # If using internal submodule use actual CMake targets
-    set(SNLS_SHARED_TARGET snls_shared CACHE STRING "")
-    set(SNLS_STATIC_TARGET snls_static CACHE STRING "")
-
     add_subdirectory(${SNLS_SOURCE_DIR})
 endif()
+#
+set(SNLS_SHARED_TARGET snls CACHE STRING "")
+set(SNLS_STATIC_TARGET snls CACHE STRING "")
 
 ################################
 # Add source subdirectories

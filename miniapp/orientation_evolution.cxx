@@ -48,49 +48,49 @@ int main(int argc, char *argv[]){
    int num_hardness = 0;
    int num_gdot = 0;
    int iHistLbGdot = 0;
-   // We have 23 state variables plus the 4 from quaternions for
-   // a total of 27 for FCC materials using either the
-   // voce or mts model.
-   // They are in order:
-   // dp_eff(1), eq_pl_strain(2), n_evals(3), dev. elastic strain(4-8),
-   // quats(9-12), h(13), gdot(14-25), rel_vol(26), int_eng(27)
-   int num_state_vars = 27;
+   // For FCC material models we have the following state variables
+   // and their number of components
+   // effective shear rate(1), effective shear(1), flow strength(1), n_evals(1), deviatoric elastic strain(5),
+   // quaternions(4), h(Kinetics::nH), gdot(SlipGeom::nslip), relative volume(1),
+   // internal energy(ecmech::ne)
+   int num_state_vars_voce = ecmech::matModelEvptn_FCC_A::numHist + ecmech::ne + 1;
+   int num_state_vars_mts = ecmech::matModelEvptn_FCC_B::numHist + ecmech::ne + 1;
 
    ecmech::matModelBase* mat_model_base;
    // Could probably do this in a smarter way where we don't create two class objects for
    // our different use cases...
 
    std::vector<unsigned int> strides;
-   //Deformation rate stride
+   // Deformation rate stride
    strides.push_back(ecmech::nsvp);
-   //Spin rate stride
+   // Spin rate stride
    strides.push_back(ecmech::ndim);
-   //Volume ratio stride
+   // Volume ratio stride
    strides.push_back(ecmech::nvr);
-   //Internal energy stride
+   // Internal energy stride
    strides.push_back(ecmech::ne);
-   //Stress vector stride
+   // Stress vector stride
    strides.push_back(ecmech::nsvp);
-   //History variable stride
-   strides.push_back(num_state_vars);
-   //Temperature stride
+   // History variable stride
+   strides.push_back(num_state_vars_voce);
+   // Temperature stride
    strides.push_back(1);
-   //SDD stride
+   // SDD stride
    strides.push_back(ecmech::nsdd);
 
    // The  Voce model (matModelEvptn_FCC_A) requires the properties file to have the following parameters
    // in this order:
    // Property file start off with:
-   //  initial density, heat capacity at constant volume, and a tolerance param
+   // initial density, heat capacity at constant volume, and a tolerance param
    // Property file then includes elastic constants:
-   //  c11, c12, c44 for cubic crystals
-   // Property file then includes the following: 
-   //  shear modulus, m parameter seen in slip kinetics, gdot_0 term found in slip kinetic eqn,
-   //  hardening coeff. defined for g_crss evolution eqn, initial CRSS value,
-   //  initial CRSS saturation strength, CRSS saturation strength scaling exponent,
-   //  CRSS saturation strength rate scaling coeff, and initial CRSS value
+   // c11, c12, c44 for cubic crystals
    // Property file then includes the following:
-   //  the Grüneisen parameter and reference internal energy
+   // shear modulus, m parameter seen in slip kinetics, gdot_0 term found in slip kinetic eqn,
+   // hardening coeff. defined for g_crss evolution eqn, initial CRSS value,
+   // initial CRSS saturation strength, CRSS saturation strength scaling exponent,
+   // CRSS saturation strength rate scaling coeff, and initial CRSS value
+   // Property file then includes the following:
+   // the Gruneisen parameter and reference internal energy
 
    ecmech::matModelEvptn_FCC_A mat_modela(strides.data(), strides.size());
 
@@ -99,21 +99,23 @@ int main(int argc, char *argv[]){
    // Property file start off with:
    // initial density, heat capacity at constant volume, and a tolerance param
    // Property file then include elastic constants:
-   //  c11, c12, c44 for cubic crystals
-   // Property file then includes the following: 
-   //  reference shear modulus, reference temperature, g_0 * b^3 / \kappa where b is the 
-   //  magnitude of the burger's vector and \kappa is Boltzmann's constant, Peierls barrier,
-   //  MTS curve shape parameter (p), MTS curve shape parameter (q), reference thermally activated
-   //  slip rate, reference drag limited slip rate, drag reference stress, slip resistance const (g_0),
-   //  slip resistance const (s), dislocation density production constant (k_1), 
-   //  dislocation density production constant (k_{2_0}), dislocation density exponential constant,
-   //  reference net slip rate constant, and reference relative dislocation density
+   // c11, c12, c44 for cubic crystals
    // Property file then includes the following:
-   //  the Grüneisen parameter and reference internal energy
+   // reference shear modulus, reference temperature, g_0 * b^3 / \kappa where b is the
+   // magnitude of the burger's vector and \kappa is Boltzmann's constant, Peierls barrier,
+   // MTS curve shape parameter (p), MTS curve shape parameter (q), reference thermally activated
+   // slip rate, reference drag limited slip rate, drag reference stress, slip resistance const (g_0),
+   // slip resistance const (s), dislocation density production constant (k_1),
+   // dislocation density production constant (k_{2_0}), dislocation density exponential constant,
+   // reference net slip rate constant, and reference relative dislocation density
+   // Property file then includes the following:
+   // the Gruneisen parameter and reference internal energy
+
+   strides.at(5) = num_state_vars_mts;
 
    ecmech::matModelEvptn_FCC_B mat_modelb(strides.data(), strides.size());
 
-   ecmech::Accelerator class_device;
+   ecmech::ExecutionStrategy class_device;
 
    // Data structures needed for each time step
    // We really don't need to allocate these constantly, so we should just do it
@@ -140,6 +142,9 @@ int main(int argc, char *argv[]){
    // We're currently doing this to ensure that memory used during the set-up is freed
    // early on before we start doing all of our computations. We could probably keep everything
    // in scope without running into memory issues.
+   //
+   int num_state_vars;
+   //
    {
       // All the input arguments
       std::string option_file(argv[1]);
@@ -263,16 +268,16 @@ int main(int argc, char *argv[]){
       // which values are available.
 
       if (device_type.compare("CPU") == 0) {
-         class_device = ecmech::Accelerator::CPU;
+         class_device = ecmech::ExecutionStrategy::CPU;
       }
 #if defined(RAJA_ENABLE_OPENMP)
       else if (device_type.compare("OpenMP") == 0) {
-         class_device = ecmech::Accelerator::OPENMP;
+         class_device = ecmech::ExecutionStrategy::OPENMP;
       }
 #endif
 #if defined(RAJA_ENABLE_CUDA)
       else if (device_type.compare("CUDA") == 0) {
-         class_device = ecmech::Accelerator::CUDA;
+         class_device = ecmech::ExecutionStrategy::CUDA;
       }
 #endif
       else {
@@ -293,7 +298,8 @@ int main(int argc, char *argv[]){
       std::cout << "\nAbout to initialize class" << std::endl;
       // Initialize our base class using the appropriate model
       if (mat_model_str.compare("voce") == 0) {
-         num_props = 17;
+         num_state_vars = num_state_vars_voce;
+         num_props = ecmech::matModelEvptn_FCC_A::nParams;
          num_hardness = mat_modela.nH;
          num_gdot = mat_modela.nslip;
          iHistLbGdot = mat_modela.iHistLbGdot;
@@ -308,12 +314,14 @@ int main(int argc, char *argv[]){
          }
 
          // We really shouldn't see this change over time at least for our applications.
-         mat_modela.initFromParams(opts, params, strs, class_device);
+         mat_modela.initFromParams(opts, params, strs);
          mat_modela.complete();
+         mat_modela.setExecutionStrategy(class_device);
          mat_model_base = dynamic_cast<matModelBase*>(&mat_modela);
       }
       else if (mat_model_str.compare("mts") == 0) {
-         num_props = 24;
+         num_state_vars = num_state_vars_mts;
+         num_props = ecmech::matModelEvptn_FCC_B::nParams;
          num_hardness = mat_modelb.nH;
          num_gdot = mat_modelb.nslip;
          iHistLbGdot = mat_modelb.iHistLbGdot;
@@ -328,8 +336,9 @@ int main(int argc, char *argv[]){
          }
 
          // We really shouldn't see this change over time at least for our applications.
-         mat_modelb.initFromParams(opts, params, strs, class_device);
+         mat_modelb.initFromParams(opts, params, strs);
          mat_modelb.complete();
+         mat_modela.setExecutionStrategy(class_device);
          mat_model_base = dynamic_cast<matModelBase*>(&mat_modelb);
       }
       else {
@@ -380,9 +389,9 @@ int main(int argc, char *argv[]){
    run_time.start();
 
    // For profiling uses
-   //#if defined(RAJA_ENABLE_CUDA)
-   //cudaProfilerStart();
-   //#endif
+   // #if defined(RAJA_ENABLE_CUDA)
+   // cudaProfilerStart();
+   // #endif
 
    for (int i = 0; i < nsteps; i++) {
       // set up our data in the correct format that the material model kernel expects
@@ -399,7 +408,10 @@ int main(int argc, char *argv[]){
                     stress_svec_p_array, vol_ratio_array,
                     eng_int_array, state_vars, stress_array);
 
-      if (class_device == ecmech::Accelerator::CPU) {
+      switch ( class_device ) {
+      default :
+      case ecmech::ExecutionStrategy::CPU :
+      {
          if (NEVALS_COUNTS) {
             RAJA::ReduceSum<RAJA::seq_reduce, double> seq_sum(0.0);
             RAJA::ReduceMin<RAJA::seq_reduce, double> seq_min(100.0); // We know this shouldn't ever be more than 100
@@ -422,8 +434,10 @@ int main(int argc, char *argv[]){
             stress_avg[j] = seq_sum.get();
          }
       }
+      break;
 #if defined(RAJA_ENABLE_OPENMP)
-      if (class_device == ecmech::Accelerator::OPENMP) {
+      case ecmech::ExecutionStrategy::OPENMP :
+      {   
          if (NEVALS_COUNTS) {
             RAJA::ReduceSum<RAJA::omp_reduce_ordered, double> omp_sum(0.0);
             RAJA::ReduceMin<RAJA::omp_reduce_ordered, double> omp_min(100.0); // We know this shouldn't ever be more than 100
@@ -446,9 +460,11 @@ int main(int argc, char *argv[]){
             stress_avg[j] = omp_sum.get();
          }
       }
+      break;
 #endif
 #if defined(RAJA_ENABLE_CUDA)
-      if (class_device == ecmech::Accelerator::CUDA) {
+      case ecmech::ExecutionStrategy::CUDA :
+      {
          if (NEVALS_COUNTS) {
             RAJA::ReduceSum<RAJA::cuda_reduce, double> cuda_sum(0.0);
             RAJA::ReduceMin<RAJA::cuda_reduce, double> cuda_min(100.0); // We know this shouldn't ever be more than 100
@@ -471,7 +487,9 @@ int main(int argc, char *argv[]){
             stress_avg[j] = cuda_sum.get();
          }
       }
+      break ;
 #endif
+      } // switch ( class_device ) 
 
       // On CORAL architectures these print statements don't really add anything to the execution time.
       // So, we're going to keep them to make sure things are correct between the different runs.
@@ -484,9 +502,9 @@ int main(int argc, char *argv[]){
    }
 
    // For profiling uses
-   //#if defined(RAJA_ENABLE_CUDA)
-   //cudaProfilerStart();
-   //#endif
+   // #if defined(RAJA_ENABLE_CUDA)
+   // cudaProfilerStart();
+   // #endif
 
    run_time.stop();
 
@@ -513,3 +531,4 @@ int main(int argc, char *argv[]){
 
    return 0;
 }
+

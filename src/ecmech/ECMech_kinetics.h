@@ -21,6 +21,8 @@
  *
  * and member functions:
  *
+ *  constructor(int nslip) ;
+ *
  *  void setParams( const std::vector<double> & params ) ;
  *
  *  void getParams( std::vector<double> & params ) const ;
@@ -30,11 +32,11 @@
  *                   std::vector<bool>        & plot,
  *                   std::vector<bool>        & state) const ;
  *
- *  void getVals( double* const vals,
- *                double p,
- *                double tK,
- *                const double* const h_state
- *                ) const ;
+ *  double getVals( double* const vals,
+ *                  double p,
+ *                  double tK,
+ *                  const double* const h_state
+ *                  ) const ;
  *
  *  void
  *  evalGdots( double* const gdot,

@@ -14,7 +14,7 @@ namespace ecmech {
    {
       for (int iSlip = 0; iSlip<nslip; ++iSlip) {
          // CALL vec_x_vect_mn(crys%vecs(:,is),crys%vecm(:,is),crys%t_ref(:,:,is),DIMS,DIMS)
-         double T_ref[ ecmech::ndim*ecmech::ndim ];
+         double T_ref[ ecmech::ndim * ecmech::ndim ];
          vecsMaTb<ndim>(T_ref, &(sVecs[iSlip * ecmech::ndim]), &(mVecs[iSlip * ecmech::ndim]) );
 
          double P_vecd[ ecmech::ntvec ];

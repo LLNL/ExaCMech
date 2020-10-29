@@ -19,7 +19,11 @@
    double
       rho_dd_init = 0.25;
    std::vector<double> paramsThese {
-      mu, tK_ref, c_1, tau_a, p, q, gam_wo, gam_ro, wrD, go, s,
+      mu, tK_ref,
+      c_1,
+      tau_a, p, q, gam_wo, gam_ro, wrD,
+      go,
+      s,
       k1, k2o, ninv, gamma_o,
       rho_dd_init
    };

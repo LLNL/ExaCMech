@@ -9,6 +9,7 @@
 #include <vector>
 
 namespace ecmech {
+   
    template<bool isothermal>
    class EosModelConst
    {
@@ -95,6 +96,7 @@ namespace ecmech {
                          double &tK,
                          double &bulkNew,
                          double &dpde,
+                         double &dtde,
                          double  v,
                          double  e) const {
             double eta = one / v;
@@ -104,21 +106,39 @@ namespace ecmech {
                p = _bulkMod * mu;
                tK = _tK0;
                dpde = zero;
+               dtde = 1e-8 * _dtde; // instead of zero, to prevent divide-by-zero elsewhere
             }
             else {
                p = _bulkMod * mu + _gamma * e;
                tK = _tK0 + e * _dtde;
                dpde = _gamma;
+               dtde = _dtde ;
             }
             bulkNew = _bulkMod * eta;
          }
 
          __ecmech_hdev__
          inline
-         void getEV0(double &e0,
-                     double &v0) const {
+         void getInfo(double &vMin,
+                      double &vMax,
+                      double &e0,
+                      double &v0) const {
+            vMin = 0.1;
+            vMax = 10.0;
             e0 = 0.0;
             v0 = 1.0;
+         }
+
+         __ecmech_hdev__
+         inline
+         double getBulkRef() const {
+            return _bulkMod;
+         }
+
+         __ecmech_hdev__
+         inline
+         double getRho0() const {
+            return _rho0;
          }
 
       private:
@@ -128,28 +148,30 @@ namespace ecmech {
 
          // derived from parameters
          double _dtde, _tK0;
-   }; // class KineticsVocePL
+   }; // class EosModelConst
 
    template<class EosModel>
    __ecmech_hdev__
    inline
    void updateSimple(const EosModel& eos,
-                     double &p,
+                     double &press,
                      double &tK,
                      double &eNew,
                      double &bulkNew,
-                     const double* volRatio,
+                     double &dpde,
+                     double &dpdv,
+                     double &dtde,
+                     double  vNew,
+                     double  volInc,
                      double  eOld,
-                     double  pOld) {
+                     double  pOld)
+   {
       // double vOld = volRatio[0] ; // not needed
-      double vNew = volRatio[1];
-      double delv = volRatio[3];
 
-      eNew = eOld - delv * pOld;
+      eNew = eOld - volInc * pOld;
 
-      double dpde;
-      eos.evalPTDiff(p, tK, bulkNew, dpde, vNew, eNew);
-      // dpdv = - bulkNew / vNew ; // not needed
+      eos.evalPTDiff(press, tK, bulkNew, dpde, dtde, vNew, eNew);
+      dpdv = -bulkNew / vNew;
 
       bulkNew = bulkNew + dpde * pOld * vNew;
    }
