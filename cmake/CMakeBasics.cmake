@@ -12,8 +12,8 @@ set(HEADER_INCLUDE_DIR
     CACHE PATH
     "Directory where all generated headers will go in the build tree")
 
-configure_file( src/ecmech/ECMech_Version.h.in
-                ${HEADER_INCLUDE_DIR}/ECMech_Version.h )
+configure_file( src/ecmech/ECMech_config.h.in
+                ${HEADER_INCLUDE_DIR}/ECMech_config.h )
 
 ################################
 # Setup build options and their default values

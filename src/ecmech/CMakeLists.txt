@@ -2,7 +2,7 @@
 # Sources
 #------------------------------------------------------------------------------
 set(ECMECH_HEADERS
-    ${HEADER_INCLUDE_DIR}/ECMech_Version.h
+    ${HEADER_INCLUDE_DIR}/ECMech_config.h
     ECMech_cases.h
     ECMech_const.h
     ECMech_core.h
@@ -34,7 +34,7 @@ set(ECMECH_SOURCES
 set(ECMECH_DEPENDS)
 
 ecmech_fill_depends_list(LIST_NAME  ECMECH_DEPENDS
-                        DEPENDS_ON raja snls camp cuda openmp)
+                        DEPENDS_ON raja snls cub camp cuda openmp)
 
 message("-- ECMECH_DEPENDS: ${ECMECH_DEPENDS}")
 
