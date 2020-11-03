@@ -14,7 +14,7 @@ endforeach()
 ################################
 # CUB (required for CUDA build)
 ################################
-if (ENABLE_CUDA)
+if (ENABLE_CUDA AND CUB_DIR)
    include(cmake/thirdpartylibraries/FindCUB.cmake)
 endif ()
 
