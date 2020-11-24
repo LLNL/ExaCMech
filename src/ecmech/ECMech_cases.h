@@ -12,6 +12,8 @@ namespace ecmech {
    typedef KineticsKMBalD<true, false, false, false, 1> Kin_KMBalD_TFF;
    typedef KineticsKMBalD<false, false, false, false, 1> Kin_KMBalD_FFF;
 
+   typedef KineticsOrowanD<false, false, false, true, false, 1, SlipGeomFCC> Kin_OroD_Iso_FCC;
+
    typedef KineticsVocePL<false> Kin_FCC_A;
    typedef evptn::EvptnUpdstProblem<SlipGeomFCC, Kin_FCC_A, evptn::ThermoElastNCubic> EvptnUpsdtProblem_FCC_A;
    typedef snls::SNLSTrDlDenseG<EvptnUpsdtProblem_FCC_A> EvptnSolver_FCC_A;

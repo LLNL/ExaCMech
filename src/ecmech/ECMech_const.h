@@ -146,6 +146,9 @@ namespace ecmech
    const double gam_ratio_ovf = 1.0e60; // HUGE(idp_eps)*1.0d-10
    const double ln_gam_ratio_ovf = 138.15;
 
+   const double lorentz_max = 1.0e20;
+   const double lorentz_min = 1.0e-20;
+
    // as in evptn and evptnconst
    const double st_toler = 1.0e-11;
    const double epsdot_scl_nzeff = idp_eps_sqrt;

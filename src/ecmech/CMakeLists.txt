@@ -11,6 +11,7 @@ set(ECMECH_HEADERS
     ECMech_evptn.h
     ECMech_kinetics.h
     ECMech_kinetics_KMBalD.h
+    ECMech_kinetics_OrowanD.h
     ECMech_kinetics_VocePL.h
     ECMech_port.h
     ECMech_slipgeom.h
