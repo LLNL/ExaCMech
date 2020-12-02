@@ -240,7 +240,7 @@ namespace ecmech {
                // Multiply dsdot_ds terms by the negative outer product of x_scale and res_scale and dt
                for (int i = 0; i < nDimSys; i++) {
                   for (int j = 0; j < nDimSys; j++) {
-                     Jacobian[ECMECH_NN_INDX(i, j, nDimSys)] *= -_x_scale[i] * _res_scale[j] * dt;
+                     Jacobian[ECMECH_NN_INDX(i, j, nDimSys)] *= -_x_scale[i] * _res_scale[j] * _dt;
                   }
                }
                // Now add in the identity term
