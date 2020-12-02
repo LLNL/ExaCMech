@@ -767,11 +767,10 @@ namespace ecmech {
          __ecmech_hdev__
          inline
          void
-         getUpdate(const double* const h,
-                   const double* const evolVals,
-                   double* sdot,
-                   double* Jacobian,
-                   const double dt
+         getSdotN( double* sdot,
+                   double* dsdot_ds,
+                   const double* const h,
+                   const double* const evolVals
                    ) const
          {
             // Hopefully, the compiler is pretty smart here and is able to optimize these
@@ -804,65 +803,61 @@ namespace ecmech {
                sdot[iM + nslip] = q_dmult - q_dann;
             }
 
-            // The Jacobian calculation for our nonlinear solve
-            if (Jacobian) {
-               // zero out jacobian matrix
+            // The dsdot_ds calculation for our nonlinear solve
+            if (dsdot_ds) {
+               // zero out dsdot_ds matrix
                for (int i = 0; i < nDimSys * nDimSys; i++) {
-                  Jacobian[i] = ecmech::zero;
+                  dsdot_ds[i] = ecmech::zero;
                }
 
-               RAJA::View<double, RAJA::Layout<JDIM> > jacob(Jacobian, nDimSys, nDimSys);
-               // dqM/dqM portion of Jacobian
+               RAJA::View<double, RAJA::Layout<JDIM> > dsdot_ds_view(dsdot_ds, nDimSys, nDimSys);
+               // dqM/dqM portion of dsdot_ds
                for (int iM = 0; iM < nslip; iM++) {
                   const double sqrt_fd = sqrt(forest_dis[iM]);
-                  const double q_dmult = _c_mult * sqrt_fd * evolVals[iM];
-                  const double q_dtrap = _c_trap * sqrt_fd * evolVals[iM];
+                  const double q_dmult_dtrap = (_c_mult - _c_trap) * sqrt_fd;
                   // Although, it might be that this is only a problem if q and qM are defined
                   // with units 1/m^2 rather than 1/mm^2 or 1/micron^2
-                  const double q_dann = _c_ann * _d_ann * h[iM + nslip] * evolVals[iM];
-                  jacob(iM, iM) = ecmech::one - (q_dmult - q_dtrap - q_dann) * dt;
+                  const double q_dann = _c_ann * _d_ann * h[iM + nslip];
+                  dsdot_ds_view(iM, iM) = evolVals[iM] * (q_dmult_dtrap - q_dann);
                }
 
-               // dq/dqM portion of Jacobian
+               // dq/dqM portion of dsdot_ds
                for (int iT = 0; iT < nslip; iT++) {
                   const double sqrt_fd = sqrt(forest_dis[iT]);
-                  const double q_dmult = _c_mult * sqrt_fd * evolVals[iT];
+                  const double q_dmult = _c_mult * sqrt_fd;
                   // This could become a very large number and could become problematic
                   // later on. Do we want to cap it at some large value?
                   // Although, it might be that this is only a problem if q and qM are defined
                   // with units 1/m^2 rather than 1/mm^2 or 1/micron^2
-                  const double q_dann = _c_ann * _d_ann * h[iT + nslip] * evolVals[iT];
-                  jacob(iT + nslip, iT) = -(q_dmult - q_dann) * dt;
+                  const double q_dann = _c_ann * _d_ann * h[iT + nslip];
+                  dsdot_ds_view(iT + nslip, iT) =  evolVals[iT] * (q_dmult - q_dann);
                }
 
                RAJA::View<const double, RAJA::Layout<JDIM> > amat(&_a_mat[0], nslip, nslip);
-               // dq/dq portion of Jacobian
+               // dq/dq portion of dsdot_ds
                for (int iT = 0; iT < nslip; iT++) {
                   for (int jT = 0; jT < nslip; jT++) {
-                     // First two terms are only found on the diagonal of this submatrix
-                     const double oterm = (iT == jT) ? ecmech::one : ecmech::zero;
-                     const double q_dann = (iT == jT) ? (_c_ann * _d_ann * h[iT] * evolVals[iT]) : ecmech::zero;
+                     // First, terms found only on the diagonal of this submatrix
+                     const double q_dann = (iT == jT) ? (_c_ann * _d_ann) : ecmech::zero;
+                     const double ifact = ecmech::onehalf / sqrt(forest_dis[iT]);
+                     const double q_dmult = _c_mult * amat(iT, jT) * ifact;
 
-                     const double ifact = ecmech::one / sqrt(amat(iT, jT) * h[jT + nslip]);
-                     const double q_dmult = _c_mult * ifact * h[iT] * evolVals[iT];
-
-                     jacob(iT + nslip, jT + nslip) = oterm - (q_dmult - q_dann) * dt;
+                     dsdot_ds_view(iT + nslip, jT + nslip) = h[iT] * evolVals[iT] * (q_dmult - q_dann);
                   }
                }
 
-               // dM/dq portion of Jacobian
+               // dM/dq portion of dsdot_dt
                for (int iT = 0; iT < nslip; iT++) {
                   for (int jT = 0; jT < nslip; jT++) {
-                     const double q_dann = (iT == jT) ? (_c_ann * _d_ann * h[iT] * evolVals[iT]) : ecmech::zero;
+                     const double q_dann = (iT == jT) ? (_c_ann * _d_ann) : ecmech::zero;
 
-                     const double fact = ecmech::one / sqrt(amat(iT, jT) * h[jT + nslip]) * h[iT] * evolVals[iT];
-                     const double q_dmult = _c_mult * fact;
-                     const double q_dtrap = _c_trap * fact;
+                     const double ifact = ecmech::onehalf / sqrt(forest_dis[iT]);
+                     const double q_dmult_dtrap = (_c_mult - _c_trap) * amat(iT, jT) * ifact;
 
-                     jacob(iT, jT + nslip) = -(q_dmult - q_dtrap - q_dann) * dt;
+                     dsdot_ds_view(iT, jT + nslip) = h[iT] * evolVals[iT] * (q_dmult_dtrap - q_dann);
                   }
                }
-            }
+            } // if dsdot_ds
          }
    }; // class KineticsOrowanD
 } // namespace ecmech
