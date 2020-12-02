@@ -59,7 +59,8 @@
  *               const double* const gdot
  *               ) const ;
  *
- * If using updateH1, they should provide member function:
+ * If using updateH1, then provide member function getSdot1,
+ * else if using getSdotN, then provide member function getSdotN.
  *
  *  void
  *  getSdot1( double &sdot,
@@ -67,14 +68,14 @@
  *            double h,
  *            const double* const evolVals) const ;
  *
- * and if using upateHN, they should provide member function:
+ * The incoming dsdot_ds ptr should be checked to make sure its not a nullptr,
+ * and if so the calculations relevant to dsdot_ds should be skipped.
  *
  * void
- * getJacobian(const double* const h,
- *             const double* const evolVals,
- *             double* sdot,
- *             double* jacobian,
- *             const double dt)
+ * getSdotN( double* sdot,
+ *           double* dsdot_ds,
+ *           const double* const h,
+ *           const double* const evolVals) const;
  */
 
 namespace ecmech {
@@ -210,9 +211,9 @@ namespace ecmech {
 
          __ecmech_hdev__
          inline
-         void getHn(const double* const x, double* h) const {
+         void getHn(double* h, const double* const x) const {
             for (int i = 0; i < nDimSys; i++) {
-               _h_o[i] + x[i] * _x_scale[i];
+               h[i] = _h_o[i] + x[i] * _x_scale[i];
             }
          }
 
@@ -223,16 +224,30 @@ namespace ecmech {
                         const double* const x) {
             double h[nDimSys];
             for (int i = 0; i < nDimSys; i++) {
-               h[i] = _h_o[i] + x[0] * _x_scale[i];
+               h[i] = _h_o[i] + x[i] * _x_scale[i];
             }
 
             double sdot[nDimSys];
-            // Jacobian is set in here if it was provided
-            _kinetics->getUpdate(&h[0], _evolVals, &sdot[0], Jacobian, _dt);
+            // The dsdot_ds portion of the Jacobian is set in here if it was provided
+            _kinetics->getSdotN(&sdot[0], Jacobian, &h[0], _evolVals);
 
             for (int i = 0; i < nDimSys; i++) {
                resid[i] = (x[i] * _x_scale[i] - sdot[i] * _dt) * _res_scale[i];
             }
+
+            if(Jacobian) {
+
+               // Multiply dsdot_ds terms by the negative outer product of x_scale and res_scale and dt
+               for (int i = 0; i < nDimSys; i++) {
+                  for (int j = 0; j < nDimSys; j++) {
+                     Jacobian[ECMECH_NN_INDX(i, j, nDimSys)] *= -_x_scale[i] * _res_scale[j] * dt;
+                  }
+               }
+               // Now add in the identity term
+               for (int i = 0; i < nDimSys; i++) {
+                  Jacobian[ECMECH_NN_INDX(i, i, nDimSys)] += ecmech::one;
+               }
+            } // if Jacobian
 
             return true;
          } // computeRJ
@@ -246,7 +261,7 @@ namespace ecmech {
    }; // class Kinetics_HNProblem
 
    /*
-    * Helper function to run the state update solver for cases in which there is a single hardness state variable.
+    * Helper function to run the state update solver for cases in which there are multiple hardness state variables.
     */
    template<class Kinetics>
    __ecmech_hdev__
@@ -283,7 +298,7 @@ namespace ecmech {
       }
       int nFevals = solver.getNFEvals();
 
-      hs_n = prob.getHn(solver._x);
+      prob.getHn(hs_n, solver._x);
 
       return nFevals;
    } // updateHN
