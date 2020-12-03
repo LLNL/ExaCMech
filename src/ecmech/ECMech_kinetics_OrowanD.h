@@ -739,7 +739,7 @@ namespace ecmech {
             }
 
 
-            int nFEvals = updateHN<KineticsKMBalD>(this,
+            int nFEvals = updateHN<KineticsOrowanD>(this,
                                                    &hs_u[0], &ihs_o[0], dt, nu,
                                                    outputLevel);
             // for(int i = 0; i < _nslip * 2; i++){
