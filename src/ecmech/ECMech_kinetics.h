@@ -244,6 +244,9 @@ namespace ecmech {
                   }
                }
                // Now add in the identity term
+               // The below is based on the assumption that _res_scale = 1/_x_scale
+               // if this were to change in the future version than this would need to become
+               // Jacobian[ECMECH_NN_INDX(i, i, nDimSys)] += ecmech::one * _x_scale[i] * _r_scale[i]
                for (int i = 0; i < nDimSys; i++) {
                   Jacobian[ECMECH_NN_INDX(i, i, nDimSys)] += ecmech::one;
                }

@@ -6,6 +6,8 @@
 #include <cassert>
 #include <cmath>
 
+#define ECMECH_NN_INDX(p, q, nDim) (p) * (nDim) + (q)
+
 namespace ecmech {
    /**
     * slip and hardening kinetics
@@ -359,13 +361,13 @@ namespace ecmech {
                if (nonlinear) {
                   double temp1 = pow((sv_sat - h[iSlip]) * temp2, _xmprime1);
                   sdot[iSlip] = _h0 * temp1 * (sv_sat - h[iSlip]) * temp2 * shrate_eff;
-                  dsdot_ds[iSlip * _nslip + iSlip] = -_h0 * temp2 * shrate_eff * _xmprime * temp1;
+                  dsdot_ds[ECMECH_NN_INDX(iSlip, iSlip, _nslip)] = -_h0 * temp2 * shrate_eff * _xmprime * temp1;
                }
                else {
                   double temp1 = _h0 * ((sv_sat - h[iSlip]) * temp2);
                   sdot[iSlip] = temp1 * shrate_eff;
                   // double dfdshr = temp1 + _h0 * ( (h - _tausi) / (temp2*temp2)) * _xms * sv_sat ;
-                  dsdot_ds[iSlip * _nslip + iSlip] = -_h0 * temp2 * shrate_eff;
+                  dsdot_ds[ECMECH_NN_INDX(iSlip, iSlip, _nslip)] = -_h0 * temp2 * shrate_eff;
                }
             }
          }
