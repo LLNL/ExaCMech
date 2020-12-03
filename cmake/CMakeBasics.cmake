@@ -12,13 +12,17 @@ set(HEADER_INCLUDE_DIR
     CACHE PATH
     "Directory where all generated headers will go in the build tree")
 
-configure_file( src/ecmech/ECMech_config.h.in
-                ${HEADER_INCLUDE_DIR}/ECMech_config.h )
-
 ################################
 # Setup build options and their default values
 ################################
 include(cmake/ECMechOptions.cmake)
+
+##############################
+# settings into ECMech_config.h
+##############################
+
+configure_file( src/ecmech/ECMech_config.h.in
+                ${HEADER_INCLUDE_DIR}/ECMech_config.h )
 
 ################################
 # Third party library setup
