@@ -738,13 +738,22 @@ namespace ecmech {
                ihs_o[i] = fmax(hs_o[i], _hdn_min);
             }
 
-
             int nFEvals = updateHN<KineticsOrowanD>(this,
                                                    &hs_u[0], &ihs_o[0], dt, nu,
                                                    outputLevel);
-            // for(int i = 0; i < _nslip * 2; i++){
-            // hs_u[i] = exp(log_hs_u[i]);
-            // }
+            // We need to check that none of our solutions became negative
+            // If we did obtain something negative then we should abort
+            // It means our time step was too large for this step.
+            // If this is not desirable / possible then we should probably
+            // do a terrible hack and cut the dt by some factor resolve things by
+            // assuming a constant slip rate during the time step, and then
+            // evolve the dd content. We would get a solution, but it wouldn't necessarily
+            // be correct.
+            for (int i = 0; i < 2 * _nslip; i++) {
+               if(hs_u[i] < zero) {
+                  ECMECH_FAIL(__func__, "Solver returned negative dislocation values!");
+               }
+            }
 
             return nFEvals;
          }
@@ -782,11 +791,6 @@ namespace ecmech {
 
             double forest_dis[nslip];
             vecsVMa<SlipGeom::nslip>(&forest_dis[0], &_a_mat[0], &h[nslip]);
-
-            double _c_ann;
-            double _d_ann;
-            double _c_trap;
-            double _c_mult;
 
             for (int iM = 0; iM < nslip; iM++) {
                const double sqrt_fd = sqrt(forest_dis[iM]);
