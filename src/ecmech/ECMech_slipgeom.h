@@ -67,34 +67,37 @@ namespace ecmech {
             // s = (/ zero, sqr2i, -sqr2i /)
             //
             // do not yet bother with making slip systems from symmetry group -- just write them out
-            const double mVecs[ nslip * ecmech::ndim ] = {
-               sqr3i, sqr3i, sqr3i,
-               sqr3i, sqr3i, sqr3i,
-               sqr3i, sqr3i, sqr3i,
-               -sqr3i, sqr3i, sqr3i,
-               -sqr3i, sqr3i, sqr3i,
-               -sqr3i, sqr3i, sqr3i,
-               -sqr3i, -sqr3i, sqr3i,
-               -sqr3i, -sqr3i, sqr3i,
-               -sqr3i, -sqr3i, sqr3i,
-               sqr3i, -sqr3i, sqr3i,
-               sqr3i, -sqr3i, sqr3i,
-               sqr3i, -sqr3i, sqr3i,
-            };
-            const double sVecs[ nslip * ecmech::ndim ] = {
-               zero, sqr2i, -sqr2i,
-               -sqr2i, zero, sqr2i,
-               sqr2i, -sqr2i, zero,
-               -sqr2i, zero, -sqr2i,
-               zero, -sqr2i, sqr2i,
-               sqr2i, sqr2i, zero,
-               zero, -sqr2i, -sqr2i,
-               sqr2i, zero, sqr2i,
-               -sqr2i, sqr2i, zero,
-               sqr2i, zero, -sqr2i,
-               zero, sqr2i, sqr2i,
-               -sqr2i, -sqr2i, zero,
-            };
+         const double P3 = sqr3i, M3 = -sqr3i;
+         const double P2 = sqr2i, M2 = -sqr2i;
+         const double Z = zero;
+         //#Slip plane normal CUB111
+         const double mVecs[ nslip * ecmech::ndim ] = {
+               P3, P3, P3,
+               P3, P3, P3,
+               P3, P3, P3,
+               P3, P3, M3,
+               P3, P3, M3,
+               P3, P3, M3,
+               P3, M3, P3,
+               P3, M3, P3,
+               P3, M3, P3,
+               P3, M3, M3,
+               P3, M3, M3,
+               P3, M3, M3};
+            //#Slip direction CUB110
+         const double sVecs[ nslip * ecmech::ndim ] = {
+               Z,  P2, M2,
+               P2, Z,  M2,
+               P2, M2, Z,
+               Z,  P2, P2,
+               P2, Z,  P2,
+               P2, M2, Z,
+               Z,  P2, P2,
+               P2, Z,  M2,
+               P2, P2, Z,
+               Z,  P2, M2,
+               P2, Z,  P2,
+               P2, P2, Z};
 
             fillFromMS(this->_P_ref_vec, this->_Q_ref_vec,
                        mVecs, sVecs, this->nslip);
@@ -174,34 +177,38 @@ namespace ecmech {
                const int nslipThese = _nslipAddBase;
                //
                // do not yet bother with making slip systems from symmetry group -- just write them out
-               const double mVecsThese[ nslipThese * ecmech::ndim ] = {
-                  zero, sqr2i, -sqr2i,
-                  -sqr2i, zero, sqr2i,
-                  sqr2i, -sqr2i, zero,
-                  -sqr2i, zero, -sqr2i,
-                  zero, -sqr2i, sqr2i,
-                  sqr2i, sqr2i, zero,
-                  zero, -sqr2i, -sqr2i,
-                  sqr2i, zero, sqr2i,
-                  -sqr2i, sqr2i, zero,
-                  sqr2i, zero, -sqr2i,
-                  zero, sqr2i, sqr2i,
-                  -sqr2i, -sqr2i, zero,
-               };
-               const double sVecsThese[ nslipThese * ecmech::ndim ] = {
-                  sqr3i, sqr3i, sqr3i,
-                  sqr3i, sqr3i, sqr3i,
-                  sqr3i, sqr3i, sqr3i,
-                  -sqr3i, sqr3i, sqr3i,
-                  -sqr3i, sqr3i, sqr3i,
-                  -sqr3i, sqr3i, sqr3i,
-                  -sqr3i, -sqr3i, sqr3i,
-                  -sqr3i, -sqr3i, sqr3i,
-                  -sqr3i, -sqr3i, sqr3i,
-                  sqr3i, -sqr3i, sqr3i,
-                  sqr3i, -sqr3i, sqr3i,
-                  sqr3i, -sqr3i, sqr3i,
-               };
+               const double P3 = sqr3i, M3 = -sqr3i;
+               const double P2 = sqr2i, M2 = -sqr2i;
+               const double Z = zero;
+               //#Slip direction CUB111
+               const double sVecsThese[ nslip * ecmech::ndim ] = {
+                     P3, P3, P3,
+                     P3, P3, P3,
+                     P3, P3, P3,
+                     P3, P3, M3,
+                     P3, P3, M3,
+                     P3, P3, M3,
+                     P3, M3, P3,
+                     P3, M3, P3,
+                     P3, M3, P3,
+                     P3, M3, M3,
+                     P3, M3, M3,
+                     P3, M3, M3};
+               //#Slip plane normal CUB110
+               const double mVecsThese[ nslip * ecmech::ndim ] = {
+                     Z,  P2, M2,
+                     P2, Z,  M2,
+                     P2, M2, Z,
+                     Z,  P2, P2,
+                     P2, Z,  P2,
+                     P2, M2, Z,
+                     Z,  P2, P2,
+                     P2, Z,  M2,
+                     P2, P2, Z,
+                     Z,  P2, M2,
+                     P2, Z,  P2,
+                     P2, P2, Z};
+
                mVecs.insert(mVecs.end(), &(mVecsThese[0]), &(mVecsThese[nslipThese * ecmech::ndim]));
                sVecs.insert(sVecs.end(), &(sVecsThese[0]), &(sVecsThese[nslipThese * ecmech::ndim]));
             }
