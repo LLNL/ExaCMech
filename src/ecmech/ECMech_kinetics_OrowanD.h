@@ -49,7 +49,7 @@ namespace ecmech {
          static const int nH = 2 * SlipGeom::nslip; // Number of mobile and total dislocation density
          static const int nIH = isotropic ? 1 : (SlipGeom::nslip * SlipGeom::nslip); // Number of params in interaction matrix
          static const int nParams = 13 + 4 * nVPer + nH + nIH + SlipGeom::nParams;
-         static const int nVals = nVPer + 2 * SlipGeom::nslip; // Our CRSS, C1/T, and b*q_m params
+         static const int nVals = 1 + nVPer + 2 * SlipGeom::nslip; //Our ref_slip_rate, CRSS, C1/T, and b*q_m params
          static const int nEvolVals = 2 * SlipGeom::nslip; // We really don't need to evolve anything here
 
          // constructor
@@ -369,7 +369,8 @@ namespace ecmech {
             double maxThermalRefRate = 0.0;
             double hdnScale = 0.;
             for (int iVal = 0; iVal < _nslip; ++iVal) {
-               const double int_q = sqrt(vecsyadotb<SlipGeom::nslip>(&_inter_mat[iVal * _nslip], &h_state[_nslip]));
+               const double int_q = isotropic ? sqrt(_inter_mat[0] * vecsssumabs<SlipGeom::nslip>(&h_state[_nslip])) :
+                                                sqrt(vecsyadotb<SlipGeom::nslip>(&_inter_mat[iVal * _nslip], &h_state[_nslip]));
                const double hdnI = perSS ? (_tau_0 + _c_2[iVal] * int_q) : (_tau_0 + _c_2[0] * int_q);
                hdnScale += hdnI;
                vals[1 + iVal] = hdnI;

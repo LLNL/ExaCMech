@@ -15,14 +15,17 @@ static int outputLevel = 1;
 TEST(ecmech, hard_orowan_fcc)
 {
    using namespace ecmech;
-   const double hUpdtVal1 = 1.2486119605686e+16;
-   const double hUpdtVal2 = 4.4620075351092e+16;
+#ifdef LARGE_DD
+   const double gdotVal1 = 11387.933989173 - 1.145e-10;
+#else
+   const double gdotVal1 = 0.011441126690517;
+#endif
 
-   const double hUpdtTol = 1e-11;
+   const double hUpdtTol = 1.0e-11;
 
    const int nslip = 12;
+   const double init_tau = 1.0e4;
    double dt = 1e-2;
-   double gdot[nslip] = { 0.1 };
 
    {
 
@@ -37,17 +40,24 @@ TEST(ecmech, hard_orowan_fcc)
          kinetics.getHistInfo(names, init, plot, state);
       }
       double hs_u[kinetics.nH];
-      int nFEvals = kinetics.updateH(hs_u, &(init[0]), dt, gdot, outputLevel);
-      std::cout << "Converged with nFEvals : " << nFEvals << std::endl;
+      double kin_vals[kinetics.nVals];
+      double _hdn_scale = kinetics.getVals(kin_vals, 0.0, 300.0, &(init[0]));
 
-      EXPECT_TRUE(nFEvals == 4) << "Not the expected number of function evaluations";
+      double gdot[nslip] = {0.0};
+      double dgdot_dtau[nslip] = {0.0};
+      double dgdot_dg[nslip] = {0.0};
+      double taua[nslip] = {0.0};
+      for (int ig = 0; ig < nslip; ig++) {
+         taua[ig] = init_tau; 
+      }
+      kinetics.evalGdots(gdot, dgdot_dtau, dgdot_dg, taua, kin_vals);
+
 #ifdef ECMECH_DEBUG
-      std::cout << "Updated hardness state : ";
-      printVec<kinetics.nH>(hs_u, std::cout);
+      std::cout << "Gdot values : ";
+      printVec<12>(gdot, std::cout);
 #endif
       // Our numbers are pretty large here, we should do a relative tolerance instead
-      EXPECT_LT(fabs((hs_u[0] - hUpdtVal1)/hUpdtVal1), hUpdtTol) << "Did not get expected value";
-      EXPECT_LT(fabs((hs_u[12] - hUpdtVal2)/hUpdtVal2), hUpdtTol) << "Did not get expected value";
+      EXPECT_LT(fabs(gdot[0] - gdotVal1), hUpdtTol) << "Did not get expected value";
    }
 }
 
