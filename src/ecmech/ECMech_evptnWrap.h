@@ -359,6 +359,35 @@ namespace ecmech {
                         });
                      break;
 #endif
+#if defined(RAJA_ENABLE_HIP)
+                  case ecmech::ExecutionStrategy::HIP :
+		  {
+		     auto &lslipGeom    = _slipGeom;
+		     auto &lkinetics    = _kinetics;
+		     auto &lelastN      = _elastN;
+		     auto &leosModel    = _eosModel;
+		     auto &ltolerance   = _tolerance;
+		     auto &loutputLevel = _outputLevel;
+                     RAJA::forall<RAJA::hip_exec<RAJA_CUDA_THREADS> >(default_range, [ = ] RAJA_DEVICE(int i) {
+                           double *mtanSDThis       = ( mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr );
+                           getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
+                              (lslipGeom, lkinetics, lelastN, leosModel,
+                               dt,
+                               ltolerance,
+                               &defRateV[def_rate_stride * i],
+                               &spinV[spin_v_stride * i],
+                               &volRatioV[vol_ratio_stride * i],
+                               &eIntV[int_eng_stride * i],
+                               &stressSvecPV[stress_stride * i],
+                               &histV[history_stride * i],
+                               tkelvV[tkelv_stride * i],
+                               &sddV[sdd_stride * i],
+                               mtanSDThis,
+                               loutputLevel);
+                        });
+                     break;
+		  }
+#endif
                   case ecmech::ExecutionStrategy::CPU :
                   default : // fall through to CPU if other options are not available
                      RAJA::forall<RAJA::loop_exec>(default_range, [ = ] (int i) {

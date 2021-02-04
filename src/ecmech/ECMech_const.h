@@ -70,7 +70,7 @@ namespace ecmech
 {
    // We're going to use this to determine what RAJA code to run for our
    // kernels.
-   enum class ExecutionStrategy { CPU, CUDA, OPENMP };
+   enum class ExecutionStrategy { CPU, CUDA, HIP, OPENMP };
 
    const int nsvp = 7;
    const int ndim = 3;
