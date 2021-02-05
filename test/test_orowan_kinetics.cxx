@@ -12,19 +12,19 @@
 
 static int outputLevel = 1;
 
-TEST(ecmech, hard_orowan_fcc)
+TEST(ecmech, kin_orowan_fcc)
 {
    using namespace ecmech;
 #ifdef LARGE_DD
-   const double gdotVal1 = 11387.933989173 - 1.145e-10;
+   const double gdotVal1 = 4.87738409778574465e-10;
 #else
-   const double gdotVal1 = 0.011441126690517;
+   const double gdotVal1 = 2.59181779318282111e+2;
 #endif
 
    const double hUpdtTol = 1.0e-11;
 
    const int nslip = 12;
-   const double init_tau = 1.0e4;
+   const double init_tau = 1.0e-2;
    double dt = 1e-2;
 
    {

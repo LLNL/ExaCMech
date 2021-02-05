@@ -8,6 +8,7 @@
 
 #include <string>
 #include <vector>
+// #include <limits>
 
 #include "RAJA/RAJA.hpp"
 
@@ -48,9 +49,9 @@ namespace ecmech {
       public:
          static const int nH = 2 * SlipGeom::nslip; // Number of mobile and total dislocation density
          static const int nIH = isotropic ? 1 : (SlipGeom::nslip * SlipGeom::nslip); // Number of params in interaction matrix
-         static const int nParams = 13 + 4 * nVPer + nH + nIH + SlipGeom::nParams;
+         static const int nParams = 12 + 4 * nVPer + nH + nIH + SlipGeom::nParams;
          static const int nVals = 1 + nVPer + 2 * SlipGeom::nslip; //Our ref_slip_rate, CRSS, C1/T, and b*q_m params
-         static const int nEvolVals = 2 * SlipGeom::nslip; // We really don't need to evolve anything here
+         static const int nEvolVals = SlipGeom::nslip; // We really don't need to evolve anything here
 
          // constructor
          __ecmech_hdev__
@@ -83,10 +84,13 @@ namespace ecmech {
 
             _lbar = *parsIt; ++parsIt;
             // phonon drag params
-            _shear_speed = *parsIt; ++parsIt;
-            for (int iVal = 0; iVal < nVPer; ++iVal) {
-               _c_3[iVal] = *parsIt; ++parsIt;
-            }
+            // _shear_speed = *parsIt; ++parsIt;
+            // for (int iVal = 0; iVal < nVPer; ++iVal) {
+            //    _c_3[iVal] = *parsIt; ++parsIt;
+            // }
+
+            _gam_ro = *parsIt; ++parsIt;
+            _wrD = *parsIt; ++parsIt;
 
             // thermal activation params
             _fD = *parsIt; ++parsIt;
@@ -97,7 +101,7 @@ namespace ecmech {
             _tau_a = *parsIt; ++parsIt;
             _p = *parsIt; ++parsIt;
             _q = *parsIt; ++parsIt;
-            _tau_0 = *parsIt; ++parsIt;
+            // _tau_0 = *parsIt; ++parsIt;
             for (int iVal = 0; iVal < nVPer; ++iVal) {
                _c_2[iVal] = *parsIt; ++parsIt;
             }
@@ -141,8 +145,8 @@ namespace ecmech {
                // Factors related to bounding the phonon drag term
                // If we're above _l_max for tau our phonon drag term, \nu_r, approaches shear wave speed
                // If we're below _l_min for tau our phonon drag term, \nu_r, approaches 0.
-               _l_min[iVal] = _c_3[iVal] * ecmech::lorentz_min;
-               _l_max[iVal] = _c_3[iVal] * ecmech::lorentz_max;
+               // _l_min[iVal] = _c_3[iVal] * std::sqrt(std::numeric_limits<double>::epsilon());
+               // _l_max[iVal] = 1.0 / std::numeric_limits<double>::epsilon() / _c_3[iVal];
             }
 
             //////////////////////////////
@@ -223,10 +227,12 @@ namespace ecmech {
 
             params.push_back(_lbar);
             // phonon drag params
-            params.push_back(_shear_speed);
-            for (int iVal = 0; iVal < nVPer; ++iVal) {
-               params.push_back(_c_3[iVal]);
-            }
+            params.push_back(_gam_ro);
+            params.push_back(_wrD);
+            // params.push_back(_shear_speed);
+            // for (int iVal = 0; iVal < nVPer; ++iVal) {
+            //    params.push_back(_c_3[iVal]);
+            // }
 
             // thermal activation params
             params.push_back(_fD);
@@ -237,7 +243,7 @@ namespace ecmech {
             params.push_back(_tau_a);
             params.push_back(_p);
             params.push_back(_q);
-            params.push_back(_tau_0);
+            // params.push_back(_tau_0);
             for (int iVal = 0; iVal < nVPer; ++iVal) {
                params.push_back(_c_2[iVal]);
             }
@@ -302,20 +308,23 @@ namespace ecmech {
          double _mu_ref;
          double _tK_ref;
          double _fD;
-         double _shear_speed;
+         // double _shear_speed;
          double _c_3[nVPer];
          double _berg_mag[nVPer];
          double _c_1[nVPer];
          double _tau_a;
-         double _tau_0;
+         // double _tau_0; 
          double _c_2[nVPer];
          double _p; // only used if pOne is false
          double _q; // only used if qOne is false
          double _inter_mat[nIH]; // symmetric matrix
 
+         double _gam_ro;
+         double _wrD;
+
          // derived from parameters
          double _t_max[nVPer], _t_min[nVPer], _xn[nVPer], _xnn[nVPer];
-         double _l_max[nVPer], _l_min[nVPer];
+         // double _l_max[nVPer], _l_min[nVPer];
 
          //////////////////////////////
          // Dislocation evolution stuff
@@ -342,10 +351,7 @@ namespace ecmech {
          double
          getFixedRefRate(const double* const vals) const
          {
-            // Thermal activation term
-            // As mobile dislocation densities increase this number can get quite high,
-            // so we scale it down by a few order of magnitudes to make it more reasonable.
-            return 1.0e-3 * vals[0];
+            return vals[0];
          }
 
          /**
@@ -364,28 +370,27 @@ namespace ecmech {
                  ) const
          {
             double const nVPerInv = 1.0 / _nslip;
-            const double fD = _fD;
 
-            double maxThermalRefRate = 0.0;
+            double maxRefRate = 0.0;
             double hdnScale = 0.;
             for (int iVal = 0; iVal < _nslip; ++iVal) {
                const double int_q = isotropic ? sqrt(_inter_mat[0] * vecsssumabs<SlipGeom::nslip>(&h_state[_nslip])) :
                                                 sqrt(vecsyadotb<SlipGeom::nslip>(&_inter_mat[iVal * _nslip], &h_state[_nslip]));
-               const double hdnI = perSS ? (_tau_0 + _c_2[iVal] * int_q) : (_tau_0 + _c_2[0] * int_q);
+               const double hdnI = perSS ? (_c_2[iVal] * int_q) : (_c_2[0] * int_q);
                hdnScale += hdnI;
                vals[1 + iVal] = hdnI;
                vals[1 + _nslip + iVal] = perSS ? (_berg_mag[iVal] * h_state[iVal]) : (_berg_mag[0] * h_state[iVal]);
-               // Thermal activation ref slip rate = b * q_M * f_D * \bar{L}
-               const double rate = perSS ? (_berg_mag[iVal] * h_state[iVal] * _lbar * fD)
-                                   : (_berg_mag[0] * h_state[iVal] * _lbar * fD);
-               if (rate > maxThermalRefRate) {
-                  maxThermalRefRate = rate;
+               // Thermal activation + phonon ref slip rate = b * q_M * (f_D * \bar{L} + shear_speed)
+               const double isqrth = 1.0 / sqrt(vals[1 + _nslip + iVal]);
+               const double rate = 1.0 / ((1.0 / (_lbar * _fD * isqrth)) + (1.0 / (_gam_ro * vals[1 + _nslip + iVal]))); //_lbar * _fD * isqrth;
+               if (rate > maxRefRate) {
+                  maxRefRate = rate;
                }
             }
 
             // average flow strength across all slip systems
             hdnScale = hdnScale * nVPerInv;
-            vals[0] = maxThermalRefRate;
+            vals[0] = maxRefRate;
 
             for (int iVal = 0; iVal < nVPer; ++iVal) {
                vals[1 + 2 * _nslip + iVal] = _c_1[iVal] / tK; // _c_t
@@ -508,10 +513,12 @@ namespace ecmech {
             const double xnn = perSS ? _xnn[iSlip] : _xnn[0];
             const double t_min = perSS ? _t_min[iSlip] : _t_min[0];
             const double t_max = perSS ? _t_max[iSlip] : _t_max[0];
-            const double l_min = perSS ? _l_min[iSlip] : _l_min[0];
-            const double l_max = perSS ? _l_max[iSlip] : _l_max[0];
-            const double c_3 = perSS ? _c_3[iSlip] : _c_3[0];
+            // const double l_min = perSS ? _l_min[iSlip] : _l_min[0];
+            // const double l_max = perSS ? _l_max[iSlip] : _l_max[0];
+            // const double c_3 = perSS ? _c_3[iSlip] : _c_3[0];
             const double c_t = perSS ? vals[1 + 2 * _nslip + iSlip] : vals[1 + 2 * _nslip];
+            const double gam_w = _lbar * _fD / sqrt(bqm);
+            const double gam_r = _gam_ro * bqm;
 
             // zero things so that can more easily just return if inactive
             gdot = zero;
@@ -543,47 +550,87 @@ namespace ecmech {
 
             // calculate drag limited kinetics
             //
-            double nu_r, dnu_r_dtau;
-#if MORE_DERIVS
-            double dnu_r_dtK = zero;
-#endif
+//             double gdot_r, dgdot_r_dtau;
+// #if MORE_DERIVS
+//             double dgdot_r_dtK = zero;
+// #endif
 
+//             {
+//                const double arg = (fabs(tau) - gAth);
+//                const double iarg = 1.0 / arg;
+//                double temp;
+//                if (arg < gam_ratio_min) { // ! IF (gdot_r < gam_ratio_min) THEN
+//                   // note that this should catch tau <= g
+//                   return;
+//                }
+//                else if (arg > l_max) {
+//                   gdot_r = gam_r;
+//                   dgdot_r_dtau = zero;
+//                }
+//                else {
+//                   const double factor = c_3 * onehalf;
+//                   const double sqrterm = sqrt((factor * factor * iarg * iarg) + 1);
+//                   gdot_r = gam_r / (sqrterm + factor * iarg);
+//                   // gdot_r = copysign(gdot_r, tau);
+//                   // -c_s * (c_3^2 / (4 * tau^3 * sqrt(c_3^2/4 * 1/tau^2 + 1)) + c_3/2 * 1/tau^2) / 
+//                   //   (c_3/2 * 1/tau + sqrt(c_3^2/4 * 1/tau^2 + 1))^2
+//                   // cs * (c3^2 / (4 * (tau - taua)^3 * sqrt(c_3^2 /4 *1 / (tau - taua)^2) + 1)) + c_3 / 2 * 1 / (tau - taua)^2)
+//                   // / (c_3 / 2 * 1 / (tau - taua) + sqrt(c3^2 / 4 * 1 / (tau - taua)^2) + 1))^2
+//                   //gam_r * (c_3^2 / 4  * sign(tau) / (-taua + Abs(tau))^3 * sqrt(c_3^2/4 * 1/(-taua + Abs(tau))^2) + 1)) + c_3 / 2 * sign(tau) / (-taua + Abs(tau))^2)
+//                   // / (c_3 / 2 * 1 / (-taua + Abs(tau)) + sqrt(c_3^2 / 4 * 1/ (-taua + Abs(tau))^2) + 1))^2
+//                   const double dgdot_r_dtau_top = (factor * factor / sqrterm  * iarg * iarg * iarg  + factor * iarg * iarg);
+//                   const double dgdot_r_dtau_bottom = factor * iarg + sqrterm;
+//                   dgdot_r_dtau = gam_r * dgdot_r_dtau_top / (dgdot_r_dtau_bottom * dgdot_r_dtau_bottom);
+//                }
+// #if MORE_DERIVS
+// #endif
+//             }
+
+            // calculate drag limited kinetics
+            //
+            double gdot_r, dgdot_r_dtau;
+#if MORE_DERIVS
+            double dgdot_r_dtK;
+#endif
             {
-               const double arg = (fabs(tau) - gAth);
-               const double iarg = 1.0 / arg;
+               double exp_arg = (fabs(tau) - gAth) / _wrD;
                double temp;
-               if (arg < l_min) { // ! IF (gdot_r < gam_ratio_min) THEN
+               if (exp_arg < gam_ratio_min) { // ! IF (gdot_r < gam_ratio_min) THEN
                   // note that this should catch tau <= g
                   return;
                }
-               else if (arg > l_max) {
-                  nu_r = _shear_speed;
-                  dnu_r_dtau = zero;
+               else if (exp_arg < idp_eps_sqrt) {
+                  // linear expansion is cheaper and more accurate
+                  gdot_r = gam_r * exp_arg;
+                  temp = one - exp_arg; // still use temp below as approximation to exp(-fabs(tau)/_wrD)
                }
                else {
-                  const double factor = c_3 * onehalf;
-                  const double sqrterm = sqrt((factor * factor * iarg * iarg) + 1);
-                  nu_r = _shear_speed * (sqrt((factor * factor * iarg * iarg) + 1)
-                                         - (factor * iarg));
-                  // dnu_r / dtau
-                  // = -c_s * ( c_3^2 / 4 * 1 / tau^3 / sqrt(c_3^2/4 * 1/tau^2 + 1) - c_3 / 2 * 1 / tau^2)
-                  dnu_r_dtau = -_shear_speed * (factor * factor * iarg * iarg * iarg / sqrterm - (factor * iarg * iarg));
+                  temp = exp(-exp_arg);
+                  gdot_r = gam_r * (one - temp);
                }
+               dgdot_r_dtau = gam_r * temp / _wrD;
 #if MORE_DERIVS
+               double dgdotr_dtK;
+               if (withGAthermal) {
+                  dgdot_r_dtK = -gam_r * temp * exp_arg * _wrDT / _wrD;
+               }
+               else {
+                  dgdot_r_dtK = -gam_r * temp * fabs(tau) * _wrDT / (_wrD * _wrD);
+               }
 #endif
             }
             //
             if (at_0 > t_max) {
                // have overflow of thermally activated kinetics, purely drag limited
 
-               gdot = bqm * nu_r;
+               gdot = gdot_r;
 
-               dgdot_dtau = bqm * dnu_r_dtau;
+               dgdot_dtau = dgdot_r_dtau;
                if (withGAthermal) {
-                  dgdot_dg = -copysign(dgdot_dtau, tau);
+                  dgdot_dg = zero;
                }
                else {
-                  dgdot_dg = zero;
+                  dgdot_dg = -copysign(dgdot_dtau, tau);
                }
 #if MORE_DERIVS
                dgdot_dmu = zero;
@@ -597,11 +644,11 @@ namespace ecmech {
                return;
             }
 
-            double nu_w, dnu_w_dtau;
-            double dnu_w_dg; // only used if !withGAthermal
+            double gdot_w, dgdot_w_dtau;
+            double dgdot_w_dg; // only used if !withGAthermal
 #if MORE_DERIVS
-            double dnu_w_dmu;
-            double dnu_w_dtK;
+            double dgdot_w_dmu;
+            double dgdot_w_dtK;
 #endif
             //
             // calculate thermally activated kinetics
@@ -619,22 +666,22 @@ namespace ecmech {
                }
                //
 #if MORE_DERIVS
-               dnu_w_dmu = zero;
-               dnu_w_dtK = zero;
+               dgdot_w_dmu = zero;
+               dgdot_w_dtK = zero;
 #endif
                //
                // !IF (exp_arg > ln_gam_ratio_ovf) THEN
                // !END IF
                // ! do not need to check the above condition because have pegged the MTS part of the kinetics
                //
-               nu_w = _lbar * _fD * exp(exp_arg);
-               dnu_w_dtau = mts_dfac * nu_w;
+               gdot_w = gam_w * exp(exp_arg);
+               dgdot_w_dtau = mts_dfac * gdot_w;
                if (!withGAthermal) {
-                  dnu_w_dg = dnu_w_dtau * t_frac;
+                  dgdot_w_dg = dgdot_w_dtau * t_frac;
                }
 #if MORE_DERIVS
-               dnu_w_dmu = nu_w * (-exp_arg / mu);
-               dnu_w_dtK = nu_w * (exp_arg / tK); // negatives cancel
+               dgdot_w_dmu = gdot_w * (-exp_arg / mu);
+               dgdot_w_dtK = gdot_w * (exp_arg / tK); // negatives cancel
 #endif
                //
                double t_frac_m = (-fabs(tau) - gAth) * g_i;
@@ -643,14 +690,14 @@ namespace ecmech {
                //
                if (exp_arg_m > ln_gam_ratio_min) {
                   // non-vanishing contribution from balancing MTS-like kinetics
-                  double nu_w_m = _lbar * _fD * exp(exp_arg_m);
-                  nu_w = nu_w - nu_w_m;
-                  double contrib = mts_dfac_m * nu_w_m;
-                  dnu_w_dtau = dnu_w_dtau - contrib; // sign used to be the other way, but suspect that was a bug
+                  double gdot_w_m = gam_w * exp(exp_arg_m);
+                  gdot_w = gdot_w - gdot_w_m;
+                  double contrib = mts_dfac_m * gdot_w_m;
+                  dgdot_w_dtau = dgdot_w_dtau - contrib; // sign used to be the other way, but suspect that was a bug
                   if (!withGAthermal) {
-                     dnu_w_dg = dnu_w_dg - contrib * t_frac_m;
+                     dgdot_w_dg = dgdot_w_dg - contrib * t_frac_m;
                   }
-                  if (fabs(nu_w / (_lbar * _fD)) < gam_ratio_min) {
+                  if (fabs(gdot_w / gam_w) < gam_ratio_min) {
                      // effectively zero from roundoff
                      l_act = false;
                      return;
@@ -663,52 +710,53 @@ namespace ecmech {
 
                double abslog = log(at_0);
                double blog = xn * abslog;
-               double temp = (_lbar * _fD * gdot_w_pl_scaling) * exp(blog);
+               double temp = (gam_w * gdot_w_pl_scaling) * exp(blog);
 
-               double nu_w_pl = temp * at_0; // not signed ! copysign(at_0,tau)
-               nu_w = nu_w + nu_w_pl;
+               double gdot_w_pl = temp * at_0; // not signed ! copysign(at_0,tau)
+               gdot_w = gdot_w + gdot_w_pl;
 
                double contrib = temp * xnn * g_i;
-               dnu_w_dtau = dnu_w_dtau + contrib;
+               dgdot_w_dtau = dgdot_w_dtau + contrib;
                if (!withGAthermal) {
-                  dnu_w_dg = dnu_w_dg + contrib * at_0;
+                  dgdot_w_dg = dgdot_w_dg + contrib * at_0;
                }
             }
 
             l_act = true;
             //
             {
-               const double nu = one / (one / nu_w + one / nu_r);
-               const double ndrdiv2 = one / (nu_r * nu_r);
-               const double ndwdiv2 = one / (nu_w * nu_w);
+               // gdot = gdot_r;
+               gdot = one / (one / gdot_w + one / gdot_r);
+               const double gdrdiv2 = one / (gdot_r * gdot_r);
+               const double gdwdiv2 = one / (gdot_w * gdot_w);
 
-               gdot = bqm * nu;
-               dgdot_dtau = bqm * (nu * nu) * (dnu_w_dtau * ndwdiv2 + dnu_r_dtau * ndrdiv2);
+               // dgdot_dtau = dgdot_r_dtau;
+               dgdot_dtau = (gdot * gdot) * (dgdot_w_dtau * gdwdiv2 + dgdot_r_dtau * gdrdiv2);
                //
-               double temp = gdot * copysign(gdot, tau) * ndwdiv2;
+               double temp = gdot * copysign(gdot, tau) * gdwdiv2;
                // neglect difference in at_0 versus t_frac for dgdot_dg evaluation
                if (withGAthermal) {
-                  dgdot_dg = -temp * dnu_w_dtau; // opposite sign as signed gdot
+                  dgdot_dg = -temp * dgdot_w_dtau; // opposite sign as signed gdot
                }
                else {
-                  dgdot_dg = -temp * dnu_w_dg; // opposite sign as signed gdot
+                  dgdot_dg = -temp * dgdot_w_dg; // opposite sign as signed gdot
                }
 #if MORE_DERIVS
                // The reference rate is a bit different for the orowonian
                // framework then the previous version
-               dgdot_dgamo = temp * (nu_w / (l_bar * _fD));
-               dgdot_dmu = temp * dnu_w_dmu;
-               dgdot_dtK = temp * dnu_w_dtK;
+               dgdot_dgamo = temp * (gdot_w / gam_w);
+               dgdot_dmu = temp * dgdot_w_dmu;
+               dgdot_dtK = temp * dgdot_w_dtK;
 #endif
                //
-               temp = gdot * copysign(gdot, tau) * ndrdiv2;
+               temp = gdot * copysign(gdot, tau) * gdrdiv2;
                if (withGAthermal) {
-                  dgdot_dg = -temp * dnu_r_dtau + dgdot_dg; // opposite sign as signed gdot
+                  dgdot_dg = -temp * dgdot_r_dtau + dgdot_dg; // opposite sign as signed gdot
                }
 #if MORE_DERIVS
                // There reference value here is just the shear speed...
-               dgdot_dgamr = temp * (nu_r / _shear_speed);
-               dgdot_dtK = dgdot_dtK + temp * dnu_r_dtK;
+               dgdot_dgamr = temp * (gdot_r / gam_r);
+               dgdot_dtK = dgdot_dtK + temp * dgdot_r_dtK;
 #endif
             }
 
@@ -726,7 +774,7 @@ namespace ecmech {
          {
             // do not yet both with l_overdriven and setting-to-saturation machinery as in Fortran coding
 
-            // update is done on log(h) -- h treated as a nomralized (unitless) dislocation density
+            // update is done on log(h) -- h treated as a normalized (unitless) dislocation density
             // double log_hs_u[SlipGeom::nslip * 2];
             double ihs_o[SlipGeom::nslip * 2];
             double nu[SlipGeom::nslip];
@@ -734,7 +782,7 @@ namespace ecmech {
                if (i < _nslip) {
                   const double div = perSS ? fmax(hs_o[i], _hdn_min) * _berg_mag[i] :
                                      fmax(hs_o[i], _hdn_min) * _berg_mag[0];
-                  nu[i] = gdot[i] / (div);
+                  nu[i] = abs(gdot[i]) / (div);
                }
                ihs_o[i] = fmax(hs_o[i], _hdn_min);
             }
@@ -750,10 +798,30 @@ namespace ecmech {
             // assuming a constant slip rate during the time step, and then
             // evolve the dd content. We would get a solution, but it wouldn't necessarily
             // be correct.
+            bool flag = false;
             for (int i = 0; i < 2 * _nslip; i++) {
                if(hs_u[i] < zero) {
-                  ECMECH_FAIL(__func__, "Solver returned negative dislocation values!");
+                  flag = true;
+                  break;
                }
+            }
+            if (flag)
+            {
+               printf("hs_u: ");
+               for (int i = 0; i < 2 * _nslip; i++) {
+                  printf("%lf ", hs_u[i]);
+               }
+               printf("\n nu: ");
+               for (int i = 0; i < _nslip; i++) {
+                  printf("%lf ", nu[i]);
+               }
+               printf("\n hs_0: ");
+               for (int i = 0; i < 2 * _nslip; i++) {
+                  printf("%lf ", ihs_o[i]);
+               }
+               printf("\n");
+
+               ECMECH_FAIL(__func__, "Solver returned negative dislocation values!");
             }
 
             return nFEvals;
@@ -769,7 +837,7 @@ namespace ecmech {
             // We're not really evolving anything here at this point in time
             // so we can just return...
             // The Jacobian doesn't take in gdots / nu so we're left with this.
-            for (int i = 0; i < _nslip * 2; i++) {
+            for (int i = 0; i < SlipGeom::nslip; i++) {
                evolVals[i] = nu[i];
             }
          }
@@ -794,14 +862,14 @@ namespace ecmech {
             vecsVMa<SlipGeom::nslip>(&forest_dis[0], &_a_mat[0], &h[nslip]);
 
             for (int iM = 0; iM < nslip; iM++) {
-               const double sqrt_fd = sqrt(forest_dis[iM]);
+               const double sqrt_fd = sqrt(abs(forest_dis[iM]));
                const double q_dmult = _c_mult * sqrt_fd * h[iM] * evolVals[iM];
                const double q_dtrap = _c_trap * sqrt_fd * h[iM] * evolVals[iM];
                // This could become a very large number and could become problematic
                // later on. Do we want to cap it at some large value?
                // Although, it might be that this is only a problem if q and qM are defined
                // with units 1/m^2 rather than 1/mm^2 or 1/micron^2
-               const double q_dann = _c_ann * _d_ann * h[iM] * h[iM + nslip] * evolVals[iM];
+               const double q_dann = _c_ann * _d_ann * h[iM] * h[iM] * evolVals[iM];
                // mobile dislocation density rate of change
                sdot[iM] = q_dmult - q_dtrap - q_dann;
                // total dislocation density rate of change
@@ -818,23 +886,23 @@ namespace ecmech {
                RAJA::View<double, RAJA::Layout<JDIM> > dsdot_ds_view(dsdot_ds, nDimSys, nDimSys);
                // dqM/dqM portion of dsdot_ds
                for (int iM = 0; iM < nslip; iM++) {
-                  const double sqrt_fd = sqrt(forest_dis[iM]);
+                  const double sqrt_fd = sqrt(abs(forest_dis[iM]));
                   const double q_dmult_dtrap = (_c_mult - _c_trap) * sqrt_fd;
                   // Although, it might be that this is only a problem if q and qM are defined
                   // with units 1/m^2 rather than 1/mm^2 or 1/micron^2
-                  const double q_dann = _c_ann * _d_ann * h[iM + nslip];
+                  const double q_dann = 2 * _c_ann * _d_ann * h[iM];
                   dsdot_ds_view(iM, iM) = evolVals[iM] * (q_dmult_dtrap - q_dann);
                }
 
                // dq/dqM portion of dsdot_ds
                for (int iT = 0; iT < nslip; iT++) {
-                  const double sqrt_fd = sqrt(forest_dis[iT]);
+                  const double sqrt_fd = sqrt(abs(forest_dis[iT]));
                   const double q_dmult = _c_mult * sqrt_fd;
                   // This could become a very large number and could become problematic
                   // later on. Do we want to cap it at some large value?
                   // Although, it might be that this is only a problem if q and qM are defined
                   // with units 1/m^2 rather than 1/mm^2 or 1/micron^2
-                  const double q_dann = _c_ann * _d_ann * h[iT + nslip];
+                  const double q_dann = 2 * _c_ann * _d_ann * h[iT];
                   dsdot_ds_view(iT + nslip, iT) =  evolVals[iT] * (q_dmult - q_dann);
                }
 
@@ -843,23 +911,23 @@ namespace ecmech {
                for (int iT = 0; iT < nslip; iT++) {
                   for (int jT = 0; jT < nslip; jT++) {
                      // First, terms found only on the diagonal of this submatrix
-                     const double q_dann = (iT == jT) ? (_c_ann * _d_ann) : ecmech::zero;
-                     const double ifact = ecmech::onehalf / sqrt(forest_dis[iT]);
+                     // const double q_dann = (iT == jT) ? (_c_ann * _d_ann) : ecmech::zero;
+                     const double ifact = ecmech::onehalf / sqrt(abs(forest_dis[iT]));
                      const double q_dmult = _c_mult * amat(iT, jT) * ifact;
 
-                     dsdot_ds_view(iT + nslip, jT + nslip) = h[iT] * evolVals[iT] * (q_dmult - q_dann);
+                     dsdot_ds_view(iT + nslip, jT + nslip) = h[iT] * evolVals[iT] * q_dmult;
                   }
                }
 
-               // dM/dq portion of dsdot_dt
+               // dqM/dq portion of dsdot_dt
                for (int iT = 0; iT < nslip; iT++) {
                   for (int jT = 0; jT < nslip; jT++) {
-                     const double q_dann = (iT == jT) ? (_c_ann * _d_ann) : ecmech::zero;
+                     // const double q_dann = (iT == jT) ? (_c_ann * _d_ann) : ecmech::zero;
 
-                     const double ifact = ecmech::onehalf / sqrt(forest_dis[iT]);
+                     const double ifact = ecmech::onehalf / sqrt(abs(forest_dis[iT]));
                      const double q_dmult_dtrap = (_c_mult - _c_trap) * amat(iT, jT) * ifact;
 
-                     dsdot_ds_view(iT, jT + nslip) = h[iT] * evolVals[iT] * (q_dmult_dtrap - q_dann);
+                     dsdot_ds_view(iT, jT + nslip) = h[iT] * evolVals[iT] * (q_dmult_dtrap);
                   }
                }
             } // if dsdot_ds

@@ -51,6 +51,14 @@ blt_add_executable(NAME       test_orowan_hardening_0
 blt_add_test(NAME    test_orowan_hardening_0
              COMMAND test_orowan_hardening_0)
 
+blt_add_executable(NAME       test_orowan_hardening_1
+                   SOURCES    test_orowan_hardening.cxx
+                   DEFINES
+                   OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
+                   DEPENDS_ON ${ECMECH_TEST_DEPENDS} gtest)
+blt_add_test(NAME    test_orowan_hardening_1
+             COMMAND test_orowan_hardening_1)
+
 blt_add_executable(NAME       test_orowan_kinetics_0
                    SOURCES    test_orowan_kinetics.cxx
                    DEFINES    LARGE_DD
@@ -58,6 +66,22 @@ blt_add_executable(NAME       test_orowan_kinetics_0
                    DEPENDS_ON ${ECMECH_TEST_DEPENDS} gtest)
 blt_add_test(NAME    test_orowan_kinetics_0
              COMMAND test_orowan_kinetics_0)
+
+blt_add_executable(NAME       test_orowan_px_0
+                   SOURCES    test_orowan_px.cxx
+                   DEFINES    KIN_BCC
+                   OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
+                   DEPENDS_ON ${ECMECH_TEST_DEPENDS} gtest)
+blt_add_test(NAME    test_orowan_px_0
+             COMMAND test_orowan_px_0)
+
+blt_add_executable(NAME       test_orowan_px_1
+                   SOURCES    test_orowan_px.cxx
+                   DEFINES    KIN_FCC
+                   OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
+                   DEPENDS_ON ${ECMECH_TEST_DEPENDS} gtest)
+blt_add_test(NAME    test_orowan_px_1
+             COMMAND test_orowan_px_1)
 
 blt_add_executable(NAME       test_orowan_kinetics_1
                    SOURCES    test_orowan_kinetics.cxx

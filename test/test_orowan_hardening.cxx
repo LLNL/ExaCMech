@@ -15,14 +15,21 @@ static int outputLevel = 1;
 TEST(ecmech, hard_orowan_fcc)
 {
    using namespace ecmech;
-   const double hUpdtVal1 = 1.2486119605686e+16;
-   const double hUpdtVal2 = 4.4620075351092e+16;
+#ifdef LARGE_DD
+   const double hUpdtVal1 = 1.00051177988879244e+4;
+   const double hUpdtVal2 = 4.00085376730016869e+4;
+   const int nevals = 2;
+#else
+   const double hUpdtVal1 = 2.05219240511632234e-2;
+   const double hUpdtVal2 = 5.75365737772213781e-2;
+   const int nevals = 3;
+#endif
 
    const double hUpdtTol = 1e-11;
 
    const int nslip = 12;
-   double dt = 1e-2;
-   double gdot[nslip] = { 0.1 };
+   double dt = 0.001;
+   double gdot[nslip] = { 1.0 };
 
    {
 
@@ -40,7 +47,7 @@ TEST(ecmech, hard_orowan_fcc)
       int nFEvals = kinetics.updateH(hs_u, &(init[0]), dt, gdot, outputLevel);
       std::cout << "Converged with nFEvals : " << nFEvals << std::endl;
 
-      EXPECT_TRUE(nFEvals == 4) << "Not the expected number of function evaluations";
+      EXPECT_TRUE(nFEvals == nevals) << "Not the expected number of function evaluations";
 #ifdef ECMECH_DEBUG
       std::cout << "Updated hardness state : ";
       printVec<kinetics.nH>(hs_u, std::cout);
