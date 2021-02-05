@@ -65,8 +65,7 @@ namespace ecmech {
                _c12 = *parsIt; ++parsIt;
                _c44 = *parsIt; ++parsIt;
                //
-               int iParam = parsIt - params.begin();
-               assert(iParam == nParams);
+               assert((parsIt - params.begin()) == nParams);
 
                _K_diag[0] = _c11 - _c12;
                _K_diag[1] = _c11 - _c12;
@@ -81,15 +80,18 @@ namespace ecmech {
             __ecmech_host__
             inline void getParams(std::vector<double> & params
                                   ) const {
+#ifdef ECMECH_DEBUG
                // do not clear params in case adding to an existing set
                int paramsStart = params.size();
+#endif
 
                params.push_back(_c11);
                params.push_back(_c12);
                params.push_back(_c44);
 
-               int iParam = params.size() - paramsStart;
-               assert(iParam == nParams);
+#ifdef ECMECH_DEBUG
+               assert((params.size() - paramsStart) == nParams);
+#endif
             }
 
             __ecmech_hdev__
@@ -250,8 +252,7 @@ namespace ecmech {
                //
                _g_vecd2 = *parsIt; ++parsIt;
                //
-               int iParam = parsIt - params.begin();
-               assert(iParam == nParams);
+               assert((parsIt - params.begin()) == nParams);
 
                _K_diag[0] = _c11 - _c12;
                _K_diag[1] = _c11 * onethird + _c12 * onethird - fourthirds * _c13 + twothird * _c33;
@@ -269,8 +270,10 @@ namespace ecmech {
             __ecmech_host__
             inline void getParams(std::vector<double> & params
                                   ) const {
+#ifdef ECMECH_DEBUG
                // do not clear params in case adding to an existing set
                int paramsStart = params.size();
+#endif
 
                params.push_back(_c11);
                params.push_back(_c12);
@@ -280,8 +283,9 @@ namespace ecmech {
                //
                params.push_back(_g_vecd2);
 
-               int iParam = params.size() - paramsStart;
-               assert(iParam == nParams);
+#ifdef ECMECH_DEBUG
+               assert((params.size() - paramsStart) == nParams);
+#endif
             }
 
             __ecmech_hdev__

@@ -130,15 +130,16 @@ namespace ecmech {
 
             //////////////////////////////
 
-            int iParam = parsIt - params.begin();
-            assert(iParam == nParams);
+            assert((parsIt - params.begin()) == nParams);
          };
 
          __ecmech_host__
          void getParams(std::vector<double> & params
                         ) const {
+#ifdef ECMECH_DEBUG
             // do not clear params in case adding to an existing set
             int paramsStart = params.size();
+#endif
 
             //////////////////////////////
             // power-law stuff
@@ -177,9 +178,9 @@ namespace ecmech {
             params.push_back(_hdn_init);
 
             //////////////////////////////
-
-            int iParam = params.size() - paramsStart;
-            assert(iParam == nParams);
+#ifdef ECMECH_DEBUG
+            assert((params.size() - paramsStart) == nParams);
+#endif
          };
 
          __ecmech_host__
@@ -476,10 +477,10 @@ namespace ecmech {
 
                dgdot_dtau = dgdot_r;
                if (withGAthermal) {
-                  dgdot_dg = zero;
+                  dgdot_dg = -copysign(dgdot_r, tau);
                }
                else {
-                  dgdot_dg = -copysign(dgdot_r, tau);
+                  dgdot_dg = zero;
                }
 #if MORE_DERIVS
                dgdot_dmu = zero;

@@ -97,6 +97,7 @@ namespace ecmech {
             _kinetics(kinetics), _h_o(h_o), _dt(dt), _evolVals(evolVals)
          {
             _x_scale = fmax(_h_o, 1.0); // TO_DO -- generalize this to not max with 1
+            // NOTE : see comment below about changing Jacobian calculation if _res_scale != one / s_scale
             _res_scale = one / _x_scale;
          }
 
@@ -126,7 +127,10 @@ namespace ecmech {
             resid[0] = (h_delta - sdot * _dt) * _res_scale;
 
             if (doComputeJ) {
-               Jacobian[0] = (one - dsdot_ds * _dt) * _res_scale * _x_scale;
+               // The below is based on the assumption that _res_scale = 1/_x_scale
+               // if this were to change in the future version than this would need to become
+               // Jacobian[0] = (one - dsdot_ds * _dt) * _res_scale * _x_scale;
+               Jacobian[0] = (one - dsdot_ds * _dt);
             }
 
             return true;
@@ -201,6 +205,7 @@ namespace ecmech {
          {
             for (int i = 0; i < nDimSys; i++) {
                _x_scale[i] = fmax(_h_o[i], 1.0); // TO_DO -- generalize this to not max with 1
+               // NOTE : see comment below about changing Jacobian calculation if _res_scale != one / s_scale
                _res_scale[i] = one / _x_scale[i];
             }
          }
