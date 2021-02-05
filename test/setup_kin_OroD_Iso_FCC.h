@@ -19,8 +19,7 @@
       c2 = mu_ref * berg_mag, // MBar * microns
       gam_ro = 1e3, //1/micro-sec /(1/micron^2) / (micron)
       wrD = 0.02, // MBar?
-      inter_mat = 1.0,// unitless;
-      tau_0 = 0.0; // MBar not needed anymore
+      inter_mat = 1.0;// unitless;
    double
       c_trap = 1.0e-3, // unitless
       c_mult = 2.5e-3, // unitless

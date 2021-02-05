@@ -8,7 +8,6 @@
 
 #include <string>
 #include <vector>
-// #include <limits>
 
 #include "RAJA/RAJA.hpp"
 
@@ -83,11 +82,6 @@ namespace ecmech {
             }
 
             _lbar = *parsIt; ++parsIt;
-            // phonon drag params
-            // _shear_speed = *parsIt; ++parsIt;
-            // for (int iVal = 0; iVal < nVPer; ++iVal) {
-            //    _c_3[iVal] = *parsIt; ++parsIt;
-            // }
 
             _gam_ro = *parsIt; ++parsIt;
             _wrD = *parsIt; ++parsIt;
@@ -101,7 +95,6 @@ namespace ecmech {
             _tau_a = *parsIt; ++parsIt;
             _p = *parsIt; ++parsIt;
             _q = *parsIt; ++parsIt;
-            // _tau_0 = *parsIt; ++parsIt;
             for (int iVal = 0; iVal < nVPer; ++iVal) {
                _c_2[iVal] = *parsIt; ++parsIt;
             }
@@ -142,11 +135,6 @@ namespace ecmech {
                _t_min[iVal] = pow(ecmech::gam_ratio_min, xm);
                _t_max[iVal] = pow(ecmech::gam_ratio_ovf, xm);
 
-               // Factors related to bounding the phonon drag term
-               // If we're above _l_max for tau our phonon drag term, \nu_r, approaches shear wave speed
-               // If we're below _l_min for tau our phonon drag term, \nu_r, approaches 0.
-               // _l_min[iVal] = _c_3[iVal] * std::sqrt(std::numeric_limits<double>::epsilon());
-               // _l_max[iVal] = 1.0 / std::numeric_limits<double>::epsilon() / _c_3[iVal];
             }
 
             //////////////////////////////
@@ -175,7 +163,7 @@ namespace ecmech {
                   _hdn_min = _qM[iVal];
                }
             }
-
+            // Might want to make this smaller if provided large initial DD value?
             _hdn_min *= 1.0e-4;
 
             //////////////////////////////
@@ -229,10 +217,6 @@ namespace ecmech {
             // phonon drag params
             params.push_back(_gam_ro);
             params.push_back(_wrD);
-            // params.push_back(_shear_speed);
-            // for (int iVal = 0; iVal < nVPer; ++iVal) {
-            //    params.push_back(_c_3[iVal]);
-            // }
 
             // thermal activation params
             params.push_back(_fD);
@@ -243,7 +227,6 @@ namespace ecmech {
             params.push_back(_tau_a);
             params.push_back(_p);
             params.push_back(_q);
-            // params.push_back(_tau_0);
             for (int iVal = 0; iVal < nVPer; ++iVal) {
                params.push_back(_c_2[iVal]);
             }
@@ -308,12 +291,10 @@ namespace ecmech {
          double _mu_ref;
          double _tK_ref;
          double _fD;
-         // double _shear_speed;
          double _c_3[nVPer];
          double _berg_mag[nVPer];
          double _c_1[nVPer];
          double _tau_a;
-         // double _tau_0; 
          double _c_2[nVPer];
          double _p; // only used if pOne is false
          double _q; // only used if qOne is false
@@ -324,7 +305,6 @@ namespace ecmech {
 
          // derived from parameters
          double _t_max[nVPer], _t_min[nVPer], _xn[nVPer], _xnn[nVPer];
-         // double _l_max[nVPer], _l_min[nVPer];
 
          //////////////////////////////
          // Dislocation evolution stuff
@@ -380,9 +360,9 @@ namespace ecmech {
                hdnScale += hdnI;
                vals[1 + iVal] = hdnI;
                vals[1 + _nslip + iVal] = perSS ? (_berg_mag[iVal] * h_state[iVal]) : (_berg_mag[0] * h_state[iVal]);
-               // Thermal activation + phonon ref slip rate = b * q_M * (f_D * \bar{L} + shear_speed)
+               // Thermal activation + phonon ref slip rate = b * q_M * (1/(f_D * \bar{L}) + 1/nu_r)^-1
                const double isqrth = 1.0 / sqrt(vals[1 + _nslip + iVal]);
-               const double rate = 1.0 / ((1.0 / (_lbar * _fD * isqrth)) + (1.0 / (_gam_ro * vals[1 + _nslip + iVal]))); //_lbar * _fD * isqrth;
+               const double rate = 1.0 / ((1.0 / (_lbar * _fD * isqrth)) + (1.0 / (_gam_ro * vals[1 + _nslip + iVal])));
                if (rate > maxRefRate) {
                   maxRefRate = rate;
                }
@@ -513,9 +493,6 @@ namespace ecmech {
             const double xnn = perSS ? _xnn[iSlip] : _xnn[0];
             const double t_min = perSS ? _t_min[iSlip] : _t_min[0];
             const double t_max = perSS ? _t_max[iSlip] : _t_max[0];
-            // const double l_min = perSS ? _l_min[iSlip] : _l_min[0];
-            // const double l_max = perSS ? _l_max[iSlip] : _l_max[0];
-            // const double c_3 = perSS ? _c_3[iSlip] : _c_3[0];
             const double c_t = perSS ? vals[1 + 2 * _nslip + iSlip] : vals[1 + 2 * _nslip];
             const double gam_w = _lbar * _fD / sqrt(bqm);
             const double gam_r = _gam_ro * bqm;
@@ -547,44 +524,6 @@ namespace ecmech {
                g_i = one / gIn;
             }
             double at_0 = fmax(zero, fabs(tau) - gAth) * g_i;
-
-            // calculate drag limited kinetics
-            //
-//             double gdot_r, dgdot_r_dtau;
-// #if MORE_DERIVS
-//             double dgdot_r_dtK = zero;
-// #endif
-
-//             {
-//                const double arg = (fabs(tau) - gAth);
-//                const double iarg = 1.0 / arg;
-//                double temp;
-//                if (arg < gam_ratio_min) { // ! IF (gdot_r < gam_ratio_min) THEN
-//                   // note that this should catch tau <= g
-//                   return;
-//                }
-//                else if (arg > l_max) {
-//                   gdot_r = gam_r;
-//                   dgdot_r_dtau = zero;
-//                }
-//                else {
-//                   const double factor = c_3 * onehalf;
-//                   const double sqrterm = sqrt((factor * factor * iarg * iarg) + 1);
-//                   gdot_r = gam_r / (sqrterm + factor * iarg);
-//                   // gdot_r = copysign(gdot_r, tau);
-//                   // -c_s * (c_3^2 / (4 * tau^3 * sqrt(c_3^2/4 * 1/tau^2 + 1)) + c_3/2 * 1/tau^2) / 
-//                   //   (c_3/2 * 1/tau + sqrt(c_3^2/4 * 1/tau^2 + 1))^2
-//                   // cs * (c3^2 / (4 * (tau - taua)^3 * sqrt(c_3^2 /4 *1 / (tau - taua)^2) + 1)) + c_3 / 2 * 1 / (tau - taua)^2)
-//                   // / (c_3 / 2 * 1 / (tau - taua) + sqrt(c3^2 / 4 * 1 / (tau - taua)^2) + 1))^2
-//                   //gam_r * (c_3^2 / 4  * sign(tau) / (-taua + Abs(tau))^3 * sqrt(c_3^2/4 * 1/(-taua + Abs(tau))^2) + 1)) + c_3 / 2 * sign(tau) / (-taua + Abs(tau))^2)
-//                   // / (c_3 / 2 * 1 / (-taua + Abs(tau)) + sqrt(c_3^2 / 4 * 1/ (-taua + Abs(tau))^2) + 1))^2
-//                   const double dgdot_r_dtau_top = (factor * factor / sqrterm  * iarg * iarg * iarg  + factor * iarg * iarg);
-//                   const double dgdot_r_dtau_bottom = factor * iarg + sqrterm;
-//                   dgdot_r_dtau = gam_r * dgdot_r_dtau_top / (dgdot_r_dtau_bottom * dgdot_r_dtau_bottom);
-//                }
-// #if MORE_DERIVS
-// #endif
-//             }
 
             // calculate drag limited kinetics
             //
@@ -772,10 +711,7 @@ namespace ecmech {
                  const double* const gdot,
                  int outputLevel = 0) const
          {
-            // do not yet both with l_overdriven and setting-to-saturation machinery as in Fortran coding
 
-            // update is done on log(h) -- h treated as a normalized (unitless) dislocation density
-            // double log_hs_u[SlipGeom::nslip * 2];
             double ihs_o[SlipGeom::nslip * 2];
             double nu[SlipGeom::nslip];
             for (int i = 0; i < _nslip * 2; i++) {
@@ -911,7 +847,6 @@ namespace ecmech {
                for (int iT = 0; iT < nslip; iT++) {
                   for (int jT = 0; jT < nslip; jT++) {
                      // First, terms found only on the diagonal of this submatrix
-                     // const double q_dann = (iT == jT) ? (_c_ann * _d_ann) : ecmech::zero;
                      const double ifact = ecmech::onehalf / sqrt(abs(forest_dis[iT]));
                      const double q_dmult = _c_mult * amat(iT, jT) * ifact;
 
@@ -922,8 +857,6 @@ namespace ecmech {
                // dqM/dq portion of dsdot_dt
                for (int iT = 0; iT < nslip; iT++) {
                   for (int jT = 0; jT < nslip; jT++) {
-                     // const double q_dann = (iT == jT) ? (_c_ann * _d_ann) : ecmech::zero;
-
                      const double ifact = ecmech::onehalf / sqrt(abs(forest_dis[iT]));
                      const double q_dmult_dtrap = (_c_mult - _c_trap) * amat(iT, jT) * ifact;
 
