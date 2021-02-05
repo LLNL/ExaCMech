@@ -58,10 +58,10 @@ namespace ecmech {
          __ecmech_hdev__ ~SlipGeomFCC() {};
 
          __ecmech_host__
-         void setParams(const std::vector<double> & params
+         void setParams(const std::vector<double> & /* params */
                         )
          {
-            std::vector<double>::const_iterator parsIt = params.begin();
+            // std::vector<double>::const_iterator parsIt = params.begin();
 
             // m = (/ sqr3i, sqr3i, sqr3i /)
             // s = (/ zero, sqr2i, -sqr2i /)
@@ -99,20 +99,18 @@ namespace ecmech {
             fillFromMS(this->_P_ref_vec, this->_Q_ref_vec,
                        mVecs, sVecs, this->nslip);
 
-            int iParam = parsIt - params.begin();
-            assert(iParam == nParams);
+            // assert((parsIt - params.begin()) == nParams);
          };
 
          __ecmech_host__
-         void getParams(std::vector<double> & params
+         void getParams(std::vector<double> & /* params */
                         ) const {
             // do not clear params in case adding to an existing set
-            int paramsStart = params.size();
+            // int paramsStart = params.size();
 
             // params.push_back(); // no parameters
 
-            int iParam = params.size() - paramsStart;
-            assert(iParam == nParams);
+            // assert((params.size() - paramsStart) == nParams);
          }
 
          __ecmech_hdev__ inline const double* getP() const { return _P_ref_vec; };
@@ -151,10 +149,10 @@ namespace ecmech {
          __ecmech_hdev__ ~SlipGeomBCC() {};
 
          __ecmech_host__
-         void setParams(const std::vector<double> & params
+         void setParams(const std::vector<double> & /* params */
                         )
          {
-            std::vector<double>::const_iterator parsIt = params.begin();
+            // std::vector<double>::const_iterator parsIt = params.begin();
 
             std::vector<double> mVecs;
             std::vector<double> sVecs;
@@ -302,20 +300,18 @@ namespace ecmech {
             fillFromMS(this->_P_ref_vec, this->_Q_ref_vec,
                        &(mVecs[0]), &(sVecs[0]), this->nslip);
 
-            int iParam = parsIt - params.begin();
-            assert(iParam == nParams);
+            // assert((parsIt - params.begin()) == nParams);
          };
 
          __ecmech_host__
-         void getParams(std::vector<double> & params
+         void getParams(std::vector<double> & /* params */
                         ) const {
             // do not clear params in case adding to an existing set
-            int paramsStart = params.size();
+            // int paramsStart = params.size();
 
             // params.push_back(); // no parameters
 
-            int iParam = params.size() - paramsStart;
-            assert(iParam == nParams);
+            // assert((params.size() - paramsStart) == nParams);
          }
 
          __ecmech_hdev__ inline const double* getP() const { return _P_ref_vec; };
@@ -447,20 +443,22 @@ namespace ecmech {
             fillFromMS(this->_P_ref_vec, this->_Q_ref_vec,
                        mVecs, sVecs, this->nslip);
 
-            int iParam = parsIt - params.begin();
-            assert(iParam == nParams);
+            assert((parsIt - params.begin()) == nParams);
          };
 
          __ecmech_host__
          void getParams(std::vector<double> & params
                         ) const {
+#ifdef ECMECH_DEBUG
             // do not clear params in case adding to an existing set
             int paramsStart = params.size();
+#endif
 
             params.push_back(_cOverA);
 
-            int iParam = params.size() - paramsStart;
-            assert(iParam == nParams);
+#ifdef ECMECH_DEBUG
+            assert((params.size() - paramsStart) == nParams);
+#endif
          }
 
          __ecmech_hdev__ inline const double* getP() const { return _P_ref_vec; };
