@@ -190,7 +190,7 @@ namespace ecmech {
                      const double mdmxs = mView(alpha, 0) * (mView(beta, 1) * sView(beta, 2) - mView(beta, 2) * sView(beta, 1)) +
                                           mView(alpha, 1) * (mView(beta, 2) * sView(beta, 0) - mView(beta, 0) * sView(beta, 2)) +
                                           mView(alpha, 2) * (mView(beta, 0) * sView(beta, 1) - mView(beta, 1) * sView(beta, 0));
-                     aView(alpha, beta) = 1.0 / 2.0 * (mds + mdmxs);
+                     aView(alpha, beta) = 1.0 / 2.0 * (std::abs(mds) + std::abs(mdmxs));
                   }
                }
             }
@@ -800,7 +800,7 @@ namespace ecmech {
             vecsVMa<SlipGeom::nslip>(&forest_dis[0], &_a_mat[0], &h[nslip]);
 
             for (int iM = 0; iM < nslip; iM++) {
-               const double sqrt_fd = sqrt(abs(forest_dis[iM]));
+               const double sqrt_fd = sqrt(forest_dis[iM]);
                const double q_dmult = _c_mult * sqrt_fd * h[iM] * evolVals[iM];
                const double q_dtrap = _c_trap * sqrt_fd * h[iM] * evolVals[iM];
                // This could become a very large number and could become problematic
@@ -824,7 +824,7 @@ namespace ecmech {
                RAJA::View<double, RAJA::Layout<JDIM> > dsdot_ds_view(dsdot_ds, nDimSys, nDimSys);
                // dqM/dqM portion of dsdot_ds
                for (int iM = 0; iM < nslip; iM++) {
-                  const double sqrt_fd = sqrt(abs(forest_dis[iM]));
+                  const double sqrt_fd = sqrt(forest_dis[iM]);
                   const double q_dmult_dtrap = (_c_mult - _c_trap) * sqrt_fd;
                   // Although, it might be that this is only a problem if q and qM are defined
                   // with units 1/m^2 rather than 1/mm^2 or 1/micron^2
@@ -834,7 +834,7 @@ namespace ecmech {
 
                // dq/dqM portion of dsdot_ds
                for (int iT = 0; iT < nslip; iT++) {
-                  const double sqrt_fd = sqrt(abs(forest_dis[iT]));
+                  const double sqrt_fd = sqrt(forest_dis[iT]);
                   const double q_dmult = _c_mult * sqrt_fd;
                   // This could become a very large number and could become problematic
                   // later on. Do we want to cap it at some large value?
@@ -849,7 +849,7 @@ namespace ecmech {
                for (int iT = 0; iT < nslip; iT++) {
                   for (int jT = 0; jT < nslip; jT++) {
                      // First, terms found only on the diagonal of this submatrix
-                     const double ifact = ecmech::onehalf / sqrt(abs(forest_dis[iT]));
+                     const double ifact = ecmech::onehalf / sqrt(forest_dis[iT]);
                      const double q_dmult = _c_mult * amat(iT, jT) * ifact;
 
                      dsdot_ds_view(iT + nslip, jT + nslip) = h[iT] * evolVals[iT] * q_dmult;
@@ -859,7 +859,7 @@ namespace ecmech {
                // dqM/dq portion of dsdot_dt
                for (int iT = 0; iT < nslip; iT++) {
                   for (int jT = 0; jT < nslip; jT++) {
-                     const double ifact = ecmech::onehalf / sqrt(abs(forest_dis[iT]));
+                     const double ifact = ecmech::onehalf / sqrt(forest_dis[iT]);
                      const double q_dmult_dtrap = (_c_mult - _c_trap) * amat(iT, jT) * ifact;
 
                      dsdot_ds_view(iT, jT + nslip) = h[iT] * evolVals[iT] * (q_dmult_dtrap);

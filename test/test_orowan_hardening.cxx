@@ -16,12 +16,12 @@ TEST(ecmech, hard_orowan_fcc)
 {
    using namespace ecmech;
 #ifdef LARGE_DD
-   const double hUpdtVal1 = 1.00051177988879244e+4;
-   const double hUpdtVal2 = 4.00085376730016869e+4;
+   const double hUpdtVal1 = 1.000688484378114e+4;
+   const double hUpdtVal2 = 4.001148275065099e+4;
    const int nevals = 2;
 #else
-   const double hUpdtVal1 = 2.05219240511632234e-2;
-   const double hUpdtVal2 = 5.75365737772213781e-2;
+   const double hUpdtVal1 = 3.217582497718392e-2;
+   const double hUpdtVal2 = 7.695979111800355e-2;
    const int nevals = 3;
 #endif
 

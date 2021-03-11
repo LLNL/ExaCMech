@@ -26,10 +26,10 @@ TEST(ecmech, px_orowan)
    using namespace ecmech;
 #ifdef KIN_BCC
    matModelEvptn_BCC_B* mmodel = new matModelEvptn_BCC_B();
-   const double exp_val = 0.0021258649345944;
+   const double exp_val = 0.0026093700951796;
 #else
    matModelEvptn_FCC_C* mmodel = new matModelEvptn_FCC_C();
-   const double exp_val = 0.0080764114053918; 
+   const double exp_val = 0.0081242716836088;
 #endif
    matModelBase* mmb = dynamic_cast<matModelBase*>(mmodel);
 
