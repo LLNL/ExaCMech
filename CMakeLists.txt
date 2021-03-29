@@ -58,6 +58,10 @@ if(ENABLE_CUDA)
      set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -arch ${CUDA_ARCH}")
   endif()
 endif()
+if(ENABLE_HIP)
+  
+set (HIP_HIPCC_FLAGS ${RAJA_HIPCC_FLAGS})
+endif()
 
 ################################
 # SNLS

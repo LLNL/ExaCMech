@@ -4,7 +4,7 @@ SET(CMAKE_C_FLAGS_DEBUG   "${CMAKE_C_FLAGS_DEBUG}   -DECMECH_DEBUG")
 SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DECMECH_DEBUG")
 
 ecmech_fill_depends_list(LIST_NAME  ECMECH_TEST_DEPENDS
-                        DEPENDS_ON raja snls cuda openmp)
+                        DEPENDS_ON raja snls cuda openmp hip rocPRIM)
 
 if(BUILD_STATIC_LIBS)
     list(APPEND ECMECH_TEST_DEPENDS ecmech_static ${SNLS_STATIC_TARGET})

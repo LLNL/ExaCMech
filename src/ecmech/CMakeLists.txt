@@ -34,7 +34,7 @@ set(ECMECH_SOURCES
 set(ECMECH_DEPENDS)
 
 ecmech_fill_depends_list(LIST_NAME  ECMECH_DEPENDS
-                        DEPENDS_ON raja snls cub camp cuda openmp)
+                        DEPENDS_ON raja snls cub cuda openmp hip rocPRIM)
 
 message("-- ECMECH_DEPENDS: ${ECMECH_DEPENDS}")
 

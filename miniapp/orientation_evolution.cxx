@@ -43,6 +43,9 @@ int main(int argc, char *argv[]){
    double* state_vars = nullptr;
    double* vgrad = nullptr;
 
+   double* d_state_vars = nullptr;
+   double* d_vgrad = nullptr;
+
    int nqpts = 0;
    int num_props = 0;
    int num_hardness = 0;
@@ -129,6 +132,16 @@ int main(int argc, char *argv[]){
    double* eng_int_array = nullptr;
    double* temp_array = nullptr;
    double* sdd_array = nullptr;
+
+   double* d_stress_array = nullptr;
+   double* d_stress_svec_p_array = nullptr;
+   double* d_d_svec_p_array = nullptr;
+   double* d_w_vec_array = nullptr;
+   double* d_ddsdde_array = nullptr;
+   double* d_vol_ratio_array = nullptr;
+   double* d_eng_int_array = nullptr;
+   double* d_temp_array = nullptr;
+   double* d_sdd_array = nullptr;
 
    // If this is turned off then we do take a performance hit. At least if this is 10k and above things
    // run fine.
@@ -280,6 +293,11 @@ int main(int argc, char *argv[]){
          class_device = ECM_EXEC_STRAT_CUDA;
       }
 #endif
+#if defined(RAJA_ENABLE_HIP)
+      else if (device_type.compare("HIP") == 0) {
+         class_device = ECM_EXEC_STRAT_HIP;
+      }
+#endif
       else {
          std::cerr << "Accelerator is not supported or RAJA was not built with" << std::endl;
          return 1;
@@ -379,6 +397,45 @@ int main(int argc, char *argv[]){
    temp_array = memoryManager::allocate<double>(nqpts);
    sdd_array = memoryManager::allocate<double>(nqpts * ecmech::nsdd);
 
+#if defined(RAJA_ENABLE_HIP)
+
+   // We'll leave these uninitialized for now, since they're set in the
+   // setup_data function.
+   d_state_vars = memoryManager::allocate_gpu<double>(num_state_vars * nqpts);
+   d_vgrad = memoryManager::allocate_gpu<double>(nqpts * ecmech::ndim * ecmech::ndim);
+   d_stress_array = memoryManager::allocate<double>(nqpts * ecmech::nsvec);
+
+   hipErrchk(hipMemcpy( d_state_vars, state_vars, num_state_vars * nqpts * sizeof(double), hipMemcpyHostToDevice ));
+   hipErrchk(hipMemcpy( d_vgrad, vgrad, nqpts * ecmech::ndim * ecmech::ndim * sizeof(double), hipMemcpyHostToDevice ));
+   hipErrchk(hipMemcpy( d_stress_array, stress_array, nqpts * ecmech::nsvec * sizeof(double), hipMemcpyHostToDevice ));
+
+   d_ddsdde_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nsvec * ecmech::nsvec);
+   d_eng_int_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::ne);
+   d_w_vec_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nwvec);
+   d_vol_ratio_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nvr);
+   d_stress_svec_p_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nsvp);
+   d_d_svec_p_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nsvp);
+   d_temp_array = memoryManager::allocate_gpu<double>(nqpts);
+   d_sdd_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nsdd);
+
+#else
+
+   // We'll leave these uninitialized for now, since they're set in the
+   // setup_data function.
+   d_state_vars = state_vars;
+   d_vgrad = vgrad;
+   d_stress_array = stress_array;
+   d_ddsdde_array = ddsdde_array;
+   d_eng_int_array = eng_int_array;
+   d_w_vec_array = w_vec_array;
+   d_vol_ratio_array = vol_ratio_array;
+   d_stress_svec_p_array = stress_svec_p_array;
+   d_d_svec_p_array = d_d_svec_p_array;
+   d_temp_array = temp_array;
+   d_sdd_array = sdd_array;
+
+#endif
+
    double stress_avg[6];
    double wts = 1.0 / nqpts;
 
@@ -395,18 +452,18 @@ int main(int argc, char *argv[]){
 
    for (int i = 0; i < nsteps; i++) {
       // set up our data in the correct format that the material model kernel expects
-      setup_data(class_device, nqpts, num_state_vars, dt, vgrad, stress_array, state_vars,
-                 stress_svec_p_array, d_svec_p_array, w_vec_array, ddsdde_array,
-                 vol_ratio_array, eng_int_array, temp_array);
+      setup_data(class_device, nqpts, num_state_vars, dt, d_vgrad, d_stress_array, d_state_vars,
+                 d_stress_svec_p_array, d_d_svec_p_array, d_w_vec_array, d_ddsdde_array,
+                 d_vol_ratio_array, d_eng_int_array, d_temp_array);
       // run our material model
       mat_model_kernel(mat_model_base, nqpts, dt,
-                       state_vars, stress_svec_p_array,
-                       d_svec_p_array, w_vec_array, ddsdde_array,
-                       vol_ratio_array, eng_int_array, temp_array, sdd_array);
+                       d_state_vars, d_stress_svec_p_array,
+                       d_d_svec_p_array, d_w_vec_array, d_ddsdde_array,
+                       d_vol_ratio_array, d_eng_int_array, d_temp_array, d_sdd_array);
       // retrieve all of the data and put it back in the global arrays
       retrieve_data(class_device, nqpts, num_state_vars,
-                    stress_svec_p_array, vol_ratio_array,
-                    eng_int_array, state_vars, stress_array);
+                    d_stress_svec_p_array, d_vol_ratio_array,
+                    d_eng_int_array, d_state_vars, d_stress_array);
 
       switch ( class_device ) {
       default :
@@ -489,6 +546,33 @@ int main(int argc, char *argv[]){
       }
       break ;
 #endif
+#if defined(RAJA_ENABLE_HIP)
+      case ECM_EXEC_STRAT_HIP :
+      {
+         if (NEVALS_COUNTS) {
+            RAJA::ReduceSum<RAJA::hip_reduce, double> hip_sum(0.0);
+            RAJA::ReduceMin<RAJA::hip_reduce, double> hip_min(100.0); // We know this shouldn't ever be more than 100
+            RAJA::ReduceMax<RAJA::hip_reduce, double> hip_max(0.0); // We know this will always be at least 1.0
+            RAJA::forall<RAJA::hip_exec<1024> >(default_range, [ = ] RAJA_DEVICE(int i_qpts){
+               double* nfunceval = &(state_vars[i_qpts * num_state_vars + 2]);
+               hip_sum += wts * nfunceval[0];
+               hip_max.max(nfunceval[0]);
+               hip_min.min(nfunceval[0]);
+            });
+            std::cout << "Min Func Eval: " << hip_min.get() << " Mean Func Evals: " <<
+               hip_sum.get() << " Max Func Eval: " << hip_max.get() << std::endl;
+         }
+         for (int j = 0; j < ecmech::nsvec; j++) {
+            RAJA::ReduceSum<RAJA::hip_reduce, double> hip_sum(0.0);
+            RAJA::forall<RAJA::hip_exec<1024> >(default_range, [ = ] RAJA_DEVICE(int i_qpts){
+               const double* stress = &(stress_array[i_qpts * ecmech::nsvec]);
+               hip_sum += wts * stress[j];
+            });
+            stress_avg[j] = hip_sum.get();
+         }
+      }
+      break ;
+#endif
       } // switch ( class_device ) 
 
       // On CORAL architectures these print statements don't really add anything to the execution time.
@@ -528,6 +612,22 @@ int main(int argc, char *argv[]){
    memoryManager::deallocate(eng_int_array);
    memoryManager::deallocate(temp_array);
    memoryManager::deallocate(sdd_array);
+
+#if defined(RAJA_ENABLE_HIP)
+
+   memoryManager::deallocate_gpu(d_state_vars);
+   memoryManager::deallocate_gpu(d_vgrad);
+   memoryManager::deallocate_gpu(d_stress_array);
+   memoryManager::deallocate_gpu(d_stress_svec_p_array);
+   memoryManager::deallocate_gpu(d_d_svec_p_array);
+   memoryManager::deallocate_gpu(d_w_vec_array);
+   memoryManager::deallocate_gpu(d_ddsdde_array);
+   memoryManager::deallocate_gpu(d_vol_ratio_array);
+   memoryManager::deallocate_gpu(d_eng_int_array);
+   memoryManager::deallocate_gpu(d_temp_array);
+   memoryManager::deallocate_gpu(d_sdd_array);
+
+#endif
 
    return 0;
 }
