@@ -476,10 +476,10 @@ namespace ecmech {
 
                dgdot_dtau = dgdot_r;
                if (withGAthermal) {
-                  dgdot_dg = zero;
+                  dgdot_dg = -copysign(dgdot_r, tau);
                }
                else {
-                  dgdot_dg = -copysign(dgdot_r, tau);
+                  dgdot_dg = zero;
                }
 #if MORE_DERIVS
                dgdot_dmu = zero;

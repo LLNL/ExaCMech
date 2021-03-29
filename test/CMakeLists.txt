@@ -27,6 +27,22 @@ blt_add_executable(NAME       test_hardening_1
 blt_add_test(NAME    test_hardening_1
              COMMAND test_hardening_1)
 
+blt_add_executable(NAME       test_aniso_hardening_0
+                   SOURCES    test_aniso_hardening.cxx
+                   DEFINES    ANISO_HARDENING
+                   OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
+                   DEPENDS_ON ${ECMECH_TEST_DEPENDS} gtest)
+blt_add_test(NAME    test_aniso_hardening_0
+             COMMAND test_aniso_hardening_0)
+
+blt_add_executable(NAME       test_aniso_hardening_1
+                   SOURCES    test_aniso_hardening.cxx
+                   DEFINES    KIN_NONLINEAR ANISO_HARDENING
+                   OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
+                   DEPENDS_ON ${ECMECH_TEST_DEPENDS} gtest)
+blt_add_test(NAME    test_aniso_hardening_1
+             COMMAND test_aniso_hardening_1)
+
 blt_add_executable(NAME       test_evptn_0
                    SOURCES    test_evptn.cxx
                    DEFINES    KIN_TYPE=0

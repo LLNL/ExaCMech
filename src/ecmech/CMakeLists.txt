@@ -2,7 +2,7 @@
 # Sources
 #------------------------------------------------------------------------------
 set(ECMECH_HEADERS
-    ${HEADER_INCLUDE_DIR}/ECMech_Version.h
+    ${HEADER_INCLUDE_DIR}/ECMech_config.h
     ECMech_cases.h
     ECMech_const.h
     ECMech_core.h
@@ -24,7 +24,8 @@ set(ECMECH_HEADERS
     vw_vars_set.h)
 
 set(ECMECH_SOURCES
-    ECMech_kinetics.cxx)
+    ECMech_kinetics.cxx
+    ECMech_cases.cxx)
 #    ECMech_slipgeom.cxx)
 
 #------------------------------------------------------------------------------
@@ -33,7 +34,7 @@ set(ECMECH_SOURCES
 set(ECMECH_DEPENDS)
 
 ecmech_fill_depends_list(LIST_NAME  ECMECH_DEPENDS
-                        DEPENDS_ON raja snls cuda openmp hip rocPRIM)
+                        DEPENDS_ON raja snls cub cuda openmp hip rocPRIM)
 
 message("-- ECMECH_DEPENDS: ${ECMECH_DEPENDS}")
 
@@ -52,6 +53,10 @@ set(ECMECH_INCLUDES ${CMAKE_SOURCE_DIR}/src/interface
                     ${HEADER_INCLUDE_DIR}
                     ${CMAKE_SOURCE_DIR}/src/ecmech)
 
+if(NOT USE_BUILT_SNLS)
+    list(APPEND ECMECH_INCLUDES ${CMAKE_SOURCE_DIR}/snls)
+endif()
+
 #------------------------------------------------------------------------------
 # Build Targets
 #------------------------------------------------------------------------------
@@ -61,7 +66,7 @@ if(BUILD_SHARED_LIBS)
                     OUTPUT_NAME ecmech
                     DEFINES     ${ECMECH_DEFINES}
                     INCLUDES    ${ECMECH_INCLUDES}
-                    DEPENDS_ON  ${ECMECH_DEPENDS} ${SNLS_SHARED_TARGET}
+                    DEPENDS_ON  ${ECMECH_DEPENDS} # ${SNLS_SHARED_TARGET}
                     HEADERS     ${ECMECH_HEADERS}
                     SOURCES     ${ECMECH_SOURCES}
                     SHARED      TRUE)
@@ -73,7 +78,7 @@ if(BUILD_STATIC_LIBS)
                     OUTPUT_NAME ecmech
                     DEFINES     ${ECMECH_DEFINES}
                     INCLUDES    ${ECMECH_INCLUDES}
-                    DEPENDS_ON  ${ECMECH_DEPENDS} ${SNLS_STATIC_TARGET}
+                    DEPENDS_ON  ${ECMECH_DEPENDS} # ${SNLS_STATIC_TARGET}
                     HEADERS     ${ECMECH_HEADERS}
                     SOURCES     ${ECMECH_SOURCES}
                     SHARED      FALSE)

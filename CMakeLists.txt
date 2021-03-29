@@ -53,7 +53,10 @@ set(BUILD_SHARED_LIBS ON CACHE BOOL "Build shared libraries")
 include(cmake/CMakeBasics.cmake)
 
 if(ENABLE_CUDA)
-  set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -restrict -arch ${CUDA_ARCH} --expt-extended-lambda --expt-relaxed-constexpr")
+  set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -restrict --expt-extended-lambda --expt-relaxed-constexpr")
+  if (NOT "${CMAKE_CUDA_FLAGS}" MATCHES "-arch")
+     set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -arch ${CUDA_ARCH}")
+  endif()
 endif()
 if(ENABLE_HIP)
   

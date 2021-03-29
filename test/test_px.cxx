@@ -26,6 +26,9 @@ TEST(ecmech, px_a)
 
    using namespace ecmech;
 
+   // it would be nice to try out calls like
+   //	   matModelBase* mmb = makeMatModel("evptn_FCC_A");
+   // here, but that does not play nicely with the parameter munging machinery used here
 #if KIN_TYPE
    matModelEvptn_FCC_B* mmodel = new matModelEvptn_FCC_B();
 #else
@@ -51,11 +54,15 @@ TEST(ecmech, px_a)
 
 #endif
    //
+   DUMPVEC("opts",opts);
+   DUMPVEC("params",params);
+   DUMPVEC("strs",strs);
+   //
    mmb->initFromParams(opts, params, strs);
    //
    mmb->complete();
 
-   mmodel->setOutputLevel(outputLevel); // would not normally do this in a production setting
+   mmb->setOutputLevel(outputLevel); // would not normally do this in a production setting
 
    std::vector<double> histInit_vec;
    {
@@ -68,7 +75,7 @@ TEST(ecmech, px_a)
    //
    // set up hist and other state information
    //
-   const int numHist = mmodel->numHist;
+   const int numHist = mmb->getNumHist();
    double V_hist[numHist * nPassed];
    {
       std::default_random_engine gen;
@@ -135,10 +142,10 @@ TEST(ecmech, px_a)
                                      (dt * 0.5 * (V_volRatio[0 + pOffsetVR] + V_volRatio[1 + pOffsetVR]) );
       }
 
-      mmb->getResponse(dt,
-                       V_d_svec_kk_sm, V_w_veccp_sm, V_volRatio,
-                       V_eInt, V_stressSvecP, V_hist, V_tkelv, V_sdd, nullptr,
-                       nPassed);
+      mmb->getResponseECM(dt,
+                          V_d_svec_kk_sm, V_w_veccp_sm, V_volRatio,
+                          V_eInt, V_stressSvecP, V_hist, V_tkelv, V_sdd, nullptr,
+                          nPassed);
 
       sAvg = 0.0;
       for (int iPassed = 0; iPassed<nPassed; ++iPassed) {

@@ -686,7 +686,7 @@ namespace ecmech {
                      // CALL plaw_eval_dif_sn(TVEC, &
                      // & dpl_deps_symm, dpl_deps_skew, dgdot_deps, &
                      // & dtaua_deps, gss, crys, s_meas, .FALSE.)
-                     double dgdot_deps[ ecmech::ntvec * SlipGeom::nslip ] = { 0.0 };
+                     double dgdot_deps[ ecmech::ntvec * SlipGeom::nslip ];
                      for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
                         for (int iSlip = 0; iSlip < SlipGeom::nslip; ++iSlip) {
                            int ijThis = ECMECH_NM_INDX(iTvec, iSlip, ecmech::ntvec, SlipGeom::nslip);

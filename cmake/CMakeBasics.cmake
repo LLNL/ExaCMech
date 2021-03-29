@@ -5,20 +5,24 @@ set(PACKAGE_BUGREPORT "barton22@llnl.gov")
 
 set(ECMech_VERSION_MAJOR 0)
 set(ECMech_VERSION_MINOR 3)
-set(ECMech_VERSION_PATCH \"0\")
+set(ECMech_VERSION_PATCH \"2\")
 
 set(HEADER_INCLUDE_DIR
     ${PROJECT_BINARY_DIR}/include
     CACHE PATH
     "Directory where all generated headers will go in the build tree")
 
-configure_file( src/ecmech/ECMech_Version.h.in
-                ${HEADER_INCLUDE_DIR}/ECMech_Version.h )
-
 ################################
 # Setup build options and their default values
 ################################
 include(cmake/ECMechOptions.cmake)
+
+##############################
+# settings into ECMech_config.h
+##############################
+
+configure_file( src/ecmech/ECMech_config.h.in
+                ${HEADER_INCLUDE_DIR}/ECMech_config.h )
 
 ################################
 # Third party library setup

@@ -133,7 +133,7 @@ void retrieve_data(ecmech::ExecutionStrategy accel, const int nqpts, const int n
                    double* stress_array){
    switch ( accel ) {
 #if defined(RAJA_ENABLE_OPENMP)
-   case ecmech::ExecutionStrategy::OPENMP :
+   case ECM_EXEC_STRAT_OPENMP :
    {
       retrieve_data_openmp(nqpts, nstatev, stress_svec_p_array, vol_ratio_array,
                            eng_int_array, state_vars_array, stress_array);
@@ -141,14 +141,14 @@ void retrieve_data(ecmech::ExecutionStrategy accel, const int nqpts, const int n
    break;
 #endif
 #if defined(RAJA_ENABLE_CUDA)
-   case ecmech::ExecutionStrategy::CUDA :
+   case ECM_EXEC_STRAT_CUDA :
    {
       retrieve_data_cuda(nqpts, nstatev, stress_svec_p_array, vol_ratio_array,
                          eng_int_array, state_vars_array, stress_array);
    }
    break;
 #endif
-   case ecmech::ExecutionStrategy::CPU :
+   case ECM_EXEC_STRAT_CPU :
    default :
    {
       retrieve_data_cpu(nqpts, nstatev, stress_svec_p_array, vol_ratio_array,

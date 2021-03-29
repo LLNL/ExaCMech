@@ -12,6 +12,13 @@ foreach(_tpl ${_tpls})
 endforeach()
 
 ################################
+# CUB (required for CUDA build)
+################################
+if (ENABLE_CUDA AND CUB_DIR)
+   include(cmake/thirdpartylibraries/FindCUB.cmake)
+endif ()
+
+################################
 # RAJA
 ################################
 

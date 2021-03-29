@@ -4,9 +4,12 @@
 #define ECMech_matModelBase_include
 
 #include <string>
+#include <sstream>
 #include <vector>
 
 #include "ECMech_core.h"
+
+#define DUMPVECOSS(aname,a) oss << aname << " : "; for ( unsigned int iThing=0 ; iThing<a.size() ; ++iThing) { if ( iThing ) oss << ", "; oss << a[iThing] ; } oss << std::endl;
 
 namespace ecmech {
    // **************** //
@@ -18,6 +21,7 @@ namespace ecmech {
       protected:
          bool  _complete;
          double _rho0, _cvav, _v0, _e0, _bulkRef;
+         int _outputLevel;
          ecmech::ExecutionStrategy _accel;
 
          // constructor
@@ -29,7 +33,8 @@ namespace ecmech {
             _v0(-1.0),
             _e0(-1.0),
             _bulkRef(-1.0),
-            _accel(ecmech::ExecutionStrategy::CPU)
+            _outputLevel(0),
+            _accel(ECM_EXEC_STRAT_CPU)
          {};
 
       public:
@@ -37,11 +42,13 @@ namespace ecmech {
          __ecmech_host__
          virtual ~matModelBase() {};
 
+         __ecmech_host__
          virtual void initFromParams(const std::vector<int>& opts,
                                      const std::vector<double>& pars,
                                      const std::vector<std::string>& strs,
                                      void* call_back = nullptr) = 0;
 
+         __ecmech_host__
          virtual void getParams(std::vector<int>& opts,
                                 std::vector<double>& pars,
                                 std::vector<std::string>& strs) const = 0;
@@ -49,7 +56,17 @@ namespace ecmech {
          /**
           * @brief log parameters, including history information; more human-readable than getParams output
           */
-         virtual void logParameters(std::ostringstream& oss) const = 0;
+         __ecmech_host__
+         virtual void logParameters(std::ostringstream& oss) const {
+            std::vector<int>         opts;
+            std::vector<double>      pars;
+            std::vector<std::string> strs;
+            this->getParams(opts, pars, strs);
+            oss << "evptn constitutive model" << std::endl;
+            DUMPVECOSS("  opts",opts);
+            DUMPVECOSS("  pars",pars);
+            DUMPVECOSS("  strs",strs);
+         };
 
          /**
           * @brief Request response information for a group of host-code
@@ -147,17 +164,17 @@ namespace ecmech {
           */
 
          __ecmech_host__
-         virtual void getResponse(const double & dt,
-                                  const double * defRateV,
-                                  const double * spinV,
-                                  const double * volRatioV,
-                                  double * eIntV,
-                                  double * stressSvecPV,
-                                  double * histV,
-                                  double * tkelvV,
-                                  double * sddV,
-                                  double * mtanSDV,
-                                  const int & nPassed) const = 0;
+         virtual void getResponseECM(const double & dt,
+                                     const double * defRateV,
+                                     const double * spinV,
+                                     const double * volRatioV,
+                                     double * eIntV,
+                                     double * stressSvecPV,
+                                     double * histV,
+                                     double * tkelvV,
+                                     double * sddV,
+                                     double * mtanSDV,
+                                     const int & nPassed) const = 0;
 
          /**
           * @brief
@@ -173,7 +190,7 @@ namespace ecmech {
           * @brief
           * Get number of history variables
           */
-         __ecmech_hdev__
+         __ecmech_host__
          virtual int getNumHist( ) const = 0;
 
          /**
@@ -188,7 +205,7 @@ namespace ecmech {
          /**
           * @brief Get the reference density
           */
-         __ecmech_hdev__
+         __ecmech_host__
          virtual double getRhoRef() const {
             if (_rho0 < 0.0) { // want to be able to call this before _complete
                ECMECH_FAIL(__func__, "rho0 does not appear to have been set");
@@ -196,19 +213,22 @@ namespace ecmech {
             return _rho0;
          };
 
+         __ecmech_host__
+         void setOutputLevel(int outputLevel) { _outputLevel = outputLevel; };
+
 
          /**
           * @brief
           * May end up requiring this to be called before the model may be used; and probably want to redefine this
           */
-         __ecmech_hdev__
+         __ecmech_host__
          virtual void complete() { _complete = true; };
 
          /**
           * @brief
           * Return whether or not complete has been called
           */
-         __ecmech_hdev__
+         __ecmech_host__
          virtual bool isComplete() { return _complete; };
    }; // class matModelBase
 } // ecmech namespace

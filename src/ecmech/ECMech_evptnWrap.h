@@ -29,16 +29,17 @@ namespace ecmech {
             static constexpr int nH = Kinetics::nH;
             static constexpr int nslip = SlipGeom::nslip;
 
-            // this are assumed to go in first
-            static constexpr int nParamsEOSHave = 3; // number that get from 'elsewhere'
-            static constexpr int nParams = 2 + 1 + Kinetics::nParams + ThermoElastN::nParams +
-                                               EosModel::nParams - nParamsEOSHave;
+            static constexpr int nParamsEOSHave = 3; // number that get from 'elsewhere' // these are assumed to go in first
+            static constexpr int nParamsEOS = EosModel::nParams - nParamsEOSHave;
+            static constexpr int nParams = 
+               2 + 1 + // rho0, cvav, tolerance
+               Kinetics::nParams + ThermoElastN::nParams + nParamsEOS;
+         
             // constructor
             __ecmech_host__
             matModel()
                : matModelBase(),
-               _kinetics(SlipGeom::nslip),
-               _outputLevel(0)
+               _kinetics(SlipGeom::nslip)
             {
                // Should the tangent stiff matrix be included in these stride calculations?
                _strides[istride_def_rate] = ecmech::nsvp;
@@ -55,8 +56,7 @@ namespace ecmech {
             __ecmech_host__
             matModel(const unsigned int* strides, const unsigned int stride_len)
                : matModelBase(),
-               _kinetics(SlipGeom::nslip),
-               _outputLevel(0)
+               _kinetics(SlipGeom::nslip)
             {
                unsigned int nhist = NumHist<SlipGeom, Kinetics, ThermoElastN, EosModel>::numHist;
 
@@ -155,9 +155,6 @@ namespace ecmech {
             __ecmech_host__
             ~matModel(){}
 
-            __ecmech_hdev__
-            void setOutputLevel(int outputLevel) { _outputLevel = outputLevel; };
-
             using matModelBase::initFromParams;
             __ecmech_host__
             void initFromParams(const std::vector<int>& opts,
@@ -166,20 +163,20 @@ namespace ecmech {
                                 void* /*callBackVoid*/ = nullptr
                                 ) override final
             {
-               const int nParamsEOS = EosModel::nParams - nParamsEOSHave;
-               int nParams =
-                  2 + 1 + // rho0, cvav, tolerance
-                  Kinetics::nParams +
-                  ThermoElastN::nParams +
-                  nParamsEOS;
 
+               // keep parameters for later
+               _opts = opts ;
+               _pars = pars ;
+               _strs = strs ;
+               
                if (pars.size() != (unsigned int) nParams) {
                   ECMECH_FAIL(__func__, "wrong number of pars");
                }
                if (opts.size() != 0) {
                   ECMECH_FAIL(__func__, "wrong number of opts");
                }
-               if (strs.size() != 0) {
+               if (strs.size() > 1) {
+                  // strs[0] is optionally a name -- see makeMatModel
                   ECMECH_FAIL(__func__, "wrong number of strs");
                }
 
@@ -269,37 +266,30 @@ namespace ecmech {
 #endif
             };
 
+            using matModelBase::getParams;
             __ecmech_host__
             void getParams(std::vector<int>& opts,
                            std::vector<double>& pars,
-                           std::vector<std::string>& strs) const override {
-               // ...*** ;
-               opts.clear();
-               strs.clear();
-               pars.clear();
-               ECMECH_FAIL(__func__, "getParams not yet implemented");
+                           std::vector<std::string>& strs) const override final
+            {
+               opts = _opts;
+               pars = _pars;
+               strs = _strs;
             };
 
+            using matModelBase::getResponseECM;
             __ecmech_host__
-            void logParameters(std::ostringstream& oss) const override {
-               // ...*** ;
-               oss << "evptn constitutive model" << std::endl;
-               ECMECH_FAIL(__func__, "logParameters not yet implemented");
-            };
-
-            using matModelBase::getResponse;
-            __ecmech_host__
-            void getResponse(const double & dt,
-                             const double * defRateV,
-                             const double * spinV,
-                             const double * volRatioV,
-                             double * eIntV,
-                             double * stressSvecPV,
-                             double * histV,
-                             double * tkelvV,
-                             double * sddV,
-                             double * mtanSDV,
-                             const int& nPassed) const override final
+            void getResponseECM(const double & dt,
+                                const double * defRateV,
+                                const double * spinV,
+                                const double * volRatioV,
+                                double * eIntV,
+                                double * stressSvecPV,
+                                double * histV,
+                                double * tkelvV,
+                                double * sddV,
+                                double * mtanSDV,
+                                const int& nPassed) const override final
             {
                if ( !_complete ) {
                   ECMECH_FAIL(__func__,"not complete");
@@ -318,7 +308,7 @@ namespace ecmech {
 
                switch ( _accel ) {
 #if defined(RAJA_ENABLE_OPENMP)
-                  case ecmech::ExecutionStrategy::OPENMP :
+                  case ECM_EXEC_STRAT_OPENMP :
                      RAJA::forall<RAJA::omp_parallel_for_exec>(default_range, [ = ] (int i) {
                            double *mtanSDThis       = ( mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr );
                            getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
@@ -339,7 +329,7 @@ namespace ecmech {
                      break;
 #endif
 #if defined(RAJA_ENABLE_CUDA)
-                  case ecmech::ExecutionStrategy::CUDA :
+                  case ECM_EXEC_STRAT_CUDA :
                      RAJA::forall<RAJA::cuda_exec<RAJA_CUDA_THREADS> >(default_range, [ = ] RAJA_DEVICE(int i) {
                            double *mtanSDThis       = ( mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr );
                            getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
@@ -388,7 +378,7 @@ namespace ecmech {
                      break;
 		  }
 #endif
-                  case ecmech::ExecutionStrategy::CPU :
+                  case ECM_EXEC_STRAT_CPU :
                   default : // fall through to CPU if other options are not available
                      RAJA::forall<RAJA::loop_exec>(default_range, [ = ] (int i) {
                            double *mtanSDThis       = ( mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr );
@@ -417,7 +407,7 @@ namespace ecmech {
             void getHistInfo(std::vector<std::string> & names,
                              std::vector<double>      & vals,
                              std::vector<bool>        & plot,
-                             std::vector<bool>        & state) const override {
+                             std::vector<bool>        & state) const override final {
                if (_rhvNames.size() != numHist) {
                   ECMECH_FAIL(__func__, "have not yet set up history information");
                }
@@ -427,13 +417,14 @@ namespace ecmech {
                state.resize(numHist); std::copy(_rhvState.begin(), _rhvState.end(), state.begin() );
             };
 
-            __ecmech_hdev__
-            int getNumHist( ) const override {
+            __ecmech_host__
+            int getNumHist( ) const override final {
                return numHist;
             };
 
-            __ecmech_hdev__
-            void complete() override {
+            __ecmech_host__
+            void complete( ) override final
+            {
                _bulkRef = _eosModel.getBulkRef();
                _complete = true;
             };
@@ -446,13 +437,18 @@ namespace ecmech {
             EosModel _eosModel;
 
             double _tolerance;
-            int _outputLevel;
             unsigned int _strides[ecmech::nstride];
 
             std::vector<std::string> _rhvNames;
             std::vector<double>      _rhvVals;
             std::vector<bool>        _rhvPlot;
             std::vector<bool>        _rhvState;
+
+            // keep initFromParams vectors as a convenience
+            std::vector<int>          _opts;
+            std::vector<double>       _pars;
+            std::vector<std::string>  _strs;
+         
       }; // class matModel
    } // namespace evptn
 } // namespace ecmech

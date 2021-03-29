@@ -268,16 +268,16 @@ int main(int argc, char *argv[]){
       // which values are available.
 
       if (device_type.compare("CPU") == 0) {
-         class_device = ecmech::ExecutionStrategy::CPU;
+         class_device = ECM_EXEC_STRAT_CPU;
       }
 #if defined(RAJA_ENABLE_OPENMP)
       else if (device_type.compare("OpenMP") == 0) {
-         class_device = ecmech::ExecutionStrategy::OPENMP;
+         class_device = ECM_EXEC_STRAT_OPENMP;
       }
 #endif
 #if defined(RAJA_ENABLE_CUDA)
       else if (device_type.compare("CUDA") == 0) {
-         class_device = ecmech::ExecutionStrategy::CUDA;
+         class_device = ECM_EXEC_STRAT_CUDA;
       }
 #endif
       else {
@@ -410,7 +410,7 @@ int main(int argc, char *argv[]){
 
       switch ( class_device ) {
       default :
-      case ecmech::ExecutionStrategy::CPU :
+      case ECM_EXEC_STRAT_CPU :
       {
          if (NEVALS_COUNTS) {
             RAJA::ReduceSum<RAJA::seq_reduce, double> seq_sum(0.0);
@@ -436,7 +436,7 @@ int main(int argc, char *argv[]){
       }
       break;
 #if defined(RAJA_ENABLE_OPENMP)
-      case ecmech::ExecutionStrategy::OPENMP :
+      case ECM_EXEC_STRAT_OPENMP :
       {   
          if (NEVALS_COUNTS) {
             RAJA::ReduceSum<RAJA::omp_reduce_ordered, double> omp_sum(0.0);
@@ -463,7 +463,7 @@ int main(int argc, char *argv[]){
       break;
 #endif
 #if defined(RAJA_ENABLE_CUDA)
-      case ecmech::ExecutionStrategy::CUDA :
+      case ECM_EXEC_STRAT_CUDA :
       {
          if (NEVALS_COUNTS) {
             RAJA::ReduceSum<RAJA::cuda_reduce, double> cuda_sum(0.0);
