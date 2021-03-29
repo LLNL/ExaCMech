@@ -350,7 +350,7 @@ namespace ecmech {
                      break;
 #endif
 #if defined(RAJA_ENABLE_HIP)
-                  case ecmech::ExecutionStrategy::HIP :
+                  case ECM_EXEC_STRAT_HIP :
 		  {
 		     auto &lslipGeom    = _slipGeom;
 		     auto &lkinetics    = _kinetics;

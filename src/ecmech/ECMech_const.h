@@ -73,6 +73,7 @@ namespace ecmech
    enum class ExecutionStrategy { CPU, CUDA, HIP, OPENMP };
 #define ECM_EXEC_STRAT_CPU    ecmech::ExecutionStrategy::CPU
 #define ECM_EXEC_STRAT_CUDA   ecmech::ExecutionStrategy::CUDA
+#define ECM_EXEC_STRAT_HIP    ecmech::ExecutionStrategy::HIP
 #define ECM_EXEC_STRAT_OPENMP ecmech::ExecutionStrategy::OPENMP
 
    const int nsvp = 7;
