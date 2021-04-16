@@ -35,9 +35,13 @@
       qT = 4.0e-2; // 1 / micron^2
 #endif
 
-   gam_ro *= 1.0 / (berg_mag * qM);
-   fD *= sqrt(berg_mag * qM);
-
+   gam_ro *= 1.0 / qM;
+   // This should really be fD *= sqrt(qM) / berg_mag
+   // However, we're going to keep it as below so our test suite
+   // stays the same as before. However, we can think of this as if
+   // we scaled fD by berg_mag and then scaled things by:
+   // sqrt(qM)/berg_mag
+   fD *= sqrt(qM);
    std::vector<double> paramsThese {
       mu_ref, tK_ref, berg_mag, lbar,
       gam_ro, wrD,

@@ -81,7 +81,7 @@ namespace ecmech {
                _berg_mag[iVal] = *parsIt; ++parsIt;
             }
 
-            _lbar = *parsIt; ++parsIt;
+            _lbar_b = *parsIt; ++parsIt;
 
             _gam_ro = *parsIt; ++parsIt;
             _wrD = *parsIt; ++parsIt;
@@ -177,7 +177,7 @@ namespace ecmech {
                const double* mref = slipgeom.getM();
                const double* sref = slipgeom.getS();
                // our forest interaction matrix has the following calculation:
-               // A^{\alpha\beta} = 1/2 * (m^alpha \cdot s^alpha + m^alpha \cdot (m^beta \cross s^beta))
+               // A^{\alpha\beta} = 1/2 * (|m^alpha \cdot s^alpha| + |m^alpha \cdot (m^beta \cross s^beta)|)
                RAJA::View<const double, RAJA::Layout<2> > mView(mref, SlipGeom::nslip, ecmech::ndim);
                RAJA::View<const double, RAJA::Layout<2> > sView(sref, SlipGeom::nslip, ecmech::ndim);
                RAJA::View<double, RAJA::Layout<2> > aView(&_a_mat[0], SlipGeom::nslip, SlipGeom::nslip);
@@ -214,7 +214,7 @@ namespace ecmech {
                params.push_back(_berg_mag[iVal]);
             }
 
-            params.push_back(_lbar);
+            params.push_back(_lbar_b);
             // phonon drag params
             params.push_back(_gam_ro);
             params.push_back(_wrD);
@@ -289,7 +289,7 @@ namespace ecmech {
          // MTS-like stuff
 
          // parameters
-         double _lbar; // We might need to make this per SS as well
+         double _lbar_b; // We might need to make this per SS as well
          double _mu_ref;
          double _tK_ref;
          double _fD;
@@ -361,10 +361,10 @@ namespace ecmech {
                const double hdnI = perSS ? (_c_2[iVal] * int_q) : (_c_2[0] * int_q);
                hdnScale += hdnI;
                vals[1 + iVal] = hdnI;
-               vals[1 + _nslip + iVal] = perSS ? (_berg_mag[iVal] * h_state[iVal]) : (_berg_mag[0] * h_state[iVal]);
-               // Thermal activation + phonon ref slip rate = b * q_M * (1/(f_D * \bar{L}) + 1/nu_r)^-1
+               vals[1 + _nslip + iVal] = h_state[iVal];
+               // Thermal activation + phonon ref slip rate = (1/(f_D * \bar{L}/b * sqrt(qM_0)/sqrt(qM)) + 1/(gammadot_r0 * qM))^-1
                const double isqrth = 1.0 / sqrt(vals[1 + _nslip + iVal]);
-               const double rate = 1.0 / ((1.0 / (_lbar * _fD * isqrth)) + (1.0 / (_gam_ro * vals[1 + _nslip + iVal])));
+               const double rate = 1.0 / ((1.0 / (_lbar_b * _fD * isqrth)) + (1.0 / (_gam_ro * vals[1 + _nslip + iVal])));
                if (rate > maxRefRate) {
                   maxRefRate = rate;
                }
@@ -490,14 +490,14 @@ namespace ecmech {
             static const double one = 1.0, zero = 0.0;
 
             const double gIn = vals[1 + iSlip];
-            const double bqm = vals[1 + _nslip + iSlip];
+            const double qm = vals[1 + _nslip + iSlip];
             const double xn = perSS ? _xn[iSlip] : _xn[0];
             const double xnn = perSS ? _xnn[iSlip] : _xnn[0];
             const double t_min = perSS ? _t_min[iSlip] : _t_min[0];
             const double t_max = perSS ? _t_max[iSlip] : _t_max[0];
             const double c_t = perSS ? vals[1 + 2 * _nslip + iSlip] : vals[1 + 2 * _nslip];
-            const double gam_w = _lbar * _fD / sqrt(bqm);
-            const double gam_r = _gam_ro * bqm;
+            const double gam_w = _lbar_b * _fD / sqrt(qm);
+            const double gam_r = _gam_ro * qm;
 
             // zero things so that can more easily just return if inactive
             gdot = zero;
