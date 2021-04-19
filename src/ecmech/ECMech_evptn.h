@@ -658,8 +658,11 @@ namespace ecmech {
                //// need shrate%eff instead
                //// CALL calc_pl_eff(dp_def_rate_contrib, pl_vecd, detV%ri)
                // CALL setup_ss_shrate_vals(shrate_l, crys%tmp1_slp, zero, .TRUE.)
+#if defined(ECMECH_USE_DPEFF)
+               _shrate_eff_contrib = vecd_Deff(pl_vecd);
+#else
                _shrate_eff_contrib = vecsssumabs<SlipGeom::nslip>(_gdot);
-
+#endif
                //////////////////////////////////////////////////////////////////////
                // JACOBIAN, fixed hardness and temperature
                //
