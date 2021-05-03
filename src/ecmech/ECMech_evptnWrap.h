@@ -403,6 +403,10 @@ namespace ecmech {
             // Constant getter functions to return the underlying templated classes.
             // Uses for these could be for example to compute the sample D^p tensor
             // using the symmetric schmid tensor from the SlipGeom class.
+            //
+            // Note: Stability of the underlying templated class API's is not
+            // guaranteed, so breaking changes can occur from point release to
+            // point release.
             const SlipGeom & getSlipGeom() const { return _slipGeom; }
             const Kinetics & getKinetics() const { return _kinetics; }
             const ThermoElastN & getThermoElastN() const { return _elastN; }
