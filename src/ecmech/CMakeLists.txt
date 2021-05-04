@@ -41,10 +41,17 @@ message("-- ECMECH_DEPENDS: ${ECMECH_DEPENDS}")
 #------------------------------------------------------------------------------
 # Defines
 #------------------------------------------------------------------------------
-set(ECMECH_DEFINES HAVE_ECMECH)
+set(ECMECH_DEFINES)
 
-SET(CMAKE_C_FLAGS_DEBUG   "${CMAKE_C_FLAGS_DEBUG}   -DECMECH_DEBUG")
-SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DECMECH_DEBUG")
+set(HAVE_ECMECH "1" CACHE STRING "")
+
+if(USE_DPEFF)
+    set(ECMECH_USE_DPEFF "1" CACHE STRING "")
+endif()
+
+if(CMAKE_BUILD_TYPE MATCHES DEBUG)
+    set(ECMECH_DEBUG "1" CACHE STRING "")
+endif()
 
 #------------------------------------------------------------------------------
 # Includes

@@ -228,8 +228,13 @@ namespace ecmech {
                _rhvPlot.clear();
                _rhvState.clear();
 
+#if defined(ECMECH_USE_DPEFF)
+               _rhvNames.push_back("dplas_eff"); _rhvVals.push_back(0.); _rhvPlot.push_back(true); _rhvState.push_back(true); // iHistA_shrateEff
+               _rhvNames.push_back("eps"); _rhvVals.push_back(0.); _rhvPlot.push_back(true); _rhvState.push_back(true); // iHistA_shrEff
+#else
                _rhvNames.push_back("shrate_eff"); _rhvVals.push_back(0.); _rhvPlot.push_back(true); _rhvState.push_back(true); // iHistA_shrateEff
                _rhvNames.push_back("shr_eff"); _rhvVals.push_back(0.); _rhvPlot.push_back(true); _rhvState.push_back(true); // iHistA_shrEff
+#endif
                _rhvNames.push_back("flow_str"); _rhvVals.push_back(0.); _rhvPlot.push_back(true); _rhvState.push_back(false); // iHistA_flowStr
                _rhvNames.push_back("n_feval"); _rhvVals.push_back(0.); _rhvPlot.push_back(true); _rhvState.push_back(false); // iHistA_nFEval
                // numHistAux
@@ -399,6 +404,18 @@ namespace ecmech {
                _bulkRef = _eosModel.getBulkRef();
                _complete = true;
             };
+
+            // Constant getter functions to return the underlying templated classes.
+            // Uses for these could be for example to compute the sample D^p tensor
+            // using the symmetric schmid tensor from the SlipGeom class.
+            //
+            // Note: Stability of the underlying templated class API's is not
+            // guaranteed, so breaking changes can occur from point release to
+            // point release.
+            const SlipGeom & getSlipGeom() const { return _slipGeom; }
+            const Kinetics & getKinetics() const { return _kinetics; }
+            const ThermoElastN & getThermoElastN() const { return _elastN; }
+            const EosModel & getEosModel() const { return _eosModel; }
 
          private:
 
