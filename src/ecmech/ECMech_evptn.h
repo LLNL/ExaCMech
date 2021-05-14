@@ -1109,7 +1109,7 @@ namespace ecmech {
             //
             if (status != snls::converged) {
 #ifdef __cuda_host_only__
-               ECMECH_WARN(__func__, "Solver failed to converge -- will rerun to get output for debuggin");
+               ECMECH_WARN(__func__, "Solver failed to converge -- will rerun to get output for debugging");
 
                // rerun to get more output for debugging
                //

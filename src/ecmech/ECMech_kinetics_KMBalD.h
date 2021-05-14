@@ -32,7 +32,7 @@ namespace ecmech {
     *   ! tK should only be used for derivative calculations
     *
     * templated on p and q being 1 or not;
-    * might eventually template on number of slip systems, but to not do so just yet
+    * might eventually template on number of slip systems, but do not do so just yet
     */
    template<bool withGAthermal,
             bool pOne, // l_p_1
