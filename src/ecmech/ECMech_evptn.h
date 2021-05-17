@@ -1095,7 +1095,7 @@ namespace ecmech {
             snls::TrDeltaControl deltaControl;
             deltaControl._deltaInit = 1e0;
             {
-               static const int maxIter = 100;
+               static const int maxIter = 200;
                solver.setupSolver(maxIter, tolerance, &deltaControl, outputLevel);
             }
 
