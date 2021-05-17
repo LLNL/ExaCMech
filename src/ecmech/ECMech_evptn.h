@@ -1167,6 +1167,7 @@ namespace ecmech {
             for (int i_hstate = 0; i_hstate < Kinetics::nH; i_hstate++) {
                h_state[i_hstate] = h_state_u[i_hstate];
             }
+
             //
             {
                const double* gdot_u = prob.getGdot();

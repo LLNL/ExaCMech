@@ -322,7 +322,7 @@ namespace ecmech {
          {
             double shrate_eff = evolVals[0];
             double sv_sat = evolVals[1];
-            //When the below ternary op is true then sdot and dsdot_ds remain zero.
+            // When the below ternary op is true then sdot and dsdot_ds remain zero.
             double temp2 = (sv_sat <= _tausi) ? zero : one / (sv_sat - _tausi);
 
             // IF (PRESENT(dfdtK)) THEN

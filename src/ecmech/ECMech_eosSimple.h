@@ -9,7 +9,6 @@
 #include <vector>
 
 namespace ecmech {
-   
    template<bool isothermal>
    class EosModelConst
    {
@@ -112,7 +111,7 @@ namespace ecmech {
                p = _bulkMod * mu + _gamma * e;
                tK = _tK0 + e * _dtde;
                dpde = _gamma;
-               dtde = _dtde ;
+               dtde = _dtde;
             }
             bulkNew = _bulkMod * eta;
          }
