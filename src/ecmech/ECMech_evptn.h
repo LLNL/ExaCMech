@@ -1017,7 +1017,7 @@ namespace ecmech {
 
          // NOTE : mtanSD can be nullptr
          //
-         bool haveMtan = (mtanSD != nullptr);
+         const bool haveMtan = (mtanSD != nullptr);
 
          // convert deformation rate convention
          //
