@@ -43,16 +43,6 @@ message("-- ECMECH_DEPENDS: ${ECMECH_DEPENDS}")
 #------------------------------------------------------------------------------
 set(ECMECH_DEFINES)
 
-set(HAVE_ECMECH "1" CACHE STRING "")
-
-if(USE_DPEFF)
-    set(ECMECH_USE_DPEFF "1" CACHE STRING "")
-endif()
-
-if(CMAKE_BUILD_TYPE MATCHES DEBUG)
-    set(ECMECH_DEBUG "1" CACHE STRING "")
-endif()
-
 #------------------------------------------------------------------------------
 # Includes
 #------------------------------------------------------------------------------
