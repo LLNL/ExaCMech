@@ -12,6 +12,7 @@
 
 #include "ECMech_matModelBase.h"
 #include "ECMech_evptn.h"
+#include "ECMech_evptnNR.h"
 
 namespace ecmech {
    namespace evptn {
@@ -311,6 +312,7 @@ namespace ecmech {
                   case ECM_EXEC_STRAT_OPENMP :
                      RAJA::forall<RAJA::omp_parallel_for_exec>(default_range, [ = ] (int i) {
                            double *mtanSDThis       = ( mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr );
+                           const bool status = 
                            getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
                               (_slipGeom, _kinetics, _elastN, _eosModel,
                                dt,
@@ -325,6 +327,28 @@ namespace ecmech {
                                &sddV[sdd_stride * i],
                                mtanSDThis,
                                _outputLevel);
+                               // Run the other variation of things
+                               // Not this is not at all efficient for the GPU
+                               // However, we're just trying to see if this will even work to begin with
+                               if (!status) {
+                                 // If this fails then the simulations should also fail...
+                                 // We should do something better for the GPU side of things
+                                 // since it's a soft fail currently...
+                                 getResponseNRSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
+                                    (_slipGeom, _kinetics, _elastN, _eosModel,
+                                    dt,
+                                    _tolerance,
+                                    &defRateV[def_rate_stride * i],
+                                    &spinV[spin_v_stride * i],
+                                    &volRatioV[vol_ratio_stride * i],
+                                    &eIntV[int_eng_stride * i],
+                                    &stressSvecPV[stress_stride * i],
+                                    &histV[history_stride * i],
+                                    tkelvV[tkelv_stride * i],
+                                    &sddV[sdd_stride * i],
+                                    mtanSDThis,
+                                    _outputLevel);
+                               }
                         });
                      break;
 #endif
@@ -332,6 +356,7 @@ namespace ecmech {
                   case ECM_EXEC_STRAT_CUDA :
                      RAJA::forall<RAJA::cuda_exec<RAJA_CUDA_THREADS> >(default_range, [ = ] RAJA_DEVICE(int i) {
                            double *mtanSDThis       = ( mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr );
+                           const bool status = 
                            getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
                               (_slipGeom, _kinetics, _elastN, _eosModel,
                                dt,
@@ -346,6 +371,28 @@ namespace ecmech {
                                &sddV[sdd_stride * i],
                                mtanSDThis,
                                _outputLevel);
+                               // Run the other variation of things
+                               // Not this is not at all efficient for the GPU
+                               // However, we're just trying to see if this will even work to begin with
+                               if (!status) {
+                                 // If this fails then the simulations should also fail...
+                                 // We should do something better for the GPU side of things
+                                 // since it's a soft fail currently...
+                                 getResponseNRSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
+                                    (_slipGeom, _kinetics, _elastN, _eosModel,
+                                    dt,
+                                    _tolerance,
+                                    &defRateV[def_rate_stride * i],
+                                    &spinV[spin_v_stride * i],
+                                    &volRatioV[vol_ratio_stride * i],
+                                    &eIntV[int_eng_stride * i],
+                                    &stressSvecPV[stress_stride * i],
+                                    &histV[history_stride * i],
+                                    tkelvV[tkelv_stride * i],
+                                    &sddV[sdd_stride * i],
+                                    mtanSDThis,
+                                    _outputLevel);
+                               }
                         });
                      break;
 #endif
@@ -353,6 +400,7 @@ namespace ecmech {
                   default : // fall through to CPU if other options are not available
                      RAJA::forall<RAJA::loop_exec>(default_range, [ = ] (int i) {
                            double *mtanSDThis       = ( mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr );
+                           const bool status = 
                            getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
                               (_slipGeom, _kinetics, _elastN, _eosModel,
                                dt,
@@ -367,6 +415,28 @@ namespace ecmech {
                                &sddV[sdd_stride * i],
                                mtanSDThis,
                                _outputLevel);
+                               // Run the other variation of things
+                               // Not this is not at all efficient for the GPU
+                               // However, we're just trying to see if this will even work to begin with
+                               if (!status) {
+                                 // If this fails then the simulations should also fail...
+                                 // We should do something better for the GPU side of things
+                                 // since it's a soft fail currently...
+                                 getResponseNRSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
+                                    (_slipGeom, _kinetics, _elastN, _eosModel,
+                                    dt,
+                                    _tolerance,
+                                    &defRateV[def_rate_stride * i],
+                                    &spinV[spin_v_stride * i],
+                                    &volRatioV[vol_ratio_stride * i],
+                                    &eIntV[int_eng_stride * i],
+                                    &stressSvecPV[stress_stride * i],
+                                    &histV[history_stride * i],
+                                    tkelvV[tkelv_stride * i],
+                                    &sddV[sdd_stride * i],
+                                    mtanSDThis,
+                                    _outputLevel);
+                               }
                         });
                      break;
                } // switch _accel
