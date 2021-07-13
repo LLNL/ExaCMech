@@ -15,11 +15,22 @@ set(HEADER_INCLUDE_DIR
 ################################
 # Setup build options and their default values
 ################################
+
 include(cmake/ECMechOptions.cmake)
 
 ##############################
 # settings into ECMech_config.h
 ##############################
+
+set(HAVE_ECMECH "1" CACHE STRING "")
+
+if(USE_DPEFF)
+    set(ECMECH_USE_DPEFF "1" CACHE STRING "")
+endif()
+
+if(CMAKE_BUILD_TYPE MATCHES DEBUG)
+    set(ECMECH_DEBUG "1" CACHE STRING "")
+endif()
 
 configure_file( src/ecmech/ECMech_config.h.in
                 ${HEADER_INCLUDE_DIR}/ECMech_config.h )

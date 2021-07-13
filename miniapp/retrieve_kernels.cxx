@@ -131,31 +131,30 @@ void retrieve_data(ecmech::ExecutionStrategy accel, const int nqpts, const int n
                    const double* stress_svec_p_array, const double* vol_ratio_array,
                    const double* eng_int_array, double* state_vars_array,
                    double* stress_array){
-   switch ( accel ) {
+   switch (accel) {
 #if defined(RAJA_ENABLE_OPENMP)
-   case ECM_EXEC_STRAT_OPENMP :
-   {
-      retrieve_data_openmp(nqpts, nstatev, stress_svec_p_array, vol_ratio_array,
-                           eng_int_array, state_vars_array, stress_array);
-   }
-   break;
+      case ECM_EXEC_STRAT_OPENMP:
+      {
+         retrieve_data_openmp(nqpts, nstatev, stress_svec_p_array, vol_ratio_array,
+                              eng_int_array, state_vars_array, stress_array);
+      }
+      break;
 #endif
 #if defined(RAJA_ENABLE_CUDA)
-   case ECM_EXEC_STRAT_CUDA :
-   {
-      retrieve_data_cuda(nqpts, nstatev, stress_svec_p_array, vol_ratio_array,
-                         eng_int_array, state_vars_array, stress_array);
-   }
-   break;
+      case ECM_EXEC_STRAT_CUDA:
+      {
+         retrieve_data_cuda(nqpts, nstatev, stress_svec_p_array, vol_ratio_array,
+                            eng_int_array, state_vars_array, stress_array);
+      }
+      break;
 #endif
-   case ECM_EXEC_STRAT_CPU :
-   default :
-   {
-      retrieve_data_cpu(nqpts, nstatev, stress_svec_p_array, vol_ratio_array,
-                        eng_int_array, state_vars_array, stress_array);
+      case ECM_EXEC_STRAT_CPU:
+      default:
+      {
+         retrieve_data_cpu(nqpts, nstatev, stress_svec_p_array, vol_ratio_array,
+                           eng_int_array, state_vars_array, stress_array);
+      }
+      break;
    }
-   break;
-   }
-   
 } // end of retrieve_data
 

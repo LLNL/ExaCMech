@@ -30,7 +30,7 @@ TEST(ecmech, hard_voce_a)
 #include "setup_kin_VocePL.h"
 
       std::vector<double> init(nslip);
-      {  
+      {
          std::vector<double>      init0;
          std::vector<std::string> names;
          std::vector<bool>        plot;
@@ -74,7 +74,7 @@ TEST(ecmech, hard_voce_nostr)
 #include "setup_kin_VocePL_NS.h"
 
       std::vector<double> init(nslip);
-      {  
+      {
          std::vector<double>      init0;
          std::vector<std::string> names;
          std::vector<bool>        plot;

@@ -27,7 +27,7 @@ TEST(ecmech, px_a)
    using namespace ecmech;
 
    // it would be nice to try out calls like
-   //	   matModelBase* mmb = makeMatModel("evptn_FCC_A");
+   // matModelBase* mmb = makeMatModel("evptn_FCC_A");
    // here, but that does not play nicely with the parameter munging machinery used here
 #if KIN_TYPE
    matModelEvptn_FCC_B* mmodel = new matModelEvptn_FCC_B();
@@ -54,9 +54,9 @@ TEST(ecmech, px_a)
 
 #endif
    //
-   DUMPVEC("opts",opts);
-   DUMPVEC("params",params);
-   DUMPVEC("strs",strs);
+   DUMPVEC("opts", opts);
+   DUMPVEC("params", params);
+   DUMPVEC("strs", strs);
    //
    mmb->initFromParams(opts, params, strs);
    //

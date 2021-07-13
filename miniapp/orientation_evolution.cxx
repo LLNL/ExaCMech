@@ -408,88 +408,88 @@ int main(int argc, char *argv[]){
                     stress_svec_p_array, vol_ratio_array,
                     eng_int_array, state_vars, stress_array);
 
-      switch ( class_device ) {
-      default :
-      case ECM_EXEC_STRAT_CPU :
-      {
-         if (NEVALS_COUNTS) {
-            RAJA::ReduceSum<RAJA::seq_reduce, double> seq_sum(0.0);
-            RAJA::ReduceMin<RAJA::seq_reduce, double> seq_min(100.0); // We know this shouldn't ever be more than 100
-            RAJA::ReduceMax<RAJA::seq_reduce, double> seq_max(0.0); // We know this will always be at least 1.0
-            RAJA::forall<RAJA::loop_exec>(default_range, [ = ] (int i_qpts){
-               double* nfunceval = &(state_vars[i_qpts * num_state_vars + 2]);
-               seq_sum += wts * nfunceval[0];
-               seq_max.max(nfunceval[0]);
-               seq_min.min(nfunceval[0]);
-            });
-            std::cout << "Min Func Eval: " << seq_min.get() << " Mean Func Evals: " <<
-               seq_sum.get() << " Max Func Eval: " << seq_max.get() << std::endl;
+      switch (class_device) {
+         default:
+         case ECM_EXEC_STRAT_CPU:
+         {
+            if (NEVALS_COUNTS) {
+               RAJA::ReduceSum<RAJA::seq_reduce, double> seq_sum(0.0);
+               RAJA::ReduceMin<RAJA::seq_reduce, double> seq_min(100.0); // We know this shouldn't ever be more than 100
+               RAJA::ReduceMax<RAJA::seq_reduce, double> seq_max(0.0); // We know this will always be at least 1.0
+               RAJA::forall<RAJA::loop_exec>(default_range, [ = ] (int i_qpts){
+                  double* nfunceval = &(state_vars[i_qpts * num_state_vars + 2]);
+                  seq_sum += wts * nfunceval[0];
+                  seq_max.max(nfunceval[0]);
+                  seq_min.min(nfunceval[0]);
+               });
+               std::cout << "Min Func Eval: " << seq_min.get() << " Mean Func Evals: " <<
+                  seq_sum.get() << " Max Func Eval: " << seq_max.get() << std::endl;
+            }
+            for (int j = 0; j < ecmech::nsvec; j++) {
+               RAJA::ReduceSum<RAJA::seq_reduce, double> seq_sum(0.0);
+               RAJA::forall<RAJA::loop_exec>(default_range, [ = ] (int i_qpts){
+                  const double* stress = &(stress_array[i_qpts * ecmech::nsvec]);
+                  seq_sum += wts * stress[j];
+               });
+               stress_avg[j] = seq_sum.get();
+            }
          }
-         for (int j = 0; j < ecmech::nsvec; j++) {
-            RAJA::ReduceSum<RAJA::seq_reduce, double> seq_sum(0.0);
-            RAJA::forall<RAJA::loop_exec>(default_range, [ = ] (int i_qpts){
-               const double* stress = &(stress_array[i_qpts * ecmech::nsvec]);
-               seq_sum += wts * stress[j];
-            });
-            stress_avg[j] = seq_sum.get();
-         }
-      }
-      break;
+         break;
 #if defined(RAJA_ENABLE_OPENMP)
-      case ECM_EXEC_STRAT_OPENMP :
-      {   
-         if (NEVALS_COUNTS) {
-            RAJA::ReduceSum<RAJA::omp_reduce_ordered, double> omp_sum(0.0);
-            RAJA::ReduceMin<RAJA::omp_reduce_ordered, double> omp_min(100.0); // We know this shouldn't ever be more than 100
-            RAJA::ReduceMax<RAJA::omp_reduce_ordered, double> omp_max(0.0); // We know this will always be at least 1.0
-            RAJA::forall<RAJA::omp_parallel_for_exec>(default_range, [ = ] (int i_qpts){
-               double* nfunceval = &(state_vars[i_qpts * num_state_vars + 2]);
-               omp_sum += wts * nfunceval[0];
-               omp_max.max(nfunceval[0]);
-               omp_min.min(nfunceval[0]);
-            });
-            std::cout << "Min Func Eval: " << omp_min.get() << " Mean Func Evals: " <<
-               omp_sum.get() << " Max Func Eval: " << omp_max.get() << std::endl;
+         case ECM_EXEC_STRAT_OPENMP:
+         {
+            if (NEVALS_COUNTS) {
+               RAJA::ReduceSum<RAJA::omp_reduce_ordered, double> omp_sum(0.0);
+               RAJA::ReduceMin<RAJA::omp_reduce_ordered, double> omp_min(100.0); // We know this shouldn't ever be more than 100
+               RAJA::ReduceMax<RAJA::omp_reduce_ordered, double> omp_max(0.0); // We know this will always be at least 1.0
+               RAJA::forall<RAJA::omp_parallel_for_exec>(default_range, [ = ] (int i_qpts){
+                  double* nfunceval = &(state_vars[i_qpts * num_state_vars + 2]);
+                  omp_sum += wts * nfunceval[0];
+                  omp_max.max(nfunceval[0]);
+                  omp_min.min(nfunceval[0]);
+               });
+               std::cout << "Min Func Eval: " << omp_min.get() << " Mean Func Evals: " <<
+                  omp_sum.get() << " Max Func Eval: " << omp_max.get() << std::endl;
+            }
+            for (int j = 0; j < ecmech::nsvec; j++) {
+               RAJA::ReduceSum<RAJA::omp_reduce_ordered, double> omp_sum(0.0);
+               RAJA::forall<RAJA::omp_parallel_for_exec>(default_range, [ = ] (int i_qpts){
+                  const double* stress = &(stress_array[i_qpts * ecmech::nsvec]);
+                  omp_sum += wts * stress[j];
+               });
+               stress_avg[j] = omp_sum.get();
+            }
          }
-         for (int j = 0; j < ecmech::nsvec; j++) {
-            RAJA::ReduceSum<RAJA::omp_reduce_ordered, double> omp_sum(0.0);
-            RAJA::forall<RAJA::omp_parallel_for_exec>(default_range, [ = ] (int i_qpts){
-               const double* stress = &(stress_array[i_qpts * ecmech::nsvec]);
-               omp_sum += wts * stress[j];
-            });
-            stress_avg[j] = omp_sum.get();
-         }
-      }
-      break;
+         break;
 #endif
 #if defined(RAJA_ENABLE_CUDA)
-      case ECM_EXEC_STRAT_CUDA :
-      {
-         if (NEVALS_COUNTS) {
-            RAJA::ReduceSum<RAJA::cuda_reduce, double> cuda_sum(0.0);
-            RAJA::ReduceMin<RAJA::cuda_reduce, double> cuda_min(100.0); // We know this shouldn't ever be more than 100
-            RAJA::ReduceMax<RAJA::cuda_reduce, double> cuda_max(0.0); // We know this will always be at least 1.0
-            RAJA::forall<RAJA::cuda_exec<1024> >(default_range, [ = ] RAJA_DEVICE(int i_qpts){
-               double* nfunceval = &(state_vars[i_qpts * num_state_vars + 2]);
-               cuda_sum += wts * nfunceval[0];
-               cuda_max.max(nfunceval[0]);
-               cuda_min.min(nfunceval[0]);
-            });
-            std::cout << "Min Func Eval: " << cuda_min.get() << " Mean Func Evals: " <<
-               cuda_sum.get() << " Max Func Eval: " << cuda_max.get() << std::endl;
+         case ECM_EXEC_STRAT_CUDA:
+         {
+            if (NEVALS_COUNTS) {
+               RAJA::ReduceSum<RAJA::cuda_reduce, double> cuda_sum(0.0);
+               RAJA::ReduceMin<RAJA::cuda_reduce, double> cuda_min(100.0); // We know this shouldn't ever be more than 100
+               RAJA::ReduceMax<RAJA::cuda_reduce, double> cuda_max(0.0); // We know this will always be at least 1.0
+               RAJA::forall<RAJA::cuda_exec<1024> >(default_range, [ = ] RAJA_DEVICE(int i_qpts){
+                  double* nfunceval = &(state_vars[i_qpts * num_state_vars + 2]);
+                  cuda_sum += wts * nfunceval[0];
+                  cuda_max.max(nfunceval[0]);
+                  cuda_min.min(nfunceval[0]);
+               });
+               std::cout << "Min Func Eval: " << cuda_min.get() << " Mean Func Evals: " <<
+                  cuda_sum.get() << " Max Func Eval: " << cuda_max.get() << std::endl;
+            }
+            for (int j = 0; j < ecmech::nsvec; j++) {
+               RAJA::ReduceSum<RAJA::cuda_reduce, double> cuda_sum(0.0);
+               RAJA::forall<RAJA::cuda_exec<1024> >(default_range, [ = ] RAJA_DEVICE(int i_qpts){
+                  const double* stress = &(stress_array[i_qpts * ecmech::nsvec]);
+                  cuda_sum += wts * stress[j];
+               });
+               stress_avg[j] = cuda_sum.get();
+            }
          }
-         for (int j = 0; j < ecmech::nsvec; j++) {
-            RAJA::ReduceSum<RAJA::cuda_reduce, double> cuda_sum(0.0);
-            RAJA::forall<RAJA::cuda_exec<1024> >(default_range, [ = ] RAJA_DEVICE(int i_qpts){
-               const double* stress = &(stress_array[i_qpts * ecmech::nsvec]);
-               cuda_sum += wts * stress[j];
-            });
-            stress_avg[j] = cuda_sum.get();
-         }
-      }
-      break ;
+         break;
 #endif
-      } // switch ( class_device ) 
+      } // switch ( class_device )
 
       // On CORAL architectures these print statements don't really add anything to the execution time.
       // So, we're going to keep them to make sure things are correct between the different runs.

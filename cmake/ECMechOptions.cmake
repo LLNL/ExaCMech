@@ -1,6 +1,8 @@
 option(BUILD_STATIC_LIBS "Build static libraries" ON)
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 
+option(USE_DPEFF "Output effective D^p rather than effective shearing rates" OFF)
+
 option(ENABLE_THROW "Enable throwing of exceptions" ON)
 
 option(ENABLE_TESTS "Enable tests" ON)

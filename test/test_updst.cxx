@@ -60,9 +60,9 @@ TEST(ecmech, updst_a)
 
 #endif
    //
-   DUMPVEC("opts",opts);
-   DUMPVEC("params",params);
-   DUMPVEC("strs",strs);
+   DUMPVEC("opts", opts);
+   DUMPVEC("params", params);
+   DUMPVEC("strs", strs);
    //
    mmb->initFromParams(opts, params, strs);
    //
@@ -164,9 +164,9 @@ TEST(ecmech, driver_a)
 
 #endif
    //
-   DUMPVEC("opts",opts);
-   DUMPVEC("params",params);
-   DUMPVEC("strs",strs);
+   DUMPVEC("opts", opts);
+   DUMPVEC("params", params);
+   DUMPVEC("strs", strs);
    //
    mmb->initFromParams(opts, params, strs);
    //

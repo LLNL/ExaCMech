@@ -662,8 +662,11 @@ namespace ecmech {
                //// need shrate%eff instead
                //// CALL calc_pl_eff(dp_def_rate_contrib, pl_vecd, detV%ri)
                // CALL setup_ss_shrate_vals(shrate_l, crys%tmp1_slp, zero, .TRUE.)
+#if defined(ECMECH_USE_DPEFF)
+               _shrate_eff_contrib = vecd_Deff(pl_vecd);
+#else
                _shrate_eff_contrib = vecsssumabs<SlipGeom::nslip>(_gdot);
-
+#endif
                //////////////////////////////////////////////////////////////////////
                // JACOBIAN, fixed hardness and temperature
                //
@@ -1014,7 +1017,7 @@ namespace ecmech {
 
          // NOTE : mtanSD can be nullptr
          //
-         bool haveMtan = (mtanSD != nullptr);
+         const bool haveMtan = (mtanSD != nullptr);
 
          // convert deformation rate convention
          //
@@ -1096,7 +1099,7 @@ namespace ecmech {
             snls::TrDeltaControl deltaControl;
             deltaControl._deltaInit = 1e0;
             {
-               static const int maxIter = 100;
+               static const int maxIter = 200;
                solver.setupSolver(maxIter, tolerance, &deltaControl, outputLevel);
             }
 
@@ -1110,7 +1113,11 @@ namespace ecmech {
             //
             if (status != snls::converged) {
 #ifdef __cuda_host_only__
+<<<<<<< HEAD
                ECMECH_WARN(__func__, "Solver failed to converge -- will try again with implicit elastic strain solve only");
+=======
+               ECMECH_WARN(__func__, "Solver failed to converge -- will rerun to get output for debugging");
+>>>>>>> develop
 
                // rerun to get more output for debugging
                //
@@ -1168,6 +1175,7 @@ namespace ecmech {
             for (int i_hstate = 0; i_hstate < Kinetics::nH; i_hstate++) {
                h_state[i_hstate] = h_state_u[i_hstate];
             }
+
             //
             {
                const double* gdot_u = prob.getGdot();

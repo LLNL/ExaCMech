@@ -406,21 +406,21 @@ void init_data(ecmech::ExecutionStrategy accel, const double* ori, const ecmech:
 
    const int vdim = state_var_vdim;
 
-   switch ( accel ) {
+   switch (accel) {
 #if defined(RAJA_ENABLE_OPENMP)
-   case ECM_EXEC_STRAT_OPENMP:
-   {
-      init_data_openmp(ori, histInit_vec, nqpts, num_hardness, ind_gdot, num_slip, vdim, state_vars);
-   }
-   break;
+      case ECM_EXEC_STRAT_OPENMP:
+      {
+         init_data_openmp(ori, histInit_vec, nqpts, num_hardness, ind_gdot, num_slip, vdim, state_vars);
+      }
+      break;
 #endif
-   case ECM_EXEC_STRAT_CPU :
-   case ECM_EXEC_STRAT_CUDA :
-   default :
-   {      
-      init_data_cpu(ori, histInit_vec, nqpts, num_hardness, ind_gdot, num_slip, vdim, state_vars);
-   }
-   break;
+      case ECM_EXEC_STRAT_CPU:
+      case ECM_EXEC_STRAT_CUDA:
+      default:
+      {
+         init_data_cpu(ori, histInit_vec, nqpts, num_hardness, ind_gdot, num_slip, vdim, state_vars);
+      }
+      break;
    }
 } // end of init_data
 
@@ -462,33 +462,33 @@ void setup_data(ecmech::ExecutionStrategy accel, const int nqpts, const int nsta
                 double* w_vec_array, double* ddsdde_array,
                 double* vol_ratio_array, double* eng_int_array,
                 double* temp_array){
-   switch ( accel ) {
+   switch (accel) {
 #if defined(RAJA_ENABLE_OPENMP)
-   case ECM_EXEC_STRAT_OPENMP :
-   {
-      setup_data_openmp(nqpts, nstatev, dt, vel_grad_array, stress_array, state_vars_array,
-                        stress_svec_p_array, d_svec_p_array, w_vec_array, ddsdde_array,
-                        vol_ratio_array, eng_int_array, temp_array);
-   }
-   break;
+      case ECM_EXEC_STRAT_OPENMP:
+      {
+         setup_data_openmp(nqpts, nstatev, dt, vel_grad_array, stress_array, state_vars_array,
+                           stress_svec_p_array, d_svec_p_array, w_vec_array, ddsdde_array,
+                           vol_ratio_array, eng_int_array, temp_array);
+      }
+      break;
 #endif
 #if defined(RAJA_ENABLE_CUDA)
-   case ECM_EXEC_STRAT_CUDA :
-   {
-      setup_data_cuda(nqpts, nstatev, dt, vel_grad_array, stress_array, state_vars_array,
-                      stress_svec_p_array, d_svec_p_array, w_vec_array, ddsdde_array,
-                      vol_ratio_array, eng_int_array, temp_array);
-   }
-   break;
+      case ECM_EXEC_STRAT_CUDA:
+      {
+         setup_data_cuda(nqpts, nstatev, dt, vel_grad_array, stress_array, state_vars_array,
+                         stress_svec_p_array, d_svec_p_array, w_vec_array, ddsdde_array,
+                         vol_ratio_array, eng_int_array, temp_array);
+      }
+      break;
 #endif
-   case ECM_EXEC_STRAT_CPU :
-   default :
-   {
-      setup_data_cpu(nqpts, nstatev, dt, vel_grad_array, stress_array, state_vars_array,
-                     stress_svec_p_array, d_svec_p_array, w_vec_array, ddsdde_array,
-                     vol_ratio_array, eng_int_array, temp_array);
-   }
-   break;
+      case ECM_EXEC_STRAT_CPU:
+      default:
+      {
+         setup_data_cpu(nqpts, nstatev, dt, vel_grad_array, stress_array, state_vars_array,
+                        stress_svec_p_array, d_svec_p_array, w_vec_array, ddsdde_array,
+                        vol_ratio_array, eng_int_array, temp_array);
+      }
+      break;
    }
 } // end setup_data
 
