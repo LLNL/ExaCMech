@@ -1113,11 +1113,7 @@ namespace ecmech {
             //
             if (status != snls::converged) {
 #ifdef __cuda_host_only__
-<<<<<<< HEAD
                ECMECH_WARN(__func__, "Solver failed to converge -- will try again with implicit elastic strain solve only");
-=======
-               ECMECH_WARN(__func__, "Solver failed to converge -- will rerun to get output for debugging");
->>>>>>> develop
 
                // rerun to get more output for debugging
                //
