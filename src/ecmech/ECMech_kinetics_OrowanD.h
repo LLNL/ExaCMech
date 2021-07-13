@@ -745,21 +745,47 @@ namespace ecmech {
             }
             if (flag)
             {
-               printf("hs_u: ");
-               for (int i = 0; i < 2 * _nslip; i++) {
-                  printf("%lf ", hs_u[i]);
-               }
-               printf("\n nu: ");
-               for (int i = 0; i < _nslip; i++) {
-                  printf("%lf ", nu[i]);
-               }
-               printf("\n hs_0: ");
-               for (int i = 0; i < 2 * _nslip; i++) {
-                  printf("%lf ", ihs_o[i]);
-               }
-               printf("\n");
+               ECMECH_WARN(__func__, "Solver returned negative dislocation values trying again by substepping through the solution");
+               // This is pretty ad-hoc but it seems to work fairly well for a number of simple test cases.
+               // It's definitely not the best way to probably do things though...
+               const double dtnew = dt / 10.0;
+               double hs_temp[2 * SlipGeom::nslip];
 
-               ECMECH_FAIL(__func__, "Solver returned negative dislocation values!");
+               for (int iSlip = 0; iSlip < 2 * SlipGeom::nslip; iSlip++) {
+                  hs_u[iSlip] = fmax(hs_o[iSlip], _hdn_min);
+               }
+
+               for (int i = 0; i < 10; i++)
+               {
+                  for (int iSlip = 0; iSlip < 2 * SlipGeom::nslip; iSlip++) {
+                     hs_temp[iSlip] = fmax(hs_u[iSlip], _hdn_min);
+                     if (iSlip < _nslip)
+                     {
+                        const double div = perSS ? fmax(hs_temp[iSlip], _hdn_min) * _berg_mag[iSlip] :
+                        fmax(hs_temp[iSlip], _hdn_min) * _berg_mag[0];
+                        nu[iSlip] = abs(gdot[iSlip]) / (div);
+                     }
+                  }
+                  nFEvals += updateHN<KineticsOrowanD>(this,
+                                                       &hs_u[0], hs_temp, dtnew, nu,
+                                                       outputLevel);
+                  flag = false;
+                  for (int iSlip = 0; iSlip < 2 * _nslip; iSlip++) {
+                     if(hs_u[iSlip] < zero) {
+                        flag = true;
+                        break;
+                     }
+                  }
+               }
+
+               if (flag)
+               {
+                  for (int iSlip = 0; iSlip < 2 * SlipGeom::nslip; iSlip++) {
+                     printf("dd[%d]: %lf ", iSlip, hs_u[iSlip]);
+                  }
+                  printf("\n");
+                  ECMECH_FAIL(__func__, "Solver returned negative dislocation values!");
+               }
             }
 
             return nFEvals;
