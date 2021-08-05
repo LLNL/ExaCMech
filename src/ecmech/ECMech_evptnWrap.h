@@ -12,7 +12,7 @@
 
 #include "ECMech_matModelBase.h"
 #include "ECMech_evptn.h"
-#include "ECMech_evptnNR.h"
+#include "ECMech_evptnFI.h"
 
 namespace ecmech {
    namespace evptn {
@@ -338,7 +338,7 @@ namespace ecmech {
                      // If this fails then the simulations should also fail...
                      // We should do something better for the GPU side of things
                      // since it's a soft fail currently...
-                     getResponseNRSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
+                     getResponseFISngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
                         (_slipGeom, _kinetics, _elastN, _eosModel,
                         dt,
                         _tolerance,
@@ -382,7 +382,7 @@ namespace ecmech {
                      // If this fails then the simulations should also fail...
                      // We should do something better for the GPU side of things
                      // since it's a soft fail currently...
-                     getResponseNRSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
+                     getResponseFISngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
                         (_slipGeom, _kinetics, _elastN, _eosModel,
                         dt,
                         _tolerance,
@@ -426,7 +426,7 @@ namespace ecmech {
                      // If this fails then the simulations should also fail...
                      // We should do something better for the GPU side of things
                      // since it's a soft fail currently...
-                     getResponseNRSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
+                     getResponseFISngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
                         (_slipGeom, _kinetics, _elastN, _eosModel,
                         dt,
                         _tolerance,

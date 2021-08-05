@@ -10,6 +10,7 @@ set(ECMECH_HEADERS
     ECMech_eosSimple.h
     ECMech_evptn.h
     ECMech_evptnNR.h
+    ECMech_evptnFI.h
     ECMech_kinetics.h
     ECMech_kinetics_KMBalD.h
     ECMech_kinetics_OrowanD.h
