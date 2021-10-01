@@ -18,7 +18,7 @@ class ECMechPy
       ECMechPy(std::string model_name, py_darray &params);
 
       std::tuple<std::vector<std::string>, py_darray, std::vector<bool>, std::vector<bool>>
-      getHistInfo();
+      getHistoryInfo();
 
       void setup(double dt,
                  double tolerance,

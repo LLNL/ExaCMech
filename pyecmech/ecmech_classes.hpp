@@ -13,12 +13,13 @@ class pyevptn_base
     /// Provides history names, initial values, 
     /// whether the param is meant to be plotted,
     /// and whether its a state variable
-    void getHistoryInfo(std::vector<std::string> names,
-                        std::vector<double>vals,
-                        std::vector<bool> plot,
-                        std::vector<bool> state)
+    void getHistoryInfo(std::vector<std::string>& names,
+                        std::vector<double>& vals,
+                        std::vector<bool>& plot,
+                        std::vector<bool>& state)
     {
         const int numHist = m_rhvNames.size();
+
         names.resize(numHist); std::copy(m_rhvNames.begin(), m_rhvNames.end(), names.begin() );
         vals.resize(numHist); std::copy(m_rhvVals.begin(), m_rhvVals.end(), vals.begin() );
         plot.resize(numHist); std::copy(m_rhvPlot.begin(), m_rhvPlot.end(), plot.begin() );

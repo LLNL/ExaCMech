@@ -34,7 +34,7 @@ PYBIND11_MODULE(ecmech, m) {
                                      and norm refers an implicit beginning of time step hardening state update and
                                      an implicit end of time step coupled elastic strain and lattice rotation update.
             py_darray params - model parameters for the provided model name.)pbdoc")
-        .def("getHistInfo", &ECMechPy::getHistInfo, py::return_value_policy::take_ownership,
+        .def("getHistoryInfo", &ECMechPy::getHistoryInfo, py::return_value_policy::take_ownership,
              R"pbdoc(
                 Output: names, vals, plot, state
                 names: the history names as a list of strings, 

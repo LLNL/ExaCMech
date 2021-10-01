@@ -33,9 +33,9 @@ ECMechPy::ECMechPy(std::string model_name, py_darray &params)
    } else if (std::string(model_name) == "voce_nl_fcc_norm") {
       model = new pyMatModelEvptn_FCC_AH(cparams);
    } else if (std::string(model_name) == "voce_bcc_norm") {
-      model = new matModelEvptn_BCC_B(cparams);
+      model = new pyMatModelEvptn_BCC_B(cparams);
    } else if (std::string(model_name) == "voce_nl_bcc_norm") {
-      model = new matModelEvptn_BCC_BH(cparams);
+      model = new pyMatModelEvptn_BCC_BH(cparams);
    } else if (std::string(model_name) == "km_bal_dd_fcc_norm") {
       model = new pyMatModelEvptn_FCC_B(cparams);
    } else if (std::string(model_name) == "km_bal_dd_bcc_norm") {
@@ -48,16 +48,16 @@ ECMechPy::ECMechPy(std::string model_name, py_darray &params)
 }
 
 std::tuple<std::vector<std::string>, py_darray, std::vector<bool>, std::vector<bool>>
-ECMechPy::getHistInfo()
+ECMechPy::getHistoryInfo()
 {
    std::vector<std::string> names;
    std::vector<bool> state;
    std::vector<bool> plot;
    std::vector<double> vals;
 
-   model->getHistInfo(names, vals, plot, state);
+   model->getHistoryInfo(names, vals, plot, state);
 
-   py_darray py_vals = pybind11::array(vals.size(), vals.pointer());
+   py_darray py_vals = pybind11::array(vals.size(), vals.data());
 
    return std::make_tuple(names, py_vals, plot, state);
 }
