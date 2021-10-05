@@ -34,10 +34,7 @@ class pyevptn_base
                         double  * eInt,
                         double  * stressSvecP,
                         double  * hist,
-                        double  & tkelv,
-                        double  * sdd,
-                        double  * mtanSD,
-                        int outputLevel = 0) = 0;
+                        double  & tkelv) = 0;
     /// Should be handed to nonlinear solver for each time step and point
     /// for the Jacobian/gradient and function calculations
     virtual void computeRJ(double * const resid,
@@ -195,10 +192,7 @@ class pyEvptn_norm : public pyevptn_base
                 double  * eInt,
                 double  * stressSvecP,
                 double  * hist,
-                double  & tkelv,
-                double  * sdd,
-                double  * mtanSD,
-                int outputLevel = 0) override final
+                double  & tkelv) override final
     {
         static const int iHistLbGdot = ecmech::evptn::NumHist<SlipGeom, Kinetics, ThermoElastN, EosModel>::iHistLbGdot;
 

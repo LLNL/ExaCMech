@@ -70,9 +70,7 @@ void ECMechPy::setup(double dt,
                      py_darray eInt,
                      py_darray stressSvecP,
                      py_darray hist,
-                     double& tkelv,
-                     py_darray sdd,
-                     py_darray mtanSD)
+                     double& tkelv)
 {
 
    model->setup(dt, tolerance,
@@ -82,9 +80,7 @@ void ECMechPy::setup(double dt,
                (double*) eInt.request().ptr,
                (double*) stressSvecP.request().ptr,
                (double*) hist.request().ptr,
-               tkelv,
-               (double*) sdd.request().ptr,
-               (double*) mtanSD.request().ptr);
+               tkelv);
 }
 
 void ECMechPy::computeRJ(py_darray &resid,

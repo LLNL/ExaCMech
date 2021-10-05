@@ -28,9 +28,7 @@ class ECMechPy
                  py_darray eInt,
                  py_darray stressSvecP,
                  py_darray hist,
-                 double& tkelv,
-                 py_darray sdd,
-                 py_darray mtanSD);
+                 double& tkelv);
       void computeRJ(py_darray &resid,
                      py_darray &J,
                      py_darray &x);

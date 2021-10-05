@@ -52,9 +52,7 @@ PYBIND11_MODULE(ecmech, m) {
                  py_darray eInt, // internal energy
                  py_darray stressSvecP, // stress deviatoric vector + pressure term
                  py_darray hist, // history variable
-                 double& tkelv, // current temperature in kelvin
-                 py_darray sdd, // sdd array - not used
-                 py_darray mtanSD // tangent modulus - not used
+                 double& tkelv // current temperature in kelvin
              )pbdoc")
         .def("computeRJ", &ECMechPy::computeRJ,
              R"pbdoc(
