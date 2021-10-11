@@ -352,18 +352,18 @@ namespace ecmech {
 #if defined(RAJA_ENABLE_HIP)
                   case ECM_EXEC_STRAT_HIP :
 		  {
-		     auto &lslipGeom    = _slipGeom;
-		     auto &lkinetics    = _kinetics;
-		     auto &lelastN      = _elastN;
-		     auto &leosModel    = _eosModel;
-		     auto &ltolerance   = _tolerance;
-		     auto &loutputLevel = _outputLevel;
-                     RAJA::forall<RAJA::hip_exec<RAJA_CUDA_THREADS> >(default_range, [ = ] RAJA_DEVICE(int i) {
+		    //auto &lslipGeom    = _slipGeom;
+		    // auto &lkinetics    = _kinetics;
+		    // auto &lelastN      = _elastN;
+		    // auto &leosModel    = _eosModel;
+		    // auto &ltolerance   = _tolerance;
+		    // auto &loutputLevel = _outputLevel;
+		    RAJA::forall<RAJA::hip_exec<RAJA_CUDA_THREADS> >(default_range, [ =, _slipGeom=this->_slipGeom, _kinetics=this->_kinetics, _elastN=this->_elastN, _eosModel=this->_eosModel, _tolerance=this->_tolerance, _outputLevel=this->_outputLevel] RAJA_DEVICE(int i) {
                            double *mtanSDThis       = ( mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr );
                            getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
-                              (lslipGeom, lkinetics, lelastN, leosModel,
+                              (_slipGeom, _kinetics, _elastN, _eosModel,
                                dt,
-                               ltolerance,
+                               _tolerance,
                                &defRateV[def_rate_stride * i],
                                &spinV[spin_v_stride * i],
                                &volRatioV[vol_ratio_stride * i],
@@ -373,7 +373,7 @@ namespace ecmech {
                                tkelvV[tkelv_stride * i],
                                &sddV[sdd_stride * i],
                                mtanSDThis,
-                               loutputLevel);
+                               _outputLevel);
                         });
                      break;
 		  }

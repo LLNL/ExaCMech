@@ -11,7 +11,7 @@ message(STATUS "Using cmake version ${CMAKE_VERSION}")
 
 project(ECMECH LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 
 ################################
 # BLT
