@@ -62,6 +62,10 @@ extern void CUDART_Check(const cudaError_t err, const char *file, const char *fu
 #define RAJA_CUDA_THREADS 160
 #endif
 
+#ifndef RAJA_HIP_THREADS
+#define RAJA_HIP_THREADS 256
+#endif
+
 // __CUDA_ARCH__ is defined when compiling for the device, the macro below is used
 // to filter code that cannot be compiled for the device.
 // ----------------------------------------------------------------------------------------

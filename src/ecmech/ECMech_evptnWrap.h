@@ -358,7 +358,7 @@ namespace ecmech {
 		    // auto &leosModel    = _eosModel;
 		    // auto &ltolerance   = _tolerance;
 		    // auto &loutputLevel = _outputLevel;
-		    RAJA::forall<RAJA::hip_exec<RAJA_CUDA_THREADS> >(default_range, [ =, _slipGeom=this->_slipGeom, _kinetics=this->_kinetics, _elastN=this->_elastN, _eosModel=this->_eosModel, _tolerance=this->_tolerance, _outputLevel=this->_outputLevel] RAJA_DEVICE(int i) {
+		    RAJA::forall<RAJA::hip_exec<RAJA_HIP_THREADS> >(default_range, [ =, _slipGeom=this->_slipGeom, _kinetics=this->_kinetics, _elastN=this->_elastN, _eosModel=this->_eosModel, _tolerance=this->_tolerance, _outputLevel=this->_outputLevel] RAJA_DEVICE(int i) {
                            double *mtanSDThis       = ( mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr );
                            getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
                               (_slipGeom, _kinetics, _elastN, _eosModel,
