@@ -5,6 +5,8 @@
 #include "ECMech_core.h"
 #include "ECMech_cases.h"
 
+#if defined(ECMECH_PYDEV)
+
 class pyevptn_base
 {
     public:
@@ -420,5 +422,7 @@ typedef pyEvptn_norm<ecmech::SlipGeom_BCC_A, ecmech::Kin_BCC_A, ecmech::evptn::T
 typedef pyEvptn_norm<ecmech::SlipGeom_BCC_A, ecmech::Kin_FCC_A, ecmech::evptn::ThermoElastNCubic, ecmech::EosModelConst<false> > pyMatModelEvptn_BCC_B;
 typedef pyEvptn_norm<ecmech::SlipGeom_BCC_A, ecmech::Kin_FCC_AH, ecmech::evptn::ThermoElastNCubic, ecmech::EosModelConst<false> > pyMatModelEvptn_BCC_BH;
 typedef pyEvptn_norm<ecmech::SlipGeom_HCP_A, ecmech::Kin_HCP_A, ecmech::evptn::ThermoElastNHexag, ecmech::EosModelConst<false> > pyMatModelEvptn_HCP_A;
+
+#endif
 
 #endif
