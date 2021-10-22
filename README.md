@@ -60,6 +60,13 @@ A miniapp is provided which provides a guide for how the library might be used i
 
 If all of the features are used it can be built with the following commands when used on a CORAL architecture: `cmake ../ -DCMAKE_INSTALL_PREFIX=../install_dir/ -DRAJA_DIR={$RAJA_PATH}/raja/install_dir/share/raja/cmake/ -DENABLE_OPENMP=ON -DENABLE_CUDA=ON -DCUDA_ARCH=sm_70 -DENABLE_TESTS=ON -DENABLE_MINIAPPS=ON -DCMAKE_BUILD_TYPE=Release`
 
+PYTHON
+======
+
+A limited set of python bindings are now available that enable one to run `getResponseECM` like calculations from within python through the `pyECMech` class. One can look at the `pyecmech/example.py` as an example of how to use these bindings to run material point simulations. In order to enable these bindings, one has to run cmake with `-DENABLE_PYTHON=ON`. 
+
+If one is more interested in development work from within python they can add the additional cmake define `-DENABLE_PYTHON_DEV=ON`. This cmake define introduces a new python class called `pyECMechDev` which allows users access to the internals of `getResponseECM`. The intended use of this class is currently to allow developers to play around with different solvers for the nonlinear set of equations being solved within ExaCMech. One can look at `pyecmech/example-dev.py` as an example of how to use these bindings to run material point simulations.
+
 AUTHORS
 ======
 
