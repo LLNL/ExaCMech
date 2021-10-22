@@ -1,4 +1,4 @@
-import ecmech as m
+import pyecmech as m
 import numpy as np
 
 assert m.__version__ == 'dev'
@@ -53,8 +53,7 @@ class ECMechProb:
         return (eInt, stressSvecP, hist, tkelv, sdd)
 
 # Prints out function documentation of the module
-# help(m.constants)
-# help(m.pyECMech)
+# help(m)
 
 # OFHC copper parameters
 # Taken from parameters in the ExaConstit test suite
@@ -104,20 +103,20 @@ mtanSD = np.zeros(36)
 
 histNames, histVals, histPlot, histState = prob.getHistInfo()
 
-# # Just so we can see what the history names are
-print(histNames)
+# Just so we can see what the history names and values are
+# print(histNames)
+# print(histVals)
 
 hist = np.copy(histVals)
-print(hist)
 # How to iterate over multiple time steps
 for i in range(41):
-    # An example of using the prob.solve() version of things rather than
-    # doing it by hand
-    eInt, stressSvecP, hist, tkelv, sdd = prob.solve(dt, d_svec_kk_sm, w_veccp_sm, volRatio, eInt, stressSvecP, hist, tkelv)
     # This is pulled from how the test_px does things
     volRatio[0] = volRatio[1]
     volRatio[1] = volRatio[0] * np.exp(d_svec_kk_sm[6] * dt)
     volRatio[3] = volRatio[1] - volRatio[0]
     volRatio[2] = volRatio[3] / (dt * 0.5 * (volRatio[0] + volRatio[1]))
+
+    # An example of using prob.solve()
+    eInt, stressSvecP, hist, tkelv, sdd = prob.solve(dt, d_svec_kk_sm, w_veccp_sm, volRatio, eInt, stressSvecP, hist, tkelv)
 
     print(stressSvecP[:,0])

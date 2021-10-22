@@ -1,7 +1,6 @@
 #ifndef ECMECH_CLASSES_HPP
 #define ECMECH_CLASSES_HPP
 
-#include "ECMech_const.h"
 #include "ECMech_core.h"
 #include "ECMech_cases.h"
 

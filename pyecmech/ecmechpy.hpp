@@ -1,7 +1,8 @@
 #pragma once
 
-#include "ecmech_classes.hpp"
+#include "ECMech_core.h"
 #include "ECMech_matModelBase.h"
+#include "ecmech_classes.hpp"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>

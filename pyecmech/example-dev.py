@@ -1,4 +1,4 @@
-import ecmech as m
+import pyecmech as m
 import numpy as np
 from scipy.optimize import root
 
@@ -82,8 +82,7 @@ class ECMechProbDev:
         return (eInt, stressSvecP, hist, tkelv, sdd)
 
 # Prints out function documentation of the module
-help(m.constants)
-help(m.pyECMechDev)
+# help(m)
 
 # OFHC copper parameters
 # Taken from parameters in the ExaConstit test suite
@@ -107,7 +106,7 @@ var = np.asarray([
 -1.0307952
 ])
 
-prob = ECMechProb("voce_fcc_norm", var)
+prob = ECMechProbDev("voce_fcc_norm", var)
 
 # Our various input parameters
 dt = 0.1
@@ -139,7 +138,7 @@ mtanSD = np.zeros(36)
 histNames, histVals, histPlot, histState = prob.getHistInfo()
 
 # Just so we can see what the history names are
-print(histNames)
+# print(histNames)
 
 hist = np.copy(histVals)
 hist_old = np.copy(hist)
@@ -152,7 +151,7 @@ sol = root(prob.computeRJ, x, jac=True, method='hybr', tol=tolerance)
 # If you want to check the success of the solver you can find that using
 # sol.success
 eInt, stressSvecP, hist, tkelv, sdd = prob.getState(sol.x, eInt, stressSvecP, hist, tkelv, sdd)
-
+print(stressSvecP[0])
 # print(hist)
 # How to iterate over multiple time steps
 for i in range(40):
@@ -165,4 +164,4 @@ for i in range(40):
     # doing it by hand
     eInt, stressSvecP, hist, tkelv, sdd = prob.solve(dt, tolerance, d_svec_kk_sm, w_veccp_sm, volRatio, eInt, stressSvecP, hist, tkelv)
 
-    print(stressSvecP)
+    print(stressSvecP[:,0])

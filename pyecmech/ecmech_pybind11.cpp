@@ -1,18 +1,21 @@
 #include <pybind11/pybind11.h>
 #include<pybind11/numpy.h>
+
+#include "ECMech_core.h"
 #include "ECMech_const.h"
+
 #include "ecmechpy.hpp"
 
 namespace py = pybind11;
 
-PYBIND11_MODULE(ecmech, m) {
+PYBIND11_MODULE(pyecmech, m) {
     m.doc() = R"pbdoc(
         ECMech Python Bindings
         -----------------------
-        .. currentmodule:: ecmech
+        .. currentmodule:: pyecmech
         .. autosummary::
            :toctree: _generate
-           ECMech
+           pyECMech
     )pbdoc";
     py::module constants = m.def_submodule("constants"); // create namespace
     constants.attr("nsvec") = &ecmech::nsvec;

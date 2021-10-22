@@ -206,12 +206,12 @@ pyECMechDev::getHistoryInfo()
 
 void pyECMechDev::setup(double dt,
                      double tolerance,
-                     py_darray d_svec_kk_sm, // defRate,
-                     py_darray w_veccp_sm, // spin
-                     py_darray volRatio,
-                     py_darray eInt,
-                     py_darray stressSvecP,
-                     py_darray hist,
+                     py_darray &d_svec_kk_sm, // defRate,
+                     py_darray &w_veccp_sm, // spin
+                     py_darray &volRatio,
+                     py_darray &eInt,
+                     py_darray &stressSvecP,
+                     py_darray &hist,
                      double& tkelv)
 {
 
