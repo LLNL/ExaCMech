@@ -63,9 +63,9 @@ If all of the features are used it can be built with the following commands when
 PYTHON
 ======
 
-A limited set of python bindings are now available that enable one to run `getResponseECM` like calculations from within python through the `pyECMech` class. One can look at the `pyecmech/example.py` as an example of how to use these bindings to run material point simulations. In order to enable these bindings, one has to run cmake with `-DENABLE_PYTHON=ON`. 
+An initial set of pythons bindings are now available to users. These bindings allow one to run material point simulation like calculations from within python through the `pyECMech` class. One can look at `pyecmech/example.py` as an example for how to use these bindings. In order to enable these bindings, one has to run cmake with `-DENABLE_PYTHON=ON`. 
 
-If one is more interested in development work from within python they can add the additional cmake define `-DENABLE_PYTHON_DEV=ON`. This cmake define introduces a new python class called `pyECMechDev` which allows users access to the internals of `getResponseECM`. The intended use of this class is currently to allow developers to play around with different solvers for the nonlinear set of equations being solved within ExaCMech. One can look at `pyecmech/example-dev.py` as an example of how to use these bindings to run material point simulations.
+If one is more interested in development work from within python they can add the additional cmake define `-DENABLE_PYTHON_DEV=ON`. This cmake define introduces a new python class called `pyECMechDev` which allows developers access to the internals of `getResponseECM`. The intended use of this class is currently to allow developers to play around with different solvers for the nonlinear set of equations being solved within ExaCMech. One can look at `pyecmech/example-dev.py` as an example of how to use these bindings to run material point simulations.
 
 AUTHORS
 ======
