@@ -99,3 +99,32 @@ endif(ENABLE_TESTS)
 if(ENABLE_MINIAPPS)
     add_subdirectory(miniapp)
 endif(ENABLE_MINIAPPS)
+
+if(ENABLE_PYTHON)
+
+################################
+# PYBIND11
+################################
+    set(USE_BUILT_PYBIND OFF CACHE BOOL "")
+
+    set(PYBIND_SOURCE_DIR "${PROJECT_SOURCE_DIR}/pybind11" CACHE PATH "")
+    message(STATUS "Using submodule PYBIND11: ${PYBIND_SOURCE_DIR}")
+    if (NOT EXISTS ${PYBIND_SOURCE_DIR}/CMakeLists.txt)
+        message(FATAL_ERROR
+            "The pybind11 submodule is not present. "
+            "Run the following two commands in your git repository: \n"
+            "    git submodule init\n"
+            "    git submodule update\n"
+            "Or you can point to an already built pybind11 with PYBIND_DIR." )
+    endif()
+
+    add_subdirectory(pybind11)
+
+    # If using internal submodule use actual CMake targets
+    set(PYBIND_SHARED_TARGET pybind11 CACHE STRING "")
+    set(PYBIND_STATIC_TARGET pybind11 CACHE STRING "")
+##########################################
+# Python bindings of models
+##########################################
+    add_subdirectory(pyecmech/)
+endif()
