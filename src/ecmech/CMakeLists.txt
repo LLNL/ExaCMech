@@ -2,7 +2,7 @@
 # Sources
 #------------------------------------------------------------------------------
 set(ECMECH_HEADERS
-    ${HEADER_INCLUDE_DIR}/ECMech_config.h
+    ${ECMECH_HEADER_INCLUDE_DIR}/ECMech_config.h
     ECMech_cases.h
     ECMech_const.h
     ECMech_core.h
@@ -36,6 +36,10 @@ set(ECMECH_DEPENDS)
 ecmech_fill_depends_list(LIST_NAME  ECMECH_DEPENDS
                         DEPENDS_ON raja snls cub camp cuda openmp)
 
+if(NOT USE_BUILT_SNLS)
+    list(APPEND ECMECH_DEPENDS snls)
+endif()
+
 message("-- ECMECH_DEPENDS: ${ECMECH_DEPENDS}")
 
 #------------------------------------------------------------------------------
@@ -46,13 +50,6 @@ set(ECMECH_DEFINES)
 #------------------------------------------------------------------------------
 # Includes
 #------------------------------------------------------------------------------
-set(ECMECH_INCLUDES ${CMAKE_SOURCE_DIR}/src/interface
-                    ${HEADER_INCLUDE_DIR}
-                    ${CMAKE_SOURCE_DIR}/src/ecmech)
-
-if(NOT USE_BUILT_SNLS)
-    list(APPEND ECMECH_INCLUDES ${CMAKE_SOURCE_DIR}/snls)
-endif()
 
 #------------------------------------------------------------------------------
 # Build Targets
@@ -62,8 +59,7 @@ if(BUILD_SHARED_LIBS)
     blt_add_library(NAME        ecmech_shared
                     OUTPUT_NAME ecmech
                     DEFINES     ${ECMECH_DEFINES}
-                    INCLUDES    ${ECMECH_INCLUDES}
-                    DEPENDS_ON  ${ECMECH_DEPENDS} # ${SNLS_SHARED_TARGET}
+                    DEPENDS_ON  ${ECMECH_DEPENDS}
                     HEADERS     ${ECMECH_HEADERS}
                     SOURCES     ${ECMECH_SOURCES}
                     SHARED      TRUE)
@@ -74,8 +70,7 @@ if(BUILD_STATIC_LIBS)
     blt_add_library(NAME        ecmech_static
                     OUTPUT_NAME ecmech
                     DEFINES     ${ECMECH_DEFINES}
-                    INCLUDES    ${ECMECH_INCLUDES}
-                    DEPENDS_ON  ${ECMECH_DEPENDS} # ${SNLS_STATIC_TARGET}
+                    DEPENDS_ON  ${ECMECH_DEPENDS}
                     HEADERS     ${ECMECH_HEADERS}
                     SOURCES     ${ECMECH_SOURCES}
                     SHARED      FALSE)
@@ -85,15 +80,33 @@ endif(BUILD_STATIC_LIBS)
 # Install files
 #------------------------------------------------------------------------------
 
-set(ECMECH_INSTALLED_HEADERS
-    ${ECMECH_HEADERS})
+install(FILES ${ECMECH_HEADERS} DESTINATION include/ecmech)
 
-install(FILES ${ECMECH_INSTALLED_HEADERS} DESTINATION include)
 
 if(BUILD_SHARED_LIBS)
+   target_include_directories(
+      ecmech_shared
+      PUBLIC
+      $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/ecmech/>
+      $<BUILD_INTERFACE:${ECMECH_HEADER_INCLUDE_DIR}>
+      $<INSTALL_INTERFACE:include>)
     install(TARGETS ecmech_shared DESTINATION lib)
 endif(BUILD_SHARED_LIBS)
 
 if(BUILD_STATIC_LIBS)
+   target_include_directories(
+      ecmech_static
+      PUBLIC
+      $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/ecmech/>
+      $<BUILD_INTERFACE:${ECMECH_HEADER_INCLUDE_DIR}>
+      $<INSTALL_INTERFACE:include>)
     install(TARGETS ecmech_static DESTINATION lib)
 endif(BUILD_STATIC_LIBS)
+
+install(
+  FILES ${ECMECH_HEADER_INCLUDE_DIR}/ECMech_config.h
+  DESTINATION include/ecmech/)
+
+install(
+  FILES ${ECMECH_HEADERS}
+  DESTINATION include/ecmech/)
