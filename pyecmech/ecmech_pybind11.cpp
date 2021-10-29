@@ -39,11 +39,18 @@ PYBIND11_MODULE(pyecmech, m) {
                                      voce_nl_bcc_norm,
                                      km_bal_dd_fcc_norm,
                                      km_bal_dd_bcc_norm,
-                                     km_bal_dd_hcp_norm
+                                     km_bal_dd_hcp_norm,
+                                     oro_dd_bcc_iso_norm,
+                                     oro_dd_bcc_aniso_norm,
+                                     oro_dd_bcc_24_iso_norm,
+                                     oro_dd_bcc_24_aniso_norm,
                                      where voce refers to a Voce hardening law with power law slip kinetics,
                                      voce_nl refers to a nonlinear Voce hardening law with power law slip kinetics,
                                      km_bal_dd refers to a single Kocks-Mecking dislocation density hardening with
                                      balanced thermally activated MTS-like slip kinetics with phonon drag effects,
+                                     oro_dd refers to a Orowanian slip kinetics-type model with a dislocation density
+                                     hardening model with individual slip system DD evolution (iso and aniso options here
+                                     refer to whether the hardening model is isotropic or anisotropic),
                                      and norm refers an implicit beginning of time step hardening state update and
                                      an implicit end of time step coupled elastic strain and lattice rotation update.
             py_darray params - model parameters for the provided model name.)pbdoc")
@@ -86,11 +93,11 @@ PYBIND11_MODULE(pyecmech, m) {
                                      voce_nl_bcc_norm,
                                      km_bal_dd_fcc_norm,
                                      km_bal_dd_bcc_norm,
-                                     km_bal_dd_hcp_norm
+                                     km_bal_dd_hcp_norm,
                                      where voce refers to a Voce hardening law with power law slip kinetics,
                                      voce_nl refers to a nonlinear Voce hardening law with power law slip kinetics,
                                      km_bal_dd refers to a single Kocks-Mecking dislocation density hardening with
-                                     balanced thermally activated MTS-like slip kinetics with phonon drag effects,
+                                     balanced thermally activated MTS-like slip kinetics with phonon drag effects,,
                                      and norm refers an implicit beginning of time step hardening state update and
                                      an implicit end of time step coupled elastic strain and lattice rotation update.
             py_darray params - model parameters for the provided model name.)pbdoc")

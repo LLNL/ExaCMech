@@ -24,6 +24,22 @@ namespace ecmech {
          ecmech::matModelEvptn_BCC_A* mmECMEvptn = new ecmech::matModelEvptn_BCC_A();
          matModel = dynamic_cast<ecmech::matModelBase*>(mmECMEvptn);
       }
+      else if (modelName == "evptn_BCC_B") {
+         ecmech::matModelEvptn_BCC_B* mmECMEvptn = new ecmech::matModelEvptn_BCC_B();
+         matModel = dynamic_cast<ecmech::matModelBase*>(mmECMEvptn);
+      }
+      else if (modelName == "evptn_BCC_C") {
+         ecmech::matModelEvptn_BCC_C* mmECMEvptn = new ecmech::matModelEvptn_BCC_C();
+         matModel = dynamic_cast<ecmech::matModelBase*>(mmECMEvptn);
+      }
+      else if (modelName == "evptn_BCC_B_24") {
+         ecmech::matModelEvptn_BCC_B_24* mmECMEvptn = new ecmech::matModelEvptn_BCC_B_24();
+         matModel = dynamic_cast<ecmech::matModelBase*>(mmECMEvptn);
+      }
+      else if (modelName == "evptn_BCC_C_24") {
+         ecmech::matModelEvptn_BCC_C_24* mmECMEvptn = new ecmech::matModelEvptn_BCC_C_24();
+         matModel = dynamic_cast<ecmech::matModelBase*>(mmECMEvptn);
+      }
       else if (modelName == "evptn_HCP_A") {
          ecmech::matModelEvptn_HCP_A* mmECMEvptn = new ecmech::matModelEvptn_HCP_A();
          matModel = dynamic_cast<ecmech::matModelBase*>(mmECMEvptn);
