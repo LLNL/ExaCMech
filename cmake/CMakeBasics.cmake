@@ -28,6 +28,14 @@ if(USE_DPEFF)
     set(ECMECH_USE_DPEFF "1" CACHE STRING "")
 endif()
 
+if(ENABLE_PYTHON)
+    set(ECMECH_PY "1" CACHE STRING "")
+endif()
+
+if(ENABLE_PYTHON_DEV)
+    set(ECMECH_PYDEV "1" CACHE STRING "")
+endif()
+
 if(CMAKE_BUILD_TYPE MATCHES DEBUG)
     set(ECMECH_DEBUG "1" CACHE STRING "")
 endif()

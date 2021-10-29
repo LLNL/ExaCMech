@@ -17,6 +17,10 @@ option(ENABLE_OPENMP "Enable openmp" ON)
 
 option(ENABLE_MINIAPPS "Enable miniapps" ON)
 
+option(ENABLE_PYTHON "Enable building of python bindings" OFF)
+
+option(ENABLE_PYTHON_DEV "Enable building of python dev bindings" OFF)
+
 # Force atleast static if user turns off both
 if(NOT BUILD_STATIC_LIBS AND NOT BUILD_SHARED_LIBS)
     message("Both static and shared libaries were disabled."

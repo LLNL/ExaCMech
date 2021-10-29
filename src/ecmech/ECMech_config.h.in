@@ -5,3 +5,5 @@
 #cmakedefine HAVE_ECMECH
 #cmakedefine ECMECH_USE_DPEFF
 #cmakedefine ECMECH_DEBUG
+#cmakedefine ECMECH_PY
+#cmakedefine ECMECH_PYDEV
