@@ -5,10 +5,10 @@ set(PACKAGE_BUGREPORT "barton22@llnl.gov")
 
 set(ECMech_VERSION_MAJOR 0)
 set(ECMech_VERSION_MINOR 3)
-set(ECMech_VERSION_PATCH \"2\")
+set(ECMech_VERSION_PATCH \"3\")
 
-set(HEADER_INCLUDE_DIR
-    ${PROJECT_BINARY_DIR}/include
+set(ECMECH_HEADER_INCLUDE_DIR
+    ${PROJECT_BINARY_DIR}/include/ecmech
     CACHE PATH
     "Directory where all generated headers will go in the build tree")
 
@@ -41,7 +41,7 @@ if(CMAKE_BUILD_TYPE MATCHES DEBUG)
 endif()
 
 configure_file( src/ecmech/ECMech_config.h.in
-                ${HEADER_INCLUDE_DIR}/ECMech_config.h )
+                ${ECMECH_HEADER_INCLUDE_DIR}/ECMech_config.h )
 
 ################################
 # Third party library setup

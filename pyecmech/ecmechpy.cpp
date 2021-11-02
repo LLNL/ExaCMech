@@ -1,4 +1,4 @@
-#include "ecmechpy.hpp"
+
 #include "ECMech_cases.h"
 
 #include <random>
@@ -7,6 +7,8 @@
 #include <string>
 #include <cmath>
 #include <limits>
+
+#include "ecmechpy.hpp"
 
 typedef ecmech::evptn::matModel<ecmech::SlipGeom_BCC_A, ecmech::Kin_FCC_A, 
                ecmech::evptn::ThermoElastNCubic, ecmech::EosModelConst<false> >

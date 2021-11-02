@@ -21,6 +21,8 @@ option(ENABLE_PYTHON "Enable building of python bindings" OFF)
 
 option(ENABLE_PYTHON_DEV "Enable building of python dev bindings" OFF)
 
+option(ENABLE_SNLS_V03 "Enable building library with v0.3.0+ of SNLS" OFF)
+
 # Force atleast static if user turns off both
 if(NOT BUILD_STATIC_LIBS AND NOT BUILD_SHARED_LIBS)
     message("Both static and shared libaries were disabled."
