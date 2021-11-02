@@ -2,9 +2,11 @@
 #define ECMECH_CLASSES_HPP
 
 #include "ECMech_core.h"
-#include "ECMech_cases.h"
 
 #if defined(ECMECH_PYDEV)
+#include "ECMech_evptn.h"
+#include "ECMech_kinetics.h"
+#include "ECMech_slipgeom.h"
 
 class pyevptn_base
 {
@@ -412,15 +414,24 @@ class pyEvptn_norm : public pyevptn_base
 
 };
 
+typedef ecmech::KineticsKMBalD<true, false, false, false, 1> Kin_KMBalD_TFF;
+typedef ecmech::KineticsKMBalD<false, false, false, false, 1> Kin_KMBalD_FFF;
+typedef ecmech::KineticsVocePL<false> Kin_FCC_A;
+typedef ecmech::KineticsVocePL<true> Kin_FCC_AH;
+typedef Kin_KMBalD_FFF Kin_FCC_B;
+typedef ecmech::SlipGeomBCC<12> SlipGeom_BCC_A;
+typedef Kin_KMBalD_TFF Kin_BCC_A;
+typedef ecmech::SlipGeomHCPaBRYcaY1 SlipGeom_HCP_A;
+typedef ecmech::KineticsKMBalD<true, true, true, true, SlipGeom_HCP_A::nslip> Kin_HCP_A;
 
 // Should probably figure out a better way to do this sometime in the future...
-typedef pyEvptn_norm<ecmech::SlipGeomFCC, ecmech::Kin_FCC_A, ecmech::evptn::ThermoElastNCubic, ecmech::EosModelConst<false> > pyMatModelEvptn_FCC_A;
-typedef pyEvptn_norm<ecmech::SlipGeomFCC, ecmech::Kin_FCC_AH, ecmech::evptn::ThermoElastNCubic, ecmech::EosModelConst<false> > pyMatModelEvptn_FCC_AH;
-typedef pyEvptn_norm<ecmech::SlipGeomFCC, ecmech::Kin_FCC_B, ecmech::evptn::ThermoElastNCubic, ecmech::EosModelConst<false> > pyMatModelEvptn_FCC_B;
-typedef pyEvptn_norm<ecmech::SlipGeom_BCC_A, ecmech::Kin_BCC_A, ecmech::evptn::ThermoElastNCubic, ecmech::EosModelConst<false> > pyMatModelEvptn_BCC_A;
-typedef pyEvptn_norm<ecmech::SlipGeom_BCC_A, ecmech::Kin_FCC_A, ecmech::evptn::ThermoElastNCubic, ecmech::EosModelConst<false> > pyMatModelEvptn_BCC_B;
-typedef pyEvptn_norm<ecmech::SlipGeom_BCC_A, ecmech::Kin_FCC_AH, ecmech::evptn::ThermoElastNCubic, ecmech::EosModelConst<false> > pyMatModelEvptn_BCC_BH;
-typedef pyEvptn_norm<ecmech::SlipGeom_HCP_A, ecmech::Kin_HCP_A, ecmech::evptn::ThermoElastNHexag, ecmech::EosModelConst<false> > pyMatModelEvptn_HCP_A;
+typedef pyEvptn_norm<ecmech::SlipGeomFCC, Kin_FCC_A, ecmech::evptn::ThermoElastNCubic, ecmech::EosModelConst<false> > pyMatModelEvptn_FCC_A;
+typedef pyEvptn_norm<ecmech::SlipGeomFCC, Kin_FCC_AH, ecmech::evptn::ThermoElastNCubic, ecmech::EosModelConst<false> > pyMatModelEvptn_FCC_AH;
+typedef pyEvptn_norm<ecmech::SlipGeomFCC, Kin_FCC_B, ecmech::evptn::ThermoElastNCubic, ecmech::EosModelConst<false> > pyMatModelEvptn_FCC_B;
+typedef pyEvptn_norm<SlipGeom_BCC_A, Kin_BCC_A, ecmech::evptn::ThermoElastNCubic, ecmech::EosModelConst<false> > pyMatModelEvptn_BCC_A;
+typedef pyEvptn_norm<SlipGeom_BCC_A, Kin_FCC_A, ecmech::evptn::ThermoElastNCubic, ecmech::EosModelConst<false> > pyMatModelEvptn_BCC_B;
+typedef pyEvptn_norm<SlipGeom_BCC_A, Kin_FCC_AH, ecmech::evptn::ThermoElastNCubic, ecmech::EosModelConst<false> > pyMatModelEvptn_BCC_BH;
+typedef pyEvptn_norm<SlipGeom_HCP_A, Kin_HCP_A, ecmech::evptn::ThermoElastNHexag, ecmech::EosModelConst<false> > pyMatModelEvptn_HCP_A;
 
 #endif
 
