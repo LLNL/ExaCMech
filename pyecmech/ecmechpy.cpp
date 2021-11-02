@@ -189,9 +189,9 @@ pyECMechDev::pyECMechDev(std::string model_name, py_darray &params)
    } else if (std::string(model_name) == "voce_nl_fcc_norm") {
       model = new pyMatModelEvptn_FCC_AH(cparams);
    } else if (std::string(model_name) == "voce_bcc_norm") {
-      model = new pyMatModelEvptn_BCC_voce(cparams);
+      model = new pyMatModelEvptn_BCC_B(cparams);
    } else if (std::string(model_name) == "voce_nl_bcc_norm") {
-      model = new pyMatModelEvptn_BCC_voce_nl(cparams);
+      model = new pyMatModelEvptn_BCC_BH(cparams);
    } else if (std::string(model_name) == "km_bal_dd_fcc_norm") {
       model = new pyMatModelEvptn_FCC_B(cparams);
    } else if (std::string(model_name) == "km_bal_dd_bcc_norm") {
