@@ -7,3 +7,4 @@
 #cmakedefine ECMECH_DEBUG
 #cmakedefine ECMECH_PY
 #cmakedefine ECMECH_PYDEV
+#cmakedefine ECMECH_NON_CORAL1_MACHINE
