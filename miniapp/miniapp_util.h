@@ -40,7 +40,7 @@ T *allocate(RAJA::Index_type size)
   cudaErrchk(
       cudaMallocManaged((void **)&ptr, sizeof(T) * size, cudaMemAttachGlobal));
 #elif defined(RAJA_ENABLE_HIP)
-      hipErrchk(hipHostMalloc((void **)&ptr, sizeof(T) * size));
+      hipErrchk(hipMalloc((void **)&ptr, sizeof(T) * size));
 #else
   ptr = new T[size];
 #endif
