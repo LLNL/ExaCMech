@@ -33,33 +33,47 @@ enum class ExecutionStrategy { CPU, CUDA, HIP, OPENMP };
 namespace memoryManager
 {
   template <typename T>
-T *allocate(RAJA::Index_type size)
+  T *allocate(RAJA::Index_type size, bool host)
 {
   T *ptr;
 #if defined(RAJA_ENABLE_CUDA)
-  cudaErrchk(
-      cudaMallocManaged((void **)&ptr, sizeof(T) * size, cudaMemAttachGlobal));
+  if (!host) {
+     cudaErrchk(
+       cudaMallocManaged((void **)&ptr, sizeof(T) * size, cudaMemAttachGlobal));
+  }
+  else 
 #elif defined(RAJA_ENABLE_HIP)
-      hipErrchk(hipMalloc((void **)&ptr, sizeof(T) * size));
-#else
-  ptr = new T[size];
+  if (!host) {
+     hipErrchk(hipMalloc((void **)&ptr, sizeof(T) * size));
+  }
+  else
 #endif
+  {
+    ptr = new T[size];
+  }
   return ptr;
 }
 
 template <typename T>
-void deallocate(T *&ptr)
+void deallocate(T *&ptr, bool host)
 {
-  if (ptr) {
+   if (ptr){
 #if defined(RAJA_ENABLE_CUDA)
-    cudaErrchk(cudaFree(ptr));
+      if (!host) {
+         cudaErrchk(cudaFree(ptr));
+      }
+      else
 #elif defined(RAJA_ENABLE_HIP)
-    hipErrchk(hipHostFree(ptr));
-#else
-    delete[] ptr;
+      if (!host) {
+         hipErrchk(hipFree(ptr));
+      }
+      else
 #endif
-    ptr = nullptr;
-  }
+      {
+         delete[] ptr;
+      }
+      ptr = nullptr;
+   }
 }
 
 #if defined(RAJA_ENABLE_CUDA) || defined(RAJA_ENABLE_HIP)

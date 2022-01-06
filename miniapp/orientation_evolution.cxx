@@ -157,6 +157,7 @@ int main(int argc, char *argv[]){
    // in scope without running into memory issues.
    //
    int num_state_vars;
+   bool host = true;
    //
    {
       // All the input arguments
@@ -290,11 +291,13 @@ int main(int argc, char *argv[]){
 #endif
 #if defined(RAJA_ENABLE_CUDA)
       else if (device_type.compare("CUDA") == 0) {
+         host = false;
          class_device = ECM_EXEC_STRAT_CUDA;
       }
 #endif
 #if defined(RAJA_ENABLE_HIP)
       else if (device_type.compare("HIP") == 0) {
+         host = false;
          class_device = ECM_EXEC_STRAT_HIP;
       }
 #endif
@@ -368,8 +371,8 @@ int main(int argc, char *argv[]){
 
       // We're now initializing our state variables and vgrad to be used in other parts
       // of the simulations.
-      state_vars = memoryManager::allocate<double>(num_state_vars * nqpts);
-      vgrad = memoryManager::allocate<double>(nqpts * ecmech::ndim * ecmech::ndim);
+      state_vars = memoryManager::allocate<double>(num_state_vars * nqpts, host);
+      vgrad = memoryManager::allocate<double>(nqpts * ecmech::ndim * ecmech::ndim, host);
 
       double* quats_array = quats.data();
 
@@ -381,60 +384,61 @@ int main(int argc, char *argv[]){
 
    // The stress array is the only one of the below variables that needs to be
    // initialized to 0.
-   stress_array = memoryManager::allocate<double>(nqpts * ecmech::nsvec);
+   stress_array = memoryManager::allocate<double>(nqpts * ecmech::nsvec, host);
    for (int i = 0; i < nqpts * ecmech::nsvec; i++) {
       stress_array[i] = 0.0;
    }
 
    // We'll leave these uninitialized for now, since they're set in the
    // setup_data function.
-   ddsdde_array = memoryManager::allocate<double>(nqpts * ecmech::nsvec * ecmech::nsvec);
-   eng_int_array = memoryManager::allocate<double>(nqpts * ecmech::ne);
-   w_vec_array = memoryManager::allocate<double>(nqpts * ecmech::nwvec);
-   vol_ratio_array = memoryManager::allocate<double>(nqpts * ecmech::nvr);
-   stress_svec_p_array = memoryManager::allocate<double>(nqpts * ecmech::nsvp);
-   d_svec_p_array = memoryManager::allocate<double>(nqpts * ecmech::nsvp);
-   temp_array = memoryManager::allocate<double>(nqpts);
-   sdd_array = memoryManager::allocate<double>(nqpts * ecmech::nsdd);
+   ddsdde_array = memoryManager::allocate<double>(nqpts * ecmech::nsvec * ecmech::nsvec, host);
+   eng_int_array = memoryManager::allocate<double>(nqpts * ecmech::ne, host);
+   w_vec_array = memoryManager::allocate<double>(nqpts * ecmech::nwvec, host);
+   vol_ratio_array = memoryManager::allocate<double>(nqpts * ecmech::nvr, host);
+   stress_svec_p_array = memoryManager::allocate<double>(nqpts * ecmech::nsvp, host);
+   d_svec_p_array = memoryManager::allocate<double>(nqpts * ecmech::nsvp, host);
+   temp_array = memoryManager::allocate<double>(nqpts, host);
+   sdd_array = memoryManager::allocate<double>(nqpts * ecmech::nsdd, host);
 
 #if defined(RAJA_ENABLE_HIP)
+   if (class_device == ECM_EXEC_STRAT_HIP) {
+      // We'll leave these uninitialized for now, since they're set in the
+      // setup_data function.
+      d_state_vars = memoryManager::allocate_gpu<double>(num_state_vars * nqpts);
+      d_vgrad = memoryManager::allocate_gpu<double>(nqpts * ecmech::ndim * ecmech::ndim);
+      d_stress_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nsvec);
 
-   // We'll leave these uninitialized for now, since they're set in the
-   // setup_data function.
-   d_state_vars = memoryManager::allocate_gpu<double>(num_state_vars * nqpts);
-   d_vgrad = memoryManager::allocate_gpu<double>(nqpts * ecmech::ndim * ecmech::ndim);
-   d_stress_array = memoryManager::allocate<double>(nqpts * ecmech::nsvec);
+      hipErrchk(hipMemcpy( d_state_vars, state_vars, num_state_vars * nqpts * sizeof(double), hipMemcpyHostToDevice ));
+      hipErrchk(hipMemcpy( d_vgrad, vgrad, nqpts * ecmech::ndim * ecmech::ndim * sizeof(double), hipMemcpyHostToDevice ));
+      hipErrchk(hipMemcpy( d_stress_array, stress_array, nqpts * ecmech::nsvec * sizeof(double), hipMemcpyHostToDevice ));
 
-   hipErrchk(hipMemcpy( d_state_vars, state_vars, num_state_vars * nqpts * sizeof(double), hipMemcpyHostToDevice ));
-   hipErrchk(hipMemcpy( d_vgrad, vgrad, nqpts * ecmech::ndim * ecmech::ndim * sizeof(double), hipMemcpyHostToDevice ));
-   hipErrchk(hipMemcpy( d_stress_array, stress_array, nqpts * ecmech::nsvec * sizeof(double), hipMemcpyHostToDevice ));
-
-   d_ddsdde_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nsvec * ecmech::nsvec);
-   d_eng_int_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::ne);
-   d_w_vec_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nwvec);
-   d_vol_ratio_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nvr);
-   d_stress_svec_p_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nsvp);
-   d_d_svec_p_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nsvp);
-   d_temp_array = memoryManager::allocate_gpu<double>(nqpts);
-   d_sdd_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nsdd);
-
-#else
-
-   // We'll leave these uninitialized for now, since they're set in the
-   // setup_data function.
-   d_state_vars = state_vars;
-   d_vgrad = vgrad;
-   d_stress_array = stress_array;
-   d_ddsdde_array = ddsdde_array;
-   d_eng_int_array = eng_int_array;
-   d_w_vec_array = w_vec_array;
-   d_vol_ratio_array = vol_ratio_array;
-   d_stress_svec_p_array = stress_svec_p_array;
-   d_d_svec_p_array = d_d_svec_p_array;
-   d_temp_array = temp_array;
-   d_sdd_array = sdd_array;
-
-#endif
+      d_ddsdde_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nsvec * ecmech::nsvec);
+      d_eng_int_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::ne);
+      d_w_vec_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nwvec);
+      d_vol_ratio_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nvr);
+      d_stress_svec_p_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nsvp);
+      d_d_svec_p_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nsvp);
+      d_temp_array = memoryManager::allocate_gpu<double>(nqpts);
+      d_sdd_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nsdd);
+   }
+   else
+#endif 
+   {
+      // We'll leave these uninitialized for now, since they're set in the
+      // setup_data function.
+      d_state_vars = state_vars;
+      d_vgrad = vgrad;
+      d_stress_array = stress_array;
+      d_ddsdde_array = ddsdde_array;
+      d_eng_int_array = eng_int_array;
+      d_w_vec_array = w_vec_array;
+      d_vol_ratio_array = vol_ratio_array;
+      d_stress_svec_p_array = stress_svec_p_array;
+      d_d_svec_p_array = d_svec_p_array;
+      d_temp_array = temp_array;
+      d_sdd_array = sdd_array;
+   }
+   
 
    double stress_avg[6];
    double wts = 1.0 / nqpts;
@@ -601,32 +605,32 @@ int main(int argc, char *argv[]){
 
    // Delete all variables declared using the memory allocator now.
 
-   memoryManager::deallocate(state_vars);
-   memoryManager::deallocate(vgrad);
-   memoryManager::deallocate(stress_array);
-   memoryManager::deallocate(stress_svec_p_array);
-   memoryManager::deallocate(d_svec_p_array);
-   memoryManager::deallocate(w_vec_array);
-   memoryManager::deallocate(ddsdde_array);
-   memoryManager::deallocate(vol_ratio_array);
-   memoryManager::deallocate(eng_int_array);
-   memoryManager::deallocate(temp_array);
-   memoryManager::deallocate(sdd_array);
+   memoryManager::deallocate(state_vars, host);
+   memoryManager::deallocate(vgrad, host);
+   memoryManager::deallocate(stress_array, host);
+   memoryManager::deallocate(stress_svec_p_array, host);
+   memoryManager::deallocate(d_svec_p_array, host);
+   memoryManager::deallocate(w_vec_array, host);
+   memoryManager::deallocate(ddsdde_array, host);
+   memoryManager::deallocate(vol_ratio_array, host);
+   memoryManager::deallocate(eng_int_array, host);
+   memoryManager::deallocate(temp_array, host);
+   memoryManager::deallocate(sdd_array, host);
 
 #if defined(RAJA_ENABLE_HIP)
-
-   memoryManager::deallocate_gpu(d_state_vars);
-   memoryManager::deallocate_gpu(d_vgrad);
-   memoryManager::deallocate_gpu(d_stress_array);
-   memoryManager::deallocate_gpu(d_stress_svec_p_array);
-   memoryManager::deallocate_gpu(d_d_svec_p_array);
-   memoryManager::deallocate_gpu(d_w_vec_array);
-   memoryManager::deallocate_gpu(d_ddsdde_array);
-   memoryManager::deallocate_gpu(d_vol_ratio_array);
-   memoryManager::deallocate_gpu(d_eng_int_array);
-   memoryManager::deallocate_gpu(d_temp_array);
-   memoryManager::deallocate_gpu(d_sdd_array);
-
+   if (class_device == ECM_EXEC_STRAT_HIP) {
+      memoryManager::deallocate_gpu(d_state_vars);
+      memoryManager::deallocate_gpu(d_vgrad);
+      memoryManager::deallocate_gpu(d_stress_array);
+      memoryManager::deallocate_gpu(d_stress_svec_p_array);
+      memoryManager::deallocate_gpu(d_d_svec_p_array);
+      memoryManager::deallocate_gpu(d_w_vec_array);
+      memoryManager::deallocate_gpu(d_ddsdde_array);
+      memoryManager::deallocate_gpu(d_vol_ratio_array);
+      memoryManager::deallocate_gpu(d_eng_int_array);
+      memoryManager::deallocate_gpu(d_temp_array);
+      memoryManager::deallocate_gpu(d_sdd_array);
+   }
 #endif
 
    return 0;
