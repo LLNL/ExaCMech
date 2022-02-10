@@ -27,7 +27,7 @@ namespace ecmech {
 
          // constructor
          __ecmech_hdev__
-         KineticsAnisoVocePL(int nslip_) {};
+         KineticsAnisoVocePL(int /* nslip_ */) {};
          // deconstructor
          __ecmech_hdev__
          ~KineticsAnisoVocePL() {}
@@ -58,10 +58,10 @@ namespace ecmech {
             // Voce hardening stuff
 
             _h0 = *parsIt; ++parsIt;
-            for(int i = 0; i < nslip; i++)
-            {
+            for (int i = 0; i < nslip; i++) {
                _tausi[i] = *parsIt; ++parsIt;
             }
+
             _taus0 = *parsIt; ++parsIt;
 
             if (nonlinear) {
@@ -82,15 +82,16 @@ namespace ecmech {
 
             //////////////////////////////
 
-            int iParam = parsIt - params.begin();
-            assert(iParam == nParams);
+            assert((parsIt - params.begin()) == nParams);
          }
 
          __ecmech_host__
          inline void getParams(std::vector<double> & params
                                ) const {
+#ifdef ECMECH_DEBUG
             // do not clear params in case adding to an existing set
             int paramsStart = params.size();
+#endif
 
             //////////////////////////////
             // power-law stuff
@@ -103,9 +104,10 @@ namespace ecmech {
             // Voce hardening stuff
 
             params.push_back(_h0);
-            for(int i = 0; i < _nslip; i++) {
+            for (int i = 0; i < _nslip; i++) {
                params.push_back(_tausi[i]);
             }
+
             params.push_back(_taus0);
             params.push_back(_xms);
             params.push_back(_gamss0);
@@ -116,9 +118,9 @@ namespace ecmech {
             params.push_back(_hdn_init);
 
             //////////////////////////////
-
-            int iParam = params.size() - paramsStart;
-            assert(iParam == nParams);
+#ifdef ECMECH_DEBUG
+            assert((params.size() - paramsStart) == nParams);
+#endif
          }
 
          __ecmech_host__
@@ -306,7 +308,7 @@ namespace ecmech {
                                                         &hs_u_1[0], &hs_o[0], dt, gdot,
                                                         outputLevel);
 
-            for(int i = 0; i < _nslip; i++) {
+            for (int i = 0; i < _nslip; i++) {
                hs_u[i] = hs_u_1[i];
             }
 
@@ -342,12 +344,12 @@ namespace ecmech {
             double shrate_eff = evolVals[0];
             double sv_sat = evolVals[1];
 
-            for(int i = 0; i < _nslip * _nslip; i++) {
+            for (int i = 0; i < _nslip * _nslip; i++) {
                dsdot_ds[i] = 0.0;
             }
 
-            for(int iSlip = 0; iSlip < _nslip; iSlip++) {
-               //When the below ternary op is true then sdot and dsdot_ds remain zero.
+            for (int iSlip = 0; iSlip < _nslip; iSlip++) {
+               // When the below ternary op is true then sdot and dsdot_ds remain zero.
                double temp2 = (sv_sat <= _tausi[iSlip]) ? zero : one / (sv_sat - _tausi[iSlip]);
 
                // IF (PRESENT(dfdtK)) THEN

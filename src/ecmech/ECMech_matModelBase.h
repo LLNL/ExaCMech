@@ -9,7 +9,8 @@
 
 #include "ECMech_core.h"
 
-#define DUMPVECOSS(aname,a) oss << aname << " : "; for ( unsigned int iThing=0 ; iThing<a.size() ; ++iThing) { if ( iThing ) oss << ", "; oss << a[iThing] ; } oss << std::endl;
+#define DUMPVECOSS(aname, a) oss << aname << " : "; \
+   for (unsigned int iThing = 0; iThing<a.size(); ++iThing) { if (iThing) { oss << ", "; } oss << a[iThing]; } oss << std::endl;
 
 namespace ecmech {
    // **************** //
@@ -63,9 +64,9 @@ namespace ecmech {
             std::vector<std::string> strs;
             this->getParams(opts, pars, strs);
             oss << "evptn constitutive model" << std::endl;
-            DUMPVECOSS("  opts",opts);
-            DUMPVECOSS("  pars",pars);
-            DUMPVECOSS("  strs",strs);
+            DUMPVECOSS("  opts", opts);
+            DUMPVECOSS("  pars", pars);
+            DUMPVECOSS("  strs", strs);
          };
 
          /**

@@ -240,14 +240,14 @@ namespace ecmech {
                resid[i] = (x[i] * _x_scale[i] - sdot[i] * _dt) * _res_scale[i];
             }
 
-            if(Jacobian) {
-
+            if (Jacobian) {
                // Multiply dsdot_ds terms by the negative outer product of x_scale and res_scale and dt
                for (int i = 0; i < nDimSys; i++) {
                   for (int j = 0; j < nDimSys; j++) {
                      Jacobian[ECMECH_NN_INDX(i, j, nDimSys)] *= -_x_scale[j] * _res_scale[i] * _dt;
                   }
                }
+
                // Now add in the identity term
                // The below is based on the assumption that _res_scale = 1/_x_scale
                // if this were to change in the future version than this would need to become

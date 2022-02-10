@@ -8,7 +8,6 @@
 #include "ECMech_slipgeom.h"
 
 namespace ecmech {
-   
    typedef KineticsKMBalD<true, false, false, false, 1> Kin_KMBalD_TFF;
    typedef KineticsKMBalD<false, false, false, false, 1> Kin_KMBalD_FFF;
 
@@ -45,6 +44,5 @@ namespace ecmech {
                            EosModelConst<false> > matModelEvptn_HCP_A;
 
    __ecmech_host__
-   matModelBase* makeMatModel( const std::string &modelName );
-   
+   matModelBase* makeMatModel(const std::string &modelName);
 }

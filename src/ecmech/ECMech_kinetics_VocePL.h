@@ -74,15 +74,16 @@ namespace ecmech {
 
             //////////////////////////////
 
-            int iParam = parsIt - params.begin();
-            assert(iParam == nParams);
+            assert((parsIt - params.begin()) == nParams);
          }
 
          __ecmech_host__
          inline void getParams(std::vector<double> & params
                                ) const {
+#ifdef ECMECH_DEBUG
             // do not clear params in case adding to an existing set
             int paramsStart = params.size();
+#endif
 
             //////////////////////////////
             // power-law stuff
@@ -107,8 +108,9 @@ namespace ecmech {
 
             //////////////////////////////
 
-            int iParam = params.size() - paramsStart;
-            assert(iParam == nParams);
+#ifdef ECMECH_DEBUG            
+            assert((params.size() - paramsStart) == nParams);
+#endif
          }
 
          __ecmech_host__
@@ -322,7 +324,7 @@ namespace ecmech {
          {
             double shrate_eff = evolVals[0];
             double sv_sat = evolVals[1];
-            //When the below ternary op is true then sdot and dsdot_ds remain zero.
+            // When the below ternary op is true then sdot and dsdot_ds remain zero.
             double temp2 = (sv_sat <= _tausi) ? zero : one / (sv_sat - _tausi);
 
             // IF (PRESENT(dfdtK)) THEN

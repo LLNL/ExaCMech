@@ -58,10 +58,9 @@ namespace ecmech {
          __ecmech_hdev__ ~SlipGeomFCC() {};
 
          __ecmech_host__
-         void setParams(const std::vector<double> & params
+         void setParams(const std::vector<double> & /* params */
                         )
          {
-            std::vector<double>::const_iterator parsIt = params.begin();
 
             // m = (/ sqr3i, sqr3i, sqr3i /)
             // s = (/ zero, sqr2i, -sqr2i /)
@@ -98,21 +97,12 @@ namespace ecmech {
 
             fillFromMS(this->_P_ref_vec, this->_Q_ref_vec,
                        mVecs, sVecs, this->nslip);
-
-            int iParam = parsIt - params.begin();
-            assert(iParam == nParams);
          };
 
          __ecmech_host__
-         void getParams(std::vector<double> & params
+         void getParams(std::vector<double> & /* params */
                         ) const {
             // do not clear params in case adding to an existing set
-            int paramsStart = params.size();
-
-            // params.push_back(); // no parameters
-
-            int iParam = params.size() - paramsStart;
-            assert(iParam == nParams);
          }
 
          __ecmech_hdev__ inline const double* getP() const { return _P_ref_vec; };
@@ -132,8 +122,8 @@ namespace ecmech {
    {
       private:
          static const int _nslipAddBase = 12;
-         static const int _nslipAddPGa  = 12;
-         static const int _nslipAddPGb  = 24;
+         static const int _nslipAddPGa = 12;
+         static const int _nslipAddPGb = 24;
 
       public:
 
@@ -141,8 +131,8 @@ namespace ecmech {
          static const int nParams = 0;
 
          static const int nslipBase = _nslipAddBase;
-         static const int nslipPGa  = _nslipAddBase+_nslipAddPGa;
-         static const int nslipPGb  = _nslipAddBase+_nslipAddPGa+_nslipAddPGb;
+         static const int nslipPGa = _nslipAddBase + _nslipAddPGa;
+         static const int nslipPGb = _nslipAddBase + _nslipAddPGa + _nslipAddPGb;
 
          // constructor and destructor
          __ecmech_hdev__  SlipGeomBCC() {
@@ -151,10 +141,9 @@ namespace ecmech {
          __ecmech_hdev__ ~SlipGeomBCC() {};
 
          __ecmech_host__
-         void setParams(const std::vector<double> & params
+         void setParams(const std::vector<double> & /* params */
                         )
          {
-            std::vector<double>::const_iterator parsIt = params.begin();
 
             std::vector<double> mVecs;
             std::vector<double> sVecs;
@@ -197,12 +186,12 @@ namespace ecmech {
                sVecs.insert(sVecs.end(), &(sVecsThese[0]), &(sVecsThese[nslipThese * ecmech::ndim]));
             }
 
-            if ( nslip >= nslipPGa ) {
+            if (nslip >= nslipPGa) {
                const double twSqr6i = 2.0 * sqr6i;
 
                // 12 {112}<111> slip systems
                const int nslipThese = _nslipAddPGa;
-               
+
                const double mVecsThese[ nslipThese * ecmech::ndim ] = {
                   -twSqr6i, sqr6i, sqr6i,
                   sqr6i, -twSqr6i, sqr6i,
@@ -233,16 +222,16 @@ namespace ecmech {
                };
                mVecs.insert(mVecs.end(), &(mVecsThese[0]), &(mVecsThese[nslipThese * ecmech::ndim]));
                sVecs.insert(sVecs.end(), &(sVecsThese[0]), &(sVecsThese[nslipThese * ecmech::ndim]));
-            }               
+            }
 
-            if ( nslip >= nslipPGb ) {
+            if (nslip >= nslipPGb) {
                const double mPg2a = 1.0 / sqrt(14.0);
                const double mPg2b = 2.0 / sqrt(14.0);
                const double mPg2c = 3.0 / sqrt(14.0);
-               
+
                // 24 {123}<111> slip systems
                const int nslipThese = _nslipAddPGb;
-               
+
                const double mVecsThese[ nslipThese * ecmech::ndim ] = {
                   mPg2c, -mPg2a, -mPg2b,
                   -mPg2b, mPg2c, -mPg2a,
@@ -297,25 +286,16 @@ namespace ecmech {
                };
                mVecs.insert(mVecs.end(), &(mVecsThese[0]), &(mVecsThese[nslipThese * ecmech::ndim]));
                sVecs.insert(sVecs.end(), &(sVecsThese[0]), &(sVecsThese[nslipThese * ecmech::ndim]));
-            }               
-            
+            }
+
             fillFromMS(this->_P_ref_vec, this->_Q_ref_vec,
                        &(mVecs[0]), &(sVecs[0]), this->nslip);
-
-            int iParam = parsIt - params.begin();
-            assert(iParam == nParams);
          };
 
          __ecmech_host__
-         void getParams(std::vector<double> & params
+         void getParams(std::vector<double> & /* params */
                         ) const {
             // do not clear params in case adding to an existing set
-            int paramsStart = params.size();
-
-            // params.push_back(); // no parameters
-
-            int iParam = params.size() - paramsStart;
-            assert(iParam == nParams);
          }
 
          __ecmech_hdev__ inline const double* getP() const { return _P_ref_vec; };
@@ -324,7 +304,6 @@ namespace ecmech {
       private:
          double _P_ref_vec[ ecmech::ntvec * nslip ];
          double _Q_ref_vec[ ecmech::nwvec * nslip ];
-
    }; // SlipGeomBCC
 
    /**
@@ -447,20 +426,22 @@ namespace ecmech {
             fillFromMS(this->_P_ref_vec, this->_Q_ref_vec,
                        mVecs, sVecs, this->nslip);
 
-            int iParam = parsIt - params.begin();
-            assert(iParam == nParams);
+            assert((parsIt - params.begin()) == nParams);
          };
 
          __ecmech_host__
          void getParams(std::vector<double> & params
                         ) const {
+#ifdef ECMECH_DEBUG
             // do not clear params in case adding to an existing set
             int paramsStart = params.size();
+#endif
 
             params.push_back(_cOverA);
 
-            int iParam = params.size() - paramsStart;
-            assert(iParam == nParams);
+#ifdef ECMECH_DEBUG
+            assert((params.size() - paramsStart) == nParams);
+#endif
          }
 
          __ecmech_hdev__ inline const double* getP() const { return _P_ref_vec; };

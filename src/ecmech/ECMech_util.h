@@ -1211,7 +1211,7 @@ namespace ecmech {
    inline
    void
    m_to_o_dir(double* const dir_o, // ecmech::ndim
-              const double* const dir_m,  // ecmech::nMiller
+              const double* const dir_m, // ecmech::nMiller
               double cOverA
               ) {
       // note: this does not assume SUM(dir_m[:]) = 0

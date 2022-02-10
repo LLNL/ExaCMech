@@ -4,12 +4,12 @@
 #define ECMECH_EOS_SIMPLE_H
 
 #include "ECMech_core.h"
+#include "ECMech_util.h"
 
 #include <string>
 #include <vector>
 
 namespace ecmech {
-   
    template<bool isothermal>
    class EosModelConst
    {
@@ -102,17 +102,17 @@ namespace ecmech {
             double eta = one / v;
             double mu = eta - one;
 
+            tK = this->evalT(e);
+
             if (isothermal) {
                p = _bulkMod * mu;
-               tK = _tK0;
                dpde = zero;
                dtde = 1e-8 * _dtde; // instead of zero, to prevent divide-by-zero elsewhere
             }
             else {
                p = _bulkMod * mu + _gamma * e;
-               tK = _tK0 + e * _dtde;
                dpde = _gamma;
-               dtde = _dtde ;
+               dtde = _dtde;
             }
             bulkNew = _bulkMod * eta;
          }
@@ -143,6 +143,20 @@ namespace ecmech {
 
       private:
 
+         __ecmech_hdev__
+         inline double evalT(double  e) const {
+            double tK;
+            if (isothermal) {
+               tK = _tK0;
+            }
+            else {
+               tK = _tK0 + e * _dtde;
+            }
+            return tK;
+         }
+
+      private:
+
          // parameters
          double _rho0, _bulkMod, _gamma, _ec0, _cvav;
 
@@ -166,14 +180,14 @@ namespace ecmech {
                      double  eOld,
                      double  pOld)
    {
-      // double vOld = volRatio[0] ; // not needed
 
       eNew = eOld - volInc * pOld;
 
       eos.evalPTDiff(press, tK, bulkNew, dpde, dtde, vNew, eNew);
       dpdv = -bulkNew / vNew;
 
-      bulkNew = bulkNew + dpde * pOld * vNew;
+      double bulkMin = 1e-5 * eos.getBulkRef();
+      bulkNew = fmax(bulkMin, bulkNew + dpde * pOld * vNew);
    }
 } // namespace ecmech
 
