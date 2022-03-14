@@ -63,6 +63,12 @@ namespace ecmech {
                            evptn::ThermoElastNHexag,
                            EosModelConst<false> > matModelEvptn_HCP_A;
 
+
+   typedef KineticsBCCMD<SlipGeomBCCPencil> Kin_BCC_MD;
+   typedef evptn::EvptnUpdstProblem<SlipGeomBCCPencil, Kin_BCC_MD, evptn::ThermoElastNCubic> EvptnUpsdtProblem_BCC_MD;
+   typedef snls::SNLSTrDlDenseG<EvptnUpsdtProblem_BCC_MD> EvptnSolver_BCC_MD;
+   typedef evptn::matModel<SlipGeomBCCPencil, Kin_BCC_MD, evptn::ThermoElastNCubic, EosModelConst<false> > matModelEvptn_BCC_MD;
+
    __ecmech_host__
    matModelBase* makeMatModel(const std::string &modelName);
 }

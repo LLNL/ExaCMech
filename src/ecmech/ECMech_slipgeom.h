@@ -45,11 +45,45 @@ namespace ecmech {
          // in some approaches, it is useful to form the outer product of P_vecd with itself, for tangent stiffness contributions
       }
    }
-
-   class SlipGeomFCC
+   
+   template<int Nslip>
+   class SlipGeom {
+      public:
+         static const int nslip = Nslip;
+          
+         __ecmech_hdev__ inline const double* getP() const { return _P_ref_vec; };
+         __ecmech_hdev__ inline const double* getQ() const { return _Q_ref_vec; };
+         __ecmech_hdev__ inline const double* getM() const { return _m_ref_vec; };
+         __ecmech_hdev__ inline const double* getS() const { return _s_ref_vec; };
+         
+         __ecmech_hdev__ inline virtual void getPQ(double* chia, 
+                                                   double* _P_vec, 
+                                                   double* _Q_vec, 
+                                                   const double* const Svec = nullptr) const 
+         {
+             for (int iSlip = 0; iSlip < nslip; iSlip++) {
+                 chia[iSlip] = ecmech::zero;
+                 for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
+                     _P_vec[iSlip*ecmech::ntvec + iTvec] = _P_ref_vec[iTvec];
+                 }
+                 for (int iWvec = 0; iWvec < ecmech::ntvec; ++iWvec) {
+                     _Q_vec[iSlip*ecmech::ntvec + iWvec] = _Q_ref_vec[iWvec];
+                 }
+             }
+         };
+       
+      protected:
+         double _m_ref_vec[ ecmech::ndim * nslip ];
+         double _s_ref_vec[ ecmech::ndim * nslip ];
+         double _P_ref_vec[ ecmech::ntvec * nslip ];
+         double _Q_ref_vec[ ecmech::nwvec * nslip ];
+   };
+   
+   
+   class SlipGeomFCC /*: public SlipGeom<12>*/
    {
       public:
-
+         static const bool dynamic = 0;
          static const int nslip = 12;
          static const int nParams = 0;
 
@@ -119,12 +153,15 @@ namespace ecmech {
          __ecmech_hdev__ inline const double* getQ() const { return _Q_ref_vec; };
          __ecmech_hdev__ inline const double* getM() const { return _m_ref_vec; };
          __ecmech_hdev__ inline const double* getS() const { return _s_ref_vec; };
+         
+         __ecmech_hdev__ inline virtual void getPQ(double* chia, double* _P_vec, double* _Q_vec, const double* const Svec) const {};
+         
+     private:
+        double _m_ref_vec[ ecmech::ndim * nslip];
+        double _s_ref_vec[ ecmech::ndim * nslip];
+        double _P_ref_vec[ ecmech::ntvec * nslip ];
+        double _Q_ref_vec[ ecmech::nwvec * nslip ];
 
-      private:
-         double _m_ref_vec[ ecmech::ndim * nslip];
-         double _s_ref_vec[ ecmech::ndim * nslip];
-         double _P_ref_vec[ ecmech::ntvec * nslip ];
-         double _Q_ref_vec[ ecmech::nwvec * nslip ];
    }; // SlipGeomFCC
 
    /**
@@ -132,7 +169,7 @@ namespace ecmech {
     *
     */
    template<int nSlipTmplt>
-   class SlipGeomBCC
+   class SlipGeomBCC /*: public SlipGeom<nSlipTmplt>*/
    {
       private:
          static const int _nslipAddBase = 12;
@@ -140,7 +177,7 @@ namespace ecmech {
          static const int _nslipAddPGb = 24;
 
       public:
-
+         static const bool dynamic = 0;
          static const int nslip = nSlipTmplt;
          static const int nParams = 0;
 
@@ -323,16 +360,20 @@ namespace ecmech {
             // do not clear params in case adding to an existing set
          }
 
+
          __ecmech_hdev__ inline const double* getP() const { return _P_ref_vec; };
          __ecmech_hdev__ inline const double* getQ() const { return _Q_ref_vec; };
          __ecmech_hdev__ inline const double* getM() const { return _m_ref_vec; };
          __ecmech_hdev__ inline const double* getS() const { return _s_ref_vec; };
+         
+         __ecmech_hdev__ inline virtual void getPQ(double* chia, double* _P_vec, double* _Q_vec, const double* const Svec) const {};
 
       private:
          double _m_ref_vec[ ecmech::ndim * nslip];
          double _s_ref_vec[ ecmech::ndim * nslip];
          double _P_ref_vec[ ecmech::ntvec * nslip ];
          double _Q_ref_vec[ ecmech::nwvec * nslip ];
+
    }; // SlipGeomBCC
 
    /**
@@ -343,10 +384,10 @@ namespace ecmech {
     * fix me : the coding below is a hack just to get things going ;
     * it is not the best way of doing things, and modifications should be made with great care
     */
-   class SlipGeomHCPaBRYcaY1
+   class SlipGeomHCPaBRYcaY1 /*: public SlipGeom<3 + 3 + 6 + 12>*/
    {
       public:
-
+         static const bool dynamic = 0;
          // 3  slip systems in basal <a> family
          // 3  slip systems in prismatic <a> family
          // 6  slip systems in pyramidal <a> family
@@ -482,6 +523,8 @@ namespace ecmech {
          __ecmech_hdev__ inline const double* getQ() const { return _Q_ref_vec; };
          __ecmech_hdev__ inline const double* getM() const { return _m_ref_vec; };
          __ecmech_hdev__ inline const double* getS() const { return _s_ref_vec; };
+         
+         __ecmech_hdev__ inline virtual void getPQ(double* chia, double* _P_vec, double* _Q_vec, const double* const Svec) const {};
 
       private:
          double _cOverA;
@@ -489,7 +532,116 @@ namespace ecmech {
          double _s_ref_vec[ ecmech::ndim * nslip];
          double _P_ref_vec[ ecmech::ntvec * nslip ];
          double _Q_ref_vec[ ecmech::nwvec * nslip ];
+    
    }; // SlipGeomHCPaBRYcaY1
+   
+   
+   class SlipGeomBCCPencil : public SlipGeom<4>
+   {
+      public:
+
+         static const bool dynamic = 1;
+         //static const int nslip = 4;
+         static const int nParams = 0;
+
+         // constructor and destructor
+         __ecmech_hdev__  SlipGeomBCCPencil() {};
+         __ecmech_hdev__ ~SlipGeomBCCPencil() {};
+
+         __ecmech_host__
+         void setParams(const std::vector<double> & /* params */
+                        )
+         {
+            // s = (/ sqr3i, sqr3i, sqr3i /)
+            //
+         const double P3 = sqr3i, M3 = -sqr3i;
+         const double P2 = sqr2i, M2 = -sqr2i;
+         const double Z = zero;
+         
+         const double sVecs[ nslip * ecmech::ndim ] = {
+               P3, P3, P3,
+               M3, P3, P3,
+               P3, M3, P3,
+               P3, P3, M3};
+               
+         const double mVecs[ nslip * ecmech::ndim ] = {
+               Z, M2, P2,
+               Z, M2, P2,
+               Z, P2, P2,
+               Z, P2, P2};
+
+            fillFromMS(this->_P_ref_vec, this->_Q_ref_vec,
+                       mVecs, sVecs, this->nslip);
+
+            for (int i = 0; i < nslip * ecmech::ndim; i++) {
+               _s_ref_vec[i] = sVecs[i];
+               _m_ref_vec[i] = mVecs[i];
+            }
+
+            // assert((parsIt - params.begin()) == nParams);
+         };
+
+         __ecmech_host__
+         void getParams(std::vector<double> & /* params */
+                        ) const {
+            // do not clear params in case adding to an existing set
+         }
+
+         __ecmech_hdev__ inline void getPQ(double* chia, double* _P_vec, double* _Q_vec, const double* const Svec) const
+         {
+             double mVecs[nslip * ecmech::ndim];
+             
+             for (int iSlip = 0; iSlip < nslip; ++iSlip) {
+                 const double* sVec = &_s_ref_vec[iSlip * ecmech::ndim];
+                 double S[ecmech::ndim * ecmech::ndim];
+                 // Svec: 11' 22' 33' 23 31 12 p
+                 S[ECMECH_NN_INDX(0, 0, 3)] = Svec[0] + ecmech::onethird * Svec[6];
+                 S[ECMECH_NN_INDX(1, 1, 3)] = Svec[1] + ecmech::onethird * Svec[6];
+                 S[ECMECH_NN_INDX(2, 2, 3)] = Svec[2] + ecmech::onethird * Svec[6];
+                 S[ECMECH_NN_INDX(1, 2, 3)] = S[ECMECH_NN_INDX(2, 1, 3)] = Svec[3];
+                 S[ECMECH_NN_INDX(2, 0, 3)] = S[ECMECH_NN_INDX(0, 2, 3)] = Svec[4];
+                 S[ECMECH_NN_INDX(0, 1, 3)] = S[ECMECH_NN_INDX(1, 0, 3)] = Svec[5];
+                 
+                 // PK force direction
+                 double fpk[ecmech::ndim];
+                 vecsVMa<ecmech::ndim>(fpk, S, sVec);
+                 // Normal direction
+                 double* mVec = &mVecs[iSlip * ecmech::ndim];
+                 vecCrossProd(mVec, sVec, fpk);
+                 vecsVNormalize<ecmech::ndim>(mVec);
+                 
+                 // MRSSP angle
+                 double n0Vec[ecmech::ndim] = { //n0 = 1/sqrt(2)*(2*b[0],-b[1],-b[2])
+                      2.0*sqr2i*sVec[0],
+                     -1.0*sqr2i*sVec[1],
+                     -1.0*sqr2i*sVec[2]
+                 };
+                 double t0Vec[ecmech::ndim];
+                 vecCrossProd(t0Vec, n0Vec, sVec);
+                 double fx = vecsyadotb<ecmech::ndim>(fpk, t0Vec);
+                 double fy = vecsyadotb<ecmech::ndim>(fpk, n0Vec);
+                 double chi = atan2(fy, fx)-M_PI/6.0;
+                 // Fold into T/AT primary region
+                 if (chi > 1.0*M_PI/6.0 && chi <= 3.0*M_PI/6.0) {
+                     chi = M_PI/3.0-chi;
+                 } else if (chi > 3.0*M_PI/6.0 && chi <= 5.0*M_PI/6.0) {
+                     chi -= 2.0*M_PI/3.0;
+                 } else if (chi >= -7.0*M_PI/6.0 && chi < -5.0*M_PI/6.0) {
+                     chi = -M_PI-chi;
+                 } else if (chi >= -5.0*M_PI/6.0 && chi < -3.0*M_PI/6.0) {
+                     chi += 2.0*M_PI/3.0;
+                 } else if (chi >= -3.0*M_PI/6.0 && chi < -1.0*M_PI/6.0) {
+                     chi = -M_PI/3.0-chi;
+                 }
+                 chia[iSlip] = chi;
+             }
+             
+             fillFromMS(_P_vec, _Q_vec, mVecs, _s_ref_vec, nslip);
+         };
+
+   }; // SlipGeomBCCPencil
+   
+   
 } // namespace ecmech
 
 #endif // ECMECH_SLIPGEOM_H

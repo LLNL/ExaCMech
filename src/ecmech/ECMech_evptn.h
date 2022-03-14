@@ -609,22 +609,45 @@ namespace ecmech {
                double T_vecds[ecmech::nsvec];
                this->elastNEtoT(T_vecds, e_vecd_f);
                //
-               double taua[SlipGeom::nslip] = { 0.0 }; // crys%tmp4_slp
+               //double taua[SlipGeom::nslip] = { 0.0 }; // crys%tmp4_slp
                double dgdot_dtau[SlipGeom::nslip] = { 0.0 }; // crys%tmp2_slp
                double dgdot_dg[SlipGeom::nslip] = { 0.0 }; // crys%tmp3_slp
                double pl_vecd[ecmech::ntvec] = { 0.0 };
                double pl_wvec[ecmech::nwvec] = { 0.0 }; // \pcDhat
+               
+               // Changes to allow for dynamic slip systems.
+               // Probably need to do the same in evptnFI
+               const double* slipP;
+               const double* slipQ;
+               double P[ecmech::ntvec * SlipGeom::nslip];
+               double Q[ecmech::nwvec * SlipGeom::nslip];
+               // We'll use taua to pass the chia values as the second half of the array
+               // so that we don't need to change the signature of evalGdots()
+               double taua[2*SlipGeom::nslip] = { 0.0 };
+               if (SlipGeom::dynamic) {
+                   double SvecP[ecmech::nsvec+1];
+                   vecdsToSvecP(SvecP, T_vecds);
+                   _slipGeom.getPQ(&taua[SlipGeom::nslip], P, Q, SvecP);
+                   slipP = P;
+                   slipQ = Q;
+               } else {
+                   slipP = _slipGeom.getP();
+                   slipQ = _slipGeom.getQ();
+               }
+               
                if (SlipGeom::nslip > 0) {
                   // resolve stress onto slip systems
                   // CALL resolve_tau_a_n(crys%tmp4_slp, s_meas%T_vecds, crys)
-                  vecsVaTM<ntvec, SlipGeom::nslip>(taua, T_vecds, _slipGeom.getP() );
+                  vecsVaTM<ntvec, SlipGeom::nslip>(taua, T_vecds, slipP);
                   //
                   // CALL plaw_eval(pl_vecd, pl_wvec, gss, crys, tK, ierr)
+                  // chi values are passed within extended taua array
                   _kinetics.evalGdots(_gdot, dgdot_dtau, dgdot_dg, taua, _kin_vals);
+                  
                   //
                   // CALL sum_slip_def(pl_vecd, pl_wvec, crys%tmp1_slp, crys) ;
-                  vecsVMa<ntvec, SlipGeom::nslip>(pl_vecd, _slipGeom.getP(), _gdot);
-                  vecsVMa<nwvec, SlipGeom::nslip>(pl_wvec, _slipGeom.getQ(), _gdot);
+                  vecsVMa<ntvec, SlipGeom::nslip>(pl_vecd, slipP, _gdot);
+                  vecsVMa<nwvec, SlipGeom::nslip>(pl_wvec, slipQ, _gdot);
                }
                //
                //// shrate_l%gdot => crys%tmp1_slp
@@ -688,7 +711,7 @@ namespace ecmech {
                      // CALL eval_dtaua_deps_n(dtaua_deps, s_meas%dT_deps, crys)
                      //
                      double dtaua_deps[ ecmech::ntvec * SlipGeom::nslip ];
-                     _thermoElastN.multDTDepsT(dtaua_deps, _slipGeom.getP(), _a_V_ri, SlipGeom::nslip);
+                     _thermoElastN.multDTDepsT(dtaua_deps, slipP, _a_V_ri, SlipGeom::nslip);
 
                      // CALL plaw_eval_dif_sn(TVEC, &
                      // & dpl_deps_symm, dpl_deps_skew, dgdot_deps, &
@@ -709,8 +732,8 @@ namespace ecmech {
                      // & crys%Q_ref_vec(:,islip) * dgdot_deps(i_TVEC,islip)
                      // END DO
                      // END DO
-                     vecsMABT<ntvec, SlipGeom::nslip>(dpl_deps_symm, _slipGeom.getP(), dgdot_deps);
-                     vecsMABT<nwvec, ntvec, SlipGeom::nslip>(dpl_deps_skew, _slipGeom.getQ(), dgdot_deps);
+                     vecsMABT<ntvec, SlipGeom::nslip>(dpl_deps_symm, slipP, dgdot_deps);
+                     vecsMABT<nwvec, ntvec, SlipGeom::nslip>(dpl_deps_skew, slipQ, dgdot_deps);
                   }
                   //
                   //

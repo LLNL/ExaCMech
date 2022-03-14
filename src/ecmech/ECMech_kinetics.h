@@ -318,5 +318,6 @@ namespace ecmech {
 #include "ECMech_kinetics_KMBalD.h"
 #include "ECMech_kinetics_VocePL.h"
 #include "ECMech_kinetics_OrowanD.h"
+#include "ECMech_kinetics_BCCMD.h"
 
 #endif // ECMECH_KINETICS_H

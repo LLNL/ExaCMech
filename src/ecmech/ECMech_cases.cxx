@@ -44,6 +44,10 @@ namespace ecmech {
          ecmech::matModelEvptn_HCP_A* mmECMEvptn = new ecmech::matModelEvptn_HCP_A();
          matModel = dynamic_cast<ecmech::matModelBase*>(mmECMEvptn);
       }
+      else if (modelName == "evptn_BCC_MD") {
+         ecmech::matModelEvptn_BCC_MD* mmECMEvptn = new ecmech::matModelEvptn_BCC_MD();
+         matModel = dynamic_cast<ecmech::matModelBase*>(mmECMEvptn);
+      }
       else {
          std::string msg = std::string("model name not recognized : ") + modelName;
          ECMECH_FAIL(__func__, msg.c_str());
