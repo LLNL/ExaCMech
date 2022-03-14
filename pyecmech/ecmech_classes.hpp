@@ -433,6 +433,9 @@ typedef pyEvptn_norm<SlipGeom_BCC_A, Kin_FCC_A, ecmech::evptn::ThermoElastNCubic
 typedef pyEvptn_norm<SlipGeom_BCC_A, Kin_FCC_AH, ecmech::evptn::ThermoElastNCubic, ecmech::EosModelConst<false> > pyMatModelEvptn_BCC_BH;
 typedef pyEvptn_norm<SlipGeom_HCP_A, Kin_HCP_A, ecmech::evptn::ThermoElastNHexag, ecmech::EosModelConst<false> > pyMatModelEvptn_HCP_A;
 
+typedef ecmech::KineticsBCCMD<ecmech::SlipGeomBCCPencil> Kin_BCC_MD;
+typedef pyEvptn_norm<ecmech::SlipGeomBCCPencil, Kin_BCC_MD, ecmech::evptn::ThermoElastNCubic, ecmech::EosModelConst<false> > pyMatModelEvptn_BCC_MD;
+
 #endif
 
 #endif
