@@ -59,7 +59,7 @@ namespace ecmech {
          __ecmech_hdev__ inline virtual void getPQ(double* chia, 
                                                    double* _P_vec, 
                                                    double* _Q_vec, 
-                                                   const double* const Svec = nullptr) const 
+                                                   const double* const /* Svec = nullptr */) const 
          {
              for (int iSlip = 0; iSlip < nslip; iSlip++) {
                  chia[iSlip] = ecmech::zero;
@@ -154,7 +154,7 @@ namespace ecmech {
          __ecmech_hdev__ inline const double* getM() const { return _m_ref_vec; };
          __ecmech_hdev__ inline const double* getS() const { return _s_ref_vec; };
          
-         __ecmech_hdev__ inline virtual void getPQ(double* chia, double* _P_vec, double* _Q_vec, const double* const Svec) const {};
+         __ecmech_hdev__ inline virtual void getPQ(double* /*chia*/, double* /*_P_vec*/, double* /*_Q_vec*/, const double* const /*Svec*/) const {};
          
      private:
         double _m_ref_vec[ ecmech::ndim * nslip];
@@ -366,7 +366,7 @@ namespace ecmech {
          __ecmech_hdev__ inline const double* getM() const { return _m_ref_vec; };
          __ecmech_hdev__ inline const double* getS() const { return _s_ref_vec; };
          
-         __ecmech_hdev__ inline virtual void getPQ(double* chia, double* _P_vec, double* _Q_vec, const double* const Svec) const {};
+         __ecmech_hdev__ inline virtual void getPQ(double* /*chia*/, double* /*_P_vec*/, double* /*_Q_vec*/, const double* const /*Svec*/) const {};
 
       private:
          double _m_ref_vec[ ecmech::ndim * nslip];
@@ -524,7 +524,7 @@ namespace ecmech {
          __ecmech_hdev__ inline const double* getM() const { return _m_ref_vec; };
          __ecmech_hdev__ inline const double* getS() const { return _s_ref_vec; };
          
-         __ecmech_hdev__ inline virtual void getPQ(double* chia, double* _P_vec, double* _Q_vec, const double* const Svec) const {};
+         __ecmech_hdev__ inline virtual void getPQ(double* /*chia*/, double* /*_P_vec*/, double* /*_Q_vec*/, const double* const /*Svec*/) const {};
 
       private:
          double _cOverA;

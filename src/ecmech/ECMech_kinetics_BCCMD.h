@@ -111,6 +111,7 @@ namespace ecmech {
             // bound for example related to the dislocation content that you don't want the
             // model to go under when you start try to update your hardening state.
             _hdn_init = *parsIt; ++parsIt;
+            _hdn_min = 1e-4 * _hdn_init;
 
             //////////////////////////////
 
@@ -192,6 +193,7 @@ namespace ecmech {
          //////////////////////////////
          // nH
          double _hdn_init;
+         double _hdn_min;
 
       public:
 
@@ -230,6 +232,7 @@ namespace ecmech {
                  double* const val_derivs = nullptr
                  ) const
          {
+            assert(val_derivs == nullptr);
             double crss = ecmech::zero;
             for (int iSlip = 0; iSlip < _nslip; ++iSlip) {
                crss += h_state[iSlip];
@@ -264,6 +267,9 @@ namespace ecmech {
                    const double* const val_drivs = nullptr
                    ) const
          {
+            assert(dgdot_dh_conv == false);
+            assert(val_drivs == nullptr);
+
             for (int iSlip = 0; iSlip < _nslip; ++iSlip) {
                bool l_act;
                double gAll = vals[iSlip];
@@ -347,22 +353,33 @@ namespace ecmech {
                  const double* const gdot,
                  int outputLevel = 0) const
          {
-            // I'm probably not supposed to do this here but...
-            // but I don't understand what there is to solve in this case
-            for (int i = 0; i < _nslip; i++) {
-                double rhodot = (_k1*sqrt(hs_o[i])-_k2*sqrt(hs_o[i]))*gdot[i];
-                hs_u[i] = hs_o[i] + rhodot*dt;
-            }
+            double log_hs_u[SlipGeom::nslip];
+            double log_hs_o[SlipGeom::nslip];
             
-            int nFEvals = 1; // I guess returning 0 may raise some issues
+            for(int islip = 0; islip < SlipGeom::nslip; islip++) {
+               log_hs_o[islip] = log(fmax(hs_o[0], _hdn_min));
+            }
+
+            // If the equation is incredibly  stiff it's possible this won't solve
+            int nFEvals = updateHN<KineticsBCCMD>(this,
+                                                  log_hs_u, log_hs_o, dt, gdot,
+                                                  outputLevel);
+
+            for(int islip = 0; islip < SlipGeom::nslip; islip++) {
+               hs_u[islip] = exp(log_hs_u[islip]);;
+            }
+
             return nFEvals;
          }
          
          __ecmech_hdev__
          inline
          void
-         setH0Ext(double *const /*h0*/) const
+         setH0Ext(double *const h0) const
          {
+            for (int i = 0; i < nH; i++) {
+               h0[i] = log(fmax(h0[i], _hdn_min));
+            }
             return;
          }
          
@@ -375,8 +392,13 @@ namespace ecmech {
                     double *const       h,
                     const bool /*updateFinal*/) const
          {
+            // We always return the non-log form of h even though
+            // we get the log form in as we need to make use of the
+            // regular form within the kinetics update and gdot eval
+            // calculations
             for (int i = 0; i < nH; i++) {
-               h[i] = h0[i] + del_h[i] * del_h_scale[i];
+               const double factor = h0[i] + del_h[i] * del_h_scale[i];
+               h[i] = exp(factor);
             }
          }
          
@@ -387,12 +409,16 @@ namespace ecmech {
                       double* const dhdot_dh,
                       double* const dhdot_dgdot,
                       double* const /*dgdot_dh*/,
-                      const double* const hard,
+                      double* const hard,
                       const double* const gdot) const
          {
             double evolVals[nEvolVals];
             getEvolVals(evolVals, gdot);
-            //getSdotN(hdot, dhdot_dh, hard, evolVals, dhdot_dgdot);
+            // Transform this back into the log form for the later residual calculation
+            for(int islip = 0; islip < SlipGeom::nslip; islip++) {
+               hard[islip] = log(hard[islip]);
+            }
+            getSdotN(hdot, dhdot_dh, hard, evolVals, dhdot_dgdot);
          }
 
          /// This calculates the variables I'd mentioned up above and now again down below
@@ -424,7 +450,6 @@ namespace ecmech {
          /// evolVals - which are values calculated from getEvolVals
          /// This function is called from updateHN<KineticsBCCMD>
          /// and used as part of the nonlinear solve for the updated state
-         /*
          __ecmech_hdev__
          inline
          void
@@ -435,40 +460,42 @@ namespace ecmech {
                   double* const dsdot_dgdot = nullptr // optional parameter
                 ) const
          {
-            double shrate_eff = evolVals[0];
-            double sv_sat = evolVals[1];
-
-            for (int i = 0; i < _nslip * _nslip; i++) {
-               dsdot_ds[i] = 0.0;
+            assert(dsdot_dgdot == nullptr);
+            {
+               // we normally just assume  this value always exists
+               const int nslip2 = SlipGeom::nslip * SlipGeom::nslip;
+               for (int i = 0; i < nslip2; i++) {
+                  dsdot_ds[i] = ecmech::zero;
+               }
             }
-
-            for (int iSlip = 0; iSlip < _nslip; iSlip++) {
-               // When the below ternary op is true then sdot and dsdot_ds remain zero.
-               double temp2 = (sv_sat <= _tausi[iSlip]) ? zero : one / (sv_sat - _tausi[iSlip]);
-
-               // IF (PRESENT(dfdtK)) THEN
-               // dfdtK(1) = zero
-               // END IF
-               // Just throwing this in here for the tests
-               // in reality we would need to set dsdot_ds in another section
-               // after checking if it's a nullptr or not
-               assert(dsdot_ds != nullptr);
-               
-               //if (nonlinear) {
-                //  double temp1 = pow((sv_sat - h[iSlip]) * temp2, _xmprime1);
-                //  sdot[iSlip] = _h0 * temp1 * (sv_sat - h[iSlip]) * temp2 * shrate_eff;
-                //  dsdot_ds[ECMECH_NN_INDX(iSlip, iSlip, _nslip)] = -_h0 * temp2 * shrate_eff * _xmprime * temp1;
-               //}
-               //else {
-                  double temp1 = _h0 * ((sv_sat - h[iSlip]) * temp2);
-                  sdot[iSlip] = temp1 * shrate_eff;
-                  // double dfdshr = temp1 + _h0 * ( (h - _tausi) / (temp2*temp2)) * _xms * sv_sat ;
-                  dsdot_ds[ECMECH_NN_INDX(iSlip, iSlip, _nslip)] = -_h0 * temp2 * shrate_eff;
-               //}
+            // h = log(DD)
+            // dDD / dt = DD * dh / dt
+            // dh / dt = dDD / dt * 1 / DD
+            // d DD_i / dt = (k1 * sqrt(A_{ij} DD_j) - k2 * DD_i) * gammadot_i
+            // dh / dt = (k1 * sqrt(A_{ij} DD_j) / DD_i - k2) * gammadot_i
+            // specialized here for the A_{ij} = I
+            // dh / dt = (k1 / sqrt(DD_i) - k2) * gammadot_i
+            // specialized case
+            // \dot{h} / dh = -1/2 * k_1 * (DD)^{-1/2}
+            // more general case I believe if I did the derivs correctly...
+            // \dot{h^i} / dh_j = \dot{h^i} / d DD_j * d DD^j / d h_k
+            // d DD^j / d h_k = DD_j when j == k and 0 for j neq k
+            // for i neq j
+            // 1/2 *  \frac{k_1 * A_{ij}}{DD_i * \sqrt(A_{ij}DD_j)} * gammadot_i * DD_j
+            // for i == j
+            // (1/2 *  \frac{k_1 * A_{ij}}{DD_i * \sqrt(A_{ij}DD_j)} - \frac{k1 * \sqrt(A_{ij}DD_j)}{DD_i^2} ) * gammadot_i * DD_j
+            // = (\frac{k1 A_{ij} DD_i - 2 k1 * A_ij DD_j}{2 * DD^2_i * sqrt(A_{ij} * DD_j)}) gammadot_i * DD_j
+            // when A_ij = I this reduces down to
+            // -k1 / 2 * (DD_i)^{-1/2} * gammadot_i 
+            // which is what we get out in the regular MTS KM model so that's a good sign
+            // I did something right and the off diagonal terms are zero
+            for (int islip = 0; islip < SlipGeom::nslip; islip++) {
+               double temp_hs_a = exp(-onehalf * h[islip]);
+               double temp1 = _k1 * temp_hs_a - _k2;
+               sdot[islip] = temp1 * evolVals[islip];
+               dsdot_ds[ECMECH_NN_INDX(islip, islip, SlipGeom::nslip)] = (-_k1 * onehalf * temp_hs_a) * evolVals[islip];
             }
          }
-         */
-         
    }; // class KineticsBCCMD
 } // namespace ecmech
 
