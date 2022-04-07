@@ -11,6 +11,7 @@
 
 #include "SNLS_lup_solve.h"
 #include "SNLS_TrDLDenseG.h"
+#include "SNLS_HybrdTrDLDenseG.h"
 
 #include "RAJA/RAJA.hpp"
 
@@ -1110,29 +1111,35 @@ namespace ecmech {
             }
 
             snls::SNLSStatus_t status = solver.solve( );
-            //
+            snls::SNLSStatus_t status2 = status;
             if (status != snls::converged) {
+               ECMECH_WARN(__func__, "Trust Region Dogleg Solver failed to converge -- trying again with a Hybrid Nonlinear Solver");
+               snls::SNLSHybrdTrDLDenseG<EvptnUpdstProblem<SlipGeom, Kinetics, ThermoElastN> > solver2(prob);
+               static const int maxIter = 200;
+               deltaControl._xiDecDelta = 0.6;
+               solver2.setupSolver(maxIter, tolerance, &deltaControl, outputLevel);
+               for (int iX = 0; iX < prob.nDimSys; ++iX) {
+                  solver2.m_x[iX] = (status2 == snls::converged) ? solver2.m_x[iX] : 0.0;
+               }
+               status2 = solver2.solve( );
+               for (int iX = 0; iX < prob.nDimSys; ++iX) {
+                  solver._x[iX] = (status2 == snls::converged) ? solver2.m_x[iX] : 0.0;
+               }
 #ifdef __cuda_host_only__
-               ECMECH_WARN(__func__, "Solver failed to converge -- will try again with implicit elastic strain solve only");
-
-               // rerun to get more output for debugging
-               //
-               // get more output
-               // solver.setOutputlevel(10);
-               //
-               // reset initial guess
-               // for (int iX = 0; iX < prob.nDimSys; ++iX) {
-               //    solver._x[iX] = 0e0;
-               // }
-
-               //
-               // redo solve
-               // solver.solve( );
+               if (status2 != snls::converged) {
+                  std::cout << "trust region solver residual " << solver.getRes() << " exit status " << status << std::endl;
+                  std::cout << "hybrid solver residual " << solver2.getRes() << " exit status " << status2 << std::endl;
+               }
+#endif
+            }
+            //
+            if (status != snls::converged && status2 != snls::converged) {
+#ifdef __cuda_host_only__
+               ECMECH_WARN(__func__, "Both solvers failed to converge -- will try again with implicit elastic strain solve only");
 #endif
                return false;
                // ECMECH_FAIL(__func__, "Solver failed to converge!");
             }
-            // std::cout << "Function evaluations: " << solver.getNFEvals() << std::endl ;
 
             if (haveMtan) {
                double mtanSD_vecds[ ecmech::nsvec2 ];

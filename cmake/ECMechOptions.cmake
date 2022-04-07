@@ -25,6 +25,8 @@ option(ENABLE_SNLS_V03 "Enable building library with v0.3.0+ of SNLS" OFF)
 
 option(ENABLE_CUDA_WORKAROUND "Enable CUDA workaround for non-CORAL1 machines" OFF)
 
+option(ENABLE_EXTRA_SOLVERS "Enable extra solvers to be used if original solve fails" OFF)
+
 # Force atleast static if user turns off both
 if(NOT BUILD_STATIC_LIBS AND NOT BUILD_SHARED_LIBS)
     message("Both static and shared libaries were disabled."
