@@ -100,7 +100,7 @@ pyECMech::pyECMech(std::string model_name, py_darray &params)
       model = ecmech::makeMatModel("evptn_BCC_A");
       model->initFromParams(opts, cparams, strs);
    } else if (std::string(model_name) == "km_bal_dd_hcp_norm") {
-      model = ecmech::makeMatModel("evptn_FCC_A");
+      model = ecmech::makeMatModel("evptn_HCP_A");
       model->initFromParams(opts, cparams, strs);
    } else if (std::string(model_name) == "oro_dd_bcc_iso_norm") {
       model = ecmech::makeMatModel("evptn_BCC_B");
