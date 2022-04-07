@@ -272,11 +272,16 @@ namespace ecmech {
 
             for (int iSlip = 0; iSlip < _nslip; ++iSlip) {
                bool l_act;
+               double taua = tau[iSlip];
+               double chia = tau[SlipGeom::nslip+iSlip];
+               
+               //printf("sys[%d] tau = %e, chi = %e\n",iSlip,taua,chia*180.0/M_PI);
+               
                double gAll = vals[iSlip];
                // traditionally we have a separate function that will calculate everything
                // for only one slip system
                this->evalGdot(gdot[iSlip], l_act, dgdot_dtau[iSlip], dgdot_dg[iSlip],
-                              gAll, tau[iSlip], _mu);
+                              gAll, taua, _mu);
             }
          }
 
@@ -355,14 +360,16 @@ namespace ecmech {
          {
             double log_hs_u[SlipGeom::nslip];
             double log_hs_o[SlipGeom::nslip];
+            double gdotabs[SlipGeom::nslip];
             
             for(int islip = 0; islip < SlipGeom::nslip; islip++) {
                log_hs_o[islip] = log(fmax(hs_o[0], _hdn_min));
+               gdotabs[islip] = abs(gdot[islip]);
             }
 
             // If the equation is incredibly  stiff it's possible this won't solve
             int nFEvals = updateHN<KineticsBCCMD>(this,
-                                                  log_hs_u, log_hs_o, dt, gdot,
+                                                  log_hs_u, log_hs_o, dt, gdotabs,
                                                   outputLevel);
 
             for(int islip = 0; islip < SlipGeom::nslip; islip++) {
@@ -412,12 +419,14 @@ namespace ecmech {
                       double* const hard,
                       const double* const gdot) const
          {
+            double gdotabs[SlipGeom::nslip];
             double evolVals[nEvolVals];
-            getEvolVals(evolVals, gdot);
             // Transform this back into the log form for the later residual calculation
             for(int islip = 0; islip < SlipGeom::nslip; islip++) {
                hard[islip] = log(hard[islip]);
+               gdotabs[islip] = abs(gdot[islip]);
             }
+            getEvolVals(evolVals, gdotabs);
             getSdotN(hdot, dhdot_dh, hard, evolVals, dhdot_dgdot);
          }
 
@@ -434,11 +443,11 @@ namespace ecmech {
          inline
          void
          getEvolVals(double* const evolVals,
-                     const double* const gdot
+                     const double* const gdotabs
                      ) const
          {
             for (int i = 0; i < _nslip; i++) {
-                evolVals[i] = gdot[i];
+                evolVals[i] = gdotabs[i];
             }
          }
 

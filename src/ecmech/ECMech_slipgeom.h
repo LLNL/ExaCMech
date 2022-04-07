@@ -66,8 +66,8 @@ namespace ecmech {
                  for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
                      _P_vec[iSlip*ecmech::ntvec + iTvec] = _P_ref_vec[iTvec];
                  }
-                 for (int iWvec = 0; iWvec < ecmech::ntvec; ++iWvec) {
-                     _Q_vec[iSlip*ecmech::ntvec + iWvec] = _Q_ref_vec[iWvec];
+                 for (int iWvec = 0; iWvec < ecmech::nwvec; ++iWvec) {
+                     _Q_vec[iSlip*ecmech::nwvec + iWvec] = _Q_ref_vec[iWvec];
                  }
              }
          };
@@ -154,7 +154,7 @@ namespace ecmech {
          __ecmech_hdev__ inline const double* getM() const { return _m_ref_vec; };
          __ecmech_hdev__ inline const double* getS() const { return _s_ref_vec; };
          
-         __ecmech_hdev__ inline virtual void getPQ(double* /*chia*/, double* /*_P_vec*/, double* /*_Q_vec*/, const double* const /*Svec*/) const {};
+         __ecmech_hdev__ inline void getPQ(double* /*chia*/, double* /*_P_vec*/, double* /*_Q_vec*/, const double* const /*Svec*/) const {};
          
      private:
         double _m_ref_vec[ ecmech::ndim * nslip];
@@ -366,7 +366,7 @@ namespace ecmech {
          __ecmech_hdev__ inline const double* getM() const { return _m_ref_vec; };
          __ecmech_hdev__ inline const double* getS() const { return _s_ref_vec; };
          
-         __ecmech_hdev__ inline virtual void getPQ(double* /*chia*/, double* /*_P_vec*/, double* /*_Q_vec*/, const double* const /*Svec*/) const {};
+         __ecmech_hdev__ inline void getPQ(double* /*chia*/, double* /*_P_vec*/, double* /*_Q_vec*/, const double* const /*Svec*/) const {};
 
       private:
          double _m_ref_vec[ ecmech::ndim * nslip];
@@ -524,7 +524,7 @@ namespace ecmech {
          __ecmech_hdev__ inline const double* getM() const { return _m_ref_vec; };
          __ecmech_hdev__ inline const double* getS() const { return _s_ref_vec; };
          
-         __ecmech_hdev__ inline virtual void getPQ(double* /*chia*/, double* /*_P_vec*/, double* /*_Q_vec*/, const double* const /*Svec*/) const {};
+         __ecmech_hdev__ inline void getPQ(double* /*chia*/, double* /*_P_vec*/, double* /*_Q_vec*/, const double* const /*Svec*/) const {};
 
       private:
          double _cOverA;
@@ -589,6 +589,7 @@ namespace ecmech {
 
          __ecmech_hdev__ inline void getPQ(double* chia, double* _P_vec, double* _Q_vec, const double* const Svec) const
          {
+             double eps = 1e-10;
              double mVecs[nslip * ecmech::ndim];
              
              for (int iSlip = 0; iSlip < nslip; ++iSlip) {
@@ -603,12 +604,22 @@ namespace ecmech {
                  S[ECMECH_NN_INDX(0, 1, 3)] = S[ECMECH_NN_INDX(1, 0, 3)] = Svec[5];
                  
                  // PK force direction
-                 double fpk[ecmech::ndim];
-                 vecsVMa<ecmech::ndim>(fpk, S, sVec);
+                 double fpk[ecmech::ndim] = {0.0};
+                 double Sb[ecmech::ndim];
+                 vecsVMa<ecmech::ndim>(Sb, S, sVec);
+                 if (vecNorm<ecmech::ndim>(Sb) > eps) {
+                     vecCrossProd(fpk, Sb, sVec);
+                 }
+                 
                  // Normal direction
                  double* mVec = &mVecs[iSlip * ecmech::ndim];
-                 vecCrossProd(mVec, sVec, fpk);
-                 vecsVNormalize<ecmech::ndim>(mVec);
+                 if (vecNorm<ecmech::ndim>(fpk) > eps) {
+                     vecCrossProd(mVec, sVec, fpk);
+                     vecsVNormalize<ecmech::ndim>(mVec);
+                 } else {
+                     for (int i = 0; i < ecmech::ndim; i++)
+                        mVec[i] = _m_ref_vec[iSlip * ecmech::ndim + i];
+                 }
                  
                  // MRSSP angle
                  double n0Vec[ecmech::ndim] = { //n0 = 1/sqrt(2)*(2*b[0],-b[1],-b[2])
@@ -621,7 +632,7 @@ namespace ecmech {
                  double fx = vecsyadotb<ecmech::ndim>(fpk, t0Vec);
                  double fy = vecsyadotb<ecmech::ndim>(fpk, n0Vec);
                  double chi = atan2(fy, fx)-M_PI/6.0;
-                 // Fold into T/AT primary region
+                 // Fold into T/AT primary region (-30:30)
                  if (chi > 1.0*M_PI/6.0 && chi <= 3.0*M_PI/6.0) {
                      chi = M_PI/3.0-chi;
                  } else if (chi > 3.0*M_PI/6.0 && chi <= 5.0*M_PI/6.0) {

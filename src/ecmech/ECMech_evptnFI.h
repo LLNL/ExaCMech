@@ -247,7 +247,7 @@ namespace ecmech {
                double T_vecds[ecmech::nsvec];
                this->elastNEtoT(T_vecds, e_vecd_f);
                //
-               double taua[SlipGeom::nslip] = { 0.0 }; // crys%tmp4_slp
+               //double taua[SlipGeom::nslip] = { 0.0 }; // crys%tmp4_slp
                double dgdot_dtau[SlipGeom::nslip] = { 0.0 }; // crys%tmp2_slp
                // Would have dimensions of nslip x nH
                double dgdot_dh[SlipGeom::nslip * Kinetics::nH] = { 0.0 }; // crys%tmp3_slp
@@ -257,17 +257,38 @@ namespace ecmech {
                double pl_wvec[ecmech::nwvec] = { 0.0 }; // \pcDhat
                double dhdot_dh[Kinetics::nH * Kinetics::nH] = { 0.0 };
                double hdot[Kinetics::nH] = { 0.0 };
+               
+               // Changes to allow for dynamic slip systems.
+               // Probably need to do the same in evptnFI
+               const double* slipP;
+               const double* slipQ;
+               double P[ecmech::ntvec * SlipGeom::nslip];
+               double Q[ecmech::nwvec * SlipGeom::nslip];
+               // We'll use taua to pass the chia values as the second half of the array
+               // so that we don't need to change the signature of evalGdots()
+               double taua[2*SlipGeom::nslip] = { 0.0 };
+               if (SlipGeom::dynamic) {
+                   double SvecP[ecmech::nsvec+1];
+                   vecdsToSvecP(SvecP, T_vecds);
+                   _slipGeom.getPQ(&taua[SlipGeom::nslip], P, Q, SvecP);
+                   slipP = P;
+                   slipQ = Q;
+               } else {
+                   slipP = _slipGeom.getP();
+                   slipQ = _slipGeom.getQ();
+               }
+               
                if (SlipGeom::nslip > 0) {
                   // resolve stress onto slip systems
                   // CALL resolve_tau_a_n(crys%tmp4_slp, s_meas%T_vecds, crys)
-                  vecsVaTM<ntvec, SlipGeom::nslip>(taua, T_vecds, _slipGeom.getP() );
+                  vecsVaTM<ntvec, SlipGeom::nslip>(taua, T_vecds, slipP);
                   //
                   // CALL plaw_eval(pl_vecd, pl_wvec, gss, crys, tK, ierr)
                   _kinetics.evalGdots(_gdot, dgdot_dtau, dgdot_dh, taua, _kin_vals, true, vals_extra);
                   //
                   // CALL sum_slip_def(pl_vecd, pl_wvec, crys%tmp1_slp, crys) ;
-                  vecsVMa<ntvec, SlipGeom::nslip>(pl_vecd, _slipGeom.getP(), _gdot);
-                  vecsVMa<nwvec, SlipGeom::nslip>(pl_wvec, _slipGeom.getQ(), _gdot);
+                  vecsVMa<ntvec, SlipGeom::nslip>(pl_vecd, slipP, _gdot);
+                  vecsVMa<nwvec, SlipGeom::nslip>(pl_wvec, slipQ, _gdot);
                   // dgdot_dh may or may not be scaled by the below set of code to account for
                   // differences from the evaluation within _kinetics.evalGdots
                   _kinetics.getExtDerivs(hdot, dhdot_dh, dh_dgdot, dgdot_dh, hard, _gdot);
@@ -352,7 +373,7 @@ namespace ecmech {
                      // CALL eval_dtaua_deps_n(dtaua_deps, s_meas%dT_deps, crys)
                      //
                      double dtaua_deps[ ecmech::ntvec * SlipGeom::nslip ];
-                     _thermoElastN.multDTDepsT(dtaua_deps, _slipGeom.getP(), _a_V_ri, SlipGeom::nslip);
+                     _thermoElastN.multDTDepsT(dtaua_deps, slipP, _a_V_ri, SlipGeom::nslip);
 
                      // CALL plaw_eval_dif_sn(TVEC, &
                      // & dpl_deps_symm, dpl_deps_skew, dgdot_deps, &
@@ -375,8 +396,8 @@ namespace ecmech {
                      // & crys%Q_ref_vec(:,islip) * dgdot_deps(i_TVEC,islip)
                      // END DO
                      // END DO
-                     vecsMABT<ntvec, SlipGeom::nslip>(dpl_deps_symm, _slipGeom.getP(), dgdot_deps);
-                     vecsMABT<nwvec, ntvec, SlipGeom::nslip>(dpl_deps_skew, _slipGeom.getQ(), dgdot_deps);
+                     vecsMABT<ntvec, SlipGeom::nslip>(dpl_deps_symm, slipP, dgdot_deps);
+                     vecsMABT<nwvec, ntvec, SlipGeom::nslip>(dpl_deps_skew, slipQ, dgdot_deps);
                   }
                   //
                   //
@@ -439,7 +460,7 @@ namespace ecmech {
                       //Just a bunch of matrix products to get down to the
                       //5 x nh matrix 
                       double dR_e_dH[ecmech::ntvec * Kinetics::nH];
-                      vecsMAB<ecmech::ntvec, Kinetics::nH, SlipGeom::nslip>(dR_e_dH, _slipGeom.getP(), dgdot_dh);
+                      vecsMAB<ecmech::ntvec, Kinetics::nH, SlipGeom::nslip>(dR_e_dH, slipP, dgdot_dh);
                       RAJA::View<double, RAJA::Layout<JDIM> > jacob_eh(Jacobian, nDimSys, nDimSys);
                       for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
                         for (int jH = 0; jH < Kinetics::nH; ++jH) {
@@ -492,7 +513,7 @@ namespace ecmech {
                       //Just a bunch of matrix products to get down to the
                       //3 x nh matrix 
                       double dR_xi_dX_h[ecmech::nwvec * Kinetics::nH];
-                      vecsMAB<ecmech::nwvec, Kinetics::nH, SlipGeom::nslip>(dR_xi_dX_h, _slipGeom.getQ(), dgdot_dh);
+                      vecsMAB<ecmech::nwvec, Kinetics::nH, SlipGeom::nslip>(dR_xi_dX_h, slipQ, dgdot_dh);
                       RAJA::View<double, RAJA::Layout<JDIM> > jacob_rh(Jacobian, nDimSys, nDimSys);
                       for (int iWvec = 0; iWvec < ecmech::nwvec; ++iWvec) {
                         for (int jH = 0; jH < Kinetics::nH; ++jH) {
