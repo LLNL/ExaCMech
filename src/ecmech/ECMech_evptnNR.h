@@ -586,7 +586,7 @@ namespace ecmech {
             double* _mtan_sI; // null if not wanting tangent evaluation
       }; // class EvptnNRUpdstProblem
 
-      template<class SlipGeom>
+      template<class SlipGeom, class ThermoElastN>
       class RstarUpdProblem
       {
          public:
@@ -594,8 +594,9 @@ namespace ecmech {
             
             __ecmech_hdev__
             RstarUpdProblem(const SlipGeom& slipGeom,
+                            const ThermoElastN& thermoElastN,
                             double dt,
-                            double detV,
+                            double detV, double eVref, double p_EOS, double tK,
                             const double* const gdot,
                             const double* const e_vecd_n,
                             const double* const Cn_quat,
@@ -603,8 +604,12 @@ namespace ecmech {
                             const double* const w_veccp_sm)
                             : 
                _slipGeom(slipGeom),
+               _thermoElastN(thermoElastN),
                _dt(dt),
                _detV(detV),
+               _eVref(eVref),
+               _p_EOS(p_EOS),
+               _tK(tK),
                _gdot(gdot),
                _e_vecd_n(e_vecd_n),
                _Cn_quat(Cn_quat),
@@ -639,7 +644,30 @@ namespace ecmech {
                             const double* const x) {
                vecsVxa<nwvec>(emap, ecmech::r_scale, x );
             }
-
+            
+            __ecmech_hdev__
+            inline
+            void elastNEtoT(double* const T_vecds, // nsvec
+                            const double* const e_vecd_f // ntvec
+                            ) {
+               //// do not need to use elaw_T_BT here as T and BT are the same
+               //
+               // specialize to cem%l_lin_lnsd
+               // CALL elawn_T(s_meas, e_vecd_f, crys%elas, tK, .TRUE., a_V, &
+               // & p_EOS, eVref, crys%i_eos_model, crys%eos_const &
+               // &)
+               double Ee_vecds[ecmech::nsvec];
+               vecsVxa<ntvec>(Ee_vecds, _a_V_ri, e_vecd_f);
+               //// tr_Ee = three * DLOG(a_V%r)
+               //// CALL trace_to_vecds_s(s_meas%Ee_vecds(SVEC), tr_Ee)
+               Ee_vecds[iSvecS] = sqr3 * log(_a_V); // could go into constructor
+               //
+               //// Kirchhoff stress from Ee_vecds
+               // CALL elawn_lin_op(s_meas%T_vecds, s_meas%Ee_vecds, cem, tK, &
+               // & p_EOS, eVref, i_eos_model, eos_const)
+               _thermoElastN.eval(T_vecds, Ee_vecds, _tK, _p_EOS, _eVref);
+            }
+            
             __ecmech_hdev__
             bool computeRJ(double* const resid,
                            double* const Jacobian,
@@ -694,6 +722,29 @@ namespace ecmech {
 
                double pl_vecd[ecmech::ntvec] = { 0.0 };
                double pl_wvec[ecmech::nwvec] = { 0.0 }; // \pcDhat
+               
+               const double* slipP;
+               const double* slipQ;
+               double P[ecmech::ntvec * SlipGeom::nslip];
+               double Q[ecmech::nwvec * SlipGeom::nslip];
+               if (SlipGeom::dynamic) {
+                   double edot_vecd[ecmech::ntvec];
+                   vecsVxa<ntvec>(edot_vecd, ecmech::e_scale, &(x[_i_sub_e]) ); // edot_vecd is now the delta, _not_ yet edot_vecd
+                   double e_vecd_f[ntvec];
+                   vecsVapb<ntvec>(e_vecd_f, edot_vecd, _e_vecd_n);
+                   double T_vecds[ecmech::nsvec];
+                   this->elastNEtoT(T_vecds, e_vecd_f);
+                   double SvecP[ecmech::nsvec+1];
+                   vecdsToSvecP(SvecP, T_vecds);
+                   double chia[SlipGeom::nslip] = { 0.0 };
+                   _slipGeom.getPQ(chia, P, Q, SvecP);
+                   slipP = P;
+                   slipQ = Q;
+               } else {
+                   slipP = _slipGeom.getP();
+                   slipQ = _slipGeom.getQ();
+               }
+               
                if (SlipGeom::nslip > 0) {
                   //
                   // CALL sum_slip_def(pl_vecd, pl_wvec, crys%tmp1_slp, crys) ;
@@ -772,8 +823,9 @@ namespace ecmech {
             private:
 
             const SlipGeom &_slipGeom;
+            const ThermoElastN &_thermoElastN;
 
-            double _dt, _detV, _a_V;
+            double _dt, _detV, _eVref, _p_EOS, _tK, _a_V;
             double _dt_ri, _a_V_ri, _detV_ri;
 
             double _epsdot_scale_inv, _rotincr_scale_inv;
@@ -785,6 +837,7 @@ namespace ecmech {
             const double* const _w_veccp_sm;
 
             static const int _nXnDim = nDimSys * nDimSys;
+            static const int _i_sub_e = 0; // ntvec
       };
 
       /*
@@ -890,11 +943,13 @@ namespace ecmech {
          // gdot is still at beginning-of-step
          double rstar[ecmech::nwvec] = { 0.0 };
          {
-            RstarUpdProblem<SlipGeom> prob(slipGeom, dt, vNew,
-                                           gdot, e_vecd_n, quat_n,
-                                           d_vecd_sm, w_veccp_sm);
+            RstarUpdProblem<SlipGeom, ThermoElastN> prob(slipGeom, elastN,
+                                                         dt, 
+                                                         vNew, eNew, pEOS, tkelv,
+                                                         gdot, e_vecd_n, quat_n,
+                                                         d_vecd_sm, w_veccp_sm);
 
-            snls::SNLSTrDlDenseG<RstarUpdProblem<SlipGeom>> solver(prob);
+            snls::SNLSTrDlDenseG<RstarUpdProblem<SlipGeom, ThermoElastN>> solver(prob);
 
             snls::TrDeltaControl deltaControl;
             deltaControl._deltaInit = 1e0;
