@@ -33,14 +33,14 @@ namespace ecmech {
          /// Number of slip systems we're dealing with if it that is something useful
          static const int m_num_slip = SlipGeom::nslip;
          /// Number of parameters the model needs to be instantiated
-         static const int nParams = 4+3+1;
+         static const int nParams = 7+4+1;
          /// Number of slip kinetic related-variables outputted
          /// Think of this as things like the CRSS values, evolving reference
          /// slip rates for both thermal and phonon drag contributions, and potentially
          /// other evolving variables that we can calculate at the beginning of time
          /// step and not have to recalculate every iterations of our coupled solve
          /// of the elastic strain and lattice rotation
-         static const int nVals = SlipGeom::nslip;
+         static const int nVals = 2 * SlipGeom::nslip + 1;
          static const int nValsDerivs = SlipGeom::nslip;
          /// These are variables that the hardening equation would need to solve for
          /// its update but the variables are not constant themselves.
@@ -77,7 +77,13 @@ namespace ecmech {
             // This would be the power law exponent term
             _xm = *parsIt; ++parsIt;
             // This would be the references slip rate term
-            _gam_w = *parsIt; ++parsIt;
+            _gam_w0 = *parsIt; ++parsIt;
+            // Peierls stress
+            _tau_p = *parsIt; ++parsIt;
+            // Shear velocity
+            _vmax = *parsIt; ++parsIt;
+            // Drag stress
+            _tau_drag = *parsIt; ++parsIt;
 
             // CALL fill_power_law(pl)
             // xmm  = xm - one ;
@@ -101,6 +107,7 @@ namespace ecmech {
             _alpha = *parsIt; ++parsIt;
             _k1 = *parsIt; ++parsIt;
             _k2 = *parsIt; ++parsIt;
+            _krelax = *parsIt; ++parsIt;
             
             //////////////////////////////
             // nH
@@ -134,13 +141,17 @@ namespace ecmech {
             params.push_back(_mu);
             params.push_back(_bmag);
             params.push_back(_xm);
-            params.push_back(_gam_w);
+            params.push_back(_gam_w0);
+            params.push_back(_tau_p);
+            params.push_back(_vmax);
+            params.push_back(_tau_drag);
 
             //////////////////////////////
             // hardening stuff
             params.push_back(_alpha);
             params.push_back(_k1);
             params.push_back(_k2);
+            params.push_back(_krelax);
 
             //////////////////////////////
             // nH
@@ -180,7 +191,9 @@ namespace ecmech {
 
          double _mu, _bmag;
          double _xm;
-         double _gam_w;
+         double _gam_w0;
+         double _tau_p;
+         double _vmax, _tau_drag;
 
          // derived from parameters
          double _t_max, _t_min, _xn, _xnn;
@@ -188,7 +201,7 @@ namespace ecmech {
          //////////////////////////////
          // Hardening
          double _alpha;
-         double _k1, _k2;
+         double _k1, _k2, _krelax;
 
          //////////////////////////////
          // nH
@@ -212,7 +225,7 @@ namespace ecmech {
          inline double getFixedRefRate(const double* const // vals, not used
                                        ) const
          {
-            return _gam_w;
+            return _gam_w0;
          }
 
          /// This is where all of those kinetic values are evaluated
@@ -227,7 +240,7 @@ namespace ecmech {
          double
          getVals(double* const vals,
                  double, // p, not currently used
-                 double, // tK, not currently used
+                 double tK,
                  const double* const h_state,
                  double* const val_derivs = nullptr
                  ) const
@@ -238,15 +251,18 @@ namespace ecmech {
                crss += h_state[iSlip];
                assert(h_state[iSlip] > zero);
             }
-            crss = _alpha*_mu*_bmag*sqrt(crss);
+            crss = _alpha * _mu * _bmag * sqrt(crss);
             
             double mVals = ecmech::zero;
             for (int iSlip = 0; iSlip < _nslip; ++iSlip) {
                vals[iSlip] = crss;
+               vals[_nslip + iSlip] = h_state[iSlip];
                mVals += vals[iSlip];
                assert(vals[iSlip] > zero);
             }
             mVals /= _nslip;
+            
+            vals[2*_nslip] = tK;
 
             return mVals;
          }
@@ -269,19 +285,22 @@ namespace ecmech {
          {
             assert(dgdot_dh_conv == false);
             assert(val_drivs == nullptr);
+            
+            double tK = vals[2 * SlipGeom::nslip];
 
             for (int iSlip = 0; iSlip < _nslip; ++iSlip) {
                bool l_act;
                double taua = tau[iSlip];
-               double chia = tau[SlipGeom::nslip+iSlip];
+               double chia = tau[SlipGeom::nslip + iSlip];
                
                //printf("sys[%d] tau = %e, chi = %e\n",iSlip,taua,chia*180.0/M_PI);
                
-               double gAll = vals[iSlip];
+               double crss = vals[iSlip];
+               double rhoa = vals[SlipGeom::nslip + iSlip];
                // traditionally we have a separate function that will calculate everything
                // for only one slip system
                this->evalGdot(gdot[iSlip], l_act, dgdot_dtau[iSlip], dgdot_dg[iSlip],
-                              gAll, taua, _mu);
+                              crss, rhoa, taua, chia, tK);
             }
          }
 
@@ -298,9 +317,11 @@ namespace ecmech {
             bool  & l_act,
             double & dgdot_dtau, // wrt resolved shear stress
             double & dgdot_dg, // wrt slip system strength
-            double   gIn,
+            double   crss,
+            double   rho,
             double   tau,
-            double // mu, not currently used
+            double   chi,
+            double   tK
             ) const
          {
             // zero things so that can more easily just return in inactive
@@ -311,10 +332,25 @@ namespace ecmech {
             dgdot_dg = zero;
             
             l_act = false;
-
-            double g_i = one / gIn; // assume have checked gIn>0 elsewhere
-            double t_frac = tau * g_i; // has sign of tau
+            
+            double _gam_w = _gam_w0;
+            double tau_p = _tau_p;
+            
+            //double u = sin(chi) + 0.5; // 0 for T, 1 for AT
+            //tau_p = _tau_p + u * 0.5 * _tau_p;
+            double u = cos(chi + M_PI/6.0); // 1 for T, 0.5 for AT
+            tau_p = _tau_p + (1.0-u) * _tau_p;
+            double t_eff = fmax(fabs(tau) - tau_p, 0.0);
+            
+            //double u = cos(chi + M_PI/6.0); // 1 for T, 0.5 for AT
+            //double t_eff = fmax(fabs(u * tau) - tau_p, 0.0);
+            
+            double g_i = one / crss; // assume have checked gIn>0 elsewhere
+            double t_frac = t_eff * g_i;
+            t_frac = copysign(t_frac, tau); // has sign of tau
             double at = fabs(t_frac);
+            
+            double gmax = rho * _bmag * _vmax * (1.0-exp(-t_eff/_tau_drag));
 
             if (at > _t_min) {
                //
@@ -336,6 +372,12 @@ namespace ecmech {
 
                   dgdot_dtau = temp * _xnn * g_i; // note: always positive, = xnn * gdot/t
                   dgdot_dg = -dgdot_dtau * t_frac; // = - gdot * xnn * g_i
+                  
+                  if (fabs(gdot) > gmax) {
+                      gdot = copysign(gmax, tau);
+                      dgdot_dtau = zero;
+                      dgdot_dg = zero;
+                  }
                }
             }
          } // evalGdot
@@ -363,7 +405,7 @@ namespace ecmech {
             double gdotabs[SlipGeom::nslip];
             
             for(int islip = 0; islip < SlipGeom::nslip; islip++) {
-               log_hs_o[islip] = log(fmax(hs_o[0], _hdn_min));
+               log_hs_o[islip] = log(fmax(hs_o[islip], _hdn_min));
                gdotabs[islip] = abs(gdot[islip]);
             }
 
@@ -373,7 +415,8 @@ namespace ecmech {
                                                   outputLevel);
 
             for(int islip = 0; islip < SlipGeom::nslip; islip++) {
-               hs_u[islip] = exp(log_hs_u[islip]);;
+               //hs_u[islip] = exp(log_hs_u[islip]);
+               hs_u[islip] = fmax(exp(log_hs_u[islip]), _hdn_min);
             }
 
             return nFEvals;
@@ -477,6 +520,19 @@ namespace ecmech {
                   dsdot_ds[i] = ecmech::zero;
                }
             }
+            
+            double gdotmax = 0.0;
+            for (int islip = 0; islip < SlipGeom::nslip; islip++)
+                gdotmax = fmax(fabs(evolVals[islip]), gdotmax);
+            double frel[SlipGeom::nslip] = { 0.0 };
+            if (gdotmax > 0.0) {
+                for (int islip = 0; islip < SlipGeom::nslip; islip++) {
+                    double ratio = evolVals[islip] / gdotmax;
+                    frel[islip] = 1.0-1.0/(1.0+exp(-100.0*(ratio-0.01)));
+                    if (h[islip] < log(_hdn_min)) frel[islip] = 0.0;
+                }
+            }
+            
             // h = log(DD)
             // dDD / dt = DD * dh / dt
             // dh / dt = dDD / dt * 1 / DD
@@ -501,7 +557,7 @@ namespace ecmech {
             for (int islip = 0; islip < SlipGeom::nslip; islip++) {
                double temp_hs_a = exp(-onehalf * h[islip]);
                double temp1 = _k1 * temp_hs_a - _k2;
-               sdot[islip] = temp1 * evolVals[islip];
+               sdot[islip] = temp1 * evolVals[islip] - frel[islip] * _krelax;
                dsdot_ds[ECMECH_NN_INDX(islip, islip, SlipGeom::nslip)] = (-_k1 * onehalf * temp_hs_a) * evolVals[islip];
             }
          }
