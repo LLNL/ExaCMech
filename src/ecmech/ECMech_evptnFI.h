@@ -748,12 +748,6 @@ namespace ecmech {
                      }
                   } // SCALING
                } // doComputeJ
-               // std::cout << "residual: " << std::endl;
-               // for (int i = 0; i < nDimSys; i++)
-               // {
-               //    std::cout << resid[i] << " ";
-               // }
-               // std::cout << std::endl;
 
                return true;
             } // computeRJ
@@ -804,7 +798,6 @@ namespace ecmech {
        */
       template<class SlipGeom, class Kinetics, class ThermoElastN, class EosModel>
       __ecmech_hdev__
-      inline
       bool getResponseFISngl(const SlipGeom& slipGeom,
                              const Kinetics& kinetics,
                              const ThermoElastN& elastN,
@@ -914,7 +907,6 @@ namespace ecmech {
 
             snls::TrDeltaControl deltaControl;
             deltaControl._deltaInit = 1e0;
-            tolerance = 1e-10;
             {
                static const int maxIter = 200;
                solver.setupSolver(maxIter, tolerance, &deltaControl, outputLevel);
@@ -946,12 +938,10 @@ namespace ecmech {
                // redo solve
                solver.solve( );
 #endif
-               ECMECH_FAIL(__func__, "Back-up fully implicit solver failed to converge!");
                // False is for the CUDA run so we could catch this and fail if need be
                // after the fact
                return false;
             }
-            // std::cout << "Function evaluations: " << solver.getNFEvals() << std::endl ;
 
             if (haveMtan) {
                double mtanSD_vecds[ ecmech::nsvec2 ];

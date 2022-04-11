@@ -149,7 +149,6 @@ namespace ecmech {
             }
 
             __ecmech_hdev__
-            inline
             bool computeRJ(double* const resid,
                            double* const Jacobian,
                            const double* const x) {
@@ -642,7 +641,6 @@ namespace ecmech {
             }
 
             __ecmech_hdev__
-            inline
             bool computeRJ(double* const resid,
                            double* const Jacobian,
                            const double* const x) {
@@ -796,7 +794,6 @@ namespace ecmech {
        */
       template<class SlipGeom, class Kinetics, class ThermoElastN, class EosModel>
       __ecmech_hdev__
-      inline
       bool getResponseNRSngl(const SlipGeom& slipGeom,
                              const Kinetics& kinetics,
                              const ThermoElastN& elastN,
@@ -923,7 +920,6 @@ namespace ecmech {
 
             prob.stateFromX(rstar, solver._x);
 
-            std::cout << rstar[0] << " " << rstar[1] << " " << rstar[2] << std::endl;
          }
 
 
@@ -950,36 +946,35 @@ namespace ecmech {
             }
 
             snls::SNLSStatus_t status = solver.solve( );
-            //
+            snls::SNLSStatus_t status2 = status;
             if (status != snls::converged) {
-#ifdef __cuda_host_only__
-               ECMECH_WARN(__func__, "Back-up solver failed to converge -- will rerun to get output for debugging");
-
-               // rerun to get more output for debugging
-               //
-               // get more output
-               solver.setOutputlevel(10);
-               //
-               // reset initial guess
+               ECMECH_WARN(__func__, "Trust Region Dogleg Solver failed to converge -- trying again with a Hybrid Nonlinear Solver");
+               snls::SNLSHybrdTrDLDenseG<EvptnNRUpdstProblem<SlipGeom, Kinetics, ThermoElastN> > solver2(prob);
+               static const int maxIter = 200;
+               deltaControl._xiDecDelta = 0.6;
+               solver2.setupSolver(maxIter, tolerance, &deltaControl, outputLevel);
                for (int iX = 0; iX < prob.nDimSys; ++iX) {
-                  solver._x[iX] = 0e0;
+                  solver2.m_x[iX] = (status2 == snls::converged) ? solver2.m_x[iX] : 0.0;
                }
+               status2 = solver2.solve( );
 
-               //
-               // redo solve
-               solver.solve( );
+               for (int iX = 0; iX < prob.nDimSys; ++iX) {
+                  solver._x[iX] = (status2 == snls::converged) ? solver2.m_x[iX] : 0.0;
+               }
+#ifdef __cuda_host_only__
+               if (status2 != snls::converged) {
+                  std::cout << "trust region solver residual " << solver.getRes() << " exit status " << status << std::endl;
+                  std::cout << "hybrid solver residual " << solver2.getRes() << " exit status " << status2 << std::endl;
+               }
 #endif
-               ECMECH_FAIL(__func__, "Back-up solver failed to converge!");
-               // False is for the CUDA run so we could catch this and fail if need be
-               // after the fact
+            }
+            //
+            if (status != snls::converged && status2 != snls::converged) {
+#ifdef __cuda_host_only__
+               ECMECH_WARN(__func__, "Both back-up solvers failed to converge -- will rerun with fully implicit solve as last attempt to solve");
+#endif
                return false;
             }
-            // std::cout << "Function evaluations: " << solver.getNFEvals() << std::endl ;
-            double tmp[ecmech::ntvec];
-            prob.stateFromX(tmp, solver._x);
-
-            std::cout << tmp[0] << " " << tmp[1] << " " << tmp[2] << " " << tmp[3] << " " << tmp[4] << std::endl;
-
             if (haveMtan) {
                double mtanSD_vecds[ ecmech::nsvec2 ];
                prob.provideMTan(mtanSD_vecds);
