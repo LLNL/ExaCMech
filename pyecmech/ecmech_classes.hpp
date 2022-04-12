@@ -274,7 +274,7 @@ class pyEvptn_norm : public pyevptn_base
         // update hardness state to the end of the step
         // gdot is still at beginning-of-step
         //
-        kinetics.updateH(m_hard_u, h_state, dt, gdot);
+        kinetics.updateH(m_hard_u, h_state, dt, gdot, m_tkelv);
         m_vNew = m_volRatio[1];
 
         if (prob != nullptr)

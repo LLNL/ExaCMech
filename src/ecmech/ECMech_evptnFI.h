@@ -291,7 +291,7 @@ namespace ecmech {
                   vecsVMa<nwvec, SlipGeom::nslip>(pl_wvec, slipQ, _gdot);
                   // dgdot_dh may or may not be scaled by the below set of code to account for
                   // differences from the evaluation within _kinetics.evalGdots
-                  _kinetics.getExtDerivs(hdot, dhdot_dh, dh_dgdot, dgdot_dh, hard, _gdot);
+                  _kinetics.getExtDerivs(hdot, dhdot_dh, dh_dgdot, dgdot_dh, hard, _gdot, _tK);
                }
                //
                //// shrate_l%gdot => crys%tmp1_slp

@@ -300,11 +300,12 @@ namespace ecmech {
                  const double* const hs_o,
                  double dt,
                  const double* const gdot,
+                 double tK,
                  int outputLevel = 0) const
          {
             double hs_u_1;
             int nFEvals = updateH1<KineticsVocePL>(this,
-                                                   hs_u_1, hs_o[0], dt, gdot,
+                                                   hs_u_1, hs_o[0], dt, gdot, tK,
                                                    outputLevel);
             hs_u[0] = hs_u_1;
 
@@ -339,11 +340,12 @@ namespace ecmech {
                       double* const dhdot_dgdot,
                       double* const /*dgdot_dh*/,
                       const double* const hard,
-                      const double* const gdot) const
+                      const double* const gdot,
+                      double tK) const
          {
             double evolVals[nEvolVals];
             getEvolVals(evolVals, gdot);
-            getSdot1(hdot[0], dhdot_dh[0], hard[0], evolVals, dhdot_dgdot);
+            getSdot1(hdot[0], dhdot_dh[0], hard[0], evolVals, tK, dhdot_dgdot);
          }
 
          __ecmech_hdev__
@@ -371,6 +373,7 @@ namespace ecmech {
                   double &dsdot_ds,
                   double h,
                   const double* const evolVals,
+                  double /*tK*/,
                   double* const dsdot_dgdot = nullptr // optional parameter
                   ) const
          {

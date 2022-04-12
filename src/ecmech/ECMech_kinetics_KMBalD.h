@@ -624,6 +624,7 @@ namespace ecmech {
                  const double* const hs_o,
                  double dt,
                  const double* const gdot,
+                 double tK,
                  int outputLevel = 0) const
          {
             // do not yet both with l_overdriven and setting-to-saturation machinery as in Fortran coding
@@ -632,7 +633,7 @@ namespace ecmech {
             double log_hs_u;
             double log_hs_o = log(fmax(hs_o[0], _hdn_min));
             int nFEvals = updateH1<KineticsKMBalD>(this,
-                                                   log_hs_u, log_hs_o, dt, gdot,
+                                                   log_hs_u, log_hs_o, dt, gdot, tK,
                                                    outputLevel);
             hs_u[0] = exp(log_hs_u);
 
@@ -673,7 +674,8 @@ namespace ecmech {
                       double* const dhdot_dgdot,
                       double* const dgdot_dh,
                       double* const hard,
-                      const double* const gdot) const
+                      const double* const gdot,
+                      double tK) const
          {
             double evolVals[nEvolVals];
             getEvolVals(evolVals, gdot);
@@ -686,7 +688,7 @@ namespace ecmech {
 
             // Transform this back into the log form for the later residual calculation
             hard[0] = log(hard[0]);
-            getSdot1(hdot[0], dhdot_dh[0], hard[0], evolVals, dhdot_dgdot);
+            getSdot1(hdot[0], dhdot_dh[0], hard[0], evolVals, tK, dhdot_dgdot);
 
          }
 
@@ -716,6 +718,7 @@ namespace ecmech {
                   double &dsdot_ds,
                   double h,
                   const double* const evolVals,
+                  double /*tK*/,
                   double* const dsdot_dgdot = nullptr // optional parameter
                   ) const
          {

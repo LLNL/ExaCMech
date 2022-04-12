@@ -398,6 +398,7 @@ namespace ecmech {
                  const double* const hs_o,
                  double dt,
                  const double* const gdot,
+                 double tK,
                  int outputLevel = 0) const
          {
             double log_hs_u[SlipGeom::nslip];
@@ -411,7 +412,7 @@ namespace ecmech {
 
             // If the equation is incredibly  stiff it's possible this won't solve
             int nFEvals = updateHN<KineticsBCCMD>(this,
-                                                  log_hs_u, log_hs_o, dt, gdotabs,
+                                                  log_hs_u, log_hs_o, dt, gdotabs, tK,
                                                   outputLevel);
 
             for(int islip = 0; islip < SlipGeom::nslip; islip++) {
@@ -460,7 +461,8 @@ namespace ecmech {
                       double* const dhdot_dgdot,
                       double* const /*dgdot_dh*/,
                       double* const hard,
-                      const double* const gdot) const
+                      const double* const gdot,
+                      double tK) const
          {
             double gdotabs[SlipGeom::nslip];
             double evolVals[nEvolVals];
@@ -470,7 +472,7 @@ namespace ecmech {
                gdotabs[islip] = abs(gdot[islip]);
             }
             getEvolVals(evolVals, gdotabs);
-            getSdotN(hdot, dhdot_dh, hard, evolVals, dhdot_dgdot);
+            getSdotN(hdot, dhdot_dh, hard, evolVals, tK, dhdot_dgdot);
          }
 
          /// This calculates the variables I'd mentioned up above and now again down below
@@ -509,6 +511,7 @@ namespace ecmech {
                   double *dsdot_ds,
                   const double* const h,
                   const double* const evolVals,
+                  double tK,
                   double* const dsdot_dgdot = nullptr // optional parameter
                 ) const
          {

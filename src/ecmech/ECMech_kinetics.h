@@ -93,8 +93,9 @@ namespace ecmech {
          Kinetics_H1Problem(const Kinetics* const kinetics,
                             double h_o,
                             double dt,
-                            const double* const evolVals) :
-            _kinetics(kinetics), _h_o(h_o), _dt(dt), _evolVals(evolVals)
+                            const double* const evolVals,
+                            double tK) :
+            _kinetics(kinetics), _h_o(h_o), _dt(dt), _evolVals(evolVals), _tK(tK)
          {
             _x_scale = fmax(_h_o, 1.0); // TO_DO -- generalize this to not max with 1
             // NOTE : see comment below about changing Jacobian calculation if _res_scale != one / s_scale
@@ -122,7 +123,7 @@ namespace ecmech {
             double h = _h_o + h_delta;
 
             double sdot, dsdot_ds;
-            _kinetics->getSdot1(sdot, dsdot_ds, h, _evolVals);
+            _kinetics->getSdot1(sdot, dsdot_ds, h, _evolVals, _tK);
 
             resid[0] = (h_delta - sdot * _dt) * _res_scale;
 
@@ -140,6 +141,7 @@ namespace ecmech {
          const Kinetics* _kinetics;
          const double _h_o, _dt;
          const double* const _evolVals;
+         const double _tK;
          double _x_scale, _res_scale;
    }; // class Kinetics_H1Problem
 
@@ -155,12 +157,13 @@ namespace ecmech {
             double hs_o,
             double dt,
             const double* const gdot,
+            double tK,
             int outputLevel = 0)
    {
       double evolVals[Kinetics::nEvolVals];
       kinetics->getEvolVals(evolVals, gdot);
 
-      Kinetics_H1Problem<Kinetics> prob(kinetics, hs_o, dt, evolVals);
+      Kinetics_H1Problem<Kinetics> prob(kinetics, hs_o, dt, evolVals, tK);
       snls::SNLSTrDlDenseG<Kinetics_H1Problem<Kinetics> > solver(prob);
 
       snls::TrDeltaControl deltaControl;
@@ -200,8 +203,9 @@ namespace ecmech {
          Kinetics_HNProblem(const Kinetics* const kinetics,
                             const double* const h_o,
                             double dt,
-                            const double* const evolVals) :
-            _kinetics(kinetics), _h_o(h_o), _dt(dt), _evolVals(evolVals)
+                            const double* const evolVals,
+                            double tK) :
+            _kinetics(kinetics), _h_o(h_o), _dt(dt), _evolVals(evolVals), _tK(tK)
          {
             for (int i = 0; i < nDimSys; i++) {
                _x_scale[i] = fmax(_h_o[i], 1.0); // TO_DO -- generalize this to not max with 1
@@ -234,7 +238,7 @@ namespace ecmech {
 
             double sdot[nDimSys];
             // The dsdot_ds portion of the Jacobian is set in here if it was provided
-            _kinetics->getSdotN(sdot, Jacobian, h, _evolVals);
+            _kinetics->getSdotN(sdot, Jacobian, h, _evolVals, _tK);
 
             for (int i = 0; i < nDimSys; i++) {
                resid[i] = (x[i] * _x_scale[i] - sdot[i] * _dt) * _res_scale[i];
@@ -265,6 +269,7 @@ namespace ecmech {
          const double* const _h_o;
          const double _dt;
          const double* const _evolVals;
+         const double _tK;
          double _x_scale[nDimSys], _res_scale[nDimSys];
    }; // class Kinetics_HNProblem
 
@@ -280,12 +285,13 @@ namespace ecmech {
             const double* const hs_o,
             double dt,
             const double* const gdot,
+            double tK,
             int outputLevel = 0)
    {
       double evolVals[Kinetics::nEvolVals];
       kinetics->getEvolVals(evolVals, gdot);
 
-      Kinetics_HNProblem<Kinetics> prob(kinetics, hs_o, dt, evolVals);
+      Kinetics_HNProblem<Kinetics> prob(kinetics, hs_o, dt, evolVals, tK);
       snls::SNLSTrDlDenseG<Kinetics_HNProblem<Kinetics> > solver(prob);
 
       snls::TrDeltaControl deltaControl;

@@ -1104,7 +1104,7 @@ namespace ecmech {
          // gdot is still at beginning-of-step
          //
          double h_state_u[Kinetics::nH];
-         kinetics.updateH(h_state_u, h_state, dt, gdot);
+         kinetics.updateH(h_state_u, h_state, dt, gdot, tkelv);
 
          double Cstr_vecds_lat[ecmech::nsvec];
          //

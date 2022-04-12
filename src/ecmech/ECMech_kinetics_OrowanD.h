@@ -783,6 +783,7 @@ namespace ecmech {
                  const double* const hs_o,
                  double dt,
                  const double* const gdot,
+                 double tK,
                  int outputLevel = 0) const
          {
 
@@ -798,7 +799,7 @@ namespace ecmech {
             }
 
             int nFEvals = updateHN<KineticsOrowanD>(this,
-                                                   &hs_u[0], &ihs_o[0], dt, nu,
+                                                   &hs_u[0], &ihs_o[0], dt, nu, tK,
                                                    outputLevel);
             // We need to check that none of our solutions became negative
             // If we did obtain something negative then we should abort
@@ -916,7 +917,8 @@ namespace ecmech {
                       double* const dhdot_dgdot,
                       double* const /*dgdot_dh*/,
                       const double* const hard,
-                      const double* const gdot) const
+                      const double* const gdot,
+                      double tK) const
          {
             double nu[SlipGeom::nslip];
             double evolVals[nEvolVals];
@@ -928,7 +930,7 @@ namespace ecmech {
                }
             }
             getEvolVals(evolVals, nu);
-            getSdotN(hdot, dhdot_dh, hard, evolVals, dhdot_dgdot);
+            getSdotN(hdot, dhdot_dh, hard, evolVals, tK, dhdot_dgdot);
          }
 
          __ecmech_hdev__
@@ -953,6 +955,7 @@ namespace ecmech {
                    double* dsdot_ds,
                    const double* const h,
                    const double* const evolVals,
+                   double /*tK*/,
                    double* const dsdot_dgdot = nullptr // optional parameter
                    ) const
          {
