@@ -246,6 +246,7 @@ namespace ecmech {
 
                double T_vecds[ecmech::nsvec];
                this->elastNEtoT(T_vecds, e_vecd_f);
+               
                //
                //double taua[SlipGeom::nslip] = { 0.0 }; // crys%tmp4_slp
                double dgdot_dtau[SlipGeom::nslip] = { 0.0 }; // crys%tmp2_slp
@@ -267,12 +268,14 @@ namespace ecmech {
                // We'll use taua to pass the chia values as the second half of the array
                // so that we don't need to change the signature of evalGdots()
                double taua[2*SlipGeom::nslip] = { 0.0 };
+               const double* hvals;
                if (SlipGeom::dynamic) {
                    double SvecP[ecmech::nsvec+1];
                    vecdsToSvecP(SvecP, T_vecds);
                    _slipGeom.getPQ(&taua[SlipGeom::nslip], P, Q, SvecP);
                    slipP = P;
                    slipQ = Q;
+                   hvals = &taua[SlipGeom::nslip]; // chi values
                } else {
                    slipP = _slipGeom.getP();
                    slipQ = _slipGeom.getQ();
@@ -291,7 +294,7 @@ namespace ecmech {
                   vecsVMa<nwvec, SlipGeom::nslip>(pl_wvec, slipQ, _gdot);
                   // dgdot_dh may or may not be scaled by the below set of code to account for
                   // differences from the evaluation within _kinetics.evalGdots
-                  _kinetics.getExtDerivs(hdot, dhdot_dh, dh_dgdot, dgdot_dh, hard, _gdot, _tK);
+                  _kinetics.getExtDerivs(hdot, dhdot_dh, dh_dgdot, dgdot_dh, hard, _gdot, hvals, _tK);
                }
                //
                //// shrate_l%gdot => crys%tmp1_slp

@@ -624,6 +624,7 @@ namespace ecmech {
                  const double* const hs_o,
                  double dt,
                  const double* const gdot,
+                 const double* const /*hvals*/,
                  double tK,
                  int outputLevel = 0) const
          {
@@ -675,6 +676,7 @@ namespace ecmech {
                       double* const dgdot_dh,
                       double* const hard,
                       const double* const gdot,
+                      const double* const /*hvals*/,
                       double tK) const
          {
             double evolVals[nEvolVals];

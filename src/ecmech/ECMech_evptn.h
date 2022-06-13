@@ -1104,7 +1104,14 @@ namespace ecmech {
          // gdot is still at beginning-of-step
          //
          double h_state_u[Kinetics::nH];
-         kinetics.updateH(h_state_u, h_state, dt, gdot, tkelv);
+         double hvals[SlipGeom::nslip] = { 0.0 }; // additional values needed to update the hardening state
+         if (SlipGeom::dynamic) {
+            // For dynamic slip systems we need the chi angle
+            double P[ecmech::ntvec * SlipGeom::nslip];
+            double Q[ecmech::nwvec * SlipGeom::nslip];
+            slipGeom.getPQ(hvals, P, Q, stressSvecP);
+         }
+         kinetics.updateH(h_state_u, h_state, dt, gdot, hvals, tkelv);
 
          double Cstr_vecds_lat[ecmech::nsvec];
          //

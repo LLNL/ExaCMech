@@ -288,6 +288,7 @@ namespace ecmech {
             
             double tK = vals[2 * SlipGeom::nslip];
 
+            //printf("evalGdots:\n");
             for (int iSlip = 0; iSlip < _nslip; ++iSlip) {
                bool l_act;
                double taua = tau[iSlip];
@@ -321,7 +322,7 @@ namespace ecmech {
             double   rho,
             double   tau,
             double   chi,
-            double   tK
+            double   /*tK*/
             ) const
          {
             // zero things so that can more easily just return in inactive
@@ -398,6 +399,7 @@ namespace ecmech {
                  const double* const hs_o,
                  double dt,
                  const double* const gdot,
+                 const double* const hvals,
                  double tK,
                  int outputLevel = 0) const
          {
@@ -412,7 +414,7 @@ namespace ecmech {
 
             // If the equation is incredibly  stiff it's possible this won't solve
             int nFEvals = updateHN<KineticsBCCMD>(this,
-                                                  log_hs_u, log_hs_o, dt, gdotabs, tK,
+                                                  log_hs_u, log_hs_o, dt, gdotabs, hvals, tK,
                                                   outputLevel);
 
             for(int islip = 0; islip < SlipGeom::nslip; islip++) {
@@ -462,6 +464,7 @@ namespace ecmech {
                       double* const /*dgdot_dh*/,
                       double* const hard,
                       const double* const gdot,
+                      const double* const hvals,
                       double tK) const
          {
             double gdotabs[SlipGeom::nslip];
@@ -472,7 +475,7 @@ namespace ecmech {
                gdotabs[islip] = abs(gdot[islip]);
             }
             getEvolVals(evolVals, gdotabs);
-            getSdotN(hdot, dhdot_dh, hard, evolVals, tK, dhdot_dgdot);
+            getSdotN(hdot, dhdot_dh, hard, evolVals, hvals, tK, dhdot_dgdot);
          }
 
          /// This calculates the variables I'd mentioned up above and now again down below
@@ -511,6 +514,7 @@ namespace ecmech {
                   double *dsdot_ds,
                   const double* const h,
                   const double* const evolVals,
+                  const double* const hvals,
                   double tK,
                   double* const dsdot_dgdot = nullptr // optional parameter
                 ) const
@@ -536,6 +540,35 @@ namespace ecmech {
                 }
             }
             
+            // Define k1 as a function of the orientation
+            double k1[SlipGeom::nslip];
+            //printf("getSdotN:\n");
+            for (int islip = 0; islip < SlipGeom::nslip; islip++) {
+                k1[islip] = _k1;
+                if (SlipGeom::dynamic) {
+                    double chia = hvals[islip];
+                    // If we are in the AT zone, then we need to increase k1
+                    // to account for the fact that dislocations do take
+                    // a longer path and thus are likely to multiply more
+                    double amin = 0.95;
+                    double a = fmin(1.0 + (amin - 1.0) * chia * 6.0 / M_PI, 1.0);
+                    k1[islip] = _k1 / a;
+                    //printf("sys[%d] chi = %e\n",islip,chia*180.0/M_PI);
+                }
+            }
+            
+            // Define k2 as a function of gdot and tK
+            double k2_ref = _k2; // reference k2 value for 2e8/s at 300K
+            double k2_temp = 0.05756349443979855 * log(tK / 7.309541735840538e-06);
+            //printf("temp = %e, k2_temp = %e\n",tK,k2_temp);
+            
+            double gtot = 0.0;
+            for (int islip = 0; islip < SlipGeom::nslip; islip++) {
+                gtot += evolVals[islip];
+            }
+            double k2_rate = -0.3433061910379516 * log((0.5 * gtot * 1e6 + 1.0) / 3954039561.302554);
+            double k2 = k2_ref * k2_rate * k2_temp;
+            
             // h = log(DD)
             // dDD / dt = DD * dh / dt
             // dh / dt = dDD / dt * 1 / DD
@@ -544,7 +577,7 @@ namespace ecmech {
             // specialized here for the A_{ij} = I
             // dh / dt = (k1 / sqrt(DD_i) - k2) * gammadot_i
             // specialized case
-            // \dot{h} / dh = -1/2 * k_1 * (DD)^{-1/2}
+            // d\dot{h} / dh = -1/2 * k_1 * (DD)^{-1/2}
             // more general case I believe if I did the derivs correctly...
             // \dot{h^i} / dh_j = \dot{h^i} / d DD_j * d DD^j / d h_k
             // d DD^j / d h_k = DD_j when j == k and 0 for j neq k
@@ -559,9 +592,9 @@ namespace ecmech {
             // I did something right and the off diagonal terms are zero
             for (int islip = 0; islip < SlipGeom::nslip; islip++) {
                double temp_hs_a = exp(-onehalf * h[islip]);
-               double temp1 = _k1 * temp_hs_a - _k2;
+               double temp1 = k1[islip] * temp_hs_a - k2;
                sdot[islip] = temp1 * evolVals[islip] - frel[islip] * _krelax;
-               dsdot_ds[ECMECH_NN_INDX(islip, islip, SlipGeom::nslip)] = (-_k1 * onehalf * temp_hs_a) * evolVals[islip];
+               dsdot_ds[ECMECH_NN_INDX(islip, islip, SlipGeom::nslip)] = (-k1[islip] * onehalf * temp_hs_a) * evolVals[islip];
             }
          }
    }; // class KineticsBCCMD
