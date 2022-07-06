@@ -493,6 +493,7 @@ int main(int argc, char *argv[]){
                   seq_sum += wts * stress[j];
                });
                stress_avg[j] = seq_sum.get();
+	    }
          }
          break;
 #if defined(RAJA_ENABLE_OPENMP)
@@ -518,6 +519,7 @@ int main(int argc, char *argv[]){
                   omp_sum += wts * stress[j];
                });
                stress_avg[j] = omp_sum.get();
+            }
          }
          break;
 #endif
@@ -544,6 +546,7 @@ int main(int argc, char *argv[]){
                   cuda_sum += wts * stress[j];
                });
                stress_avg[j] = cuda_sum.get();
+            }
          }
          break;
 #endif

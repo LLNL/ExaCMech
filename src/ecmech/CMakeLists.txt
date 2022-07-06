@@ -34,7 +34,7 @@ set(ECMECH_SOURCES
 set(ECMECH_DEPENDS)
 
 ecmech_fill_depends_list(LIST_NAME  ECMECH_DEPENDS
-                        DEPENDS_ON raja snls cub cuda openmp hip rocPRIM)
+                        DEPENDS_ON raja snls cub cuda openmp blt::hip blt::hip_runtime)
 
 if(NOT USE_BUILT_SNLS)
     list(APPEND ECMECH_DEPENDS snls)

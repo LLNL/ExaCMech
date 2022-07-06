@@ -1,7 +1,7 @@
 set(ECMECH_MINIAPP_DEPENDS )
 
 ecmech_fill_depends_list(LIST_NAME  ECMECH_MINIAPP_DEPENDS
-                        DEPENDS_ON raja snls cuda openmp hip rocPRIM)
+                        DEPENDS_ON raja snls cuda openmp blt::hip blt::hip_runtime)
 
 if(BUILD_STATIC_LIBS)
     list(APPEND ECMECH_MINIAPP_DEPENDS ecmech_static ${SNLS_STATIC_TARGET})
