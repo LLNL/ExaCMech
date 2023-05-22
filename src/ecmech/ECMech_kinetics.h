@@ -310,10 +310,15 @@ namespace ecmech {
       }
 
       snls::SNLSStatus_t status = solver.solve( );
+      /*
       if (status != snls::converged) {
          ECMECH_FAIL(__func__, "Solver failed to converge!");
       }
+      */
       int nFevals = solver.getNFEvals();
+      if (status != snls::converged) {
+          nFevals = -1;
+      }
 
       prob.getHn(hs_n, solver._x);
 

@@ -33,7 +33,7 @@ namespace ecmech {
          /// Number of slip systems we're dealing with if it that is something useful
          static const int m_num_slip = SlipGeom::nslip;
          /// Number of parameters the model needs to be instantiated
-         static const int nParams = 7+4+1;
+         static const int nParams = 8+4+1;
          /// Number of slip kinetic related-variables outputted
          /// Think of this as things like the CRSS values, evolving reference
          /// slip rates for both thermal and phonon drag contributions, and potentially
@@ -80,6 +80,8 @@ namespace ecmech {
             _gam_w0 = *parsIt; ++parsIt;
             // Peierls stress
             _tau_p = *parsIt; ++parsIt;
+			// alpha Peierls
+            _alpha_p = *parsIt; ++parsIt;
             // Shear velocity
             _vmax = *parsIt; ++parsIt;
             // Drag stress
@@ -143,6 +145,7 @@ namespace ecmech {
             params.push_back(_xm);
             params.push_back(_gam_w0);
             params.push_back(_tau_p);
+            params.push_back(_alpha_p);
             params.push_back(_vmax);
             params.push_back(_tau_drag);
 
@@ -192,7 +195,7 @@ namespace ecmech {
          double _mu, _bmag;
          double _xm;
          double _gam_w0;
-         double _tau_p;
+         double _tau_p, _alpha_p;
          double _vmax, _tau_drag;
 
          // derived from parameters
@@ -294,15 +297,17 @@ namespace ecmech {
                double taua = tau[iSlip];
                double chia = tau[SlipGeom::nslip + iSlip];
                
-               //printf("sys[%d] tau = %e, chi = %e\n",iSlip,taua,chia*180.0/M_PI);
-               
                double crss = vals[iSlip];
                double rhoa = vals[SlipGeom::nslip + iSlip];
+			   
+			   //printf("sys[%d]: tau = %e, chi = %e, rho = %e\n",iSlip,taua,chia*180.0/M_PI,rhoa*1e4);
+			   
                // traditionally we have a separate function that will calculate everything
                // for only one slip system
                this->evalGdot(gdot[iSlip], l_act, dgdot_dtau[iSlip], dgdot_dg[iSlip],
                               crss, rhoa, taua, chia, tK);
             }
+			//printf("---\n");
          }
 
          /// Calculates the slip rate and derivatives for a given slip system
@@ -333,45 +338,73 @@ namespace ecmech {
             dgdot_dg = zero;
             
             l_act = false;
-            
-            double _gam_w = _gam_w0;
-            double tau_p = _tau_p;
-            
-            //double u = sin(chi) + 0.5; // 0 for T, 1 for AT
-            //tau_p = _tau_p + u * 0.5 * _tau_p;
-            double u = cos(chi + M_PI/6.0); // 1 for T, 0.5 for AT
-            tau_p = _tau_p + (1.0-u) * _tau_p;
+        
+            //double u = cos(chi + M_PI/6.0); // 1 for T, 0.5 for AT
+            //double tau_p = _tau_p + 1.0*(1.0-u) * _tau_p;
+			
+            double tau_p = _tau_p / cos(chi-_alpha_p);
+			
             double t_eff = fmax(fabs(tau) - tau_p, 0.0);
             
             //double u = cos(chi + M_PI/6.0); // 1 for T, 0.5 for AT
             //double t_eff = fmax(fabs(u * tau) - tau_p, 0.0);
-            
+			
+			
+			double xnn = _xnn;
+			double xn = _xn;
+			double gam_w0 = _gam_w0;
+			/*
+			// NEW //
+			
+			double k = 10.0;
+			
+			double n_exp_T = 5.0;
+        	double n_exp_AT = 20.0;
+        	//xnn = n_exp_T + (M_PI/6.0+chi)*3.0/M_PI * (n_exp_AT-n_exp_T);
+			
+			xnn = n_exp_T + 1.0/(1.0+exp(-k*chi)) * (n_exp_AT-n_exp_T);
+			xn = xnn - one;
+			
+			double v0_T = 26.17;
+        	double v0_AT = 0.094;
+        	//gam_w0 = v0_T + (M_PI/6.0+chi)*3.0/M_PI * (v0_AT-v0_T);
+			gam_w0 = v0_T + 1.0/(1.0+exp(-k*chi)) * (v0_AT-v0_T);
+			// NEW //
+			
+			//printf("  xnn = %e, v0 = %e\n", xnn, gam_w0);
+			*/
+			
+#if 1        
             double g_i = one / crss; // assume have checked gIn>0 elsewhere
             double t_frac = t_eff * g_i;
             t_frac = copysign(t_frac, tau); // has sign of tau
             double at = fabs(t_frac);
             
+            double gam_w;
+            if (gam_w0 < 0.0) gam_w = fabs(gam_w0);
+            else gam_w = rho * _bmag * gam_w0;
+            
             double gmax = rho * _bmag * _vmax * (1.0-exp(-t_eff/_tau_drag));
-
-            if (at > _t_min) {
+			
+			if (at > _t_min) {
                //
                l_act = true;
 
                if (at > _t_max) {
                   // ierr = IERR_OVF_p
                   // set gdot big, evpp may need this for recovery
-                  gdot = ecmech::gam_ratio_ovffx * _gam_w;
+                  gdot = ecmech::gam_ratio_ovffx * gam_w;
                   gdot = copysign(gdot, tau);
                   // do not set any of deriviatives (they are, in truth, zero)
                }
                else {
                   double abslog = log(at);
-                  double blog = _xn * abslog;
-                  double temp = _gam_w * exp(blog);
+                  double blog = xn * abslog;
+                  double temp = gam_w * exp(blog);
 
                   gdot = temp * t_frac;
 
-                  dgdot_dtau = temp * _xnn * g_i; // note: always positive, = xnn * gdot/t
+                  dgdot_dtau = temp * xnn * g_i; // note: always positive, = xnn * gdot/t
                   dgdot_dg = -dgdot_dtau * t_frac; // = - gdot * xnn * g_i
                   
                   if (fabs(gdot) > gmax) {
@@ -381,6 +414,20 @@ namespace ecmech {
                   }
                }
             }
+#else
+			{
+				double Bdrag = 2e-8; // MBar.us
+				double temp = rho * _bmag * _bmag / Bdrag;
+				
+				t_eff = fmax(fabs(tau) - tau_p - crss, 0.0);
+				
+				gdot = t_eff * temp;
+				gdot = copysign(gdot, tau);
+				
+				dgdot_dtau = temp;
+				dgdot_dg = -dgdot_dtau;
+			}
+#endif
          } // evalGdot
 
          /// This is called externally  by the portion of code that does the
@@ -411,16 +458,88 @@ namespace ecmech {
                log_hs_o[islip] = log(fmax(hs_o[islip], _hdn_min));
                gdotabs[islip] = abs(gdot[islip]);
             }
-
+			//printf("updateH\n");
             // If the equation is incredibly  stiff it's possible this won't solve
             int nFEvals = updateHN<KineticsBCCMD>(this,
                                                   log_hs_u, log_hs_o, dt, gdotabs, hvals, tK,
-                                                  outputLevel);
+                                              outputLevel);
 
+            // We need to check that none of our solutions became negative
+            // If we did obtain something negative then we should abort
+            // It means our time step was too large for this step.
+            // If this is not desirable / possible then we should probably
+            // do a terrible hack and cut the dt by some factor resolve things by
+            // assuming a constant slip rate during the time step, and then
+            // evolve the dd content. We would get a solution, but it wouldn't necessarily
+            // be correct.
+        #if 1
+            bool flag = false;
+            for (int islip = 0; islip < SlipGeom::nslip; islip++) {
+               if(log_hs_u[islip] < one) {
+                  flag = true;
+                  break;
+               }
+            }
+            if (flag || nFEvals < 0)
+            {
+               ECMECH_WARN(__func__, "Solver failed to converge, trying again by substepping through the solution");
+               // This is pretty ad-hoc but it seems to work fairly well for a number of simple test cases.
+               // It's definitely not the best way to probably do things though...
+               int nsub = 10;
+               while (nsub < 10000) {
+                   const double dtnew = dt / nsub;
+                   double log_hs_temp[SlipGeom::nslip];
+
+                   for (int islip = 0; islip < SlipGeom::nslip; islip++) {
+                      log_hs_u[islip] = log(fmax(hs_o[islip], _hdn_min));
+                   }
+
+                   for (int i = 0; i < nsub; i++)
+                   {
+                      for (int islip = 0; islip < SlipGeom::nslip; islip++) {
+                         log_hs_temp[islip] = fmax(log_hs_u[islip], log(_hdn_min));
+                      }
+                      nFEvals += updateHN<KineticsBCCMD>(this,
+                                                         log_hs_u, log_hs_temp, dtnew, gdotabs, hvals, tK,
+                                                         outputLevel);
+                      flag = false;
+                      for (int islip = 0; islip < SlipGeom::nslip; islip++) {
+                         if(log_hs_u[islip] < one) {
+                            flag = true;
+                            break;
+                         }
+                      }
+                      
+                      if (nFEvals < 0) {
+                          flag = true;
+                          break;
+                      }
+                   }
+                   
+                   if (!flag) break;
+                   nsub *= 2;
+               }
+
+               if (flag)
+               {
+                  for (int islip = 0; islip < SlipGeom::nslip; islip++) {
+                     printf("dd[%d]: %lf ", islip, exp(log_hs_u[islip]));
+                  }
+                  printf("\n");
+                  ECMECH_FAIL(__func__, "Solver failed to converge!");
+               }
+            }
+        #else
+            if (nFEvals < 0) {
+                ECMECH_FAIL(__func__, "Solver failed to converge!");
+            }
+        #endif
+            
+            
             for(int islip = 0; islip < SlipGeom::nslip; islip++) {
-               //hs_u[islip] = exp(log_hs_u[islip]);
                hs_u[islip] = fmax(exp(log_hs_u[islip]), _hdn_min);
             }
+            //printf("dens = %e %e %e %e\n",hs_u[0]*1e4,hs_u[1]*1e4,hs_u[2]*1e4,hs_u[3]*1e4);
 
             return nFEvals;
          }
@@ -528,15 +647,30 @@ namespace ecmech {
                }
             }
             
+            double gtot = 0.0;
             double gdotmax = 0.0;
-            for (int islip = 0; islip < SlipGeom::nslip; islip++)
-                gdotmax = fmax(fabs(evolVals[islip]), gdotmax);
+            double kfact[SlipGeom::nslip];
+            for (int islip = 0; islip < SlipGeom::nslip; islip++) {
+                gtot += evolVals[islip];
+                gdotmax = fmax(evolVals[islip], gdotmax);
+                
+                // smoothing factor to prevent numerical instabilities in the solve
+                double h0 = 1.5*_hdn_init;
+                double k = 15.0/_hdn_init;
+                kfact[islip] = 1.0;//1.0/(1.0+exp(-k*(exp(h[islip])-h0)));
+            }
+            
             double frel[SlipGeom::nslip] = { 0.0 };
-            if (gdotmax > 0.0) {
+            if (gdotmax > 1e-10) {
                 for (int islip = 0; islip < SlipGeom::nslip; islip++) {
                     double ratio = evolVals[islip] / gdotmax;
-                    frel[islip] = 1.0-1.0/(1.0+exp(-100.0*(ratio-0.01)));
-                    if (h[islip] < log(_hdn_min)) frel[islip] = 0.0;
+                    double ratiothres = 0.01;
+                    frel[islip] = 1.0-1.0/(1.0+exp(-100.0*(ratio-ratiothres)));
+                    
+                    //if (h[islip] < log(1e2*_hdn_min)) frel[islip] = 0.0;
+                    //if (h[islip] < log(2*_hdn_init)) frel[islip] = 0.0;
+                    
+                    frel[islip] = frel[islip] * kfact[islip];
                 }
             }
             
@@ -550,10 +684,17 @@ namespace ecmech {
                     // If we are in the AT zone, then we need to increase k1
                     // to account for the fact that dislocations do take
                     // a longer path and thus are likely to multiply more
+                    
                     double amin = 0.95;
-                    double a = fmin(1.0 + (amin - 1.0) * chia * 6.0 / M_PI, 1.0);
-                    k1[islip] = _k1 / a;
-                    //printf("sys[%d] chi = %e\n",islip,chia*180.0/M_PI);
+					
+                    //double a = fmin(1.0 + (amin - 1.0) * chia * 6.0 / M_PI, 1.0);
+                    //a = 1.0 / a;
+					
+                    double a = 1.0/(1.0/cos(M_PI/6.0 - _alpha_p)-1.0) * (1.0/amin - 1.0);
+                    a = 1.0 + a * (1.0 / cos(chia - _alpha_p) - 1.0);
+					
+                    k1[islip] = _k1 * a;
+                    //printf("sys[%d] chi = %e, rho = %e, gdot = %e\n",islip,chia*180.0/M_PI,exp(h[islip]),evolVals[islip]);
                 }
             }
             
@@ -562,12 +703,32 @@ namespace ecmech {
             double k2_temp = 0.05756349443979855 * log(tK / 7.309541735840538e-06);
             //printf("temp = %e, k2_temp = %e\n",tK,k2_temp);
             
-            double gtot = 0.0;
+            double rate_cut = 1e4; //1e-3;
+            double lograte = log(0.5 * gtot * 1e6 + rate_cut);
+            double k2_rate = -0.3433061910379516 * lograte + 7.586381434140954;
+            //double k2_rate = 6.75092510e-03 * lograte * lograte - 5.72927375e-01 * lograte + 9.50718982e+00;
+            
+            
+            double k2[SlipGeom::nslip];
             for (int islip = 0; islip < SlipGeom::nslip; islip++) {
-                gtot += evolVals[islip];
+                k2[islip] = k2_ref * k2_rate * k2_temp * kfact[islip];
+                if (gtot < 1e-10) k2[islip] = 0.0;
+                //if (h[islip] < log(1e2*_hdn_min)) k2[islip] = 0.0;
+                //printf("sys[%d] k1 = %e, k2 = %e, frel = %e\n",islip,k1[islip],k2[islip],frel[islip]);
             }
-            double k2_rate = -0.3433061910379516 * log((0.5 * gtot * 1e6 + 1.0) / 3954039561.302554);
-            double k2 = k2_ref * k2_rate * k2_temp;
+            //printf("gtot = %e, k2 = %e\n",gtot,k2);
+            
+            
+            // TEST: adjust values while keeping the same saturation ratio k1/k2
+            
+            for (int islip = 0; islip < SlipGeom::nslip; islip++) {
+                //double r = 0.2;
+                //k1[islip] *= r;
+                //k2[islip] *= r;
+				//printf("sys %d: chi = %e, k1 = %e, k2 = %e, rho = %e\n",islip,hvals[islip]*180.0/M_PI,k1[islip],k2[islip],exp(h[islip])*1e4);
+            }
+			//printf("---\n");
+            
             
             // h = log(DD)
             // dDD / dt = DD * dh / dt
@@ -592,7 +753,7 @@ namespace ecmech {
             // I did something right and the off diagonal terms are zero
             for (int islip = 0; islip < SlipGeom::nslip; islip++) {
                double temp_hs_a = exp(-onehalf * h[islip]);
-               double temp1 = k1[islip] * temp_hs_a - k2;
+               double temp1 = k1[islip] * temp_hs_a - k2[islip];
                sdot[islip] = temp1 * evolVals[islip] - frel[islip] * _krelax;
                dsdot_ds[ECMECH_NN_INDX(islip, islip, SlipGeom::nslip)] = (-k1[islip] * onehalf * temp_hs_a) * evolVals[islip];
             }
