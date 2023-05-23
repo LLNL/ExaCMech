@@ -16,6 +16,7 @@ namespace ecmech {
    typedef KineticsOrowanD<true, false, false, false, false, 1, SlipGeomBCC<12>> Kin_OroD_Aniso_BCC;
    typedef KineticsOrowanD<true, false, false, true, false, 1, SlipGeomBCC<24>> Kin_OroD_Iso_BCC_24;
    typedef KineticsOrowanD<true, false, false, false, false, 1, SlipGeomBCC<24>> Kin_OroD_Aniso_BCC_24;
+   typedef KineticsOrowanD<true, false, false, false, false, 1, SlipGeomBCCNonSchmid> Kin_OroD_Aniso_BCC_NS;
 
    typedef KineticsVocePL<false> Kin_FCC_A;
    typedef evptn::EvptnUpdstProblem<SlipGeomFCC, Kin_FCC_A, evptn::ThermoElastNCubic> EvptnUpsdtProblem_FCC_A;
@@ -51,6 +52,7 @@ namespace ecmech {
    typedef evptn::matModel<SlipGeom_BCC_A, Kin_OroD_Aniso_BCC, evptn::ThermoElastNCubic, EosModelConst<false> > matModelEvptn_BCC_C;
    typedef evptn::matModel<SlipGeom_BCC_B, Kin_OroD_Iso_BCC_24, evptn::ThermoElastNCubic, EosModelConst<false> > matModelEvptn_BCC_B_24;
    typedef evptn::matModel<SlipGeom_BCC_B, Kin_OroD_Aniso_BCC_24, evptn::ThermoElastNCubic, EosModelConst<false> > matModelEvptn_BCC_C_24;
+   typedef evptn::matModel<SlipGeomBCCNonSchmid, Kin_OroD_Aniso_BCC_NS, evptn::ThermoElastNCubic, EosModelConst<false> > matModelEvptn_BCC_D;
 
    typedef SlipGeomHCPaBRYcaY1 SlipGeom_HCP_A;
    typedef KineticsKMBalD<true, true, true, true, SlipGeom_HCP_A::nslip> Kin_HCP_A;

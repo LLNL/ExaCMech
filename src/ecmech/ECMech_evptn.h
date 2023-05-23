@@ -639,7 +639,8 @@ namespace ecmech {
                if (SlipGeom::nslip > 0) {
                   // resolve stress onto slip systems
                   // CALL resolve_tau_a_n(crys%tmp4_slp, s_meas%T_vecds, crys)
-                  vecsVaTM<ntvec, SlipGeom::nslip>(taua, T_vecds, slipP);
+                  //vecsVaTM<ntvec, SlipGeom::nslip>(taua, T_vecds, slipP);
+                  _slipGeom.evalRSS(taua, T_vecds, slipP);
                   //
                   // CALL plaw_eval(pl_vecd, pl_wvec, gss, crys, tK, ierr)
                   // chi values are passed within extended taua array

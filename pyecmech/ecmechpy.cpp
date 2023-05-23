@@ -116,6 +116,9 @@ pyECMech::pyECMech(std::string model_name, py_darray &params)
    } else if (std::string(model_name) == "oro_dd_bcc_24_aniso_norm") {
       model = ecmech::makeMatModel("evptn_BCC_C_24");
       model->initFromParams(opts, cparams, strs);
+   } else if (std::string(model_name) == "oro_dd_bcc_aniso_non_schmid") {
+      model = ecmech::makeMatModel("evptn_BCC_D");
+      model->initFromParams(opts, cparams, strs);
    } else if (std::string(model_name) == "bcc_md") {
       model = ecmech::makeMatModel("evptn_BCC_MD");
       model->initFromParams(opts, cparams, strs);

@@ -184,6 +184,7 @@ namespace ecmech {
 
                for (int alpha = 0; alpha < SlipGeom::nslip; alpha++) {
                   for (int beta = 0; beta < SlipGeom::nslip; beta++) {
+                     #if 0
                      const double mds = mView(alpha, 0) * sView(beta, 0) +
                                         mView(alpha, 1) * sView(beta, 1) +
                                         mView(alpha, 2) * sView(beta, 2);
@@ -191,6 +192,10 @@ namespace ecmech {
                                           mView(alpha, 1) * (mView(beta, 2) * sView(beta, 0) - mView(beta, 0) * sView(beta, 2)) +
                                           mView(alpha, 2) * (mView(beta, 0) * sView(beta, 1) - mView(beta, 1) * sView(beta, 0));
                      aView(alpha, beta) = 1.0 / 2.0 * (std::abs(mds) + std::abs(mdmxs));
+                     #else
+                     // use interaction matrix
+                     aView(alpha, beta) = _inter_mat[alpha * SlipGeom::nslip + beta];
+                     #endif
                   }
                }
             }
