@@ -100,7 +100,7 @@ TEST(ecmech, updst_a)
 
    static const int iHistLbGdot = mmodel->iHistLbGdot;
    double* gdot = &(hist[iHistLbGdot]);
-#if defined(ECMECH_DEBUG) && defined(__cuda_host_only__)
+#if defined(ECMECH_DEBUG) && defined(__ecmech_host_only__)
    std::cout << "Initial hist : ";
    ecmech::printVec(hist, mmodel->numHist, std::cout);
 #endif
@@ -118,7 +118,7 @@ TEST(ecmech, updst_a)
 
       std::cout << "Function evaluations: " << hist[evptn::iHistA_nFEval] << std::endl;
    }
-#if defined(ECMECH_DEBUG) && defined(__cuda_host_only__)
+#if defined(ECMECH_DEBUG) && defined(__ecmech_host_only__)
    std::cout << "Updated hist : ";
    ecmech::printVec(hist, mmodel->numHist, std::cout);
 
@@ -290,7 +290,7 @@ TEST(ecmech, driver_a)
 
       double stressSvec[ecmech::nsvec];
       svecpToSvec(stressSvec, stressSvecP);
-#if defined(ECMECH_DEBUG) && defined(__cuda_host_only__)
+#if defined(ECMECH_DEBUG) && defined(__ecmech_host_only__)
       std::cout << "mtanSD_an : " << std::endl;
       printMat<ecmech::nsvec>(mtanSD_an, std::cout);
 #endif
@@ -342,7 +342,7 @@ TEST(ecmech, driver_a)
          }
       }
 
-#if defined(ECMECH_DEBUG) && defined(__cuda_host_only__)
+#if defined(ECMECH_DEBUG) && defined(__ecmech_host_only__)
       std::cout << "mtanSD_fd : " << std::endl;
       printMat<ecmech::nsvec>(mtanSD_fd, std::cout);
 #endif

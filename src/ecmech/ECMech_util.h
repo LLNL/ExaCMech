@@ -7,7 +7,7 @@
 
 #include <cmath>
 
-#if defined(ECMECH_DEBUG) && defined(__cuda_host_only__)
+#if defined(ECMECH_DEBUG) && defined(__ecmech_host_only__)
 #include <iostream>
 #include <string>
 #include <sstream>
@@ -1322,7 +1322,7 @@ namespace ecmech {
 #endif
    } // miller_to_orthog_sngl
 
-#if defined(ECMECH_DEBUG) && defined(__cuda_host_only__)
+#if defined(ECMECH_DEBUG) && defined(__ecmech_host_only__)
 
    template<int n>
    inline void

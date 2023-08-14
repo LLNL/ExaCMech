@@ -2,10 +2,6 @@
 #include "ECMech_evptnWrap.h"
 #include "RAJA/RAJA.hpp"
 #include "RAJA/util/Timer.hpp"
-#if defined(RAJA_ENABLE_CUDA)
-#include "cuda.h"
-// #include "cuda_profiler_api.h"
-#endif
 #include "miniapp_util.h"
 #include "retrieve_kernels.h"
 #include "setup_kernels.h"
@@ -142,12 +138,6 @@ int main(int argc, char *argv[]){
    double* d_eng_int_array = nullptr;
    double* d_temp_array = nullptr;
    double* d_sdd_array = nullptr;
-
-   // If this is turned off then we do take a performance hit. At least if this is 10k and above things
-   // run fine.
-#if defined(RAJA_ENABLE_CUDA)
-   cudaDeviceSetLimit(cudaLimitStackSize, 16000);
-#endif
 
    std::string mat_model_str;
 
@@ -289,16 +279,10 @@ int main(int argc, char *argv[]){
          class_device = ECM_EXEC_STRAT_OPENMP;
       }
 #endif
-#if defined(RAJA_ENABLE_CUDA)
-      else if (device_type.compare("CUDA") == 0) {
+#if defined(RAJA_ENABLE_CUDA) || defined(RAJA_ENABLE_HIP)
+      else if (device_type.compare("GPU") == 0) {
          host = false;
-         class_device = ECM_EXEC_STRAT_CUDA;
-      }
-#endif
-#if defined(RAJA_ENABLE_HIP)
-      else if (device_type.compare("HIP") == 0) {
-         host = false;
-         class_device = ECM_EXEC_STRAT_HIP;
+         class_device = ECM_EXEC_STRAT_GPU;
       }
 #endif
       else {
@@ -401,7 +385,7 @@ int main(int argc, char *argv[]){
    sdd_array = memoryManager::allocate<double>(nqpts * ecmech::nsdd, host);
 
 #if defined(RAJA_ENABLE_HIP)
-   if (class_device == ECM_EXEC_STRAT_HIP) {
+   if (class_device == ECM_EXEC_STRAT_GPU) {
       // We'll leave these uninitialized for now, since they're set in the
       // setup_data function.
       d_state_vars = memoryManager::allocate_gpu<double>(num_state_vars * nqpts);
@@ -448,11 +432,6 @@ int main(int argc, char *argv[]){
    RAJA::Timer run_time;
 
    run_time.start();
-
-   // For profiling uses
-   // #if defined(RAJA_ENABLE_CUDA)
-   // cudaProfilerStart();
-   // #endif
 
    for (int i = 0; i < nsteps; i++) {
       // set up our data in the correct format that the material model kernel expects
@@ -524,7 +503,7 @@ int main(int argc, char *argv[]){
          break;
 #endif
 #if defined(RAJA_ENABLE_CUDA)
-         case ECM_EXEC_STRAT_CUDA :
+         case ECM_EXEC_STRAT_GPU :
          {
             if (NEVALS_COUNTS) {
                RAJA::ReduceSum<RAJA::cuda_reduce, double> cuda_sum(0.0);
@@ -551,7 +530,7 @@ int main(int argc, char *argv[]){
          break;
 #endif
 #if defined(RAJA_ENABLE_HIP)
-         case ECM_EXEC_STRAT_HIP :
+         case ECM_EXEC_STRAT_GPU :
          {
             if (NEVALS_COUNTS) {
                RAJA::ReduceSum<RAJA::hip_reduce, double> hip_sum(0.0);
@@ -589,11 +568,6 @@ int main(int argc, char *argv[]){
       std::cout << std::endl;
    }
 
-   // For profiling uses
-   // #if defined(RAJA_ENABLE_CUDA)
-   // cudaProfilerStart();
-   // #endif
-
    run_time.stop();
 
    double time = run_time.elapsed();
@@ -618,7 +592,7 @@ int main(int argc, char *argv[]){
    memoryManager::deallocate(sdd_array, host);
 
 #if defined(RAJA_ENABLE_HIP)
-   if (class_device == ECM_EXEC_STRAT_HIP) {
+   if (class_device == ECM_EXEC_STRAT_GPU) {
       memoryManager::deallocate_gpu(d_state_vars);
       memoryManager::deallocate_gpu(d_vgrad);
       memoryManager::deallocate_gpu(d_stress_array);

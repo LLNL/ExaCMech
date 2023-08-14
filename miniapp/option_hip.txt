@@ -1,7 +1,0 @@
-./rand_quats_gpu.txt
-voce
-./props.txt
-HIP
-
-
-

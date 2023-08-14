@@ -2,7 +2,7 @@
 #define __ECMECH_CONST_H__
 
 #include "ECMech_port.h"
-#include "ECMech_cuda_portability.h"
+#include "ECMech_gpu_portability.h"
 
 /* [J/deg. K] */
 #ifndef M_BOLTZ_J_K
@@ -70,10 +70,9 @@ namespace ecmech
 {
    // We're going to use this to determine what RAJA code to run for our
    // kernels.
-   enum class ExecutionStrategy { CPU, CUDA, HIP, OPENMP };
+   enum class ExecutionStrategy { CPU, GPU, OPENMP };
 #define ECM_EXEC_STRAT_CPU    ecmech::ExecutionStrategy::CPU
-#define ECM_EXEC_STRAT_CUDA   ecmech::ExecutionStrategy::CUDA
-#define ECM_EXEC_STRAT_HIP    ecmech::ExecutionStrategy::HIP
+#define ECM_EXEC_STRAT_GPU    ecmech::ExecutionStrategy::GPU
 #define ECM_EXEC_STRAT_OPENMP ecmech::ExecutionStrategy::OPENMP
 
    const int nsvp = 7;

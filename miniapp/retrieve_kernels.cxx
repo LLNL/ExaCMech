@@ -185,7 +185,7 @@ void retrieve_data(ecmech::ExecutionStrategy accel, const int nqpts, const int n
       break;
 #endif
 #if defined(RAJA_ENABLE_CUDA)
-      case ECM_EXEC_STRAT_CUDA:
+      case ECM_EXEC_STRAT_GPU:
       {
          retrieve_data_cuda(nqpts, nstatev, stress_svec_p_array, vol_ratio_array,
                             eng_int_array, state_vars_array, stress_array);
@@ -193,7 +193,7 @@ void retrieve_data(ecmech::ExecutionStrategy accel, const int nqpts, const int n
       break;
 #endif
 #if defined(RAJA_ENABLE_HIP)
-      case ECM_EXEC_STRAT_HIP :
+      case ECM_EXEC_STRAT_GPU :
       {
          retrieve_data_hip(nqpts, nstatev, stress_svec_p_array, vol_ratio_array,
                            eng_int_array, state_vars_array, stress_array);

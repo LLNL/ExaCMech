@@ -23,12 +23,8 @@
 // For non-CUDA builds, we need to declare empty macros for portability.
 // ----------------------------------------------------------------------------------------
 
-#ifdef __CUDACC__
-#define __ecmech_host__   __host__
-#define __ecmech_device__ __device__
-#define __ecmech_global__ __global__
-#define __ecmech_hdev__   __host__ __device__
-#elif defined(__HIPCC__)
+#if defined(__CUDACC__) || defined(__HIPCC__) 
+#define __ecmech_gpu_active__
 #define __ecmech_host__   __host__
 #define __ecmech_device__ __device__
 #define __ecmech_global__ __global__
@@ -38,18 +34,6 @@
 #define __ecmech_device__
 #define __ecmech_global__
 #define __ecmech_hdev__
-#endif
-
-// declare a CUDA runtime error handler and macro...
-// ----------------------------------------------------------------------------------------
-
-#ifdef __CUDACC__
-#ifndef CUDART_CHECK
-extern void CUDART_Check(const cudaError_t err, const char *file, const char *func, const int ln);
-#define CUDART_CHECK(err) CUDART_Check(err, __FILE__, __func__, __LINE__);
-#endif
-#else
-#define CUDART_CHECK(err)
 #endif
 
 // RAJA_CUDA_THREADS defines the number of cuda threads that we want to run for our material
@@ -71,9 +55,9 @@ extern void CUDART_Check(const cudaError_t err, const char *file, const char *fu
 // ----------------------------------------------------------------------------------------
 
 #if (defined(__CUDA_ARCH__) && (__CUDA_ARCH__ > 0))  || defined(__HIP_DEVICE_COMPILE__)
-#define __cuda_device_only__
+#define __ecmech_device_only__
 #else
-#define __cuda_host_only__
+#define __ecmech_host_only__
 #endif
 
-#endif // __ECMECH_CUDA_PORTABILITY_H
+#endif // __ECMECH_GPU_PORTABILITY_H

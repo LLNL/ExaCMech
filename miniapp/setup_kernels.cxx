@@ -507,7 +507,7 @@ void init_data(ecmech::ExecutionStrategy accel, const double* ori, const ecmech:
       break;
 #endif
       case ECM_EXEC_STRAT_CPU:
-      case ECM_EXEC_STRAT_CUDA:
+      case ECM_EXEC_STRAT_GPU:
       default:
       {
          init_data_cpu(ori, histInit_vec, nqpts, num_hardness, ind_gdot, num_slip, vdim, state_vars);
@@ -565,7 +565,7 @@ void setup_data(ecmech::ExecutionStrategy accel, const int nqpts, const int nsta
       break;
 #endif
 #if defined(RAJA_ENABLE_CUDA)
-      case ECM_EXEC_STRAT_CUDA:
+      case ECM_EXEC_STRAT_GPU:
       {
          setup_data_cuda(nqpts, nstatev, dt, vel_grad_array, stress_array, state_vars_array,
                          stress_svec_p_array, d_svec_p_array, w_vec_array, ddsdde_array,
@@ -574,7 +574,7 @@ void setup_data(ecmech::ExecutionStrategy accel, const int nqpts, const int nsta
       break;
 #endif
 #if defined(RAJA_ENABLE_HIP)
-      case ECM_EXEC_STRAT_HIP :
+      case ECM_EXEC_STRAT_GPU :
       {
          setup_data_hip(nqpts, nstatev, dt, vel_grad_array, stress_array, state_vars_array,
                         stress_svec_p_array, d_svec_p_array, w_vec_array, ddsdde_array,
