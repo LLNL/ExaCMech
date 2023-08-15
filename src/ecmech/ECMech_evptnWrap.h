@@ -68,7 +68,7 @@ namespace ecmech {
                      ecmech::nsvp << ", " << ecmech::ndim << ", " << ecmech::nvr << ", " <<
                      ecmech::ne << ", " << ecmech::nsvp << ", " << nhist << ", 1, " << ecmech::nsdd
                   ;
-                  ECMECH_FAIL(__func__, os.str());
+                  ECMECH_FAIL(__func__, os.str().c_str());
 #else
                   ECMECH_FAIL(__func__, "Stride vector is the wrong size");
 #endif
@@ -78,7 +78,7 @@ namespace ecmech {
 #if defined(__ecmech_host_only__)
                   std::ostringstream os;
                   os << "strides[istride_def_rate] should have at least a length of: " << ecmech::nsvp;
-                  ECMECH_FAIL(__func__, os.str());
+                  ECMECH_FAIL(__func__, os.str().c_str());
 #else
                   ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
 #endif
@@ -87,7 +87,7 @@ namespace ecmech {
 #if defined(__ecmech_host_only__)
                   std::ostringstream os;
                   os << "strides[istride_spin_v] should have at least a length of: " << ecmech::ndim;
-                  ECMECH_FAIL(__func__, os.str());
+                  ECMECH_FAIL(__func__, os.str().c_str());
 #else
                   ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
 #endif
@@ -96,7 +96,7 @@ namespace ecmech {
 #if defined(__ecmech_host_only__)
                   std::ostringstream os;
                   os << "strides[istride_int_eng] should have at least a length of: " << ecmech::nvr;
-                  ECMECH_FAIL(__func__, os.str());
+                  ECMECH_FAIL(__func__, os.str().c_str());
 #else
                   ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
 #endif
@@ -105,7 +105,7 @@ namespace ecmech {
 #if defined(__ecmech_host_only__)
                   std::ostringstream os;
                   os << "strides[istride_int_eng] should have at least a length of: " << ecmech::ne;
-                  ECMECH_FAIL(__func__, os.str());
+                  ECMECH_FAIL(__func__, os.str().c_str());
 #else
                   ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
 #endif
@@ -114,7 +114,7 @@ namespace ecmech {
 #if defined(__ecmech_host_only__)
                   std::ostringstream os;
                   os << "strides[istride_stress] should have at least a length of: " << ecmech::nsvp;
-                  ECMECH_FAIL(__func__, os.str());
+                  ECMECH_FAIL(__func__, os.str().c_str());
 #else
                   ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
 #endif
@@ -123,7 +123,7 @@ namespace ecmech {
 #if defined(__ecmech_host_only__)
                   std::ostringstream os;
                   os << "strides[istride_history] should have at least a length of: " << nhist;
-                  ECMECH_FAIL(__func__, os.str());
+                  ECMECH_FAIL(__func__, os.str().c_str());
 #else
                   ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
 #endif
@@ -132,7 +132,7 @@ namespace ecmech {
 #if defined(__ecmech_host_only__)
                   std::ostringstream os;
                   os << "strides[istride_tkelv] should have at least a length of: " << 1;
-                  ECMECH_FAIL(__func__, os.str());
+                  ECMECH_FAIL(__func__, os.str().c_str());
 #else
                   ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
 #endif
@@ -141,7 +141,7 @@ namespace ecmech {
 #if defined(__ecmech_host_only__)
                   std::ostringstream os;
                   os << "strides[istride_sdd] should have at least a length of: " << ecmech::nsdd;
-                  ECMECH_FAIL(__func__, os.str());
+                  ECMECH_FAIL(__func__, os.str().c_str());
 #else
                   ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
 #endif
