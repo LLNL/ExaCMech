@@ -33,7 +33,7 @@ namespace ecmech {
             static constexpr int nParamsEOS = EosModel::nParams - nParamsEOSHave;
             static constexpr int nParams =
                2 + 1 + // rho0, cvav, tolerance
-               Kinetics::nParams + ThermoElastN::nParams + nParamsEOS;
+               SlipGeom::nParams + Kinetics::nParams + ThermoElastN::nParams + nParamsEOS;
 
             // constructor
             __ecmech_host__
