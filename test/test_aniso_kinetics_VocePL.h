@@ -301,11 +301,13 @@ namespace ecmech {
                  const double* const hs_o,
                  double dt,
                  const double* const gdot,
+                 const double* const /*hvals*/,
+                 double /*tK*/,
                  int outputLevel = 0) const
          {
             double hs_u_1[_nslip];
             int nFEvals = updateHN<KineticsAnisoVocePL>(this,
-                                                        &hs_u_1[0], &hs_o[0], dt, gdot,
+                                                        &hs_u_1[0], &hs_o[0], dt, gdot, nullptr, 0.0,
                                                         outputLevel);
 
             for (int i = 0; i < _nslip; i++) {
@@ -335,11 +337,14 @@ namespace ecmech {
 
          __ecmech_hdev__
          inline
-         void
+         void                   
          getSdotN(double *sdot,
                   double *dsdot_ds,
                   const double* const h,
-                  const double* const evolVals) const
+                  const double* const evolVals,
+                  const double* const /*hvals*/,
+                  double /*tK*/,
+                  double* const dsdot_dgdot = nullptr) const
          {
             double shrate_eff = evolVals[0];
             double sv_sat = evolVals[1];

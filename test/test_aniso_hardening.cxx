@@ -40,7 +40,9 @@ TEST(ecmech, hard_voce_a)
       }
 
       double hs_u[kinetics.nH];
-      int nFEvals = kinetics.updateH(hs_u, &(init[0]), dt, gdot, outputLevel);
+      double hvals[12] = { 0.0 };
+      double tkelv = 300;
+      int nFEvals = kinetics.updateH(hs_u, &(init[0]), dt, gdot, hvals, tkelv, outputLevel);
       std::cout << "Converged with nFEvals : " << nFEvals << std::endl;
 #ifdef KIN_NONLINEAR
       EXPECT_TRUE(nFEvals == 3) << "Not the expected number of function evaluations";
@@ -84,7 +86,9 @@ TEST(ecmech, hard_voce_nostr)
       }
 
       double hs_u[kinetics.nH];
-      int nFEvals = kinetics.updateH(hs_u, &(init[0]), dt, gdot, outputLevel);
+      double hvals[12] = { 0.0 };
+      double tkelv = 300;
+      int nFEvals = kinetics.updateH(hs_u, &(init[0]), dt, gdot, hvals, tkelv, outputLevel);
       std::cout << "Converged with nFEvals : " << nFEvals << std::endl;
       EXPECT_TRUE(nFEvals == 2) << "Not the expected number of function evaluations";
 #ifdef ECMECH_DEBUG

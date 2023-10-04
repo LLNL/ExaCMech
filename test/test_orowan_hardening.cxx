@@ -44,7 +44,9 @@ TEST(ecmech, hard_orowan_fcc)
          kinetics.getHistInfo(names, init, plot, state);
       }
       double hs_u[kinetics.nH];
-      int nFEvals = kinetics.updateH(hs_u, &(init[0]), dt, gdot, outputLevel);
+      double hvals[12] = { 0.0 };
+      double tkelv = 300;
+      int nFEvals = kinetics.updateH(hs_u, &(init[0]), dt, gdot, hvals, tkelv, outputLevel);
       std::cout << "Converged with nFEvals : " << nFEvals << std::endl;
 
       EXPECT_TRUE(nFEvals == nevals) << "Not the expected number of function evaluations";
