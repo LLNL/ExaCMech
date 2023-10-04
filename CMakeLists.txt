@@ -11,7 +11,7 @@ message(STATUS "Using cmake version ${CMAKE_VERSION}")
 
 project(ECMECH LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 
 ################################
 # BLT
@@ -101,7 +101,7 @@ if(ENABLE_MINIAPPS)
 endif(ENABLE_MINIAPPS)
 
 if(ENABLE_PYTHON)
-
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 ################################
 # PYBIND11
 ################################

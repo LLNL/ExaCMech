@@ -9,7 +9,7 @@ if(NOT USE_BUILT_SNLS)
     list(APPEND PYECMECH_DEPENDS snls)
 endif()
 
-list(APPEND PYECMECH_DEPENDS pybind11::embed ecmech_static)
+list(APPEND PYECMECH_DEPENDS pybind11::pybind11 ecmech_static)
 
 message("-- PYECMECH_DEPENDS: ${PYECMECH_DEPENDS}")
 
