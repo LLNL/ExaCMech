@@ -91,7 +91,7 @@ class SlipKineticVocePowerLaw:
 
     def get_values(self, pressure, temp_k, hard_state):
         values = []
-        values = self.hard_state[0]
+        values.append(hard_state[0])
         return (values[0], jnp.asarray(values))
 
     def eval_slip_rates(self, rss, values):
@@ -103,10 +103,10 @@ class SlipKineticVocePowerLaw:
             abs_rss_crss_frac = jnp.abs(rss_crss_frac)
             if abs_rss_crss_frac > self.t_min:
                 if abs_rss_crss_frac > self.t_max:
-                    shear_dot.at[islip].set(jnp.copysign(jec.GAM_RATIO_OVFFX * self.gamma_0_w, self.rss[islip]))
+                    shear_dot= shear_dot.at[islip].set(jnp.copysign(jec.GAM_RATIO_OVFFX * self.gamma_0_w, self.rss[islip]))
                 else:
                     temp = jnp.exp(jnp.log(abs_rss_crss_frac)  * self.inv_exp_m1) * self.gamma_0_w
-                    shear_dot.at[islip].set(temp * rss_crss_frac)
+                    shear_dot = shear_dot.at[islip].set(temp * rss_crss_frac)
         return shear_dot
 
 
@@ -115,6 +115,10 @@ class SlipKineticVocePowerLaw:
         
         init_sol = jnp.zeros_like(hard_state_0)
         args = (hard_state_0, evol_vals, delta_time)
+        print(hard_state_0.shape)
+        print(evol_vals.shape)
+        print(delta_time)
+        print(init_sol.shape)
         res = root(self.update_hard_resid, init_sol, args=args, jac=self.update_hard_jacob, method='hybr', tol=1e-8)
 
         x_scale = jnp.minimum(hard_state_0, 1.0)

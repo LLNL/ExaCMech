@@ -46,10 +46,26 @@ def skew_to_vec(W):
     return jnp.asarray([W[2, 1], W[0, 2], W[1, 0]])
 
 def normalize(A):
-    return jnp.norm(A) * A
+    return jnp.linalg.norm(A) * A
 
 def vec_dev_effective(A):
-    return jnp.sqrt(2.0/3.0) * jnp.norm(A)
+    norm = 0.0
+    for ival in A:
+        norm += ival * ival
+
+    norm = jax.lax.cond(
+        norm > 1e16,
+        lambda: 1e16,
+        lambda: norm
+    )
+
+    norm = jax.lax.cond(
+        norm < 10.0 * jnp.finfo(jnp.float64).eps,
+        lambda: 0.0,
+        lambda: jnp.sqrt(norm)
+    )
+
+    return jnp.sqrt(2.0/3.0) * norm
 
 def sym_mat_to_vec_dev(A):
     return jnp.asarray([ jnp.sqrt(0.5) * (A[0, 0] - A[1, 1]),
@@ -119,21 +135,33 @@ def quat_prod(quat1, quat2):
     return jnp.asarray([q1, q2, q3, q4])
 
 def exp_map_to_quat(exp_map):
+    # norm = 0.0
+    # for ival in exp_map:
+    #     norm += ival * ival
+
+    # inorm = jax.lax.cond(
+    #     norm < jnp.finfo(jnp.float64).eps,
+    #     lambda: 0.0,
+    #     lambda: 1.0 / jnp.sqrt(norm)
+    # )
     
-    norm = jnp.norm(exp_map)
-    inorm = jax.lax.cond(
-        norm < jnp.finfo(jnp.float64).eps,
-        lambda: 0.0,
-        lambda: 1.0 / norm
+    # axis_ang = jax.lax.cond(
+    #     norm < jnp.finfo(jnp.float64).eps,
+    #     lambda: jnp.asarray([norm, 1.0, inorm * exp_map[1], inorm * exp_map[2]]),
+    #     lambda: jnp.asarray([norm, inorm * exp_map[0], inorm * exp_map[1], inorm * exp_map[2]])
+    # )
+    
+    # return axis_ang_to_quat(axis_ang)
+    angle2 = jnp.dot(exp_map, exp_map)
+    angle = jax.lax.cond(
+        angle2 < jnp.finfo(jnp.float64).eps,
+        lambda: jnp.finfo(jnp.float64).eps,
+        lambda: jnp.sqrt(angle2)
     )
-    
-    axis_ang = jax.lax.cond(
-        norm < jnp.finfo(jnp.float64).eps,
-        lambda: jnp.asarray([norm, 1.0, 0.0, 0.0]),
-        lambda: jnp.asarray([norm, inorm * exp_map[0], inorm * exp_map[1], inorm * exp_map[2]])
-    )
-    
-    return axis_ang_to_quat(axis_ang)
+    small_scale = scale = 0.5 - angle2 / 48 + angle2 * angle2 / 3840
+    large_scale = jnp.sin(angle / 2) / angle
+    scale = jnp.where(angle <= 1e-3, small_scale, large_scale)
+    return jnp.hstack([jnp.cos(angle / 2), scale * exp_map])
 
 def quat_to_rmat(quat):
     x0sq = quat[0] * quat[0]
@@ -151,7 +179,7 @@ def quat_to_rmat(quat):
 
     x2x3 = quat[2] * quat[3]
     
-    return jnp.asarry([
+    return jnp.asarray([
         [x0sq + x1sq - x2sq - x3sq, 2.0 * (x1x2 - x0x3), 2.0 * (x1x3 + x0x2)],
         [2.0 * (x1x2 + x0x3), x0sq - x1sq + x2sq - x3sq, 2.0 * (x2x3 - x0x1)],
         [2.0 * (x1x3 - x0x2), 2.0 * (x2x3 + x0x1), x0sq - x1sq - x2sq + x3sq]
@@ -165,31 +193,31 @@ def rot_mat_to_rot_mat5(rot_mat):
     
     sqr3 = jnp.sqrt(3)
     
-    rot_mat5.at[0, 0].set(0.5 * (rot_mat[0, 0] * rot_mat[0, 0] - rot_mat[0, 1] * rot_mat[0, 1] - rot_mat[1, 0] * rot_mat[1, 0] + rot_mat[1, 1] * rot_mat[1, 1]))
-    rot_mat5.at[0, 0].set(sqr3 * 0.5 * (rot_mat[0, 2] * rot_mat[0, 2] - rot_mat[1, 2] * rot_mat[1, 2]))
-    rot_mat5.at[0, 2].set(rot_mat[0, 0] * rot_mat[0, 1] - rot_mat[1, 0] * rot_mat[1, 1])
-    rot_mat5.at[0, 3].set(rot_mat[0, 0] * rot_mat[0, 2] - rot_mat[1, 0] * rot_mat[1, 2])
-    rot_mat5.at[0, 4].set(rot_mat[0, 1] * rot_mat[0, 2] - rot_mat[1, 1] * rot_mat[1, 2])
-    rot_mat5.at[1, 0].set(sqr3 * 0.5 * (rot_mat[2, 0] * rot_mat[2, 0] - rot_mat[2, 1] * rot_mat[2, 1]))
-    rot_mat5.at[1, 1].set(1.5 * rot_mat[2, 2] * rot_mat[2, 2] - 0.5)
-    rot_mat5.at[1, 2].set(sqr3 * rot_mat[2, 0] * rot_mat[2, 1])
-    rot_mat5.at[1, 3].set(sqr3 * rot_mat[2, 0] * rot_mat[2, 2])
-    rot_mat5.at[1, 4].set(sqr3 * rot_mat[2, 1] * rot_mat[2, 2])
-    rot_mat5.at[2, 0].set(rot_mat[0, 0] * rot_mat[1, 0] - rot_mat[0, 1] * rot_mat[1, 1])
-    rot_mat5.at[2, 1].set(sqr3 * rot_mat[0, 2] * rot_mat[1, 2])
-    rot_mat5.at[2, 2].set(rot_mat[0, 0] * rot_mat[1, 1] + rot_mat[0, 1] * rot_mat[1, 0])
-    rot_mat5.at[2, 3].set(rot_mat[0, 0] * rot_mat[1, 2] + rot_mat[0, 2] * rot_mat[1, 0])
-    rot_mat5.at[2, 4].set(rot_mat[0, 1] * rot_mat[1, 2] + rot_mat[0, 2] * rot_mat[1, 1])
-    rot_mat5.at[3, 0].set(rot_mat[0, 0] * rot_mat[2, 0] - rot_mat[0, 1] * rot_mat[2, 1])
-    rot_mat5.at[3, 1].set(sqr3 * rot_mat[0, 2] * rot_mat[2, 2])
-    rot_mat5.at[3, 2].set(rot_mat[0, 0] * rot_mat[2, 1] + rot_mat[0, 1] * rot_mat[2, 0])
-    rot_mat5.at[3, 3].set(rot_mat[0, 0] * rot_mat[2, 2] + rot_mat[0, 2] * rot_mat[2, 0])
-    rot_mat5.at[3, 4].set(rot_mat[0, 1] * rot_mat[2, 2] + rot_mat[0, 2] * rot_mat[2, 1])
-    rot_mat5.at[4, 0].set(rot_mat[1, 0] * rot_mat[2, 0] - rot_mat[1, 1] * rot_mat[2, 1])
-    rot_mat5.at[4, 1].set(sqr3 * rot_mat[1, 2] * rot_mat[2, 2])
-    rot_mat5.at[4, 2].set(rot_mat[1, 0] * rot_mat[2, 1] + rot_mat[1, 1] * rot_mat[2, 0])
-    rot_mat5.at[4, 3].set(rot_mat[1, 0] * rot_mat[2, 2] + rot_mat[1, 2] * rot_mat[2, 0])
-    rot_mat5.at[4, 4].set(rot_mat[1, 1] * rot_mat[2, 2] + rot_mat[1, 2] * rot_mat[2, 1])
+    rot_mat5 = rot_mat5.at[0, 0].set(0.5 * (rot_mat[0, 0] * rot_mat[0, 0] - rot_mat[0, 1] * rot_mat[0, 1] - rot_mat[1, 0] * rot_mat[1, 0] + rot_mat[1, 1] * rot_mat[1, 1]))
+    rot_mat5 = rot_mat5.at[0, 1].set(sqr3 * 0.5 * (rot_mat[0, 2] * rot_mat[0, 2] - rot_mat[1, 2] * rot_mat[1, 2]))
+    rot_mat5 = rot_mat5.at[0, 2].set(rot_mat[0, 0] * rot_mat[0, 1] - rot_mat[1, 0] * rot_mat[1, 1])
+    rot_mat5 = rot_mat5.at[0, 3].set(rot_mat[0, 0] * rot_mat[0, 2] - rot_mat[1, 0] * rot_mat[1, 2])
+    rot_mat5 = rot_mat5.at[0, 4].set(rot_mat[0, 1] * rot_mat[0, 2] - rot_mat[1, 1] * rot_mat[1, 2])
+    rot_mat5 = rot_mat5.at[1, 0].set(sqr3 * 0.5 * (rot_mat[2, 0] * rot_mat[2, 0] - rot_mat[2, 1] * rot_mat[2, 1]))
+    rot_mat5 = rot_mat5.at[1, 1].set(1.5 * rot_mat[2, 2] * rot_mat[2, 2] - 0.5)
+    rot_mat5 = rot_mat5.at[1, 2].set(sqr3 * rot_mat[2, 0] * rot_mat[2, 1])
+    rot_mat5 = rot_mat5.at[1, 3].set(sqr3 * rot_mat[2, 0] * rot_mat[2, 2])
+    rot_mat5 = rot_mat5.at[1, 4].set(sqr3 * rot_mat[2, 1] * rot_mat[2, 2])
+    rot_mat5 = rot_mat5.at[2, 0].set(rot_mat[0, 0] * rot_mat[1, 0] - rot_mat[0, 1] * rot_mat[1, 1])
+    rot_mat5 = rot_mat5.at[2, 1].set(sqr3 * rot_mat[0, 2] * rot_mat[1, 2])
+    rot_mat5 = rot_mat5.at[2, 2].set(rot_mat[0, 0] * rot_mat[1, 1] + rot_mat[0, 1] * rot_mat[1, 0])
+    rot_mat5 = rot_mat5.at[2, 3].set(rot_mat[0, 0] * rot_mat[1, 2] + rot_mat[0, 2] * rot_mat[1, 0])
+    rot_mat5 = rot_mat5.at[2, 4].set(rot_mat[0, 1] * rot_mat[1, 2] + rot_mat[0, 2] * rot_mat[1, 1])
+    rot_mat5 = rot_mat5.at[3, 0].set(rot_mat[0, 0] * rot_mat[2, 0] - rot_mat[0, 1] * rot_mat[2, 1])
+    rot_mat5 = rot_mat5.at[3, 1].set(sqr3 * rot_mat[0, 2] * rot_mat[2, 2])
+    rot_mat5 = rot_mat5.at[3, 2].set(rot_mat[0, 0] * rot_mat[2, 1] + rot_mat[0, 1] * rot_mat[2, 0])
+    rot_mat5 = rot_mat5.at[3, 3].set(rot_mat[0, 0] * rot_mat[2, 2] + rot_mat[0, 2] * rot_mat[2, 0])
+    rot_mat5 = rot_mat5.at[3, 4].set(rot_mat[0, 1] * rot_mat[2, 2] + rot_mat[0, 2] * rot_mat[2, 1])
+    rot_mat5 = rot_mat5.at[4, 0].set(rot_mat[1, 0] * rot_mat[2, 0] - rot_mat[1, 1] * rot_mat[2, 1])
+    rot_mat5 = rot_mat5.at[4, 1].set(sqr3 * rot_mat[1, 2] * rot_mat[2, 2])
+    rot_mat5 = rot_mat5.at[4, 2].set(rot_mat[1, 0] * rot_mat[2, 1] + rot_mat[1, 1] * rot_mat[2, 0])
+    rot_mat5 = rot_mat5.at[4, 3].set(rot_mat[1, 0] * rot_mat[2, 2] + rot_mat[1, 2] * rot_mat[2, 0])
+    rot_mat5 = rot_mat5.at[4, 4].set(rot_mat[1, 1] * rot_mat[2, 2] + rot_mat[1, 2] * rot_mat[2, 1])
     
     return rot_mat5
 
@@ -205,24 +233,24 @@ def mat35_da_A_oper_b_d(dev_a):
 
     m35 = jnp.zeros((3, 5))
 
-    m35.at[0, 0].set(dev_a[4] * 0.5)
-    m35.at[1, 0].set(dev_a[3] * 0.5)
-    m35.at[2, 0].set(-dev_a[2])
+    m35 = m35.at[0, 0].set(dev_a[4] * 0.5)
+    m35 = m35.at[1, 0].set(dev_a[3] * 0.5)
+    m35 = m35.at[2, 0].set(-dev_a[2])
 
-    m35.at[0, 1].set(dev_a[4] * 0.5 * jnp.sqrt(3))
-    m35.at[1, 1].set(-dev_a[3] * 0.5 * jnp.sqrt(3))
-    m35.at[2, 1].set(0.0)
+    m35 = m35.at[0, 1].set(dev_a[4] * 0.5 * jnp.sqrt(3))
+    m35 = m35.at[1, 1].set(-dev_a[3] * 0.5 * jnp.sqrt(3))
+    m35 = m35.at[2, 1].set(0.0)
 
-    m35.at[0, 2].set(-dev_a[3] * 0.5)
-    m35.at[1, 2].set(dev_a[4] * 0.5)
-    m35.at[2, 2].set(dev_a[0])
+    m35 = m35.at[0, 2].set(-dev_a[3] * 0.5)
+    m35 = m35.at[1, 2].set(dev_a[4] * 0.5)
+    m35 = m35.at[2, 2].set(dev_a[0])
 
-    m35.at[0, 3].set(dev_a[2] * 0.5)
-    m35.at[1, 3].set(0.5 * (jnp.sqrt(3) * dev_a[1] - dev_a[0]))
-    m35.at[2, 3].set(-dev_a[4] * 0.5)
+    m35 = m35.at[0, 3].set(dev_a[2] * 0.5)
+    m35 = m35.at[1, 3].set(0.5 * (jnp.sqrt(3) * dev_a[1] - dev_a[0]))
+    m35 = m35.at[2, 3].set(-dev_a[4] * 0.5)
 
-    m35.at[0, 4].set(-0.5 * (jnp.sqrt(3) * dev_a[1] + dev_a[0]))
-    m35.at[1, 4].set(-dev_a[2] * 0.5)
-    m35.at[2, 4].set(dev_a[3] * 0.5)
+    m35 = m35.at[0, 4].set(-0.5 * (jnp.sqrt(3) * dev_a[1] + dev_a[0]))
+    m35 = m35.at[1, 4].set(-dev_a[2] * 0.5)
+    m35 = m35.at[2, 4].set(dev_a[3] * 0.5)
     
     return m35

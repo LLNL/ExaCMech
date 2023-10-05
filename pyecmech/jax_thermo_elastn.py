@@ -46,8 +46,8 @@ class thermoElastCubic:
     def eval(self, elas_dev_press_vec, pressure, eVref):
         jacob = jnp.exp(jnp.sqrt(3.0) * elas_dev_press_vec[-1])
         kirchoff_bulk = -jnp.sqrt(3.0) * jacob * pressure
-        kirchoff_dev = self.c_diags * elas_dev_press_vec
-        return jnp.c_[kirchoff_dev, kirchoff_bulk]
+        kirchoff_dev = self.c_diags * elas_dev_press_vec[0:-1]
+        return jnp.hstack((kirchoff_dev, kirchoff_bulk))
 
     def calc_dtau_depsilon(dtau_deps_mat, schmid_system_p_vecs, inv_a_vol):
         return dtau_deps_mat + (schmid_system_p_vecs * self.c_diags) * inv_a_vol

@@ -29,7 +29,7 @@ class eosSimple:
         self.gamma = parameters["eos_gamma"]
         self.cold_energy_0 = parameters["eos_cold_energy_0"]
 
-        self.dtde = 1.0 / cvav
+        self.dtde = 1.0 / self.cvav
         self.temp_k_init = -self.cold_energy_0 * self.dtde
 
     def get_parameters(self, parameters):
@@ -41,7 +41,7 @@ class eosSimple:
 
         return parameters
 
-    def eval_pressure_temp(volume, energy):
+    def eval_pressure_temp(self, volume, energy):
         mu = 1.0 / volume - 1.0
 
         pressure = self.bulk_modulus * mu
@@ -53,13 +53,13 @@ class eosSimple:
         
         return (pressure, temp_k)
 
-    def eval_temp(energy):
+    def eval_temp(self, energy):
         temp_k = self.temp_k_init
         if not self.isothermal:
             temp_k += self.dtde * energy
         return temp_k
 
-    def eval_pressure_temp_diff(volume, energy):
+    def eval_pressure_temp_diff(self, volume, energy):
         eta = 1.0 / volume
         mu = eta - 1.0
 
@@ -73,7 +73,7 @@ class eosSimple:
         if self.isothermal:
             dtde *= 1e-8
         else:
-            p += self.gamma * energy
+            pressure += self.gamma * energy
             dpde = self.gamma
 
         return (pressure, temp_k, bulk_mod_new, dpde, dtde)

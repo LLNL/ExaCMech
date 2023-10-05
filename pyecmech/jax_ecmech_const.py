@@ -15,10 +15,13 @@ from jax.config import config; config.update("jax_enable_x64", True)
 
 NWVEC = pecm.constants.nwvec
 NTVEC = pecm.constants.ntvec
+NSVP = pecm.constants.nsvp
 DBL_TINY_SQRT = pecm.constants.dbl_tiny_sqrt
 GAM_RATIO_OVFFX = pecm.constants.gam_ratio_ovffx
 GAM_RATIO_MIN = pecm.constants.gam_ratio_min
 GAM_RATIO_OVF = pecm.constants.gam_ratio_ovf
+ELAS_SCALE = 5e-4
+ROT_SCALE = 0.01
 
 class HistClass:
     def __init__(self,
@@ -36,13 +39,13 @@ class HistClass:
         self.ind_hist_num_func_evals = self.ind_hist_lba + 3
 
         self.ind_hist_elas_strain = self.num_hist_auxillary
-        self.ind_hist_elas_strain_end = self.ind_hist_lb_elas_strain + pecm.constants.ntvec
+        self.ind_hist_elas_strain_end = self.ind_hist_elas_strain + pecm.constants.ntvec
 
         self.ind_hist_quats = self.num_hist_auxillary + pecm.constants.ntvec
-        self.ind_hist_quats_end = self.ind_hist_lb_quats + pecm.constants.qdim
+        self.ind_hist_quats_end = self.ind_hist_quats + pecm.constants.qdim
 
         self.ind_hist_hard = self.num_hist_auxillary + pecm.constants.ntvec + pecm.constants.qdim
-        self.ind_hist_hard_end = self.ind_hist_lb_hard + slip_kinetics_class.num_hard
+        self.ind_hist_hard_end = self.ind_hist_hard + slip_kinetics_class.num_hard
 
         self.ind_hist_slip = self.ind_hist_hard + slip_kinetics_class.num_hard
         self.ind_hist_slip_end = self.ind_hist_slip + slip_geom_class.num_slip_systems
@@ -74,5 +77,5 @@ class HistClass:
         return hist[self.ind_hist_shear_eff]
 
     def pack_history_vars(self, elas_dev, quats, hard_state, slip_rate, shear_rate_eff, shear_eff, flow_strength, solver_iters):
-        return jnp.c_[shear_rate_eff, shear_eff, flow_strength, solver_iters, elas_dev, quats, hard_state, slip_rate]
+        return jnp.hstack((shear_rate_eff, shear_eff, flow_strength, solver_iters, elas_dev, quats, hard_state, slip_rate))
 

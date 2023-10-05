@@ -27,7 +27,7 @@ class SlipGeomBase:
         return (chia, self.p_vec, self.q_vec)
 
     def evaluate_RSS(self, kirchoff_dev):
-        return jnp.dot(kirchoff_dev, self.p_vec)
+        return jnp.dot(kirchoff_dev[0:-1], self.p_vec)
 
     def fill_from_mvec_svec(self, mvecs, svecs):
         p_vec = jnp.zeros((jec.NTVEC, self.num_slip_systems))
