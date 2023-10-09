@@ -1,0 +1,341 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Aug 25 08:22:12 2023
+
+@author: carson16
+"""
+
+import numpy as np
+
+import jax
+import jax.numpy as jnp
+import jax.lax.linalg as lax_linalg
+from jax import custom_jvp
+from functools import partial
+from jax import lax
+from jax.numpy.linalg import solve
+from jax.config import config; config.update("jax_enable_x64", True);
+
+from scipy.optimize import minimize
+import scipy.stats as scist
+from scipy.optimize import root
+
+class MemoizeJac:
+    """ Decorator that caches the return values of a function returning `(fun, grad)`
+        each time it is called. """
+
+    def __init__(self, fun):
+        self.fun = fun
+        self.jac = None
+        self._value = None
+        self.x = None
+
+    def _compute_if_needed(self, x, *args):
+        if not np.all(x == self.x) or self._value is None or self.jac is None:
+            self.x = np.asarray(x).copy()
+            fg = self.fun(x, *args)
+            self.jac = fg[1]
+            self._value = fg[0]
+
+    def __call__(self, x, *args):
+        """ returns the the function value """
+        self._compute_if_needed(x, *args)
+        return self._value
+
+    def derivative(self, x, *args):
+        self._compute_if_needed(x, *args)
+        return self.jac
+
+class SNLSTrDlDenseG:
+    class params:
+        def __init__(self):
+            self.factor = 100.0
+            self.maxfev = 200
+            self.xtol = np.sqrt(np.finfo(np.float64).eps)
+
+    def __init__(self, functor, xtolerance = np.finfo(np.float64).eps, ndim = 1, args=()):
+        self.fun = MemoizeJac(functor)
+        self.jac = self.fun.derivative
+
+        self.nfev  = 0
+        self.njev  = 0
+        self.iter  = 0
+        self.res = 1e20
+        self.delta = 1e8
+        self.rho_last = 0.0
+        self.ndim = ndim
+        self.parameters = self.params()
+        self.parameters.xtol = xtolerance
+        self.success = -10
+
+        self.delta_control = DeltaControl()
+
+        if not isinstance(args, tuple):
+            self.args = (args,)
+        else:
+            self.args = args
+
+    def resetParams(self):
+        self.parameters = self.params()
+    
+    def solveInit(self, x):
+        self.delta = self.delta_control.getDeltaInit()
+        self.njev = 1
+        self.nfev = 1 
+        self.success = -10
+        self.residual = np.copy(self.fun(x, *self.args))
+        self.jacobian = np.copy(self.jac(x, *self.args))
+        self.res = np.linalg.norm(self.residual)
+        # initialize iteration counter and monitors
+        self.iter = 1
+        return x
+
+    def solve(self, x):
+        x = self.solveInit(x)
+        if self.res < self.parameters.xtol:
+            self.success = 0
+            return (self.success, x)
+
+        res_0 = self.res
+        reject_prev = False
+        
+        nr_step = np.zeros(self.ndim)
+        grad    = np.zeros(self.ndim)
+        delta_x = np.zeros(self.ndim)
+        Jg_2    = 0.0
+
+        for niters in range(self.parameters.maxfev):
+            if not reject_prev:
+                # This is done outside this step so that these operations can be done with varying solve
+                # techniques such as LU/QR or etc...
+                grad = self.jacobian.T.dot(self.residual)
+                Jg_2 = np.dot(self.jacobian.dot(grad), self.jacobian.dot(grad))
+                nr_step = np.linalg.solve(self.jacobian, self.residual)
+                nr_step *= -1.0
+
+            use_nr = False
+            # If the step was rejected nrStep will be the same value as previously, and so we can just recalculate nr_norm here.
+            nr_norm = np.linalg.norm(nr_step)
+
+            # Computes the updated delta x/x, predicated residual error, and whether or not NR method was used.
+            use_nr, pred_resid, delta_x, x = self.dogleg(res_0, nr_norm, Jg_2, grad, nr_step, x, use_nr)
+
+            reject_prev = False
+
+            # {
+            #    bool rjSuccess = this->computeRJ(residual, Jacobian) ; // at _x
+            #    snls::updateDelta<_nDim>(_deltaControl, residual, res_0, pred_resid, nr_norm, _tolerance, use_nr, rjSuccess,
+            #                             _delta, _res, _rhoLast, reject_prev, _status, _os);
+            #    if(_status != SNLSStatus_t::unConverged) { break; }
+            # }
+            self.residual = np.copy(self.fun(x, *self.args))
+            self.jacobian = np.copy(self.jac(x, *self.args))
+            self.njev += 1
+            self.nfev += 1 
+
+            reject_prev = self.update_delta(res_0, pred_resid, nr_norm, use_nr, reject_prev)
+            if self.success != -10:
+                break
+
+            if reject_prev:
+                #print("reject_prev")
+                self.res = res_0
+                x -= delta_x
+
+            res_0 = self.res
+            
+        return (self.success, x)
+
+    def dogleg(self, res_0, nr_norm, Jg_2, grad, nr_step, x, use_nr):
+        # No need to do any other calculations if this condition is true
+        if ( nr_norm <= self.delta ):
+            # use Newton step
+            use_nr = True
+            delx = nr_step.copy()
+            pred_resid = 0.0
+        # Find Cauchy point
+        else:
+            # If we didn't reject things this is the only thing that needs to be updated
+            # everything else we should have the info to recompute
+            # The nice thing about recomputing is that we can actually define the variables as const
+            # to help the compiler out.
+
+            norm2_grad = np.dot(grad, grad)
+            norm_grad  = np.sqrt(norm2_grad)
+
+            alpha = 1.0
+            if Jg_2 > 0.0:
+                alpha = norm2_grad / Jg_2
+            
+            norm_grad_inv = 1.0
+            if norm_grad > 0.0:
+                norm_grad_inv = 1.0 / norm_grad
+
+            norm_s_sd_opt = alpha * norm_grad
+
+            # step along the dogleg path
+            if ( norm_s_sd_opt >= self.delta ):
+                # use step along steapest descent direction
+                delx = -self.delta * norm_grad_inv * grad
+
+                val = -(self.delta * norm_grad) + 0.5 * self.delta * self.delta * Jg_2 * (norm_grad_inv * norm_grad_inv)
+                pred_resid = np.sqrt(np.maximum(2.0 * val + res_0 * res_0, 0.0))
+            else:
+                qb = 0.0
+                qa = 0.0
+                p = nr_step + alpha * grad
+                qa = np.dot(p, p)
+                qb = np.dot(p, grad)
+
+                # Previously qb = (-p^t g / ||g||) * alpha * ||g|| * 2.0
+                # However, we can see that this simplifies a bit and also with the beta term
+                # down below we there's a common factor of 2.0 that we can eliminate from everything
+                qb *= alpha
+                # qc and beta depend on delta
+                qc = norm_s_sd_opt * norm_s_sd_opt - self.delta * self.delta
+                beta = (qb + np.sqrt(qb * qb - qa * qc)) / qa
+                beta = np.maximum(0.0, np.minimum(1.0, beta)) # to deal with any roundoff
+
+                # delx[iX] = alpha*ngrad[iX] + beta*p[iX] = beta*nrStep[iX] - (1.0-beta)*alpha*grad[iX]
+                omb  = 1.0 - beta
+                omba = omb * alpha
+                delx = beta * nr_step - omba * grad
+                res_cauchy = res_0
+                if Jg_2 > 0.0:
+                    res_cauchy = np.sqrt(np.maximum(0.0, res_0 * res_0 - alpha * norm2_grad))
+                pred_resid = omb * res_cauchy
+
+        x += delx
+        return (use_nr, pred_resid, delx, x)
+
+    def update_delta(self, res_0, pred_resid, nr_norm, use_nr, reject_prev):
+        self.res = np.linalg.norm(self.residual)
+        # allow to exit now, may have forced one iteration anyway, in which
+        # case the delta update can do funny things if the residual was
+        # already very small
+        if self.res < self.parameters.xtol:
+            self.success = 0
+            return False
+        
+        delta_success, reject_prev, self.rho_last, self.delta = self.delta_control.updateDelta(self.delta, self.res, res_0, pred_resid, reject_prev, use_nr, nr_norm, self.rho_last)
+
+        if not delta_success:
+            self.success = -20
+            return False
+        
+        return reject_prev
+
+class DeltaControl:
+    def __init__(self):
+        self.xiLG = 0.75
+        self.xiUG = 1.4
+        self.xiIncDelta = 1.5
+        self.xiLO = 0.35
+        self.xiUO = 5.0
+        self.xiDecDelta = 0.25
+        self.xiForcedIncDelta = 1.2
+        self.deltaInit = 1.0
+        self.deltaMin = 1e-12
+        self.deltaMax = 1e4
+        self.rejectResIncrease = True
+
+    def getDeltaInit(self):
+        return self.deltaInit
+
+    def decrDelta(self, delta, normfull, took_full):
+        success = True
+
+        if took_full:
+            delta = np.sqrt(delta * self.xiDecDelta * normfull * self.xiDecDelta)
+        else:
+            delta = delta * self.xiDecDelta
+
+        if delta < self.deltaMin:
+            delta = self.deltaMin
+            success = False
+
+        return (success, delta)
+
+    def incrDelta(self, delta):
+        delta = delta * self.xiIncDelta
+        if delta > self.deltaMax:
+            delta = deltaMax
+        return delta
+
+    def updateDelta(self, delta, res, res_0, pred_res, reject, took_full, normfull, rho):
+
+        success = True
+        actual_change = res - res_0
+        pred_change = pred_res - res_0
+        if pred_change == 0.0:
+            if delta >= self.deltaMax:
+                # things are going badly enough that the solver should probably stop
+                #print("predicted change is zero and delta at max")
+                success = False
+            else:
+                #print("predicted change is zero, forcing delta larger")
+                delta = np.minimum(delta * self.xiForcedIncDelta, self.deltaMax)
+        else:
+            rho = actual_change / pred_change
+
+            #print("rho = " + str(rho))
+
+            if (rho > self.xiLG and 
+                actual_change < 0.0 and
+                rho < self.xiUG
+            ):
+                if not took_full:
+                    #increase delta
+                    delta = self.incrDelta(delta)
+            elif (rho < self.xiLO or rho > self.xiUO):
+                success, delta = self.decrDelta(delta, normfull, took_full)
+        reject = False
+
+        if actual_change > 0.0 and self.rejectResIncrease:
+            # #print("actual change = " + str(actual_change))
+            reject = True
+
+        return (success, reject, rho, delta)
+
+def computeRJ2(x, mlambda):
+    ndim = 8
+    r = np.zeros(ndim)
+    jacob = np.zeros((ndim, ndim))
+    r[0] = (3.0 - 2.0 * x[0]) * x[0] - 2.0 * x[1] + 1.0
+    for i in range(1, ndim - 1, 1):
+        r[i] = (3.0 - 2.0 * x[i]) * x[i] - x[i-1] - 2.0 * x[i+1] + 1.0
+
+    fn = (3.0 - 2.0 * x[-1]) * x[-1] - x[-2] + 1.0
+    r[-1] = (1.0 - mlambda) * fn + mlambda * (fn * fn)
+
+    # F(0) = (3-2*x[0])*x[0] - 2*x[1] + 1
+    jacob[0, 0] = 3.0 - 4.0 * x[0]
+    jacob[0, 1] = -2.0
+    # F(i) = (3-2*x[i])*x[i] - x[i-1] - 2*x[i+1] + 1
+    for i in range(1, ndim - 1, 1):
+        jacob[i, i - 1] = -1.0
+        jacob[i, i] = 3.0 - 4.0 * x[i]
+        jacob[i,i + 1] = -2.0
+
+    # F(n-1) = ((3-2*x[n-1])*x[n-1] - x[n-2] + 1)^2;
+    fn = (3.0 - 2.0 * x[-1]) * x[-1] - x[-2] + 1.0
+    dfndxn = 3.0 - 4.0 * x[-1]
+    jacob[-1, -1] = (1.0 - mlambda) * (dfndxn) + mlambda * (2.0 * dfndxn * fn)
+    jacob[-1, -2] = (1.0 - mlambda) * (-1.0) + mlambda * (-2.0 * fn)
+    
+    #print(np.linalg.norm(r))
+    return (r, jacob)
+
+if __name__ == "__main__":
+    x = np.ones(8) * 0.0
+    args = (0.99999999)
+
+    solver = SNLSTrDlDenseG(computeRJ2, xtolerance=1e-12, ndim=x.shape[0], args=args)
+    solver.delta_control.deltaInit = 100.0
+
+    status, xs = solver.solve(x)
+    print(status, xs)
+    print(solver.res)
+    print(solver.nfev, solver.njev)
+    print()

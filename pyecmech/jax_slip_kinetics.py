@@ -63,6 +63,8 @@ class SlipKineticVocePowerLaw:
         self.exp_m_sat = params["slip_kin_voce_exp_m_sat"]
         self.gamma_sat_0 = params["slip_kin_voce_gamma_sat_0"]
 
+        self.hard_state_0 = jnp.asarray([self.crss0])
+
     def get_parameters(self, parameters):
 
         params["slip_kin_nonlinear"] = self.nonlinear
@@ -79,8 +81,8 @@ class SlipKineticVocePowerLaw:
         return params
 
     def get_history_info(self, names, init, plot, state):
-        names.append("h")
-        init.append(self.crss0)
+        names.append("hard_state_0")
+        init.append(self.hard_state_0)
         plot.append(True)
         state.append(True)
 
@@ -115,10 +117,6 @@ class SlipKineticVocePowerLaw:
         
         init_sol = jnp.zeros_like(hard_state_0)
         args = (hard_state_0, evol_vals, delta_time)
-        print(hard_state_0.shape)
-        print(evol_vals.shape)
-        print(delta_time)
-        print(init_sol.shape)
         res = root(self.update_hard_resid, init_sol, args=args, jac=self.update_hard_jacob, method='hybr', tol=1e-8)
 
         x_scale = jnp.minimum(hard_state_0, 1.0)

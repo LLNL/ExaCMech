@@ -28,6 +28,7 @@ import jax_eos as jeos
 import jax_slip_geom as jslgeo
 import jax_slip_kinetics as jslkin
 import jax_thermo_elastn as jtelas
+import jax_snls as snls
 
 class evptnClass:
     def __init__(
@@ -168,7 +169,7 @@ class evptnClass:
     def get_jacobian(self, x):
         return jax.jacfwd(self.get_residual, 0)(x)
 
-    def compute_resid_jacobian(self, x):
+    def compute_resid_jacobian(self, x, args=()):
         residual = self.get_residual(x)
         jacobian = self.get_jacobian(x)
         return (residual, jacobian)
@@ -225,7 +226,15 @@ def get_response(slip_geom_class, slip_kinetics_class, thermo_elas_class, eos_cl
     # evptn_class.compute_resid_jacobian
     res = root(evptn_class.compute_resid_jacobian, x0, jac=True, method='hybr', tol=1e-8)
 
-    elas_dev_vec_n1, crystal_quat_n1 = evptn_class.get_state_from_x(res.x)
+    solver = snls.SNLSTrDlDenseG(evptn_class.compute_resid_jacobian, xtolerance=solver_tolerance, ndim=x0.shape[0])
+    solver.delta_control.deltaInit = 1.0
+
+    status, xs = solver.solve(x0)
+    # print(status, xs)
+    # print(solver.res)
+    # print(solver.nfev, solver.njev)
+
+    elas_dev_vec_n1, crystal_quat_n1 = evptn_class.get_state_from_x(xs)
     slip_rate_n1 = jnp.copy(evptn_class.slip_rates)
 
     shear_eff = hist_class.get_shear_eff(history_vec)
@@ -239,7 +248,7 @@ def get_response(slip_geom_class, slip_kinetics_class, thermo_elas_class, eos_cl
     else:
         flow_strength = self.hard_scale
 
-    solver_iters = res.nfev
+    solver_iters = solver.nfev
 
     cauchy_crystal = evptn_class.elas_strain_to_cauchy_stress(elas_dev_vec_n1)
 
@@ -252,7 +261,7 @@ def get_response(slip_geom_class, slip_kinetics_class, thermo_elas_class, eos_cl
 
     dev_strain_energy = beg_dev_strain_energy + half_vol_mid_dt * jeu.inner_prod_sym_vec(stress_vec_pressure_n1, def_rate_vec7_samp)
 
-    sdd = jnp.asarray([bulk_mod_new, thermo_elas_class.shear_mod])#get_shear_mod(temp_k, press_eos, energy_new)])
+    sdd = jnp.asarray([bulk_mod_new, thermo_elas_class.shear_mod])
 
     energy_new += dev_strain_energy
 
@@ -355,11 +364,6 @@ if __name__ == "__main__":
     jax.debug.print("{}", hist_class.get_quats(history_update))
     print("Number of function evaluations")
     jax.debug.print("{}", history_update[hist_class.ind_hist_num_func_evals])
-
-    # static const int   expectedNFEvals = 18;
-    # static const double expectedGdotVal = -0.2475346625929;
-    # static const double expectedE2 = 0.0009861349707681;
-    # static const double expectedQ1 = 0.999687516276;
 
 
 
