@@ -223,16 +223,10 @@ def get_response(slip_geom_class, slip_kinetics_class, thermo_elas_class, eos_cl
                              def_dev_vec_samp, spin_vec_samp)
 
     x0 = jnp.zeros(jec.NWVEC + jec.NTVEC)
-    # evptn_class.compute_resid_jacobian
-    res = root(evptn_class.compute_resid_jacobian, x0, jac=True, method='hybr', tol=1e-8)
-
+    # res = root(evptn_class.compute_resid_jacobian, x0, jac=True, method='hybr', tol=1e-8)
     solver = snls.SNLSTrDlDenseG(evptn_class.compute_resid_jacobian, xtolerance=solver_tolerance, ndim=x0.shape[0])
     solver.delta_control.deltaInit = 1.0
-
     status, xs = solver.solve(x0)
-    # print(status, xs)
-    # print(solver.res)
-    # print(solver.nfev, solver.njev)
 
     elas_dev_vec_n1, crystal_quat_n1 = evptn_class.get_state_from_x(xs)
     slip_rate_n1 = jnp.copy(evptn_class.slip_rates)
