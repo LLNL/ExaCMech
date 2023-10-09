@@ -254,3 +254,48 @@ def mat35_da_A_oper_b_d(dev_a):
     m35 = m35.at[2, 4].set(dev_a[3] * 0.5)
     
     return m35
+
+def mtan_conv_sd_svec(mtanSD_vecds_raw, l_ddsdde_gamma):
+    C = np.zeros((6,6))
+    mtanSD = np.zeros((6,6))
+    t1 = np.zeros(6)
+    t2 = np.zeros(6)
+    t3 = np.zeros(6)
+
+    # mtanSD = T . mtanSD_vecds . T^{-1}
+    # C = T . mtanSD_vecds
+    # C(i,:) = T(i,k) . mtanSD_vecds(k,:) -- sum over k
+    #
+    t3 = mtanSD_vecds_raw[-1, :] / np.sqrt(3.0)
+    t1 = mtanSD_vecds_raw[0, :] / np.sqrt(2.0)
+    t2 = mtanSD_vecds_raw[1, :] / np.sqrt(6.0)
+
+    C[0, :] = t1 - t2 + t3
+    C[1, :] = -t1 - t2 + t3
+    C[2, :] = np.sqrt(2.0 / 3.0) * mtanSD_vecds_raw[1, :] + t3
+    C[3, :] = np.sqrt(1.0 / 2.0) * mtanSD_vecds_raw[4, :]
+    C[4, :] = np.sqrt(1.0 / 2.0) * mtanSD_vecds_raw[3, :]
+    C[5, :] = np.sqrt(1.0 / 2.0) * mtanSD_vecds_raw[2, :]
+
+    # mtanSD = C . T^{-1}
+    # mtanSD(:,j) = C(:,k) . [T^{-1}](k,j) -- sum over k
+    #
+
+    t3 = C[:, -1] / np.sqrt(3.0)
+    t2 = C[:, 0] / np.sqrt(2.0)
+    t1 = C[:, 1] / np.sqrt(6.0)
+
+    mtanSD[:, 0] = t1 - t2 + t3
+    mtanSD[:, 1] = -t1 - t2 + t3
+    mtanSD[:, 2] = np.sqrt(2.0/3.0) * C[:, 1] + t3
+
+    if l_ddsdde_gamma:
+        val = 1.0 / np.sqrt(2.0)
+    else:
+        val = sqrt(2.0)
+
+    mtanSD[:, 3] = C[:, 4] * val
+    mtanSD[:, 4] = C[:, 3] * val
+    mtanSD[:, 5] = C[:, 2] * val
+
+    return mtanSD

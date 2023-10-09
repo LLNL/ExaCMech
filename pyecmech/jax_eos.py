@@ -50,7 +50,6 @@ class eosSimple:
         if not self.isothermal:
             pressure += self.gamma * energy
             temp_k += self.dtde * energy
-        
         return (pressure, temp_k)
 
     def eval_temp(self, energy):

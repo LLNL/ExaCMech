@@ -100,35 +100,60 @@ class evptnWrapClass:
         
         return history_vec
 
-    def solve(self, delta_time, def_rate_vec7_samp, spin_vec_samp, vol_ratio_vec, internal_energy, stress_vec_pressure, history_vec, temp_k):
+    def solve(self, delta_time, def_rate_vec7_samp, spin_vec_samp, vol_ratio_vec, internal_energy, stress_vec_pressure, history_vec, temp_k, need_mtan=False):
         '''
             Copied from example.py file for their solve case and need to update for batch solves
             as currently this only deals with single point solves...
 
             Solve does a per time step solve of the material update for all points inputted.
             A few things to note:
-            def_rate_vec7_samp has dimensions npts x self.nsvp input
+            def_rate_samp has dimensions npts x self.nsvec input
             spin_vec_samp has dimesnions npts x self.nwvec input
             vol_ratio_vec has dimensions npts x self.nvr input
             internal_energy has dimensions npts x self.ne input/output
-            stress_vec_pressure has dimensions npts x self.nsvec input/output
+            stress_vec_pressure has dimensions npts x self.nsvp input/output
             history_vec has dimensions npts x self.nhist input/output
             temp_k has dimensions npts x 1 input/output
+            need_mtan - Set to True if you need the tangent stiffness matrix
 
             returns a tuple of:
-            stress_vec_pressure_n1, history_update, internal_energy_n1, temp_k, and sdd
+            stress_vec_pressure_n1, history_update, internal_energy_n1, temp_k, sdd, and potentially mtan
 
             If you pass in 1D arrays we will promote them to 2D arrays.
         '''
+        # In order to make sure we get out the right derivative information later on if needed,
+        # we return this as the full Cauchy tensor rather than the 6d deviatoric + pressure variation
+        stress_vec, other = jevptn.get_response(
+                    self.slip_geom_class, self.slip_kinetics_class, self.thermo_elas_class, self.eos_class,
+                    delta_time, self.solver_tolerance, def_rate_samp, spin_vec_samp,
+                    vol_ratio_vec, internal_energy, stress_vec_pressure, history_vec,
+                    temp_k
+                )
+        
+        pressure = -jnp.sum(stress_vec[0:3]) / 3.0
+        stress_vec = stress_vec.at[0:3].set(stress_vec[0:3] + pressure)
+        stress_vec_pressure_n1 = jnp.hstack((stress_vec, pressure))
+        history_update, internal_energy_n1, temp_k, sdd = other
 
-        stress_vec_pressure_n1, history_update, internal_energy_n1, temp_k, sdd = jevptn.get_response(
-                 self.slip_geom_class, self.slip_kinetics_class, self.thermo_elas_class, self.eos_class,
-                 delta_time, self.solver_tolerance, def_rate_vec7_samp, spin_vec_samp,
-                 vol_ratio_vec, internal_energy, stress_vec_pressure, history_vec,
-                 temp_k
-                 )
+        jacob_np = None
 
-        return (stress_vec_pressure_n1, history_update, internal_energy_n1, temp_k, sdd)
+        if need_mtan:
+            jacobians, others = jax.jacrev(jevptn.get_response, argnums=6, has_aux=True)(
+                    self.slip_geom_class, self.slip_kinetics_class, self.thermo_elas_class, self.eos_class,
+                    delta_time, self.solver_tolerance, def_rate_samp, spin_vec_samp,
+                    vol_ratio_vec, internal_energy, stress_vec_pressure, history_vec,
+                    temp_k
+                )
+
+            jacob_bulk = np.zeros((6, 6))
+            jacob_bulk[-1,-1] = 3.0 * sdd[0]
+            jacob_bulk *= delta_time
+            jacob_bulk = jeu.mtan_conv_sd_svec(jacob_bulk, True)
+
+            jacob_np = np.asarray(jacobians) + jacob_bulk
+            jacob_np[3:-1, 3:-1] *= 0.5
+
+        return (stress_vec_pressure_n1, history_update, internal_energy_n1, temp_k, sdd, jacob_np)
 
 
 if __name__ == "__main__":
@@ -175,7 +200,10 @@ if __name__ == "__main__":
     jax.debug.print("history vec {}", history_vec)
 
     #test conditions
-    def_rate_vec7_samp = jnp.asarray([-0.5, -0.5, 1.0, 0.0, 0.0, 0.0, 0.0]) * jnp.sqrt(2.0/3.0)
+    # Note the deformation rate here is the full tensor but as a 6d vector
+    # Internally, we will decompose things into a deviatoric and volumetric component
+    def_rate_samp = jnp.asarray([-0.5, -0.5, 1.0, 0.001, 0.001, 0.001]) * jnp.sqrt(2.0/3.0)
+    # def_rate_vec7_samp = jnp.asarray([-0.5, -0.5, 1.0, 0.0, 0.0, 0.0, 0.0]) * jnp.sqrt(2.0/3.0)
     spin_vec_samp = jnp.asarray([0.0, 0.0, 0.5])
     vol_ratio_vec = jnp.asarray([1.0, 1.0, 0.0, 0.0])
 
@@ -184,8 +212,10 @@ if __name__ == "__main__":
     stress_vec_pressure = jnp.zeros((jec.NSVP))
     temp_k = 300.
 
-    stress_vec_pressure_n1, history_update, internal_energy_n1, temp_k, sdd = evptn_wc.solve(
-                 delta_time, def_rate_vec7_samp, spin_vec_samp, vol_ratio_vec, internal_energy, stress_vec_pressure, history_vec, temp_k)
+    # Note the last value returned here is the material tangent stiffness matrix
+    # It is only calculated if the user asks us to
+    stress_vec_pressure_n1, history_update, internal_energy_n1, temp_k, sdd, junk = evptn_wc.solve(
+                 delta_time, def_rate_samp, spin_vec_samp, vol_ratio_vec, internal_energy, stress_vec_pressure, history_vec, temp_k)
 
     print("Deviatoric Stress + pressure:")
     print(stress_vec_pressure_n1)

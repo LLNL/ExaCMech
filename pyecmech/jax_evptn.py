@@ -176,11 +176,21 @@ class evptnClass:
 
 
 def get_response(slip_geom_class, slip_kinetics_class, thermo_elas_class, eos_class,
-                 delta_time, solver_tolerance, def_rate_vec7_samp, spin_vec_samp,
+                 delta_time, solver_tolerance, def_rate_samp, spin_vec_samp,
                  vol_ratio_vec, internal_energy, stress_vec_pressure, history_vec,
                  temp_k):
 
     hist_class = jec.HistClass(slip_geom_class, slip_kinetics_class, thermo_elas_class, eos_class)
+
+    dmean = -1.0 / 3.0 * (def_rate_samp[0] + def_rate_samp[1] + def_rate_samp[2])
+
+    def_rate_vec7_samp = jnp.asarray([def_rate_samp[0] + dmean,
+                                      def_rate_samp[1] + dmean,
+                                      def_rate_samp[2] + dmean,
+                                      def_rate_samp[3],
+                                      def_rate_samp[4],
+                                      def_rate_samp[5],
+                                      -3.0 * dmean])
 
     def_dev_vec_samp = jeu.sym_vec_to_vec_dev(def_rate_vec7_samp)
 
@@ -198,7 +208,7 @@ def get_response(slip_geom_class, slip_kinetics_class, thermo_elas_class, eos_cl
     energy_old = internal_energy[0]
     pressure_old = stress_vec_pressure[-1]
 
-    temp_k, junk = eos_class.eval_pressure_temp(vol_ratio_vec[0], energy_old)
+    junk, temp_k = eos_class.eval_pressure_temp(vol_ratio_vec[0], energy_old)
 
     temp_k_new, press_eos, energy_new, bulk_mod_new = jeos.update_simple(eos_class, vol_ratio_vec[1], vol_ratio_vec[3], energy_old, pressure_old)
 
@@ -266,7 +276,9 @@ def get_response(slip_geom_class, slip_kinetics_class, thermo_elas_class, eos_cl
 
     history_update = hist_class.pack_history_vars(elas_dev_vec_n1, crystal_quat_n1, hard_state_n1, slip_rate_n1, shear_rate_eff, shear_eff, flow_strength, solver_iters)
 
-    return (stress_vec_pressure_n1, history_update, internal_energy_n1, temp_k, sdd)
+    stress_vec = stress_vec_pressure_n1[0:-1]
+    stress_vec = stress_vec.at[0:3].set(stress_vec[0:3] - stress_vec_pressure_n1[-1])
+    return (stress_vec, (history_update, internal_energy_n1, temp_k, sdd))
 
 if __name__ == "__main__":
 
@@ -327,7 +339,7 @@ if __name__ == "__main__":
     jax.debug.print("history vec {}", history_vec)
 
     #test conditions
-    def_rate_vec7_samp = jnp.asarray([-0.5, -0.5, 1.0, 0.0, 0.0, 0.0, 0.0]) * jnp.sqrt(2.0/3.0)
+    def_rate_vec7_samp = jnp.asarray([-0.5, -0.5, 1.0, 0.001, 0.001, 0.001]) * jnp.sqrt(2.0/3.0)
     spin_vec_samp = jnp.asarray([0.0, 0.0, 0.5])
     vol_ratio_vec = jnp.asarray([1.0, 1.0, 0.0, 0.0])
 
@@ -336,12 +348,29 @@ if __name__ == "__main__":
     stress_vec_pressure = jnp.zeros((jec.NSVP))
     temp_k = 300.
 
-    stress_vec_pressure_n1, history_update, internal_energy_n1, temp_k, sdd = get_response(
+    stress_vec_pressure_n1, others = get_response(
                  slip_geom_class, slip_kinetics_class, thermo_elas_class, eos_class,
                  delta_time, params["sol_tolerance"], def_rate_vec7_samp, spin_vec_samp,
                  vol_ratio_vec, internal_energy, stress_vec_pressure, history_vec,
                  temp_k
                  )
+
+    history_update, internal_energy_n1, temp_k_n1, sdd = others
+
+    jacobians, others = jax.jacrev(get_response, argnums=6, has_aux=True)(
+                 slip_geom_class, slip_kinetics_class, thermo_elas_class, eos_class,
+                 delta_time, params["sol_tolerance"], def_rate_vec7_samp, spin_vec_samp,
+                 vol_ratio_vec, internal_energy, stress_vec_pressure, history_vec,
+                 temp_k
+                 )
+    # Add back the bulk contribution for the tangent stiffness matrix
+    jacob_bulk = np.zeros((6, 6))
+    jacob_bulk[-1,-1] = 3.0 * sdd[0]
+    jacob_bulk *= delta_time
+    jacob_bulk = jeu.mtan_conv_sd_svec(jacob_bulk, True)
+
+    jacob_np = np.asarray(jacobians) + jacob_bulk
+    jacob_np[3:-1, 3:-1] *= 0.5
 
     print(stress_vec_pressure_n1)
     print()

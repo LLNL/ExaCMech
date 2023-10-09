@@ -32,8 +32,8 @@ class MemoizeJac:
         self.x = None
 
     def _compute_if_needed(self, x, *args):
-        if not np.all(x == self.x) or self._value is None or self.jac is None:
-            self.x = np.asarray(x).copy()
+        if not jnp.all(x == self.x) or self._value is None or self.jac is None:
+            self.x = jnp.asarray(x).copy()
             fg = self.fun(x, *args)
             self.jac = fg[1]
             self._value = fg[0]
@@ -52,9 +52,9 @@ class SNLSTrDlDenseG:
         def __init__(self):
             self.factor = 100.0
             self.maxfev = 200
-            self.xtol = np.sqrt(np.finfo(np.float64).eps)
+            self.xtol = jnp.sqrt(jnp.finfo(jnp.float64).eps)
 
-    def __init__(self, functor, xtolerance = np.finfo(np.float64).eps, ndim = 1, args=()):
+    def __init__(self, functor, xtolerance = jnp.finfo(jnp.float64).eps, ndim = 1, args=()):
         self.fun = MemoizeJac(functor)
         self.jac = self.fun.derivative
 
@@ -84,9 +84,9 @@ class SNLSTrDlDenseG:
         self.njev = 1
         self.nfev = 1 
         self.success = -10
-        self.residual = np.copy(self.fun(x, *self.args))
-        self.jacobian = np.copy(self.jac(x, *self.args))
-        self.res = np.linalg.norm(self.residual)
+        self.residual = jnp.copy(self.fun(x, *self.args))
+        self.jacobian = jnp.copy(self.jac(x, *self.args))
+        self.res = jnp.linalg.norm(self.residual)
         # initialize iteration counter and monitors
         self.iter = 1
         return x
@@ -100,9 +100,9 @@ class SNLSTrDlDenseG:
         res_0 = self.res
         reject_prev = False
         
-        nr_step = np.zeros(self.ndim)
-        grad    = np.zeros(self.ndim)
-        delta_x = np.zeros(self.ndim)
+        nr_step = jnp.zeros(self.ndim)
+        grad    = jnp.zeros(self.ndim)
+        delta_x = jnp.zeros(self.ndim)
         Jg_2    = 0.0
 
         for niters in range(self.parameters.maxfev):
@@ -110,13 +110,13 @@ class SNLSTrDlDenseG:
                 # This is done outside this step so that these operations can be done with varying solve
                 # techniques such as LU/QR or etc...
                 grad = self.jacobian.T.dot(self.residual)
-                Jg_2 = np.dot(self.jacobian.dot(grad), self.jacobian.dot(grad))
-                nr_step = np.linalg.solve(self.jacobian, self.residual)
+                Jg_2 = jnp.dot(self.jacobian.dot(grad), self.jacobian.dot(grad))
+                nr_step = jnp.linalg.solve(self.jacobian, self.residual)
                 nr_step *= -1.0
 
             use_nr = False
             # If the step was rejected nrStep will be the same value as previously, and so we can just recalculate nr_norm here.
-            nr_norm = np.linalg.norm(nr_step)
+            nr_norm = jnp.linalg.norm(nr_step)
 
             # Computes the updated delta x/x, predicated residual error, and whether or not NR method was used.
             use_nr, pred_resid, delta_x, x = self.dogleg(res_0, nr_norm, Jg_2, grad, nr_step, x, use_nr)
@@ -129,8 +129,8 @@ class SNLSTrDlDenseG:
             #                             _delta, _res, _rhoLast, reject_prev, _status, _os);
             #    if(_status != SNLSStatus_t::unConverged) { break; }
             # }
-            self.residual = np.copy(self.fun(x, *self.args))
-            self.jacobian = np.copy(self.jac(x, *self.args))
+            self.residual = jnp.copy(self.fun(x, *self.args))
+            self.jacobian = jnp.copy(self.jac(x, *self.args))
             self.njev += 1
             self.nfev += 1 
 
@@ -161,8 +161,8 @@ class SNLSTrDlDenseG:
             # The nice thing about recomputing is that we can actually define the variables as const
             # to help the compiler out.
 
-            norm2_grad = np.dot(grad, grad)
-            norm_grad  = np.sqrt(norm2_grad)
+            norm2_grad = jnp.dot(grad, grad)
+            norm_grad  = jnp.sqrt(norm2_grad)
 
             alpha = 1.0
             if Jg_2 > 0.0:
@@ -180,13 +180,13 @@ class SNLSTrDlDenseG:
                 delx = -self.delta * norm_grad_inv * grad
 
                 val = -(self.delta * norm_grad) + 0.5 * self.delta * self.delta * Jg_2 * (norm_grad_inv * norm_grad_inv)
-                pred_resid = np.sqrt(np.maximum(2.0 * val + res_0 * res_0, 0.0))
+                pred_resid = jnp.sqrt(jnp.maximum(2.0 * val + res_0 * res_0, 0.0))
             else:
                 qb = 0.0
                 qa = 0.0
                 p = nr_step + alpha * grad
-                qa = np.dot(p, p)
-                qb = np.dot(p, grad)
+                qa = jnp.dot(p, p)
+                qb = jnp.dot(p, grad)
 
                 # Previously qb = (-p^t g / ||g||) * alpha * ||g|| * 2.0
                 # However, we can see that this simplifies a bit and also with the beta term
@@ -194,8 +194,8 @@ class SNLSTrDlDenseG:
                 qb *= alpha
                 # qc and beta depend on delta
                 qc = norm_s_sd_opt * norm_s_sd_opt - self.delta * self.delta
-                beta = (qb + np.sqrt(qb * qb - qa * qc)) / qa
-                beta = np.maximum(0.0, np.minimum(1.0, beta)) # to deal with any roundoff
+                beta = (qb + jnp.sqrt(qb * qb - qa * qc)) / qa
+                beta = jnp.maximum(0.0, jnp.minimum(1.0, beta)) # to deal with any roundoff
 
                 # delx[iX] = alpha*ngrad[iX] + beta*p[iX] = beta*nrStep[iX] - (1.0-beta)*alpha*grad[iX]
                 omb  = 1.0 - beta
@@ -203,14 +203,14 @@ class SNLSTrDlDenseG:
                 delx = beta * nr_step - omba * grad
                 res_cauchy = res_0
                 if Jg_2 > 0.0:
-                    res_cauchy = np.sqrt(np.maximum(0.0, res_0 * res_0 - alpha * norm2_grad))
+                    res_cauchy = jnp.sqrt(jnp.maximum(0.0, res_0 * res_0 - alpha * norm2_grad))
                 pred_resid = omb * res_cauchy
 
         x += delx
         return (use_nr, pred_resid, delx, x)
 
     def update_delta(self, res_0, pred_resid, nr_norm, use_nr, reject_prev):
-        self.res = np.linalg.norm(self.residual)
+        self.res = jnp.linalg.norm(self.residual)
         # allow to exit now, may have forced one iteration anyway, in which
         # case the delta update can do funny things if the residual was
         # already very small
@@ -247,7 +247,7 @@ class DeltaControl:
         success = True
 
         if took_full:
-            delta = np.sqrt(delta * self.xiDecDelta * normfull * self.xiDecDelta)
+            delta = jnp.sqrt(delta * self.xiDecDelta * normfull * self.xiDecDelta)
         else:
             delta = delta * self.xiDecDelta
 
@@ -275,7 +275,7 @@ class DeltaControl:
                 success = False
             else:
                 #print("predicted change is zero, forcing delta larger")
-                delta = np.minimum(delta * self.xiForcedIncDelta, self.deltaMax)
+                delta = jnp.minimum(delta * self.xiForcedIncDelta, self.deltaMax)
         else:
             rho = actual_change / pred_change
 
@@ -300,8 +300,8 @@ class DeltaControl:
 
 def computeRJ2(x, mlambda):
     ndim = 8
-    r = np.zeros(ndim)
-    jacob = np.zeros((ndim, ndim))
+    r = jnp.zeros(ndim)
+    jacob = jnp.zeros((ndim, ndim))
     r[0] = (3.0 - 2.0 * x[0]) * x[0] - 2.0 * x[1] + 1.0
     for i in range(1, ndim - 1, 1):
         r[i] = (3.0 - 2.0 * x[i]) * x[i] - x[i-1] - 2.0 * x[i+1] + 1.0
@@ -324,11 +324,11 @@ def computeRJ2(x, mlambda):
     jacob[-1, -1] = (1.0 - mlambda) * (dfndxn) + mlambda * (2.0 * dfndxn * fn)
     jacob[-1, -2] = (1.0 - mlambda) * (-1.0) + mlambda * (-2.0 * fn)
     
-    #print(np.linalg.norm(r))
+    #print(jnp.linalg.norm(r))
     return (r, jacob)
 
 if __name__ == "__main__":
-    x = np.ones(8) * 0.0
+    x = jnp.ones(8) * 0.0
     args = (0.99999999)
 
     solver = SNLSTrDlDenseG(computeRJ2, xtolerance=1e-12, ndim=x.shape[0], args=args)
