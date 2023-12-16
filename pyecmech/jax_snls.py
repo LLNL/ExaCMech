@@ -139,7 +139,6 @@ class SNLSTrDlDenseG:
                 break
 
             if reject_prev:
-                #print("reject_prev")
                 self.res = res_0
                 x -= delta_x
 

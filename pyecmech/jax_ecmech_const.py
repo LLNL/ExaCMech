@@ -20,6 +20,7 @@ DBL_TINY_SQRT = pecm.constants.dbl_tiny_sqrt
 GAM_RATIO_OVFFX = pecm.constants.gam_ratio_ovffx
 GAM_RATIO_MIN = pecm.constants.gam_ratio_min
 GAM_RATIO_OVF = pecm.constants.gam_ratio_ovf
+LN_GAM_RATIO_MIN = pecm.constants.ln_gam_ratio_min
 ELAS_SCALE = 5e-4
 ROT_SCALE = 0.01
 

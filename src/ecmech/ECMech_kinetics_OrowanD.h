@@ -42,7 +42,8 @@ namespace ecmech {
             bool isotropic, // H^{\alpha\beta} = 1 so isotropic interaction matrix
             bool perSS, // If varying params per SS usually used for non-cubic materials
             int nVPer, // If perSS then nVPer should equal nslip
-            class SlipGeom>
+            class SlipGeom,
+            bool LOGFORM = false> // LOGFORM dictates whether or not we use a logrithmic form for our hardness update
    class KineticsOrowanD
    {
       public:
@@ -184,7 +185,7 @@ namespace ecmech {
 
                for (int alpha = 0; alpha < SlipGeom::nslip; alpha++) {
                   for (int beta = 0; beta < SlipGeom::nslip; beta++) {
-                     #if 0
+#ifndef ORO_USE_INTERMAT
                      const double mds = mView(alpha, 0) * sView(beta, 0) +
                                         mView(alpha, 1) * sView(beta, 1) +
                                         mView(alpha, 2) * sView(beta, 2);
@@ -192,10 +193,10 @@ namespace ecmech {
                                           mView(alpha, 1) * (mView(beta, 2) * sView(beta, 0) - mView(beta, 0) * sView(beta, 2)) +
                                           mView(alpha, 2) * (mView(beta, 0) * sView(beta, 1) - mView(beta, 1) * sView(beta, 0));
                      aView(alpha, beta) = 1.0 / 2.0 * (std::abs(mds) + std::abs(mdmxs));
-                     #else
+#else
                      // use interaction matrix
                      aView(alpha, beta) = _inter_mat[alpha * SlipGeom::nslip + beta];
-                     #endif
+#endif
                   }
                }
             }
@@ -544,7 +545,6 @@ namespace ecmech {
                g_i = one / gIn;
             }
             double at_0 = fmax(zero, fabs(tau) - gAth) * g_i;
-
             // calculate drag limited kinetics
             //
             double gdot_r, dgdot_r_dtau;
@@ -802,68 +802,79 @@ namespace ecmech {
                   nu[i] = abs(gdot[i]) / (div);
                }
                ihs_o[i] = fmax(hs_o[i], _hdn_min);
+               if (LOGFORM) {
+                  ihs_o[i] = log(ihs_o[i]);
+               }
             }
 
             int nFEvals = updateHN<KineticsOrowanD>(this,
                                                    &hs_u[0], &ihs_o[0], dt, nu, hvals, tK,
                                                    outputLevel);
-            // We need to check that none of our solutions became negative
-            // If we did obtain something negative then we should abort
-            // It means our time step was too large for this step.
-            // If this is not desirable / possible then we should probably
-            // do a terrible hack and cut the dt by some factor resolve things by
-            // assuming a constant slip rate during the time step, and then
-            // evolve the dd content. We would get a solution, but it wouldn't necessarily
-            // be correct.
-            bool flag = false;
-            for (int i = 0; i < 2 * _nslip; i++) {
-               if(hs_u[i] < zero) {
-                  flag = true;
-                  break;
+            if (LOGFORM) {
+               for (int i = 0; i < _nslip * 2; i++) {
+                  hs_u[i] = exp(hs_u[i]);
                }
             }
-            if (flag)
+            else
             {
-               ECMECH_WARN(__func__, "Solver returned negative dislocation values trying again by substepping through the solution");
-               // This is pretty ad-hoc but it seems to work fairly well for a number of simple test cases.
-               // It's definitely not the best way to probably do things though...
-               const double dtnew = dt / 10.0;
-               double hs_temp[2 * SlipGeom::nslip];
-
-               for (int iSlip = 0; iSlip < 2 * SlipGeom::nslip; iSlip++) {
-                  hs_u[iSlip] = fmax(hs_o[iSlip], _hdn_min);
-               }
-
-               for (int i = 0; i < 10; i++)
-               {
-                  for (int iSlip = 0; iSlip < 2 * SlipGeom::nslip; iSlip++) {
-                     hs_temp[iSlip] = fmax(hs_u[iSlip], _hdn_min);
-                     if (iSlip < _nslip)
-                     {
-                        const double div = perSS ? fmax(hs_temp[iSlip], _hdn_min) * _berg_mag[iSlip] :
-                        fmax(hs_temp[iSlip], _hdn_min) * _berg_mag[0];
-                        nu[iSlip] = abs(gdot[iSlip]) / (div);
-                     }
-                  }
-                  nFEvals += updateHN<KineticsOrowanD>(this,
-                                                       &hs_u[0], hs_temp, dtnew, nu, hvals, tK,
-                                                       outputLevel);
-                  flag = false;
-                  for (int iSlip = 0; iSlip < 2 * _nslip; iSlip++) {
-                     if(hs_u[iSlip] < zero) {
-                        flag = true;
-                        break;
-                     }
+               // We need to check that none of our solutions became negative
+               // If we did obtain something negative then we should abort
+               // It means our time step was too large for this step.
+               // If this is not desirable / possible then we should probably
+               // do a terrible hack and cut the dt by some factor resolve things by
+               // assuming a constant slip rate during the time step, and then
+               // evolve the dd content. We would get a solution, but it wouldn't necessarily
+               // be correct.
+               bool flag = false;
+               for (int i = 0; i < 2 * _nslip; i++) {
+                  if(hs_u[i] < zero) {
+                     flag = true;
+                     break;
                   }
                }
-
                if (flag)
                {
+                  ECMECH_WARN(__func__, "Solver returned negative dislocation values trying again by substepping through the solution");
+                  // This is pretty ad-hoc but it seems to work fairly well for a number of simple test cases.
+                  // It's definitely not the best way to probably do things though...
+                  const double dtnew = dt / 10.0;
+                  double hs_temp[2 * SlipGeom::nslip];
+
                   for (int iSlip = 0; iSlip < 2 * SlipGeom::nslip; iSlip++) {
-                     printf("dd[%d]: %lf ", iSlip, hs_u[iSlip]);
+                     hs_u[iSlip] = fmax(hs_o[iSlip], _hdn_min);
                   }
-                  printf("\n");
-                  ECMECH_FAIL(__func__, "Solver returned negative dislocation values!");
+
+                  for (int i = 0; i < 10; i++)
+                  {
+                     for (int iSlip = 0; iSlip < 2 * SlipGeom::nslip; iSlip++) {
+                        hs_temp[iSlip] = fmax(hs_u[iSlip], _hdn_min);
+                        if (iSlip < _nslip)
+                        {
+                           const double div = perSS ? fmax(hs_temp[iSlip], _hdn_min) * _berg_mag[iSlip] :
+                           fmax(hs_temp[iSlip], _hdn_min) * _berg_mag[0];
+                           nu[iSlip] = abs(gdot[iSlip]) / (div);
+                        }
+                     }
+                     nFEvals += updateHN<KineticsOrowanD>(this,
+                                                         &hs_u[0], hs_temp, dtnew, nu, hvals, tK,
+                                                         outputLevel);
+                     flag = false;
+                     for (int iSlip = 0; iSlip < 2 * _nslip; iSlip++) {
+                        if(hs_u[iSlip] < zero) {
+                           flag = true;
+                           break;
+                        }
+                     }
+                  }
+
+                  if (flag)
+                  {
+                     for (int iSlip = 0; iSlip < 2 * SlipGeom::nslip; iSlip++) {
+                        printf("dd[%d]: %lf ", iSlip, hs_u[iSlip]);
+                     }
+                     printf("\n");
+                     ECMECH_FAIL(__func__, "Solver returned negative dislocation values!");
+                  }
                }
             }
 
@@ -960,7 +971,7 @@ namespace ecmech {
          void
          getSdotN( double* sdot,
                    double* dsdot_ds,
-                   const double* const h,
+                   const double* const h_i,
                    const double* const evolVals,
                    const double* const /*hvals*/,
                    double /*tK*/,
@@ -977,6 +988,14 @@ namespace ecmech {
             const bool extra_derivs = (dsdot_dgdot != nullptr) ? true : false;
 
             double forest_dis[nslip];
+            constexpr int h_content = (LOGFORM) ? 2 * SlipGeom::nslip : 1;
+            double hexp[h_content];
+            if (LOGFORM) {
+               for (int iDD = 0; iDD < 2 * nslip; iDD++) {
+                  hexp[iDD] = exp(h_i[iDD]);
+               }
+            }
+            const double* const h = (LOGFORM) ? const_cast<const double* const>(&hexp[0]) : h_i;
             vecsVMa<SlipGeom::nslip>(&forest_dis[0], &_a_mat[0], &h[nslip]);
 
             for (int iM = 0; iM < nslip; iM++) {
@@ -994,6 +1013,11 @@ namespace ecmech {
                sdot[iM + nslip] = q_dmult - q_dann;
             }
 
+            if (LOGFORM) {
+               for (int iDD = 0; iDD < 2 * nslip; iDD++) {
+                  sdot[iDD] *= (1.0 / h[iDD]);
+               }
+            }
             // The dsdot_ds calculation for our nonlinear solve
             if (dsdot_ds) {
                // zero out dsdot_ds matrix
@@ -1045,6 +1069,17 @@ namespace ecmech {
                      dsdot_ds_view(iT, jT + nslip) = h[iT] * evolVals[iT] * (q_dmult_dtrap);
                   }
                }
+
+               if (LOGFORM) {
+                  for (int iDD = 0; iDD < 2 * nslip; iDD++) {
+                     dsdot_ds_view(iDD, iDD) -= sdot[iDD];
+                  }
+                  for (int iDD = 0; iDD < 2 * nslip; iDD++) {
+                     for (int jDD = 0; jDD < 2 * nslip; jDD++) {
+                        dsdot_ds_view(iDD, jDD) *= h[jDD] / h[iDD];
+                     }
+                  }
+               }
             } // if dsdot_ds
 
             if (extra_derivs) {
@@ -1074,7 +1109,6 @@ namespace ecmech {
                   dsdot_dgdot_view(i + SlipGeom::nslip, i) = div * (q_dmult - q_dann);
                }
             }// end extra derivs
-
          }
    }; // class KineticsOrowanD
 } // namespace ecmech

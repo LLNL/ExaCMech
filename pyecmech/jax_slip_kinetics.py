@@ -10,19 +10,13 @@ import numpy as np
 
 import jax
 import jax.numpy as jnp
-import jax.lax.linalg as lax_linalg
-from jax import custom_jvp
-from functools import partial
-from jax import lax
-from jax.numpy.linalg import solve
 from jax.config import config; config.update("jax_enable_x64", True)
 
-from scipy.optimize import minimize
-import scipy.stats as scist
 from scipy.optimize import root
 
-import jax_ecmech_util as jeu
 import jax_ecmech_const as jec
+import jax_slip_geom as jslgeo
+import jax_snls as snls
 
 
 class SlipKineticVocePowerLaw:
@@ -146,7 +140,7 @@ class SlipKineticVocePowerLaw:
         return residual
 
     def update_hard_jacob(self, x, hard_state_0, evol_vals, delta_time):
-        return jax.jacfwd(self.update_hard_resid, argnums=1)(x, hard_state_0, evol_vals, delta_time)
+        return jax.jacfwd(self.update_hard_resid, argnums=0)(x, hard_state_0, evol_vals, delta_time)
 
     def get_hard_state_dot(self, hard_state, evol_vals):
         '''
@@ -158,36 +152,402 @@ class SlipKineticVocePowerLaw:
         voce_inner_term = jnp.power((evol_vals[1] - hard_state[0]) * inv_term, self.exp_n1)
         return self.h0 * voce_inner_term * (evol_vals[1] - hard_state[0]) * inv_term * evol_vals[0]
 
+class SlipKineticOrowanD:
+    def __init__(
+                 self,
+                 params
+                 ):
+
+        slip_system_geometry_class = params["slip_system_geometry_class"]
+        self.gathermal = params["slip_kinetics_gathermal"]
+
+        self.num_slip_systems = slip_system_geometry_class.num_slip_systems
+        self.num_hard = 2 * self.num_slip_systems
+        self.isotropic = params["slip_kinetics_isotropic"]
+        # if per slip system this affects the C1, C2, and berger's magnitude values
+        self.per_slip_system = params["slip_kinetics_per_slip_system"]
+
+        #interaction matrix size we'll determine this from the isotropic param
+        if self.isotropic:
+            self.nIH = 1
+        else:
+            self.nIH = self.num_slip_systems ** 2
+
+        if self.per_slip_system:
+            self.num_per_slip = self.num_slip_systems
+        else:
+            self.num_per_slip = 1
+        # Our ref_slip_rate, CRSS, C1/T, and b*q_m params
+        self.num_vals = 1 + self.num_per_slip + 2 * self.num_slip_systems
+        # num_per_slip values are C1, C2, and berger's magnitude values ...
+        self.num_params = 12 + 4 * self.num_per_slip + self.num_hard + self.nIH
+        # num of evol vals are signed scalar mobile dislocation velocity
+        self.num_evolve_vals = self.num_slip_systems
+
+        self.shear_mod_ref = params["shear_mod"]
+        self.temp_k_ref    = params["temperature_k_ref"]
+        # should be per slip system if option set
+        self.bergers_magnitude = params["bergers_magnitude"]
+        self.lbar_berg = params["lbar_berg"]
+        self.slip_gamma_phonon_ref = params["slip_gamma_phonon_ref"]
+        self.phonon_drag_stress = params["phonon_drag_stress"]
+        self.attempt_frequency = params["attempt_frequency"]
+        # should be per slip system if option set
+        self.c1 = params["slip_kinetics_c1"]
+        self.tau_a = params["slip_kinetics_peirls_barrier"]
+        self.p_exponent = params["slip_kinetics_p_exponent"]
+        self.q_exponent = params["slip_kinetics_q_exponent"]
+        # should be per slip system if option set
+        self.c2 = params["slip_kinetics_c2"]
+        self.inter_mat = params["slip_kinetics_interaction_matrix"]
+        if self.isotropic:
+            self.inter_mat = self.inter_mat * jnp.ones((self.num_slip_systems, self.num_slip_systems))
+
+        xm = 1.0 / (2.0 * ((self.c1 / self.temp_k_ref) * self.shear_mod_ref * self.p_exponent * self.q_exponent))
+
+        self.xnn = 1.0 / xm
+        self.xn  = self.xnn - 1.0
+        self.t_min = np.power(jec.GAM_RATIO_MIN, xm)
+        self.t_max = np.power(jec.GAM_RATIO_OVF, xm)
+
+        # dislocation evolution stuff
+        self.c_ann = params["slip_kinetics_c_annihilation"]
+        self.d_ann = params["slip_kinetics_d_annihilation"]
+        self.c_trap = params["slip_kinetics_c_trap"]
+        self.c_mult = params["slip_kinetics_c_multiplication"]
+        self.q_mobile = params["slip_kinetics_q_mobile"]
+        self.q_total = params["slip_kinetics_q_total"]
+        # Should maybe also allow user set this minimum as well
+        self.q_minimum = np.min(self.q_mobile) * 1e-4
+
+        self.forest_matrix = np.zeros((self.num_slip_systems, self.num_slip_systems))
+
+        n = np.copy(slip_system_geometry_class.m_vec).T
+        s = np.copy(slip_system_geometry_class.s_vec).T
+
+        for i in range(self.num_slip_systems):
+            for j in range(self.num_slip_systems):
+                self.forest_matrix[i, j] = 0.5 * (np.abs(n[:, i].dot(s[:, j].T)) + np.abs(n[:, i].dot(np.cross(n[:, j], s[:, j]))))
+
+        self.forest_matrix = jnp.asarray(self.forest_matrix)
+        # self.forest_matrix = self.inter_mat
+
+    def get_parameters(self, parameters):
+        pass
+
+    def get_history_info(self, names, init, plot, state):
+        names.append("hard_state_qM")
+        init.append(self.q_mobile)
+        plot.append(True)
+        state.append(True)
+        names.append("hard_state_qT")
+        init.append(self.q_total)
+        plot.append(True)
+        state.append(True)
+
+        return (names, init, plot, state) 
+
+    def get_fixed_reference_rate(self, values):
+        return values[0]
+
+    def get_values(self, pressure, temp_k, hard_state):
+        iend = self.num_slip_systems * 2
+        ibeg = self.num_slip_systems
+        int_q = np.sqrt(self.inter_mat.dot(hard_state[ibeg:iend]))
+        hdnI  = int_q * self.c2
+
+        inv_sqrth = 1.0 / np.sqrt(hard_state[0:ibeg])
+        rate = 1.0 / (1.0 / (self.lbar_berg * self.attempt_frequency * inv_sqrth) + 1.0 / (self.slip_gamma_phonon_ref * hard_state[0:ibeg]))
+
+        values = np.zeros(self.num_vals)
+        values[0] = np.max(rate)
+        ibeg = 1
+        iend = 1 + self.num_slip_systems 
+        values[ibeg:iend] = hdnI
+        ibeg = iend
+        iend = ibeg + self.num_slip_systems 
+        values[ibeg:iend] = hard_state[0:self.num_slip_systems]
+        ibeg = iend
+        iend = ibeg + self.num_per_slip
+        values[ibeg:iend] = self.c1 / temp_k
+
+        hard_scale = np.mean(hdnI) 
+        return (hard_scale, jnp.asarray(values))
+
+    def mts_inner_calc(self, c_e, denom_i, t_frac):
+        # !! p_dfac is either zero or blows up
+        # !IF (pl%p > one) THEN ! no longer allowed
+        # !   mts_dfac = zero
+        # !ELSE
+        # ! blows up, but just set big
+        if (jnp.abs(t_frac) < jec.DBL_TINY_SQRT):
+            p_func = 0.0
+        else:
+            p_func = np.sign(t_frac) * jnp.power(jnp.abs(t_frac), self.p_exponent)
+
+        q_arg = 1.0 - p_func
+        if (q_arg < jec.DBL_TINY_SQRT):
+            pq_fac = 0.0
+        else:
+            pq_fac = jnp.sign(q_arg) * jnp.power(jnp.abs(q_arg), self.q_exponent)
+
+        return -c_e * pq_fac
+
+    def calc_slip_rates(self, tau, values, islip):
+        if tau == 0.0:
+            return 0.0
+        # slip_rate
+        gdot_w_pl_scaling = 10.0
+
+        if self.per_slip_system:
+            ipss = islip
+        else:
+            ipss = 0
+        gin = values[1 + islip]
+        qm  = values[1 + self.num_slip_systems + islip]
+        if self.per_slip_system:
+            xn  = self.xn[ipss]
+            t_min = self.t_min[ipss]
+            t_max = self.t_max[ipss]
+        else:
+            xn = self.xn
+            t_min = self.t_min
+            t_max = self.t_max
+        c_t   = values[1 + 2 * self.num_slip_systems + ipss]
+        gamma_w = self.lbar_berg * self.attempt_frequency / jnp.sqrt(qm)
+        gamma_r = self.slip_gamma_phonon_ref * qm
+
+        if self.gathermal:
+            gathermal = gin
+            inv_g = 1.0 / self.tau_a
+        else:
+            gathermal = self.tau_a
+            inv_g = 1.0 / gin
+
+        if jnp.abs(tau) < gathermal:
+            athermal_0 = 0.0
+        else:
+            athermal_0 = (jnp.abs(tau) - gathermal) * inv_g
+
+        # phonon drag related terms first
+        drag_exp_arg = (jnp.abs(tau) - gathermal) / self.phonon_drag_stress
+        if drag_exp_arg < jec.GAM_RATIO_MIN:
+            return 0.0
+        elif drag_exp_arg < jec.DBL_TINY_SQRT:
+            gdot_r = gamma_r * drag_exp_arg
+        else:
+            gdot_r = gamma_r * (1.0 - jnp.exp(-drag_exp_arg))
+        
+        # purely phonon drag limited slip
+        if athermal_0 > t_max:
+            return gdot_r * jnp.sign(tau)
+
+        # thermally activated slip kinetic terms next
+        c_e = c_t * self.shear_mod_ref
+        pt_frac = (jnp.abs(tau) - gathermal) * inv_g
+        pexp_arg = self.mts_inner_calc(c_e, inv_g, pt_frac) 
+
+        # slip rate is effectively 0 due to thermally activated slip kinetics
+        if pexp_arg < jec.LN_GAM_RATIO_MIN:
+            return 0.0
+        
+        gdot_w = gamma_w * jnp.exp(pexp_arg) 
+
+        mt_frac = (-jnp.abs(tau) - gathermal) * inv_g
+        mexp_arg = self.mts_inner_calc(c_e, inv_g, mt_frac)
+
+        if mexp_arg > jec.LN_GAM_RATIO_MIN:
+            # non-vanishing contribution from balancing MTS-like kinetics
+            gdot_w -= gamma_w * jnp.exp(mexp_arg)
+
+        if athermal_0 > t_min:
+            # Related to having a smooth transition between the thermal and phonon drag terms
+            blog = jnp.log(athermal_0) * xn
+            gdot_w_power_law = (gamma_w * gdot_w_pl_scaling) * jnp.exp(blog) * athermal_0
+            gdot_w += gdot_w_power_law
+
+        # Combine thermal and phonon drag terms
+        gdot = 1.0 / (1.0 / gdot_w + 1.0 / gdot_r) * jnp.sign(tau)
+
+        return gdot
+
+    def eval_slip_rates(self, rss, values):
+        shear_dot = jnp.zeros(self.num_slip_systems)
+        for islip in range(self.num_slip_systems):
+            
+            shear_dot = shear_dot.at[islip].set(self.calc_slip_rates(rss[islip], values, islip))
+        return shear_dot
+
+    def update_hardness(self, hard_state_0, hard_vals, gdot, delta_time, temp_k):
+
+        hard_state_init = jnp.maximum(hard_state_0, self.q_minimum)
+        evol_vals = jnp.abs(gdot) /( hard_state_init[0:self.num_slip_systems] * self.bergers_magnitude)
+
+        hard_state_init = jnp.log(hard_state_init)        
+        init_sol = jnp.zeros_like(hard_state_init)
+        args = (hard_state_init, evol_vals, delta_time)
+        
+        # sdot = self.get_hard_state_dot(hard_state_init, evol_vals)
+        # jacob = jax.jacfwd(self.get_hard_state_dot, argnums=0)(hard_state_init, evol_vals)
+        
+        # return (sdot, jacob)
+
+        solver = snls.SNLSTrDlDenseG(self.compute_resid_jacobian, xtolerance=1e-10, ndim=init_sol.shape[0], args=args)
+        solver.delta_control.deltaInit = 1.0
+        status, xs = solver.solve(init_sol)
+
+        # res = root(self.update_hard_resid, init_sol, args=args, jac=self.update_hard_jacob, method='hybr', tol=1e-10)
+
+        nfev = solver.nfev
+        # nfev = res.nfev
+
+
+        x_scale = jnp.minimum(hard_state_init, 1.0)
+        hard_delta = xs * x_scale
+        # hard_delta = res.x * x_scale
+        hard_state = jnp.exp(hard_state_init + hard_delta)
+        # hard_state = hard_state_0 + hard_delta # xs * x_scale
+
+        return (nfev, jnp.copy(hard_state))
+
+    def update_hard_resid(self, x, hard_state_0, evol_vals, delta_time):
+        x_scale = jnp.minimum(hard_state_0, 1.0)
+        res_scale = 1.0 / x_scale
+
+        hard_state = hard_state_0 + x * x_scale
+        hard_state_dot = self.get_hard_state_dot(hard_state, evol_vals)
+        
+        residual = (x * x_scale - hard_state_dot * delta_time) * res_scale
+
+        return residual
+
+    def update_hard_jacob(self, x, hard_state_0, evol_vals, delta_time):
+        return jax.jacfwd(self.update_hard_resid, argnums=0)(x, hard_state_0, evol_vals, delta_time)
+
+    def compute_resid_jacobian(self, x, hard_state_0, evol_vals, delta_time):
+        residual = self.update_hard_resid(x, hard_state_0, evol_vals, delta_time)
+        jacob = self.update_hard_jacob(x, hard_state_0, evol_vals, delta_time)
+        return (residual, jacob)
+
+    def get_hard_state_dot(self, hard_state, evol_vals):
+        '''
+            \dot{q_M} = \dot{q_{mult}} - \dot{q_{trap}} - \dot{q_{ann}}
+            \dot{q_T} = \dot{q_{mult}} - \dot{q_{ann}}
+
+            \dot{q_{mult}} = c_{mult} * q_M * \sqrt{q_{for}} * \nu
+            \dot{q_{trap}} = c_{trap} * q_M * \sqrt{q_{for}} * \nu
+            \dot{q_{ann}}  = c_{ann} * d_{ann} q_M^2 * q_{for} * \nu
+            q_{for} = A_{for} q_T
+        '''
+
+        nslip = self.num_slip_systems
+        ibeg = nslip
+        iend = nslip * 2
+        
+        hard_state_exp = jnp.exp(hard_state)
+        # hard_state_exp = hard_state
+
+        forest_dd = self.forest_matrix.dot(hard_state_exp[ibeg:iend])
+        sqrt_forest_dis = jnp.sqrt(forest_dd)
+
+        q_mult_dot = self.c_mult * sqrt_forest_dis * hard_state_exp[0:ibeg] * evol_vals
+        q_trap_dot = self.c_trap * sqrt_forest_dis * hard_state_exp[0:ibeg] * evol_vals
+        q_ann_dot  = self.c_ann * self.d_ann * hard_state_exp[0:ibeg] * hard_state_exp[0:ibeg] * evol_vals
+
+        q_m_dot = q_mult_dot - q_trap_dot - q_ann_dot
+        q_t_dot = q_mult_dot - q_ann_dot
+
+        return jnp.hstack([q_m_dot, q_t_dot])  * (1.0 / hard_state_exp)
+
 if __name__ == "__main__":
 
     params = {}
+    case = "voce_test"
+    case = "oro_test"
 
-    params["slip_kin_nonlinear"] = False
-    params["num_slip_systems"] = 12
-    params["shear_mod"] = 1.0 
-    params["slip_kin_exp_m"] = 0.01
-    params["slip_kin_gamma_0_w"] = 1.0
-    params["slip_kin_h0"] = 200e-5 
-    params["slip_kin_crss0"] = 100e-5
-    params["slip_kin_crss_sat"] = 400e-5
-    params["slip_kin_voce_exp_n"] = 1.0
-    params["slip_kin_voce_exp_m_sat"] = 0.05
-    params["slip_kin_voce_gamma_sat_0"] = 1.0e-6
+    if case == "oro_test":
+        dd_init = 1.0e4
 
-    hUpdtVal_nl = 0.001016575445448
-    hUpdtVal = 0.001016620868315
-    delta_time = 1e-1
-    gdot = np.zeros(12)
-    gdot[0] = 1.0 / 12
+        params["num_slip_systems"] = 12
+        params["slip_system_geometry_class"] = jslgeo.SlipGeomFCC(params)
+        params["slip_kinetics_gathermal"] = False
+        params["slip_kinetics_isotropic"] = True
+        params["slip_kinetics_per_slip_system"] = False
+        params["shear_mod"] = 1.0
+        params["temperature_k_ref"] = 300.0
+        params["bergers_magnitude"] = 1.0e-4
+        params["lbar_berg"] = 10.0 * params["bergers_magnitude"]
+        params["slip_gamma_phonon_ref"] = 1.0e3
+        params["phonon_drag_stress"] = 0.02
+        params["attempt_frequency"] = 1.0e5
+        params["slip_kinetics_c1"] = 20000.0
+        params["slip_kinetics_peirls_barrier"] = 0.004
+        params["slip_kinetics_p_exponent"] = 0.28
+        params["slip_kinetics_q_exponent"] = 1.34
+        params["slip_kinetics_c2"] = params["shear_mod"] * params["bergers_magnitude"]
+        params["slip_kinetics_interaction_matrix"] = 1.0
+        params["slip_kinetics_c_annihilation"] = 2.0e-4
+        params["slip_kinetics_d_annihilation"] = 6.0 * params["bergers_magnitude"]
+        params["slip_kinetics_c_trap"] = 1.0e-3
+        params["slip_kinetics_c_multiplication"] = 2.5e-3
+        params["slip_kinetics_q_mobile"] = dd_init * np.ones(params["num_slip_systems"])
+        params["slip_kinetics_q_total"] = 4.0 * dd_init * np.ones(params["num_slip_systems"])
 
-    skvpl = SlipKineticVocePowerLaw(params)
-    hard_state_0 = np.ones(1) * params["slip_kin_crss0"]
-    hard_vals = np.zeros(1)
-    temp_k = 300.0
+        params["slip_gamma_phonon_ref"] *= (1.0 / params["slip_kinetics_q_mobile"][0])
+        params["attempt_frequency"] *= np.sqrt(params["slip_kinetics_q_mobile"][0])
 
-    nfev, hard_state = skvpl.update_hardness(hard_state_0, hard_vals, gdot, delta_time, temp_k)
+        skvpl = SlipKineticOrowanD(params)
 
-    print(nfev)
+        delta_time = 0.001
 
-    print(hard_state, hUpdtVal)
+        gdot = np.ones(12)
+        gdot[:] *= 0.1 * np.float64(np.r_[0:12])
+        gdot[0] = 1.0
+        
+        hard_state_0 = np.ones(params["num_slip_systems"] * 2)
+        hard_state_0[0:params["num_slip_systems"]] = params["slip_kinetics_q_mobile"]
+        hard_state_0[params["num_slip_systems"]:(2*params["num_slip_systems"])] = params["slip_kinetics_q_total"]
+        hard_vals = np.zeros(params["num_slip_systems"])
+        temp_k = 300.0
+        nfev, hard_state = skvpl.update_hardness(jnp.asarray(hard_state_0), jnp.asarray(hard_vals), jnp.asarray(gdot), delta_time, temp_k)
+        print(hard_state)
+
+        init_tau = 1.0e-2
+        pressure = 0.0
+        hard_vals, kin_vals = skvpl.get_values(pressure, temp_k, hard_state_0)
+
+        taua = np.ones(params["num_slip_systems"]) * init_tau
+        gdots_update = skvpl.eval_slip_rates(taua, kin_vals)
+
+        print(gdots_update)
+      
+
+    else:
+        params["slip_kin_nonlinear"] = False
+        params["num_slip_systems"] = 12
+        params["shear_mod"] = 1.0 
+        params["slip_kin_exp_m"] = 0.01
+        params["slip_kin_gamma_0_w"] = 1.0
+        params["slip_kin_h0"] = 200e-5 
+        params["slip_kin_crss0"] = 100e-5
+        params["slip_kin_crss_sat"] = 400e-5
+        params["slip_kin_voce_exp_n"] = 1.0
+        params["slip_kin_voce_exp_m_sat"] = 0.05
+        params["slip_kin_voce_gamma_sat_0"] = 1.0e-6
+
+        hUpdtVal_nl = 0.001016575445448
+        hUpdtVal = 0.001016620868315
+        delta_time = 1e-1
+        gdot = np.zeros(12)
+        gdot[0] = 1.0 / 12
+
+        skvpl = SlipKineticVocePowerLaw(params)
+        hard_state_0 = np.ones(1) * params["slip_kin_crss0"]
+        hard_vals = np.zeros(1)
+        temp_k = 300.0
+
+        nfev, hard_state = skvpl.update_hardness(hard_state_0, hard_vals, gdot, delta_time, temp_k)
+
+        print(nfev)
+        print(hard_state, hUpdtVal)
 

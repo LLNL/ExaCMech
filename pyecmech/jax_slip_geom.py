@@ -19,6 +19,8 @@ class SlipGeomBase:
     def __init__(self,
                  params):
         self.num_slip_systems = params["num_slip_systems"]
+        self.m_vec = jnp.zeros((3, self.num_slip_systems))
+        self.s_vec = jnp.zeros((3, self.num_slip_systems))
         self.p_vec = jnp.zeros((jec.NTVEC, self.num_slip_systems))
         self.q_vec = jnp.zeros((jec.NWVEC, self.num_slip_systems))
     
@@ -85,6 +87,8 @@ class SlipGeomFCC(SlipGeomBase):
             [P2, P2, Z]    
         ])
 
+        self.m_vec = np.copy(mvecs)
+        self.s_vec = np.copy(svecs)
         self.p_vec, self.q_vec = self.fill_from_mvec_svec(mvecs, svecs)
 
     def get_parameters(self, params):
@@ -250,6 +254,9 @@ class SlipGeomBCC(SlipGeomBase):
 
             mvecs = jnp.concatenate((mvecs, mvecthis), axis=0)
             svecs = jnp.concatenate((svecs, svecthis), axis=0)
+
+        self.m_vec = np.copy(mvecs)
+        self.s_vec = np.copy(svecs)
 
         self.p_vec, self.q_vec = self.fill_from_mvec_svec(mvecs, svecs)
 

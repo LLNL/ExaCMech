@@ -31,6 +31,7 @@ PYBIND11_MODULE(pyecmech, m) {
     constants.attr("gam_ratio_ovffx") = &ecmech::gam_ratio_ovffx;
     constants.attr("gam_ratio_ovf") = &ecmech::gam_ratio_ovf;
     constants.attr("gam_ratio_min") = &ecmech::gam_ratio_min;
+    constants.attr("ln_gam_ratio_min") = &ecmech::ln_gam_ratio_min;
 
     py::class_<pyECMech>(m, "pyECMech", "Provides pyECMech")
         .def(py::init([](std::string &model_name, py_darray &params) {
