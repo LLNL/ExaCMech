@@ -41,6 +41,9 @@ class SlipGeomBase:
             q_vec = q_vec.at[:, islip].set(qt)
         return (p_vec, q_vec)
 
+    def get_parameters(self, params):
+        return params
+
 class SlipGeomFCC(SlipGeomBase):
     def __init__(self,
                  params):
@@ -90,9 +93,6 @@ class SlipGeomFCC(SlipGeomBase):
         self.m_vec = np.copy(mvecs)
         self.s_vec = np.copy(svecs)
         self.p_vec, self.q_vec = self.fill_from_mvec_svec(mvecs, svecs)
-
-    def get_parameters(self, params):
-        return params
 
 class SlipGeomBCC(SlipGeomBase):
     def __init__(self, params):
@@ -259,6 +259,10 @@ class SlipGeomBCC(SlipGeomBase):
         self.s_vec = np.copy(svecs)
 
         self.p_vec, self.q_vec = self.fill_from_mvec_svec(mvecs, svecs)
+    
+    def get_parameters(self, params):
+        params["bcc_type"] = self.bcc_type
+        return params
 
 if __name__ == "__main__":
 

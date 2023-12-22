@@ -109,13 +109,16 @@ class evptnClass:
     def elas_strain_to_cauchy_stress(self, elas_dev_vec):
         kirchoff = self.elas_strain_to_kirchoff_stress(elas_dev_vec)
         return self.inv_det_vol * kirchoff
-    
-    def get_residual(self, x):
+
+    def get_elas_strain_state(self, x):
         # Get out elastic strain delta value from solution vector
         elas_delta_dev_vec = jnp.asarray(x[self.ind_e_beg:self.ind_e_end]) * self.elas_scale
         elas_dev_vec_n1 = elas_delta_dev_vec + self.elas_dev_vec_n
         elas_dt_dev_vec = elas_delta_dev_vec * self.inv_delta_time
 
+        return (elas_delta_dev_vec, elas_dev_vec_n1, elas_dt_dev_vec)
+
+    def get_rotation_state(self, x):
         #get out the omega tensor delta value from solution vector
         delta_omega = jnp.asarray(x[self.ind_r_beg:self.ind_r_end]) * self.rot_scale
         crystal_quat_delta = jeu.exp_map_to_quat(delta_omega)
@@ -124,31 +127,38 @@ class evptnClass:
         crystal_rmat = jeu.quat_to_rmat(crystal_quat_n1)
         crystal_rot_mat5 = jeu.rot_mat_to_rot_mat5(crystal_rmat)
 
+        return (delta_omega, crystal_rmat, crystal_rot_mat5)
+
+    def calc_slip_system_terms(self, crystal_kirchoff_dev):
+        # Calculate quantities related to slip system
+        # Note not all systems will actually use chia so it might just be a zeros vector
+        # We're just combining things here to make our lives a bit less complicated at the
+        # cost of efficiency
+        _, schmid_system_p_vecs, schmid_system_q_vecs = self.slip_geom_class.get_PQ_chia(crystal_kirchoff_dev)
+
+        # Calculate our resolved shear stress and then slip rates
+        rss = self.slip_geom_class.evaluate_RSS(crystal_kirchoff_dev)
+        # Eventually we should be able to have the derivative terms calculated for us through AD but for now that's not important
+        slip_rates = self.slip_kinetics_class.eval_slip_rates(rss, self.kinetic_vals)
+        # Calculate the plastic slip rate symmetric and skew tensor values
+        plastic_def_rate_dev_vecs = jnp.dot(schmid_system_p_vecs, slip_rates)
+        plastic_spin_dev_vecs = jnp.dot(schmid_system_q_vecs, slip_rates)
+
+        return (rss, slip_rates, plastic_def_rate_dev_vecs, plastic_spin_dev_vecs)
+    
+    def get_residual(self, x):
+        # Calculate related elastic strain and lattice rotation terms
+        elas_delta_dev_vec, elas_dev_vec_n1, elas_dt_dev_vec = self.get_elas_strain_state(x)
+        delta_omega, crystal_rmat, crystal_rot_mat5 = self.get_rotation_state(x)
+
         # Rotate sample deformation rate tensor and spin vec back to crystal
         crystal_def_dev_vec = jnp.dot(crystal_rot_mat5.T, self.def_dev_vec_samp)
         crystal_spin_dev_vec = jnp.dot(crystal_rmat.T, self.spin_dev_vec_samp)
 
         # Calculate the deviatoric Kirchoff stress tensor
         crystal_kirchoff_dev = self.elas_strain_to_kirchoff_stress(elas_dev_vec_n1)
-
         # Calculate quantities related to slip system
-        # Note not all systems will actually use chia so it might just be a zeros vector
-        # We're just combining things here to make our lives a bit less complicated at the
-        # cost of efficiency
-        chia, schmid_system_p_vecs, schmid_system_q_vecs = self.slip_geom_class.get_PQ_chia(crystal_kirchoff_dev)
-
-        # Calculate our resolved shear stress and then slip rates
-        rss = self.slip_geom_class.evaluate_RSS(crystal_kirchoff_dev)
-        # Eventually we should be able to have the derivative terms calculated for us through AD but for now that's not important
-        slip_rates = self.slip_kinetics_class.eval_slip_rates(rss, self.kinetic_vals)
-        self.slip_rates = jnp.copy(slip_rates)
-        # Calculate the plastic slip rate symmetric and skew tensor values
-        plastic_def_rate_dev_vecs = jnp.dot(schmid_system_p_vecs, slip_rates)
-        plastic_spin_dev_vecs = jnp.dot(schmid_system_q_vecs, slip_rates)
-
-        # Additional factors that we don't really need but could be useful for outside use
-        self.plastic_disipation_rate_contribution = self.inv_a_vol * jnp.sum(rss * slip_rates)
-        self.shear_rate_effective_contribution = jeu.vec_dev_effective(plastic_def_rate_dev_vecs)
+        rss, _, plastic_def_rate_dev_vecs, plastic_spin_dev_vecs = self.calc_slip_system_terms(crystal_kirchoff_dev)
 
         # Can now start calculating other terms related to the residual
         # For the terms related to the change in the change in the omega aka Rmat_dot Rmat term
@@ -174,6 +184,17 @@ class evptnClass:
         jacobian = self.get_jacobian(x)
         return (residual, jacobian)
 
+    def calculate_other_terms(self, x):
+        _, elas_dev_vec_n1, _ = self.get_elas_strain_state(x)
+        # Calculate the deviatoric Kirchoff stress tensor
+        crystal_kirchoff_dev = self.elas_strain_to_kirchoff_stress(elas_dev_vec_n1)
+        # Calculate slip system related terms
+        rss, slip_rates, plastic_def_rate_dev_vecs, _ = self.calc_slip_system_terms(crystal_kirchoff_dev)
+
+        # Additional factors that we don't really need but could be useful for outside use
+        self.slip_rates = jnp.copy(slip_rates)
+        self.plastic_disipation_rate_contribution = self.inv_a_vol * jnp.sum(rss * slip_rates)
+        self.shear_rate_effective_contribution = jeu.vec_dev_effective(plastic_def_rate_dev_vecs)
 
 def get_response(slip_geom_class, slip_kinetics_class, thermo_elas_class, eos_class,
                  delta_time, solver_tolerance, def_rate_samp, spin_vec_samp,
@@ -208,7 +229,7 @@ def get_response(slip_geom_class, slip_kinetics_class, thermo_elas_class, eos_cl
     energy_old = internal_energy[0]
     pressure_old = stress_vec_pressure[-1]
 
-    junk, temp_k = eos_class.eval_pressure_temp(vol_ratio_vec[0], energy_old)
+    _, temp_k = eos_class.eval_pressure_temp(vol_ratio_vec[0], energy_old)
 
     temp_k_new, press_eos, energy_new, bulk_mod_new = jeos.update_simple(eos_class, vol_ratio_vec[1], vol_ratio_vec[3], energy_old, pressure_old)
 
@@ -222,8 +243,9 @@ def get_response(slip_geom_class, slip_kinetics_class, thermo_elas_class, eos_cl
     crystal_kirchoff_dev = calc_kirchoff_stress()
 
     # Hardening update using beg of time step values
-    chia, schmid_system_p_vecs, schmid_system_q_vecs = slip_geom_class.get_PQ_chia(crystal_kirchoff_dev)
-    nfev, hard_state_n1 = slip_kinetics_class.update_hardness(hard_state_n, chia, slip_rate_n, delta_time, temp_k)
+    chia, _, _ = slip_geom_class.get_PQ_chia(crystal_kirchoff_dev)
+    # ignore the nfev value returned as we don't save it anywhere
+    _, hard_state_n1 = slip_kinetics_class.update_hardness(hard_state_n, chia, slip_rate_n, delta_time, temp_k)
 
     # Elastic and lattice rotation updates
 
@@ -238,6 +260,8 @@ def get_response(slip_geom_class, slip_kinetics_class, thermo_elas_class, eos_cl
     solver.delta_control.deltaInit = 1.0
     status, xs = solver.solve(x0)
 
+    evptn_class.calculate_other_terms(xs)
+
     elas_dev_vec_n1, crystal_quat_n1 = evptn_class.get_state_from_x(xs)
     slip_rate_n1 = jnp.copy(evptn_class.slip_rates)
 
@@ -247,10 +271,11 @@ def get_response(slip_geom_class, slip_kinetics_class, thermo_elas_class, eos_cl
 
     def_effective = jeu.vec_dev_effective(def_dev_vec_samp)
 
-    if def_effective > jec.DBL_TINY_SQRT:
-        flow_strength = evptn_class.plastic_disipation_rate_contribution / def_effective
-    else:
-        flow_strength = self.hard_scale
+    flow_strength = jax.lax.cond(
+        def_effective > jec.DBL_TINY_SQRT,
+        lambda: evptn_class.plastic_disipation_rate_contribution / def_effective,
+        lambda: evptn_class.hard_scale
+    )
 
     solver_iters = solver.nfev
 
@@ -271,8 +296,11 @@ def get_response(slip_geom_class, slip_kinetics_class, thermo_elas_class, eos_cl
 
     internal_energy_n1 = jnp.asarray([energy_new])
 
-    if jnp.sum(crystal_quat_n * crystal_quat_n1) < 0.0:
-        crystal_quat_n1 *= -1.0
+    crystal_quat_n1 = jax.lax.cond(
+        jnp.sum(crystal_quat_n * crystal_quat_n1) < 0.0,
+        lambda: crystal_quat_n1 * -1.0,
+        lambda: crystal_quat_n1
+    )
 
     history_update = hist_class.pack_history_vars(elas_dev_vec_n1, crystal_quat_n1, hard_state_n1, slip_rate_n1, shear_rate_eff, shear_eff, flow_strength, solver_iters)
 

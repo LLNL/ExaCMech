@@ -47,6 +47,7 @@ class MemoizeJac:
         self._compute_if_needed(x, *args)
         return self.jac
 
+# This is not going to be fun to get into a state where things can be vectorized by JAX...
 class SNLSTrDlDenseG:
     class params:
         def __init__(self):

@@ -76,6 +76,9 @@ class evptnWrapClass:
 
         self.hist_class = jec.HistClass(self.slip_geom_class, self.slip_kinetics_class, self.thermo_elas_class, self.eos_class)
         self.num_hist = self.hist_class.num_hist
+        # Still a WIP to get all the necessary things ported to JAX idioms so that
+        # we can have vectorized calls
+        # self.batch_solve = jax.vmap(self.solve)
 
     def init_history_vec(self, elas_dev=None, quats=None, hard_state=None, slip_rate=None, shear_rate_eff=None, shear_eff=None, flow_strength=None):
         if elas_dev is None:
@@ -83,7 +86,10 @@ class evptnWrapClass:
         if quats is None:
             quats = jnp.asarray([1.0, 0.0, 0.0, 0.0])
         if hard_state is None:
-            hard_state = self.slip_kinetics_class.hard_state_0
+            # currently only sub-module which would have non-trivial values here
+            _, hard_state, _, _ = self.slip_kinetics_class.get_history_info(list(), list(), list(), list())
+            print(hard_state)
+            hard_state = jnp.asarray(hard_state)
         if slip_rate is None:
             slip_rate  = jnp.zeros(self.slip_geom_class.num_slip_systems)
         if shear_rate_eff is None:
@@ -100,7 +106,44 @@ class evptnWrapClass:
         
         return history_vec
 
-    def solve(self, delta_time, def_rate_vec7_samp, spin_vec_samp, vol_ratio_vec, internal_energy, stress_vec_pressure, history_vec, temp_k, need_mtan=False):
+    def get_history_info(self, names=list(), init=list(), plot=list(), state=list()):
+
+        names.append("eff_plastic_def_rate"); init.append(0.); plot.append(True); state.append(True)
+        names.append("equiv_pl_strain"); init.append(0.); plot.append(True); state.append(True)
+        names.append("flow_strength"); init.append(0.); plot.append(True); state.append(False)
+        names.append("num_func_eval"); init.append(0); plot.append(True); state.append(False)
+
+        for itvec in range(jec.NTVEC):
+            name = "xtal_elas_dev_strain_" + str(itvec)
+            names.append(name); init.append(0.); plot.append(True); state.append(True)
+
+        names.append(["lattice_quat_0", "lattice_quat_1", "lattice_quat_2", "lattice_quat_3"])
+        init.append([1.0, 0.0, 0.0, 0.0])
+        plot.append([True, True, True, True])
+        state.append([True, True, True, True])
+
+        names, init, plot, state = self.slip_kinetics_class.get_history_info(names, init, plot, state)
+
+        for islip in range(self.slip_geom_class.num_slip_systems):
+            name = "shear_rate_" + str(islip)
+            names.append(name)
+            init.append(0)
+            plot.append(True)
+            state.append(True)
+
+        return (names, init, plot, state)
+
+    def get_parameters(self):
+        params = {}
+
+        params = self.slip_geom_class.get_parameters(params)
+        params = self.eos_class.get_parameters(params)
+        params = self.thermo_elas_class.get_parameters(params)
+        params = self.slip_kinetics_class.get_parameters(params)
+
+        return params
+
+    def solve(self, delta_time, def_rate_samp, spin_vec_samp, vol_ratio_vec, internal_energy, stress_vec_pressure, history_vec, temp_k, need_mtan=False):
         '''
             Copied from example.py file for their solve case and need to update for batch solves
             as currently this only deals with single point solves...
@@ -216,6 +259,19 @@ if __name__ == "__main__":
     # It is only calculated if the user asks us to
     stress_vec_pressure_n1, history_update, internal_energy_n1, temp_k, sdd, junk = evptn_wc.solve(
                  delta_time, def_rate_samp, spin_vec_samp, vol_ratio_vec, internal_energy, stress_vec_pressure, history_vec, temp_k)
+
+    # Still working on getting all the conditionals into a JAX friendly manner so we can vectorize and JIT
+    # compile things if need be...
+    # bdt = np.atleast_1d(delta_time)
+    # drs = np.atleast_2d(def_rate_samp)
+    # svs = np.atleast_2d(spin_vec_samp)
+    # vrv = np.atleast_2d(vol_ratio_vec)
+    # ie  = np.atleast_2d(internal_energy)
+    # svp = np.atleast_2d(stress_vec_pressure)
+    # hiv = np.atleast_2d(history_vec)
+    # tk  = np.atleast_1d(temp_k)
+    # stress_vec_pressure_n1, history_update, internal_energy_n1, temp_k, sdd, junk = evptn_wc.batch_solve(
+    #              bdt, drs, svs, vrv, ie, svp, hiv, tk)
 
     print("Deviatoric Stress + pressure:")
     print(stress_vec_pressure_n1)

@@ -16,6 +16,7 @@ from jax.config import config; config.update("jax_enable_x64", True)
 NWVEC = pecm.constants.nwvec
 NTVEC = pecm.constants.ntvec
 NSVP = pecm.constants.nsvp
+NSDD = pecm.constants.nsdd
 DBL_TINY_SQRT = pecm.constants.dbl_tiny_sqrt
 GAM_RATIO_OVFFX = pecm.constants.gam_ratio_ovffx
 GAM_RATIO_MIN = pecm.constants.gam_ratio_min

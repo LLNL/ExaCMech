@@ -18,7 +18,6 @@ import jax_ecmech_const as jec
 import jax_slip_geom as jslgeo
 import jax_snls as snls
 
-
 class SlipKineticVocePowerLaw:
     def __init__(
                  self,
@@ -75,12 +74,12 @@ class SlipKineticVocePowerLaw:
         return params
 
     def get_history_info(self, names, init, plot, state):
-        names.append("hard_state_0")
-        init.append(self.hard_state_0)
+        names.append("hard_state_crss")
+        init.append(self.hard_state_0[0])
         plot.append(True)
         state.append(True)
 
-        return (names, init, plot, state) 
+        return (names, init, plot, state)
 
     def get_fixed_reference_rate(self, values):
         return self.gamma_0_w
@@ -105,26 +104,31 @@ class SlipKineticVocePowerLaw:
                     shear_dot = shear_dot.at[islip].set(temp * rss_crss_frac)
         return shear_dot
 
-
     def update_hardness(self, hard_state_0, hard_vals, gdot, delta_time, temp_k):
         evol_vals = self.get_evol_vals(gdot)
         
         init_sol = jnp.zeros_like(hard_state_0)
         args = (hard_state_0, evol_vals, delta_time)
-        res = root(self.update_hard_resid, init_sol, args=args, jac=self.update_hard_jacob, method='hybr', tol=1e-8)
+
+        solver = snls.SNLSTrDlDenseG(self.compute_resid_jacobian, xtolerance=1e-10, ndim=init_sol.shape[0], args=args)
+        solver.delta_control.deltaInit = 1.0
+        status, xs = solver.solve(init_sol)
+        nfev = solver.nfev
 
         x_scale = jnp.minimum(hard_state_0, 1.0)
-        hard_state = hard_state_0 + res.x * x_scale
+        hard_state = hard_state_0 + xs * x_scale #res.x * x_scale
 
-        return (res.nfev, jnp.copy(hard_state))
+        return (nfev, jnp.copy(hard_state))
 
     def get_evol_vals(self, gdot):
         # recompute effective shear rate here versus using a stored value
         abs_shear_rate_sum = jnp.sum(jnp.abs(gdot))
 
-        crss_sat = self.crss_sat
-        if abs_shear_rate_sum > jec.DBL_TINY_SQRT:
-            crss_sat *= jnp.power((abs_shear_rate_sum / self.gamma_sat_0), self.exp_m_sat)
+        crss_sat = jax.lax.cond(
+            abs_shear_rate_sum > jec.DBL_TINY_SQRT,
+            lambda: self.crss_sat * jnp.power((abs_shear_rate_sum / self.gamma_sat_0), self.exp_m_sat),
+            lambda: self.crss_sat
+        )
 
         return jnp.asarray([abs_shear_rate_sum, crss_sat])
 
@@ -142,13 +146,22 @@ class SlipKineticVocePowerLaw:
     def update_hard_jacob(self, x, hard_state_0, evol_vals, delta_time):
         return jax.jacfwd(self.update_hard_resid, argnums=0)(x, hard_state_0, evol_vals, delta_time)
 
+    def compute_resid_jacobian(self, x, hard_state_0, evol_vals, delta_time):
+        residual = self.update_hard_resid(x, hard_state_0, evol_vals, delta_time)
+        jacob = self.update_hard_jacob(x, hard_state_0, evol_vals, delta_time)
+        return (residual, jacob)
+
     def get_hard_state_dot(self, hard_state, evol_vals):
         '''
             \dot{crss} = h_0 * \frac{(crss_sat - crss)}{crss_sat - crss_0}^n' * \Sum^{nslip} | \dot{\gamma}_j |
         '''
-        inv_term = 0.0
-        if evol_vals[1] > jnp.atleast_1d(self.crss0):
-            inv_term = 1.0 / (evol_vals[1] - self.crss0)
+
+        inv_term = jax.lax.cond(
+            evol_vals[1] > jnp.atleast_1d(self.crss0)[0],
+            lambda: 1.0 / (evol_vals[1] - self.crss0),
+            lambda: 0.0
+        )
+
         voce_inner_term = jnp.power((evol_vals[1] - hard_state[0]) * inv_term, self.exp_n1)
         return self.h0 * voce_inner_term * (evol_vals[1] - hard_state[0]) * inv_term * evol_vals[0]
 
@@ -233,17 +246,46 @@ class SlipKineticOrowanD:
         # self.forest_matrix = self.inter_mat
 
     def get_parameters(self, parameters):
-        pass
+
+        params["slip_kinetics_gathermal"] = self.gathermal
+        params["slip_kinetics_isotropic"] = self.isotropic
+        params["slip_kinetics_per_slip_system"] = self.per_slip_system
+        params["shear_mod"] = self.shear_mod_ref
+        params["temperature_k_ref"] = self.temp_k_ref
+        params["bergers_magnitude"] = self.bergers_magnitude
+        params["lbar_berg"] = self.lbar_berg
+        params["slip_gamma_phonon_ref"] = self.slip_gamma_phonon_ref
+        params["phonon_drag_stress"] = self.phonon_drag_stress
+        params["attempt_frequency"] = self.attempt_frequency
+        params["slip_kinetics_c1"] = self.c1
+        params["slip_kinetics_peirls_barrier"] = self.tau_a
+        params["slip_kinetics_p_exponent"] = self.p_exponent
+        params["slip_kinetics_q_exponent"] = self.q_exponent
+        params["slip_kinetics_c2"] = self.c2
+        params["slip_kinetics_interaction_matrix"] = self.inter_mat
+        params["slip_kinetics_c_annihilation"] = self.c_ann
+        params["slip_kinetics_d_annihilation"] = self.d_ann
+        params["slip_kinetics_c_trap"] = self.c_trap
+        params["slip_kinetics_c_multiplication"] = self.c_mult
+        params["slip_kinetics_q_mobile"] = self.q_mobile
+        params["slip_kinetics_q_total"] = self.q_total
+        
+        return params
 
     def get_history_info(self, names, init, plot, state):
-        names.append("hard_state_qM")
-        init.append(self.q_mobile)
-        plot.append(True)
-        state.append(True)
-        names.append("hard_state_qT")
-        init.append(self.q_total)
-        plot.append(True)
-        state.append(True)
+        for i in range(self.num_slip_systems):
+            name = "hard_state_qM_" + str(i)
+            names.append(name)
+            init.append(self.q_mobile[i])
+            plot.append(True)
+            state.append(True)
+
+        for i in range(self.num_slip_systems):
+            name = "hard_state_qT_" + str(i)
+            names.append(name)
+            init.append(self.q_mobile[i])
+            plot.append(True)
+            state.append(True)
 
         return (names, init, plot, state) 
 
@@ -280,16 +322,19 @@ class SlipKineticOrowanD:
         # !   mts_dfac = zero
         # !ELSE
         # ! blows up, but just set big
-        if (jnp.abs(t_frac) < jec.DBL_TINY_SQRT):
-            p_func = 0.0
-        else:
-            p_func = np.sign(t_frac) * jnp.power(jnp.abs(t_frac), self.p_exponent)
+        p_func = jax.lax.cond(
+            jnp.abs(t_frac) < jec.DBL_TINY_SQRT,
+            lambda: 0.0,
+            lambda: np.sign(t_frac) * jnp.power(jnp.abs(t_frac), self.p_exponent)
+        )
 
         q_arg = 1.0 - p_func
-        if (q_arg < jec.DBL_TINY_SQRT):
-            pq_fac = 0.0
-        else:
-            pq_fac = jnp.sign(q_arg) * jnp.power(jnp.abs(q_arg), self.q_exponent)
+
+        pq_fac = jax.lax.cond(
+            q_arg < jec.DBL_TINY_SQRT,
+            lambda: 0.0,
+            lambda: jnp.sign(q_arg) * jnp.power(jnp.abs(q_arg), self.q_exponent)
+        )
 
         return -c_e * pq_fac
 
@@ -374,7 +419,6 @@ class SlipKineticOrowanD:
     def eval_slip_rates(self, rss, values):
         shear_dot = jnp.zeros(self.num_slip_systems)
         for islip in range(self.num_slip_systems):
-            
             shear_dot = shear_dot.at[islip].set(self.calc_slip_rates(rss[islip], values, islip))
         return shear_dot
 
@@ -386,27 +430,15 @@ class SlipKineticOrowanD:
         hard_state_init = jnp.log(hard_state_init)        
         init_sol = jnp.zeros_like(hard_state_init)
         args = (hard_state_init, evol_vals, delta_time)
-        
-        # sdot = self.get_hard_state_dot(hard_state_init, evol_vals)
-        # jacob = jax.jacfwd(self.get_hard_state_dot, argnums=0)(hard_state_init, evol_vals)
-        
-        # return (sdot, jacob)
 
         solver = snls.SNLSTrDlDenseG(self.compute_resid_jacobian, xtolerance=1e-10, ndim=init_sol.shape[0], args=args)
         solver.delta_control.deltaInit = 1.0
         status, xs = solver.solve(init_sol)
 
-        # res = root(self.update_hard_resid, init_sol, args=args, jac=self.update_hard_jacob, method='hybr', tol=1e-10)
-
         nfev = solver.nfev
-        # nfev = res.nfev
-
-
         x_scale = jnp.minimum(hard_state_init, 1.0)
         hard_delta = xs * x_scale
-        # hard_delta = res.x * x_scale
         hard_state = jnp.exp(hard_state_init + hard_delta)
-        # hard_state = hard_state_0 + hard_delta # xs * x_scale
 
         return (nfev, jnp.copy(hard_state))
 
