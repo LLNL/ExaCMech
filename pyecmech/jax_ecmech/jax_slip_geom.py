@@ -99,7 +99,7 @@ class SlipGeomBCC(SlipGeomBase):
         SlipGeomBase.__init__(self, params)
 
         self.dynamic = False
-        self.num_params = 0
+        self.num_params = 1
         self.bcc_type = params["bcc_type"]
         if self.bcc_type == "bcc12":
             self.num_slip_systems = 12

@@ -68,6 +68,10 @@ class evptnWrapClass:
         match params["slip_kinetics_hardening_class"]:
             case "voce_pl" | "Voce_PL":
                 self.slip_kinetics_class = jslkin.SlipKineticVocePowerLaw(params)
+            case "oro_dd":
+                self.slip_kinetics_class = jslkin.SlipKineticOrowanD(params)
+            case "km_bal_dd":
+                self.slip_kinetics_class = jslkin.SlipKineticMTSKocksMecking(params)
             case _ :
                 val = params["slip_kinetics_hardening_class"]
                 raise ValueError(f"A slip_kinetics_hardening_class value was not provided {val}")
