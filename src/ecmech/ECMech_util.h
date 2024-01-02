@@ -1190,7 +1190,7 @@ namespace ecmech {
             mtanSD(jSvec, 5) = C(jSvec, 2) * sqr2;
          }
       }
-   } // mtan_conv_sd_
+   } // mtan_conv_sd_svec
   
    __ecmech_hdev__
    inline

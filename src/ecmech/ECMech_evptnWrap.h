@@ -332,10 +332,16 @@ namespace ecmech {
                });
                      break;
 #endif
-#if defined(RAJA_ENABLE_CUDA)
+#if defined(RAJA_ENABLE_CUDA) || defined(RAJA_ENABLE_HIP)
                   case ECM_EXEC_STRAT_GPU:
-                     RAJA::forall<RAJA::cuda_exec<RAJA_CUDA_THREADS> >(default_range, [ =
-#if defined(ECMECH_NON_CORAL1_MACHINE)
+                  {
+#if defined(RAJA_ENABLE_CUDA)
+                     using gpu_policy = RAJA::cuda_exec<RAJA_CUDA_THREADS>;
+#else defined(RAJA_ENABLE_HIP)
+                     using gpu_policy = RAJA::hip_exec<RAJA_HIP_THREADS>;
+#endif
+                     RAJA::forall<gpu_policy>(default_range, [ =
+#if defined(ECMECH_NON_CORAL1_MACHINE)|| defined(RAJA_ENABLE_HIP)
                       , _slipGeom=this->_slipGeom, _kinetics=this->_kinetics, _elastN=this->_elastN, _eosModel=this->_eosModel, _tolerance=this->_tolerance, _outputLevel=this->_outputLevel
 #endif
                       ] RAJA_DEVICE(int i) {
@@ -356,35 +362,7 @@ namespace ecmech {
                      _outputLevel);
                });
                      break;
-#endif
-#if defined(RAJA_ENABLE_HIP)
-                  case ECM_EXEC_STRAT_GPU :
-		  {
-		    //auto &lslipGeom    = _slipGeom;
-		    // auto &lkinetics    = _kinetics;
-		    // auto &lelastN      = _elastN;
-		    // auto &leosModel    = _eosModel;
-		    // auto &ltolerance   = _tolerance;
-		    // auto &loutputLevel = _outputLevel;
-		    RAJA::forall<RAJA::hip_exec<RAJA_HIP_THREADS> >(default_range, [ =, _slipGeom=this->_slipGeom, _kinetics=this->_kinetics, _elastN=this->_elastN, _eosModel=this->_eosModel, _tolerance=this->_tolerance, _outputLevel=this->_outputLevel] RAJA_DEVICE(int i) {
-                           double *mtanSDThis       = ( mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr );
-                           getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
-                              (_slipGeom, _kinetics, _elastN, _eosModel,
-                               dt,
-                               _tolerance,
-                               &defRateV[def_rate_stride * i],
-                               &spinV[spin_v_stride * i],
-                               &volRatioV[vol_ratio_stride * i],
-                               &eIntV[int_eng_stride * i],
-                               &stressSvecPV[stress_stride * i],
-                               &histV[history_stride * i],
-                               tkelvV[tkelv_stride * i],
-                               &sddV[sdd_stride * i],
-                               mtanSDThis,
-                               _outputLevel);
-                        });
-                     break;
-		  }
+                  }
 #endif
                   case ECM_EXEC_STRAT_CPU :
                   default : // fall through to CPU if other options are not available

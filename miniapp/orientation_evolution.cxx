@@ -502,59 +502,39 @@ int main(int argc, char *argv[]){
          }
          break;
 #endif
-#if defined(RAJA_ENABLE_CUDA)
+#if defined(RAJA_ENABLE_CUDA) || defined(RAJA_ENABLE_HIP)
          case ECM_EXEC_STRAT_GPU :
          {
+#if defined(RAJA_ENABLE_CUDA)
+            using gpu_reduce = RAJA::cuda_reduce;
+            using gpu_policy = RAJA::cuda_exec<1024>;
+#else
+            using gpu_reduce = RAJA::hip_reduce;
+            using gpu_policy = RAJA::hip_exec<1024>;
+#endif
             if (NEVALS_COUNTS) {
-               RAJA::ReduceSum<RAJA::cuda_reduce, double> cuda_sum(0.0);
-               RAJA::ReduceMin<RAJA::cuda_reduce, double> cuda_min(100.0); // We know this shouldn't ever be more than 100
-               RAJA::ReduceMax<RAJA::cuda_reduce, double> cuda_max(0.0); // We know this will always be at least 1.0
-               RAJA::forall<RAJA::cuda_exec<1024> >(default_range, [ = ] RAJA_DEVICE(int i_qpts){
+               RAJA::ReduceSum<gpu_reduce, double> gpu_sum(0.0);
+               RAJA::ReduceMin<gpu_reduce, double> gpu_min(100.0); // We know this shouldn't ever be more than 100
+               RAJA::ReduceMax<gpu_reduce, double> gpu_max(0.0); // We know this will always be at least 1.0
+               RAJA::forall<gpu_policy>(default_range, [ = ] RAJA_DEVICE(int i_qpts){
                   double* nfunceval = &(d_state_vars[i_qpts * num_state_vars + 2]);
-                  cuda_sum += wts * nfunceval[0];
-                  cuda_max.max(nfunceval[0]);
-                  cuda_min.min(nfunceval[0]);
+                  gpu_sum += wts * nfunceval[0];
+                  gpu_max.max(nfunceval[0]);
+                  gpu_min.min(nfunceval[0]);
                });
-               std::cout << "Min Func Eval: " << cuda_min.get() << " Mean Func Evals: " <<
-                  cuda_sum.get() << " Max Func Eval: " << cuda_max.get() << std::endl;
+               std::cout << "Min Func Eval: " << gpu_min.get() << " Mean Func Evals: " <<
+                  gpu_sum.get() << " Max Func Eval: " << gpu_max.get() << std::endl;
             }
             for (int j = 0; j < ecmech::nsvec; j++) {
-               RAJA::ReduceSum<RAJA::cuda_reduce, double> cuda_sum(0.0);
-               RAJA::forall<RAJA::cuda_exec<1024> >(default_range, [ = ] RAJA_DEVICE(int i_qpts){
+               RAJA::ReduceSum<gpu_reduce, double> gpu_sum(0.0);
+               RAJA::forall<gpu_policy>(default_range, [ = ] RAJA_DEVICE(int i_qpts){
                   const double* stress = &(d_stress_array[i_qpts * ecmech::nsvec]);
-                  cuda_sum += wts * stress[j];
+                  gpu_sum += wts * stress[j];
                });
-               stress_avg[j] = cuda_sum.get();
+               stress_avg[j] = gpu_sum.get();
             }
          }
          break;
-#endif
-#if defined(RAJA_ENABLE_HIP)
-         case ECM_EXEC_STRAT_GPU :
-         {
-            if (NEVALS_COUNTS) {
-               RAJA::ReduceSum<RAJA::hip_reduce, double> hip_sum(0.0);
-               RAJA::ReduceMin<RAJA::hip_reduce, double> hip_min(100.0); // We know this shouldn't ever be more than 100
-               RAJA::ReduceMax<RAJA::hip_reduce, double> hip_max(0.0); // We know this will always be at least 1.0
-               RAJA::forall<RAJA::hip_exec<1024> >(default_range, [ = ] RAJA_DEVICE(int i_qpts){
-                  double* nfunceval = &(d_state_vars[i_qpts * num_state_vars + 2]);
-                  hip_sum += wts * nfunceval[0];
-                  hip_max.max(nfunceval[0]);
-                  hip_min.min(nfunceval[0]);
-               });
-               std::cout << "Min Func Eval: " << hip_min.get() << " Mean Func Evals: " <<
-                  hip_sum.get() << " Max Func Eval: " << hip_max.get() << std::endl;
-            }
-            for (int j = 0; j < ecmech::nsvec; j++) {
-               RAJA::ReduceSum<RAJA::hip_reduce, double> hip_sum(0.0);
-               RAJA::forall<RAJA::hip_exec<1024> >(default_range, [ = ] RAJA_DEVICE(int i_qpts){
-                  const double* stress = &(d_stress_array[i_qpts * ecmech::nsvec]);
-                  hip_sum += wts * stress[j];
-               });
-               stress_avg[j] = hip_sum.get();
-            }
-         }
-         break ;
 #endif
       } // switch ( class_device ) 
 

@@ -56,7 +56,7 @@ The develop branch is the main development branch. Changes to develop are by pul
 MINIAPP
 ======
 
-A miniapp is provided which provides a guide for how the library might be used in a real library. It provides several compute kernels that contain CPU, OpenMP, and CUDA/HIP code through the use of RAJA. A bash script is provided for a CORAL machine that runs a few different examples using the CPU, OpenMP, and CUD/HIP for realistic size data.
+A miniapp is provided which provides a guide for how the library might be used in a real application. It provides several compute kernels that contain CPU, OpenMP, and CUDA/HIP code through the use of RAJA. A bash script is provided for a CORAL machine that runs a few different examples using the CPU, OpenMP, and CUD/HIP for realistic size data.
 
 If all of the features are used it can be built with the following commands when used on a CORAL architecture: `cmake ../ -DCMAKE_INSTALL_PREFIX=../install_dir/ -DRAJA_DIR={$RAJA_PATH}/raja/install_dir/share/raja/cmake/ -DENABLE_OPENMP=ON -DENABLE_CUDA=ON -DCUDA_ARCH=sm_70 -DENABLE_TESTS=ON -DENABLE_MINIAPPS=ON -DCMAKE_BUILD_TYPE=Release`
 

@@ -290,35 +290,40 @@ namespace {
          stress_svec_p[ecmech::iSvecP] = stress_mean;
       }); // end of qpt loop
    } // end setup_data_openmp
-
 #endif
+
+#if defined(RAJA_ENABLE_CUDA) || defined(RAJA_ENABLE_HIP)
+
+   void setup_data_gpu(const int nqpts, const int nstatev,
+                       const double dt, const double* vel_grad_array,
+                       const double* stress_array, const double* state_vars_array,
+                       double* stress_svec_p_array, double* d_svec_p_array,
+                       double* w_vec_array, double* ddsdde_array,
+                       double* vol_ratio_array, double* eng_int_array,
+                       double* temp_array){
+      // vgrad is kinda a pain to deal with as a raw 1d array, so we're
+      // going to just use a RAJA view here. The data is taken to be in col. major format.
+      // It might be nice to eventually create a type alias for the below or
+      // maybe something like it.
+
+      const int ind_int_eng = nstatev - ecmech::ne;
+      const int ind_vols = ind_int_eng - 1;
+
+      const int DIM = 3;
+      std::array<RAJA::idx_t, DIM> perm { { 2, 1, 0 } };
+      RAJA::Layout<DIM> layout = RAJA::make_permuted_layout({ { ecmech::ndim, ecmech::ndim, nqpts } }, perm);
+      RAJA::View<const double, RAJA::Layout<DIM, RAJA::Index_type, 0> > vgrad_view(vel_grad_array, layout);
+
+      // All of the below we could setup in one big RAJA loop/kernel
+      RAJA::RangeSegment default_range(0, nqpts);
 
 #if defined(RAJA_ENABLE_CUDA)
+      using policy = RAJA::cuda_exec<384>;
+#else defined(RAJA_ENABLE_HIP)
+      using policy = RAJA::hip_exec<384>;
+#endif
 
-   void setup_data_cuda(const int nqpts, const int nstatev,
-                        const double dt, const double* vel_grad_array,
-                        const double* stress_array, const double* state_vars_array,
-                        double* stress_svec_p_array, double* d_svec_p_array,
-                        double* w_vec_array, double* ddsdde_array,
-                        double* vol_ratio_array, double* eng_int_array,
-                        double* temp_array){
-      // vgrad is kinda a pain to deal with as a raw 1d array, so we're
-      // going to just use a RAJA view here. The data is taken to be in col. major format.
-      // It might be nice to eventually create a type alias for the below or
-      // maybe something like it.
-
-      const int ind_int_eng = nstatev - ecmech::ne;
-      const int ind_vols = ind_int_eng - 1;
-
-      const int DIM = 3;
-      std::array<RAJA::idx_t, DIM> perm { { 2, 1, 0 } };
-      RAJA::Layout<DIM> layout = RAJA::make_permuted_layout({ { ecmech::ndim, ecmech::ndim, nqpts } }, perm);
-      RAJA::View<const double, RAJA::Layout<DIM, RAJA::Index_type, 0> > vgrad_view(vel_grad_array, layout);
-
-      // All of the below we could setup in one big RAJA loop/kernel
-      RAJA::RangeSegment default_range(0, nqpts);
-
-      RAJA::forall<RAJA::cuda_exec<384> >(default_range, [ = ] RAJA_DEVICE(int i_qpts) {
+      RAJA::forall<policy>(default_range, [ = ] RAJA_DEVICE(int i_qpts) {
          // Might want to eventually set these all up using RAJA views. It might simplify
          // things later on.
          // These are our inputs
@@ -380,101 +385,8 @@ namespace {
          stress_svec_p[2] += stress_mean;
          stress_svec_p[ecmech::iSvecP] = stress_mean;
       }); // end of qpt loop
-   } // end setup_data_cuda
-
+   } // end setup_data_gpu
 #endif
-
-#if defined(RAJA_ENABLE_HIP)
-
-   void setup_data_hip(const int nqpts, const int nstatev,
-                        const double dt, const double* vel_grad_array,
-                        const double* stress_array, const double* state_vars_array,
-                        double* stress_svec_p_array, double* d_svec_p_array,
-                        double* w_vec_array, double* ddsdde_array,
-                        double* vol_ratio_array, double* eng_int_array,
-                        double* temp_array){
-      // vgrad is kinda a pain to deal with as a raw 1d array, so we're
-      // going to just use a RAJA view here. The data is taken to be in col. major format.
-      // It might be nice to eventually create a type alias for the below or
-      // maybe something like it.
-
-      const int ind_int_eng = nstatev - ecmech::ne;
-      const int ind_vols = ind_int_eng - 1;
-
-      const int DIM = 3;
-      std::array<RAJA::idx_t, DIM> perm { { 2, 1, 0 } };
-      RAJA::Layout<DIM> layout = RAJA::make_permuted_layout({ { ecmech::ndim, ecmech::ndim, nqpts } }, perm);
-      RAJA::View<const double, RAJA::Layout<DIM, RAJA::Index_type, 0> > vgrad_view(vel_grad_array, layout);
-
-      // All of the below we could setup in one big RAJA loop/kernel
-      RAJA::RangeSegment default_range(0, nqpts);
-
-      RAJA::forall<RAJA::hip_exec<384> >(default_range, [ = ] RAJA_DEVICE(int i_qpts) {
-         // Might want to eventually set these all up using RAJA views. It might simplify
-         // things later on.
-         // These are our inputs
-         const double* state_vars = &(state_vars_array[i_qpts * nstatev]);
-         const double* stress = &(stress_array[i_qpts * ecmech::nsvec]);
-         // Here is all of our ouputs
-         double* ddsdde = &(ddsdde_array[i_qpts * ecmech::nsvec * ecmech::nsvec]);
-         double* eng_int = &(eng_int_array[i_qpts * ecmech::ne]);
-         double* w_vec = &(w_vec_array[i_qpts * ecmech::nwvec]);
-         double* vol_ratio = &(vol_ratio_array[i_qpts * ecmech::nvr]);
-         // A few variables are set up as the 6-vec deviatoric + tr(tens) values
-         int ind_svecp = i_qpts * ecmech::nsvp;
-         double* stress_svec_p = &(stress_svec_p_array[ind_svecp]);
-         double* d_svec_p = &(d_svec_p_array[ind_svecp]);
-
-         temp_array[i_qpts] = 300.;
-
-         // initialize 6x6 2d arrays all to 0
-         for (int i = 0; i < ecmech::nsvec; i++) {
-            for (int j = 0; j < ecmech::nsvec; j++) {
-               ddsdde[(i * ecmech::nsvec) +j] = 0.0;
-            }
-         }
-
-         for (int i = 0; i < ecmech::ne; i++) {
-            eng_int[i] = state_vars[ind_int_eng + i];
-         }
-
-         // Here we have the skew portion of our velocity gradient as represented as an
-         // axial vector.
-         w_vec[0] = 0.5 * (vgrad_view(2, 1, i_qpts) - vgrad_view(1, 2, i_qpts));
-         w_vec[1] = 0.5 * (vgrad_view(0, 2, i_qpts) - vgrad_view(2, 0, i_qpts));
-         w_vec[2] = 0.5 * (vgrad_view(1, 0, i_qpts) - vgrad_view(0, 1, i_qpts));
-
-         // Really we're looking at the negative of J but this will do...
-         double d_mean = -ecmech::onethird * (vgrad_view(0, 0, i_qpts) + vgrad_view(1, 1, i_qpts) + vgrad_view(2, 2, i_qpts));
-         // The 1st 6 components are the symmetric deviatoric portion of our velocity gradient
-         // The last value is simply the trace of the deformation rate
-         d_svec_p[0] = vgrad_view(0, 0, i_qpts) + d_mean;
-         d_svec_p[1] = vgrad_view(1, 1, i_qpts) + d_mean;
-         d_svec_p[2] = vgrad_view(2, 2, i_qpts) + d_mean;
-         d_svec_p[3] = 0.5 * (vgrad_view(2, 1, i_qpts) + vgrad_view(1, 2, i_qpts));
-         d_svec_p[4] = 0.5 * (vgrad_view(2, 0, i_qpts) + vgrad_view(0, 2, i_qpts));
-         d_svec_p[5] = 0.5 * (vgrad_view(1, 0, i_qpts) + vgrad_view(0, 1, i_qpts));
-         d_svec_p[6] = -3 * d_mean;
-
-         vol_ratio[0] = state_vars[ind_vols];
-         vol_ratio[1] = vol_ratio[0] * exp(d_svec_p[ecmech::iSvecP] * dt);
-         vol_ratio[3] = vol_ratio[1] - vol_ratio[0];
-         vol_ratio[2] = vol_ratio[3] / (dt * 0.5 * (vol_ratio[0] + vol_ratio[1]));
-
-         for (int i = 0; i < ecmech::nsvec; i++) {
-            stress_svec_p[i] = stress[i];
-         }
-
-         double stress_mean = -ecmech::onethird * (stress[0] + stress[1] + stress[2]);
-         stress_svec_p[0] += stress_mean;
-         stress_svec_p[1] += stress_mean;
-         stress_svec_p[2] += stress_mean;
-         stress_svec_p[ecmech::iSvecP] = stress_mean;
-      }); // end of qpt loop
-   } // end setup_data_cuda
-
-#endif
-
 }
 
 // Here we're going to initialize all of the data that's going inside of
@@ -564,19 +476,10 @@ void setup_data(ecmech::ExecutionStrategy accel, const int nqpts, const int nsta
       }
       break;
 #endif
-#if defined(RAJA_ENABLE_CUDA)
+#if defined(RAJA_ENABLE_CUDA) || defined(RAJA_ENABLE_HIP)
       case ECM_EXEC_STRAT_GPU:
       {
-         setup_data_cuda(nqpts, nstatev, dt, vel_grad_array, stress_array, state_vars_array,
-                         stress_svec_p_array, d_svec_p_array, w_vec_array, ddsdde_array,
-                         vol_ratio_array, eng_int_array, temp_array);
-      }
-      break;
-#endif
-#if defined(RAJA_ENABLE_HIP)
-      case ECM_EXEC_STRAT_GPU :
-      {
-         setup_data_hip(nqpts, nstatev, dt, vel_grad_array, stress_array, state_vars_array,
+         setup_data_gpu(nqpts, nstatev, dt, vel_grad_array, stress_array, state_vars_array,
                         stress_svec_p_array, d_svec_p_array, w_vec_array, ddsdde_array,
                         vol_ratio_array, eng_int_array, temp_array);
       }

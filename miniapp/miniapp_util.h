@@ -104,7 +104,7 @@ void deallocate(T *&ptr, bool host)
 #endif
 }; // namespace memoryManager
 
-// Copyright (c) 2016-19, Lawrence Livermore National Security, LLC.
+// Copyright (c) 2016-22, Lawrence Livermore National Security, LLC.
 // All rights reserved.
 
 // Redistribution and use in source and binary forms, with or without

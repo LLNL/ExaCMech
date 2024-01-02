@@ -1,8 +1,5 @@
 #pragma once
 
-#ifndef __ECMECH_CUDA_PORTABILITY_H
-#define __ECMECH_CUDA_PORTABILITY_H
-
 #include <stdlib.h>
 
 #ifdef __CUDACC__
@@ -59,5 +56,3 @@
 #else
 #define __ecmech_host_only__
 #endif
-
-#endif // __ECMECH_GPU_PORTABILITY_H
