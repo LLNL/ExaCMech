@@ -93,7 +93,7 @@ namespace {
 
 #if defined(RAJA_ENABLE_CUDA)
       using policy = RAJA::cuda_exec<384>;
-#else defined(RAJA_ENABLE_HIP)
+#else
       using policy = RAJA::hip_exec<384>;
 #endif
 

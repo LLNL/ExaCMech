@@ -337,7 +337,7 @@ namespace ecmech {
                   {
 #if defined(RAJA_ENABLE_CUDA)
                      using gpu_policy = RAJA::cuda_exec<RAJA_CUDA_THREADS>;
-#else defined(RAJA_ENABLE_HIP)
+#else
                      using gpu_policy = RAJA::hip_exec<RAJA_HIP_THREADS>;
 #endif
                      RAJA::forall<gpu_policy>(default_range, [ =
