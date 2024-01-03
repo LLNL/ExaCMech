@@ -36,14 +36,12 @@ TEST(ecmech, updst_a)
    using namespace ecmech;
 
 #if KIN_TYPE
-   matModelEvptn_FCC_B* mmodel = new matModelEvptn_FCC_B();
-   constexpr int nH = matModelEvptn_FCC_B::nH;
-   constexpr int nslip = matModelEvptn_FCC_B::nslip;
+   using mat_model = matModelEvptn_FCC_B;
 #else
-   matModelEvptn_FCC_A* mmodel = new matModelEvptn_FCC_A();
-   constexpr int nH = matModelEvptn_FCC_A::nH;
-   constexpr int nslip = matModelEvptn_FCC_A::nslip;
+   using mat_model = matModelEvptn_FCC_A;
 #endif
+   mat_model* mmodel = new mat_model();
+
    matModelBase* mmb = dynamic_cast<matModelBase*>(mmodel);
 
 #include "setup_base.h"
@@ -123,10 +121,10 @@ TEST(ecmech, updst_a)
    ecmech::printVec(hist, mmodel->numHist, std::cout);
 
    std::cout << "Hardness state : ";
-   ecmech::printVec<nH>(&(hist[ecmech::evptn::iHistLbH]), std::cout);
+   ecmech::printVec<mat_model::nH>(&(hist[ecmech::evptn::iHistLbH]), std::cout);
 
    std::cout << "Slip system shearing rates : ";
-   ecmech::printVec<nslip>(gdot, std::cout);
+   ecmech::printVec<mat_model::nslip>(gdot, std::cout);
 #endif
    EXPECT_TRUE(hist[evptn::iHistA_nFEval] == expectedNFEvals) << "Not the expected number of function evaluations";
    EXPECT_LT(fabs(hist[evptn::iHistLbE + 1] - expectedE2), 1e-10) <<
