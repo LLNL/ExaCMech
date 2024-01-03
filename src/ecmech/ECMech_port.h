@@ -8,7 +8,7 @@
 #include "MS_port.h"
 #include "MS_Log.h"
 
-#ifdef __cuda_host_only__
+#ifdef __ecmech_host_only__
 #define ECMECH_FAIL(loc, str) MS_Fail(loc, str);
 #define ECMECH_WARN(loc, str) MS_Warn(loc, str);
 #else
@@ -20,7 +20,7 @@
 // ECMECH_HAVE_MSLIB
 
 
-#ifdef __cuda_host_only__
+#ifdef __ecmech_host_only__
 #include <stdio.h>
 #include <exception>
 #include <stdexcept>

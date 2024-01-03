@@ -81,17 +81,23 @@ namespace {
 
 #endif
 
-#if defined(RAJA_ENABLE_CUDA)
-   void retrieve_data_cuda(const int nqpts, const int nstatev,
-                           const double* stress_svec_p_array, const double* vol_ratio_array,
-                           const double* eng_int_array, double* state_vars_array,
-                           double* stress_array){
+#if defined(RAJA_ENABLE_CUDA) || defined(RAJA_ENABLE_HIP)
+   void retrieve_data_gpu(const int nqpts, const int nstatev,
+                          const double* stress_svec_p_array, const double* vol_ratio_array,
+                          const double* eng_int_array, double* state_vars_array,
+                          double* stress_array){
       const int ind_int_eng = nstatev - ecmech::ne;
       const int ind_vols = ind_int_eng - 1;
 
       RAJA::RangeSegment default_range(0, nqpts);
 
-      RAJA::forall<RAJA::cuda_exec<384> >(default_range, [ = ] RAJA_DEVICE(int i_qpts) {
+#if defined(RAJA_ENABLE_CUDA)
+      using policy = RAJA::cuda_exec<384>;
+#else
+      using policy = RAJA::hip_exec<384>;
+#endif
+
+      RAJA::forall<policy>(default_range, [ = ] RAJA_DEVICE(int i_qpts) {
          // These are our outputs
          double* state_vars = &(state_vars_array[i_qpts * nstatev]);
          double* stress = &(stress_array[i_qpts * ecmech::nsvec]);
@@ -120,9 +126,9 @@ namespace {
          stress[1] += stress_mean;
          stress[2] += stress_mean;
       }); // end of qpts loop
-   } // end of retrieve_data_cuda
-
+   } // end of retrieve_data_gpu
 #endif
+
 } // end of private namespace
 
 // This will then be the final function/kernel to save off all the data at
@@ -140,11 +146,11 @@ void retrieve_data(ecmech::ExecutionStrategy accel, const int nqpts, const int n
       }
       break;
 #endif
-#if defined(RAJA_ENABLE_CUDA)
-      case ECM_EXEC_STRAT_CUDA:
+#if defined(RAJA_ENABLE_CUDA) || defined(RAJA_ENABLE_HIP)
+      case ECM_EXEC_STRAT_GPU:
       {
-         retrieve_data_cuda(nqpts, nstatev, stress_svec_p_array, vol_ratio_array,
-                            eng_int_array, state_vars_array, stress_array);
+         retrieve_data_gpu(nqpts, nstatev, stress_svec_p_array, vol_ratio_array,
+                           eng_int_array, state_vars_array, stress_array);
       }
       break;
 #endif

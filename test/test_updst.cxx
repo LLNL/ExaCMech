@@ -36,10 +36,12 @@ TEST(ecmech, updst_a)
    using namespace ecmech;
 
 #if KIN_TYPE
-   matModelEvptn_FCC_B* mmodel = new matModelEvptn_FCC_B();
+   using mat_model = matModelEvptn_FCC_B;
 #else
-   matModelEvptn_FCC_A* mmodel = new matModelEvptn_FCC_A();
+   using mat_model = matModelEvptn_FCC_A;
 #endif
+   mat_model* mmodel = new mat_model();
+
    matModelBase* mmb = dynamic_cast<matModelBase*>(mmodel);
 
 #include "setup_base.h"
@@ -96,9 +98,9 @@ TEST(ecmech, updst_a)
 
    static const int iHistLbGdot = mmodel->iHistLbGdot;
    double* gdot = &(hist[iHistLbGdot]);
-#ifdef ECMECH_DEBUG
+#if defined(ECMECH_DEBUG) && defined(__ecmech_host_only__)
    std::cout << "Initial hist : ";
-   printVec(hist, mmodel->numHist, std::cout);
+   ecmech::printVec(hist, mmodel->numHist, std::cout);
 #endif
 #include "setup_conditions.h"
    {
@@ -114,15 +116,15 @@ TEST(ecmech, updst_a)
 
       std::cout << "Function evaluations: " << hist[evptn::iHistA_nFEval] << std::endl;
    }
-#ifdef ECMECH_DEBUG
+#if defined(ECMECH_DEBUG) && defined(__ecmech_host_only__)
    std::cout << "Updated hist : ";
-   printVec(hist, mmodel->numHist, std::cout);
+   ecmech::printVec(hist, mmodel->numHist, std::cout);
 
    std::cout << "Hardness state : ";
-   printVec<mmodel->nH>(&(hist[ecmech::evptn::iHistLbH]), std::cout);
+   ecmech::printVec<mat_model::nH>(&(hist[ecmech::evptn::iHistLbH]), std::cout);
 
    std::cout << "Slip system shearing rates : ";
-   printVec<mmodel->nslip>(gdot, std::cout);
+   ecmech::printVec<mat_model::nslip>(gdot, std::cout);
 #endif
    EXPECT_TRUE(hist[evptn::iHistA_nFEval] == expectedNFEvals) << "Not the expected number of function evaluations";
    EXPECT_LT(fabs(hist[evptn::iHistLbE + 1] - expectedE2), 1e-10) <<
@@ -286,7 +288,7 @@ TEST(ecmech, driver_a)
 
       double stressSvec[ecmech::nsvec];
       svecpToSvec(stressSvec, stressSvecP);
-#ifdef ECMECH_DEBUG
+#if defined(ECMECH_DEBUG) && defined(__ecmech_host_only__)
       std::cout << "mtanSD_an : " << std::endl;
       printMat<ecmech::nsvec>(mtanSD_an, std::cout);
 #endif
@@ -338,7 +340,7 @@ TEST(ecmech, driver_a)
          }
       }
 
-#ifdef ECMECH_DEBUG
+#if defined(ECMECH_DEBUG) && defined(__ecmech_host_only__)
       std::cout << "mtanSD_fd : " << std::endl;
       printMat<ecmech::nsvec>(mtanSD_fd, std::cout);
 #endif

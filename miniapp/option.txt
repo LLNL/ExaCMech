@@ -1,5 +1,0 @@
-./1k_quats.txt
-voce
-./props.txt
-CUDA
-

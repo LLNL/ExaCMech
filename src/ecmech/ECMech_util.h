@@ -7,13 +7,11 @@
 
 #include <cmath>
 
-#ifdef ECMECH_DEBUG
-#ifdef __cuda_host_only__
+#if defined(ECMECH_DEBUG) && defined(__ecmech_host_only__)
 #include <iostream>
 #include <string>
 #include <sstream>
 #include <iomanip>
-#endif
 #endif
 
 #include "RAJA/RAJA.hpp"
@@ -1193,7 +1191,7 @@ namespace ecmech {
          }
       }
    } // mtan_conv_sd_svec
-
+  
    __ecmech_hdev__
    inline
    void
@@ -1324,8 +1322,8 @@ namespace ecmech {
 #endif
    } // miller_to_orthog_sngl
 
-#ifdef ECMECH_DEBUG
-#ifdef __cuda_host_only__
+#if defined(ECMECH_DEBUG) && defined(__ecmech_host_only__)
+
    template<int n>
    inline void
    printVec(const double* const y, std::ostream & oss) {
@@ -1344,7 +1342,7 @@ namespace ecmech {
 
       oss << std::endl;
    }
-
+   
    template<int n>
    inline void
    printMat(const double* const A, std::ostream & oss) {
@@ -1357,7 +1355,6 @@ namespace ecmech {
       }
    }
 
-#endif
 #endif
 } // namespace ecmech
 

@@ -2,10 +2,6 @@
 #include "ECMech_evptnWrap.h"
 #include "RAJA/RAJA.hpp"
 #include "RAJA/util/Timer.hpp"
-#if defined(RAJA_ENABLE_CUDA)
-#include "cuda.h"
-// #include "cuda_profiler_api.h"
-#endif
 #include "miniapp_util.h"
 #include "retrieve_kernels.h"
 #include "setup_kernels.h"
@@ -42,6 +38,9 @@ int main(int argc, char *argv[]){
    // All of the varibles that we'll be using in our simulations
    double* state_vars = nullptr;
    double* vgrad = nullptr;
+
+   double* d_state_vars = nullptr;
+   double* d_vgrad = nullptr;
 
    int nqpts = 0;
    int num_props = 0;
@@ -130,11 +129,15 @@ int main(int argc, char *argv[]){
    double* temp_array = nullptr;
    double* sdd_array = nullptr;
 
-   // If this is turned off then we do take a performance hit. At least if this is 10k and above things
-   // run fine.
-#if defined(RAJA_ENABLE_CUDA)
-   cudaDeviceSetLimit(cudaLimitStackSize, 16000);
-#endif
+   double* d_stress_array = nullptr;
+   double* d_stress_svec_p_array = nullptr;
+   double* d_d_svec_p_array = nullptr;
+   double* d_w_vec_array = nullptr;
+   double* d_ddsdde_array = nullptr;
+   double* d_vol_ratio_array = nullptr;
+   double* d_eng_int_array = nullptr;
+   double* d_temp_array = nullptr;
+   double* d_sdd_array = nullptr;
 
    std::string mat_model_str;
 
@@ -144,6 +147,7 @@ int main(int argc, char *argv[]){
    // in scope without running into memory issues.
    //
    int num_state_vars;
+   bool host = true;
    //
    {
       // All the input arguments
@@ -275,9 +279,10 @@ int main(int argc, char *argv[]){
          class_device = ECM_EXEC_STRAT_OPENMP;
       }
 #endif
-#if defined(RAJA_ENABLE_CUDA)
-      else if (device_type.compare("CUDA") == 0) {
-         class_device = ECM_EXEC_STRAT_CUDA;
+#if defined(RAJA_ENABLE_CUDA) || defined(RAJA_ENABLE_HIP)
+      else if (device_type.compare("GPU") == 0) {
+         host = false;
+         class_device = ECM_EXEC_STRAT_GPU;
       }
 #endif
       else {
@@ -350,8 +355,8 @@ int main(int argc, char *argv[]){
 
       // We're now initializing our state variables and vgrad to be used in other parts
       // of the simulations.
-      state_vars = memoryManager::allocate<double>(num_state_vars * nqpts);
-      vgrad = memoryManager::allocate<double>(nqpts * ecmech::ndim * ecmech::ndim);
+      state_vars = memoryManager::allocate<double>(num_state_vars * nqpts, host);
+      vgrad = memoryManager::allocate<double>(nqpts * ecmech::ndim * ecmech::ndim, host);
 
       double* quats_array = quats.data();
 
@@ -363,21 +368,61 @@ int main(int argc, char *argv[]){
 
    // The stress array is the only one of the below variables that needs to be
    // initialized to 0.
-   stress_array = memoryManager::allocate<double>(nqpts * ecmech::nsvec);
+   stress_array = memoryManager::allocate<double>(nqpts * ecmech::nsvec, host);
    for (int i = 0; i < nqpts * ecmech::nsvec; i++) {
       stress_array[i] = 0.0;
    }
 
    // We'll leave these uninitialized for now, since they're set in the
    // setup_data function.
-   ddsdde_array = memoryManager::allocate<double>(nqpts * ecmech::nsvec * ecmech::nsvec);
-   eng_int_array = memoryManager::allocate<double>(nqpts * ecmech::ne);
-   w_vec_array = memoryManager::allocate<double>(nqpts * ecmech::nwvec);
-   vol_ratio_array = memoryManager::allocate<double>(nqpts * ecmech::nvr);
-   stress_svec_p_array = memoryManager::allocate<double>(nqpts * ecmech::nsvp);
-   d_svec_p_array = memoryManager::allocate<double>(nqpts * ecmech::nsvp);
-   temp_array = memoryManager::allocate<double>(nqpts);
-   sdd_array = memoryManager::allocate<double>(nqpts * ecmech::nsdd);
+   ddsdde_array = memoryManager::allocate<double>(nqpts * ecmech::nsvec * ecmech::nsvec, host);
+   eng_int_array = memoryManager::allocate<double>(nqpts * ecmech::ne, host);
+   w_vec_array = memoryManager::allocate<double>(nqpts * ecmech::nwvec, host);
+   vol_ratio_array = memoryManager::allocate<double>(nqpts * ecmech::nvr, host);
+   stress_svec_p_array = memoryManager::allocate<double>(nqpts * ecmech::nsvp, host);
+   d_svec_p_array = memoryManager::allocate<double>(nqpts * ecmech::nsvp, host);
+   temp_array = memoryManager::allocate<double>(nqpts, host);
+   sdd_array = memoryManager::allocate<double>(nqpts * ecmech::nsdd, host);
+
+#if defined(RAJA_ENABLE_HIP)
+   if (class_device == ECM_EXEC_STRAT_GPU) {
+      // We'll leave these uninitialized for now, since they're set in the
+      // setup_data function.
+      d_state_vars = memoryManager::allocate_gpu<double>(num_state_vars * nqpts);
+      d_vgrad = memoryManager::allocate_gpu<double>(nqpts * ecmech::ndim * ecmech::ndim);
+      d_stress_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nsvec);
+
+      hipErrchk(hipMemcpy( d_state_vars, state_vars, num_state_vars * nqpts * sizeof(double), hipMemcpyHostToDevice ));
+      hipErrchk(hipMemcpy( d_vgrad, vgrad, nqpts * ecmech::ndim * ecmech::ndim * sizeof(double), hipMemcpyHostToDevice ));
+      hipErrchk(hipMemcpy( d_stress_array, stress_array, nqpts * ecmech::nsvec * sizeof(double), hipMemcpyHostToDevice ));
+
+      d_ddsdde_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nsvec * ecmech::nsvec);
+      d_eng_int_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::ne);
+      d_w_vec_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nwvec);
+      d_vol_ratio_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nvr);
+      d_stress_svec_p_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nsvp);
+      d_d_svec_p_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nsvp);
+      d_temp_array = memoryManager::allocate_gpu<double>(nqpts);
+      d_sdd_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nsdd);
+   }
+   else
+#endif 
+   {
+      // We'll leave these uninitialized for now, since they're set in the
+      // setup_data function.
+      d_state_vars = state_vars;
+      d_vgrad = vgrad;
+      d_stress_array = stress_array;
+      d_ddsdde_array = ddsdde_array;
+      d_eng_int_array = eng_int_array;
+      d_w_vec_array = w_vec_array;
+      d_vol_ratio_array = vol_ratio_array;
+      d_stress_svec_p_array = stress_svec_p_array;
+      d_d_svec_p_array = d_svec_p_array;
+      d_temp_array = temp_array;
+      d_sdd_array = sdd_array;
+   }
+   
 
    double stress_avg[6];
    double wts = 1.0 / nqpts;
@@ -388,36 +433,31 @@ int main(int argc, char *argv[]){
 
    run_time.start();
 
-   // For profiling uses
-   // #if defined(RAJA_ENABLE_CUDA)
-   // cudaProfilerStart();
-   // #endif
-
    for (int i = 0; i < nsteps; i++) {
       // set up our data in the correct format that the material model kernel expects
-      setup_data(class_device, nqpts, num_state_vars, dt, vgrad, stress_array, state_vars,
-                 stress_svec_p_array, d_svec_p_array, w_vec_array, ddsdde_array,
-                 vol_ratio_array, eng_int_array, temp_array);
+      setup_data(class_device, nqpts, num_state_vars, dt, d_vgrad, d_stress_array, d_state_vars,
+                 d_stress_svec_p_array, d_d_svec_p_array, d_w_vec_array, d_ddsdde_array,
+                 d_vol_ratio_array, d_eng_int_array, d_temp_array);
       // run our material model
       mat_model_kernel(mat_model_base, nqpts, dt,
-                       state_vars, stress_svec_p_array,
-                       d_svec_p_array, w_vec_array, ddsdde_array,
-                       vol_ratio_array, eng_int_array, temp_array, sdd_array);
+                       d_state_vars, d_stress_svec_p_array,
+                       d_d_svec_p_array, d_w_vec_array, d_ddsdde_array,
+                       d_vol_ratio_array, d_eng_int_array, d_temp_array, d_sdd_array);
       // retrieve all of the data and put it back in the global arrays
       retrieve_data(class_device, nqpts, num_state_vars,
-                    stress_svec_p_array, vol_ratio_array,
-                    eng_int_array, state_vars, stress_array);
+                    d_stress_svec_p_array, d_vol_ratio_array,
+                    d_eng_int_array, d_state_vars, d_stress_array);
 
-      switch (class_device) {
-         default:
-         case ECM_EXEC_STRAT_CPU:
+      switch ( class_device ) {
+         default :
+         case ECM_EXEC_STRAT_CPU :
          {
             if (NEVALS_COUNTS) {
                RAJA::ReduceSum<RAJA::seq_reduce, double> seq_sum(0.0);
                RAJA::ReduceMin<RAJA::seq_reduce, double> seq_min(100.0); // We know this shouldn't ever be more than 100
                RAJA::ReduceMax<RAJA::seq_reduce, double> seq_max(0.0); // We know this will always be at least 1.0
                RAJA::forall<RAJA::loop_exec>(default_range, [ = ] (int i_qpts){
-                  double* nfunceval = &(state_vars[i_qpts * num_state_vars + 2]);
+                  double* nfunceval = &(d_state_vars[i_qpts * num_state_vars + 2]);
                   seq_sum += wts * nfunceval[0];
                   seq_max.max(nfunceval[0]);
                   seq_min.min(nfunceval[0]);
@@ -428,22 +468,22 @@ int main(int argc, char *argv[]){
             for (int j = 0; j < ecmech::nsvec; j++) {
                RAJA::ReduceSum<RAJA::seq_reduce, double> seq_sum(0.0);
                RAJA::forall<RAJA::loop_exec>(default_range, [ = ] (int i_qpts){
-                  const double* stress = &(stress_array[i_qpts * ecmech::nsvec]);
+                  const double* stress = &(d_stress_array[i_qpts * ecmech::nsvec]);
                   seq_sum += wts * stress[j];
                });
                stress_avg[j] = seq_sum.get();
-            }
+	    }
          }
          break;
 #if defined(RAJA_ENABLE_OPENMP)
-         case ECM_EXEC_STRAT_OPENMP:
-         {
+         case ECM_EXEC_STRAT_OPENMP :
+         {   
             if (NEVALS_COUNTS) {
                RAJA::ReduceSum<RAJA::omp_reduce_ordered, double> omp_sum(0.0);
                RAJA::ReduceMin<RAJA::omp_reduce_ordered, double> omp_min(100.0); // We know this shouldn't ever be more than 100
                RAJA::ReduceMax<RAJA::omp_reduce_ordered, double> omp_max(0.0); // We know this will always be at least 1.0
                RAJA::forall<RAJA::omp_parallel_for_exec>(default_range, [ = ] (int i_qpts){
-                  double* nfunceval = &(state_vars[i_qpts * num_state_vars + 2]);
+                  double* nfunceval = &(d_state_vars[i_qpts * num_state_vars + 2]);
                   omp_sum += wts * nfunceval[0];
                   omp_max.max(nfunceval[0]);
                   omp_min.min(nfunceval[0]);
@@ -454,7 +494,7 @@ int main(int argc, char *argv[]){
             for (int j = 0; j < ecmech::nsvec; j++) {
                RAJA::ReduceSum<RAJA::omp_reduce_ordered, double> omp_sum(0.0);
                RAJA::forall<RAJA::omp_parallel_for_exec>(default_range, [ = ] (int i_qpts){
-                  const double* stress = &(stress_array[i_qpts * ecmech::nsvec]);
+                  const double* stress = &(d_stress_array[i_qpts * ecmech::nsvec]);
                   omp_sum += wts * stress[j];
                });
                stress_avg[j] = omp_sum.get();
@@ -462,34 +502,41 @@ int main(int argc, char *argv[]){
          }
          break;
 #endif
-#if defined(RAJA_ENABLE_CUDA)
-         case ECM_EXEC_STRAT_CUDA:
+#if defined(RAJA_ENABLE_CUDA) || defined(RAJA_ENABLE_HIP)
+         case ECM_EXEC_STRAT_GPU :
          {
+#if defined(RAJA_ENABLE_CUDA)
+            using gpu_reduce = RAJA::cuda_reduce;
+            using gpu_policy = RAJA::cuda_exec<1024>;
+#else
+            using gpu_reduce = RAJA::hip_reduce;
+            using gpu_policy = RAJA::hip_exec<1024>;
+#endif
             if (NEVALS_COUNTS) {
-               RAJA::ReduceSum<RAJA::cuda_reduce, double> cuda_sum(0.0);
-               RAJA::ReduceMin<RAJA::cuda_reduce, double> cuda_min(100.0); // We know this shouldn't ever be more than 100
-               RAJA::ReduceMax<RAJA::cuda_reduce, double> cuda_max(0.0); // We know this will always be at least 1.0
-               RAJA::forall<RAJA::cuda_exec<1024> >(default_range, [ = ] RAJA_DEVICE(int i_qpts){
-                  double* nfunceval = &(state_vars[i_qpts * num_state_vars + 2]);
-                  cuda_sum += wts * nfunceval[0];
-                  cuda_max.max(nfunceval[0]);
-                  cuda_min.min(nfunceval[0]);
+               RAJA::ReduceSum<gpu_reduce, double> gpu_sum(0.0);
+               RAJA::ReduceMin<gpu_reduce, double> gpu_min(100.0); // We know this shouldn't ever be more than 100
+               RAJA::ReduceMax<gpu_reduce, double> gpu_max(0.0); // We know this will always be at least 1.0
+               RAJA::forall<gpu_policy>(default_range, [ = ] RAJA_DEVICE(int i_qpts){
+                  double* nfunceval = &(d_state_vars[i_qpts * num_state_vars + 2]);
+                  gpu_sum += wts * nfunceval[0];
+                  gpu_max.max(nfunceval[0]);
+                  gpu_min.min(nfunceval[0]);
                });
-               std::cout << "Min Func Eval: " << cuda_min.get() << " Mean Func Evals: " <<
-                  cuda_sum.get() << " Max Func Eval: " << cuda_max.get() << std::endl;
+               std::cout << "Min Func Eval: " << gpu_min.get() << " Mean Func Evals: " <<
+                  gpu_sum.get() << " Max Func Eval: " << gpu_max.get() << std::endl;
             }
             for (int j = 0; j < ecmech::nsvec; j++) {
-               RAJA::ReduceSum<RAJA::cuda_reduce, double> cuda_sum(0.0);
-               RAJA::forall<RAJA::cuda_exec<1024> >(default_range, [ = ] RAJA_DEVICE(int i_qpts){
-                  const double* stress = &(stress_array[i_qpts * ecmech::nsvec]);
-                  cuda_sum += wts * stress[j];
+               RAJA::ReduceSum<gpu_reduce, double> gpu_sum(0.0);
+               RAJA::forall<gpu_policy>(default_range, [ = ] RAJA_DEVICE(int i_qpts){
+                  const double* stress = &(d_stress_array[i_qpts * ecmech::nsvec]);
+                  gpu_sum += wts * stress[j];
                });
-               stress_avg[j] = cuda_sum.get();
+               stress_avg[j] = gpu_sum.get();
             }
          }
          break;
 #endif
-      } // switch ( class_device )
+      } // switch ( class_device ) 
 
       // On CORAL architectures these print statements don't really add anything to the execution time.
       // So, we're going to keep them to make sure things are correct between the different runs.
@@ -500,11 +547,6 @@ int main(int argc, char *argv[]){
 
       std::cout << std::endl;
    }
-
-   // For profiling uses
-   // #if defined(RAJA_ENABLE_CUDA)
-   // cudaProfilerStart();
-   // #endif
 
    run_time.stop();
 
@@ -517,17 +559,33 @@ int main(int argc, char *argv[]){
 
    // Delete all variables declared using the memory allocator now.
 
-   memoryManager::deallocate(state_vars);
-   memoryManager::deallocate(vgrad);
-   memoryManager::deallocate(stress_array);
-   memoryManager::deallocate(stress_svec_p_array);
-   memoryManager::deallocate(d_svec_p_array);
-   memoryManager::deallocate(w_vec_array);
-   memoryManager::deallocate(ddsdde_array);
-   memoryManager::deallocate(vol_ratio_array);
-   memoryManager::deallocate(eng_int_array);
-   memoryManager::deallocate(temp_array);
-   memoryManager::deallocate(sdd_array);
+   memoryManager::deallocate(state_vars, host);
+   memoryManager::deallocate(vgrad, host);
+   memoryManager::deallocate(stress_array, host);
+   memoryManager::deallocate(stress_svec_p_array, host);
+   memoryManager::deallocate(d_svec_p_array, host);
+   memoryManager::deallocate(w_vec_array, host);
+   memoryManager::deallocate(ddsdde_array, host);
+   memoryManager::deallocate(vol_ratio_array, host);
+   memoryManager::deallocate(eng_int_array, host);
+   memoryManager::deallocate(temp_array, host);
+   memoryManager::deallocate(sdd_array, host);
+
+#if defined(RAJA_ENABLE_HIP)
+   if (class_device == ECM_EXEC_STRAT_GPU) {
+      memoryManager::deallocate_gpu(d_state_vars);
+      memoryManager::deallocate_gpu(d_vgrad);
+      memoryManager::deallocate_gpu(d_stress_array);
+      memoryManager::deallocate_gpu(d_stress_svec_p_array);
+      memoryManager::deallocate_gpu(d_d_svec_p_array);
+      memoryManager::deallocate_gpu(d_w_vec_array);
+      memoryManager::deallocate_gpu(d_ddsdde_array);
+      memoryManager::deallocate_gpu(d_vol_ratio_array);
+      memoryManager::deallocate_gpu(d_eng_int_array);
+      memoryManager::deallocate_gpu(d_temp_array);
+      memoryManager::deallocate_gpu(d_sdd_array);
+   }
+#endif
 
    return 0;
 }

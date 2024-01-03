@@ -7,11 +7,15 @@
 #include "RAJA/policy/cuda/raja_cudaerrchk.hpp"
 #endif
 
+#if defined(RAJA_ENABLE_HIP)
+#include "RAJA/policy/hip/raja_hiperrchk.hpp"
+#endif
+
 // We're going to use this to determine what RAJA code to run for our
 // kernels.
 // The HIP backend won't be able to run on AMD GPGPUs
 // until device function pointers are supported.
-enum class ExecutionStrategy { CPU, CUDA, OPENMP };
+enum class ExecutionStrategy { CPU, GPU, OPENMP };
 
 // The below is a simple memory manager taken directly from the RAJA repo and as such
 // the necessary copyright/LICENSE information is provided towards the bottom of this file
@@ -28,34 +32,79 @@ enum class ExecutionStrategy { CPU, CUDA, OPENMP };
 */
 namespace memoryManager
 {
-   template <typename T>
-   T *allocate(RAJA::Index_type size)
-   {
-      T *ptr;
+  template <typename T>
+  T *allocate(RAJA::Index_type size, bool host)
+{
+  T *ptr;
 #if defined(RAJA_ENABLE_CUDA)
-      cudaErrchk(
-         cudaMallocManaged((void * *) &ptr, sizeof(T) * size, cudaMemAttachGlobal));
-#else
-      ptr = new T[size];
+  if (!host) {
+     cudaErrchk(
+       cudaMallocManaged((void **)&ptr, sizeof(T) * size, cudaMemAttachGlobal));
+  }
+  else 
+#elif defined(RAJA_ENABLE_HIP)
+  if (!host) {
+     hipErrchk(hipMalloc((void **)&ptr, sizeof(T) * size));
+  }
+  else
 #endif
-      return ptr;
-   }
+  {
+    ptr = new T[size];
+  }
+  return ptr;
+}
 
-   template <typename T>
-   void deallocate(T *&ptr)
-   {
-      if (ptr) {
+template <typename T>
+void deallocate(T *&ptr, bool host)
+{
+   if (ptr){
 #if defined(RAJA_ENABLE_CUDA)
+      if (!host) {
          cudaErrchk(cudaFree(ptr));
-#else
-         delete[] ptr;
-#endif
-         ptr = nullptr;
       }
+      else
+#elif defined(RAJA_ENABLE_HIP)
+      if (!host) {
+         hipErrchk(hipFree(ptr));
+      }
+      else
+#endif
+      {
+         delete[] ptr;
+      }
+      ptr = nullptr;
    }
+}
+
+#if defined(RAJA_ENABLE_CUDA) || defined(RAJA_ENABLE_HIP)
+  template <typename T>
+  T *allocate_gpu(RAJA::Index_type size)
+  {
+    T *ptr;
+#if defined(RAJA_ENABLE_CUDA)
+    cudaErrchk(cudaMalloc((void **)&ptr, sizeof(T) * size));
+#elif defined(RAJA_ENABLE_HIP)
+    hipErrchk(hipMalloc((void **)&ptr, sizeof(T) * size));
+#endif
+    return ptr;
+  }
+
+  template <typename T>
+  void deallocate_gpu(T *&ptr)
+  {
+    if (ptr) {
+#if defined(RAJA_ENABLE_CUDA)
+      cudaErrchk(cudaFree(ptr));
+#elif defined(RAJA_ENABLE_HIP)
+      hipErrchk(hipFree(ptr));
+#endif
+      ptr = nullptr;
+    }
+  }
+#endif
 }; // namespace memoryManager
 
-// Copyright (c) 2016-19, Lawrence Livermore National Security, LLC.
+// Copyright (c) 2016-22, Lawrence Livermore National Security, LLC.
 // All rights reserved.
 
 // Redistribution and use in source and binary forms, with or without

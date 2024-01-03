@@ -6,7 +6,7 @@
 #include "ECMech_core.h"
 #include "RAJA/RAJA.hpp"
 
-#ifdef __cuda_host_only__
+#if defined(__ecmech_host_only__)
 #include <sstream>
 #endif
 
@@ -33,7 +33,7 @@ namespace ecmech {
             static constexpr int nParamsEOS = EosModel::nParams - nParamsEOSHave;
             static constexpr int nParams =
                2 + 1 + // rho0, cvav, tolerance
-               Kinetics::nParams + ThermoElastN::nParams + nParamsEOS;
+               SlipGeom::nParams + Kinetics::nParams + ThermoElastN::nParams + nParamsEOS;
 
             // constructor
             __ecmech_host__
@@ -61,87 +61,87 @@ namespace ecmech {
                unsigned int nhist = NumHist<SlipGeom, Kinetics, ThermoElastN, EosModel>::numHist;
 
                if (stride_len != ecmech::nstride) {
-#ifdef __cuda_host_only__
+#if defined(__ecmech_host_only__)
                   // the order here needs to be consistent with ISTRIDE_* macros in ECMECH_const.h
                   std::ostringstream os;
                   os << "Stride vector needs to have a size of " << ecmech::nstride << " with strides of at least: " <<
                      ecmech::nsvp << ", " << ecmech::ndim << ", " << ecmech::nvr << ", " <<
                      ecmech::ne << ", " << ecmech::nsvp << ", " << nhist << ", 1, " << ecmech::nsdd
                   ;
-                  ECMECH_FAIL(__func__, os.str());
+                  ECMECH_FAIL(__func__, os.str().c_str());
 #else
                   ECMECH_FAIL(__func__, "Stride vector is the wrong size");
 #endif
                }
                // Need to make sure all of the strides provided at least make sense
                if (strides[istride_def_rate] < ecmech::nsvp) {
-#ifdef __cuda_host_only__
+#if defined(__ecmech_host_only__)
                   std::ostringstream os;
                   os << "strides[istride_def_rate] should have at least a length of: " << ecmech::nsvp;
-                  ECMECH_FAIL(__func__, os.str());
+                  ECMECH_FAIL(__func__, os.str().c_str());
 #else
                   ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
 #endif
                }
                if (strides[istride_spin_v] < ecmech::ndim) {
-#ifdef __cuda_host_only__
+#if defined(__ecmech_host_only__)
                   std::ostringstream os;
                   os << "strides[istride_spin_v] should have at least a length of: " << ecmech::ndim;
-                  ECMECH_FAIL(__func__, os.str());
+                  ECMECH_FAIL(__func__, os.str().c_str());
 #else
                   ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
 #endif
                }
                if (strides[istride_vol_ratio] < ecmech::nvr) {
-#ifdef __cuda_host_only__
+#if defined(__ecmech_host_only__)
                   std::ostringstream os;
                   os << "strides[istride_int_eng] should have at least a length of: " << ecmech::nvr;
-                  ECMECH_FAIL(__func__, os.str());
+                  ECMECH_FAIL(__func__, os.str().c_str());
 #else
                   ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
 #endif
                }
                if (strides[istride_int_eng] < ecmech::ne) {
-#ifdef __cuda_host_only__
+#if defined(__ecmech_host_only__)
                   std::ostringstream os;
                   os << "strides[istride_int_eng] should have at least a length of: " << ecmech::ne;
-                  ECMECH_FAIL(__func__, os.str());
+                  ECMECH_FAIL(__func__, os.str().c_str());
 #else
                   ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
 #endif
                }
                if (strides[istride_stress] < ecmech::nsvp) {
-#ifdef __cuda_host_only__
+#if defined(__ecmech_host_only__)
                   std::ostringstream os;
                   os << "strides[istride_stress] should have at least a length of: " << ecmech::nsvp;
-                  ECMECH_FAIL(__func__, os.str());
+                  ECMECH_FAIL(__func__, os.str().c_str());
 #else
                   ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
 #endif
                }
                if (strides[istride_history] < nhist) {
-#ifdef __cuda_host_only__
+#if defined(__ecmech_host_only__)
                   std::ostringstream os;
                   os << "strides[istride_history] should have at least a length of: " << nhist;
-                  ECMECH_FAIL(__func__, os.str());
+                  ECMECH_FAIL(__func__, os.str().c_str());
 #else
                   ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
 #endif
                }
                if (strides[istride_tkelv] < 1) {
-#ifdef __cuda_host_only__
+#if defined(__ecmech_host_only__)
                   std::ostringstream os;
                   os << "strides[istride_tkelv] should have at least a length of: " << 1;
-                  ECMECH_FAIL(__func__, os.str());
+                  ECMECH_FAIL(__func__, os.str().c_str());
 #else
                   ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
 #endif
                }
                if (strides[istride_sdd] < ecmech::nsdd) {
-#ifdef __cuda_host_only__
+#if defined(__ecmech_host_only__)
                   std::ostringstream os;
                   os << "strides[istride_sdd] should have at least a length of: " << ecmech::nsdd;
-                  ECMECH_FAIL(__func__, os.str());
+                  ECMECH_FAIL(__func__, os.str().c_str());
 #else
                   ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
 #endif
@@ -219,7 +219,7 @@ namespace ecmech {
                   ECMECH_FAIL(__func__, "wrong number of params");
                }
 
-#ifdef __cuda_host_only__
+#if defined(__ecmech_host_only__)
                //////////////////////////////
 
                _rhvNames.clear();
@@ -332,10 +332,16 @@ namespace ecmech {
                });
                      break;
 #endif
+#if defined(RAJA_ENABLE_CUDA) || defined(RAJA_ENABLE_HIP)
+                  case ECM_EXEC_STRAT_GPU:
+                  {
 #if defined(RAJA_ENABLE_CUDA)
-                  case ECM_EXEC_STRAT_CUDA:
-                     RAJA::forall<RAJA::cuda_exec<RAJA_CUDA_THREADS> >(default_range, [ =
-#if defined(ECMECH_NON_CORAL1_MACHINE)
+                     using gpu_policy = RAJA::cuda_exec<RAJA_CUDA_THREADS>;
+#else
+                     using gpu_policy = RAJA::hip_exec<RAJA_HIP_THREADS>;
+#endif
+                     RAJA::forall<gpu_policy>(default_range, [ =
+#if defined(ECMECH_NON_CORAL1_MACHINE)|| defined(RAJA_ENABLE_HIP)
                       , _slipGeom=this->_slipGeom, _kinetics=this->_kinetics, _elastN=this->_elastN, _eosModel=this->_eosModel, _tolerance=this->_tolerance, _outputLevel=this->_outputLevel
 #endif
                       ] RAJA_DEVICE(int i) {
@@ -356,9 +362,10 @@ namespace ecmech {
                      _outputLevel);
                });
                      break;
+                  }
 #endif
-                  case ECM_EXEC_STRAT_CPU:
-                  default: // fall through to CPU if other options are not available
+                  case ECM_EXEC_STRAT_CPU :
+                  default : // fall through to CPU if other options are not available
                      RAJA::forall<RAJA::loop_exec>(default_range, [ = ] (int i) {
                   double *mtanSDThis = (mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr);
                   getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>

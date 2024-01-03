@@ -11,7 +11,7 @@ message(STATUS "Using cmake version ${CMAKE_VERSION}")
 
 project(ECMECH LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 
 ################################
 # BLT
@@ -57,6 +57,10 @@ if(ENABLE_CUDA)
   if (NOT "${CMAKE_CUDA_FLAGS}" MATCHES "-arch")
      set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -arch ${CUDA_ARCH}")
   endif()
+endif()
+if(ENABLE_HIP)
+  
+set (HIP_HIPCC_FLAGS ${RAJA_HIPCC_FLAGS})
 endif()
 
 ################################

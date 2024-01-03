@@ -28,6 +28,7 @@ if (RAJA_DIR)
         blt_register_library( NAME       raja
                               TREAT_INCLUDES_AS_SYSTEM ON
                               INCLUDES   ${RAJA_INCLUDE_DIRS}
+			      DEPENDS_ON camp
                               LIBRARIES  ${RAJA_LIBRARY})
     else()
         message(FATAL_ERROR "Unable to find RAJA with given path ${RAJA_DIR}")

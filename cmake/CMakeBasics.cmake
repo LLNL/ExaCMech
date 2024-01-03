@@ -5,7 +5,7 @@ set(PACKAGE_BUGREPORT "barton22@llnl.gov")
 
 set(ECMech_VERSION_MAJOR 0)
 set(ECMech_VERSION_MINOR 3)
-set(ECMech_VERSION_PATCH \"3\")
+set(ECMech_VERSION_PATCH \"4\")
 
 set(ECMECH_HEADER_INCLUDE_DIR
     ${PROJECT_BINARY_DIR}/include/ecmech
