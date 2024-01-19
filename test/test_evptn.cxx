@@ -2,12 +2,11 @@
 
 #include "SNLS_TrDLDenseG.h"
 
-#include "ECMech_evptn.h"
-#include "ECMech_cases.h"
-#include "ECMech_kinetics.h"
-#include "ECMech_slipgeom.h"
-#include "ECMech_eosSimple.h"
 #include "ECMech_util.h"
+
+#include "ecm_cases/ECMech_cases_fcc_defs.h"
+#include "ecm_cases/ECMech_cases_bcc_defs.h"
+#include "ecm_cases/ECMech_cases_hcp_defs.h"
 
 #ifndef KIN_TYPE
 #define KIN_TYPE 1
@@ -25,30 +24,25 @@ TEST(ecmech, evptn_a)
    using namespace ecmech;
 
 #if KIN_TYPE == 3
-   typedef ecmech::SlipGeom_BCC_A SlipGeom;
-   typedef Kin_BCC_A Kinetics;
-   typedef EvptnUpsdtProblem_BCC_A Prob;
-   typedef EvptnSolver_BCC_A Solver;
-   typedef evptn::ThermoElastNCubic ThermoElastN;
+   using SlipGeom = SlipGeom_BCC_A ;
+   using Kinetics = Kin_KMBalD_TFF;
+   using ThermoElastN =  EVPTN_cubic;
 #elif KIN_TYPE == 2
-   typedef ecmech::SlipGeom_HCP_A SlipGeom;
-   typedef Kin_HCP_A Kinetics;
-   typedef EvptnUpsdtProblem_HCP_A Prob;
-   typedef EvptnSolver_HCP_A Solver;
-   typedef evptn::ThermoElastNHexag ThermoElastN;
+   using SlipGeom = SlipGeom_HCP_A;
+   using Kinetics = Kin_HCP_A;
+   using ThermoElastN =  EVPTN_hex;
 #elif KIN_TYPE == 1
-   typedef ecmech::SlipGeomFCC SlipGeom;
-   typedef Kin_FCC_B Kinetics;
-   typedef EvptnUpsdtProblem_FCC_B Prob;
-   typedef EvptnSolver_FCC_B Solver;
-   typedef evptn::ThermoElastNCubic ThermoElastN;
+   using SlipGeom = SlipGeomFCC;
+   using Kinetics = Kin_KMBalD_FFF;
+   using ThermoElastN =  EVPTN_cubic;
 #else
-   typedef ecmech::SlipGeomFCC SlipGeom;
-   typedef Kin_FCC_A Kinetics;
-   typedef EvptnUpsdtProblem_FCC_A Prob;
-   typedef EvptnSolver_FCC_A Solver;
-   typedef evptn::ThermoElastNCubic ThermoElastN;
+   using SlipGeom = SlipGeomFCC;
+   using Kinetics = Kin_Voce;
+   using ThermoElastN =  EVPTN_cubic;
 #endif
+
+   using Prob = evptn::EvptnUpdstProblem<SlipGeom, Kinetics, ThermoElastN>;
+   using Solver = snls::SNLSTrDlDenseG<Prob>;
 
    SlipGeom slipGeom;
    Kinetics kinetics(slipGeom.nslip);

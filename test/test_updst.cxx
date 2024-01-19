@@ -2,8 +2,7 @@
 
 #include "SNLS_TrDLDenseG.h"
 
-#include "ECMech_cases.h"
-#include "ECMech_evptnWrap.h"
+#include "ecm_cases/ECMech_cases_fcc_defs.h"
 
 #define STACK_PARAMS
 
@@ -36,10 +35,11 @@ TEST(ecmech, updst_a)
    using namespace ecmech;
 
 #if KIN_TYPE
-   matModelEvptn_FCC_B* mmodel = new matModelEvptn_FCC_B();
+   using mat_model = matModelEvptn_FCC_B;
 #else
-   matModelEvptn_FCC_A* mmodel = new matModelEvptn_FCC_A();
+   using mat_model = matModelEvptn_FCC_A;
 #endif
+   mat_model* mmodel = new mat_model();
    matModelBase* mmb = dynamic_cast<matModelBase*>(mmodel);
 
 #include "setup_base.h"
@@ -140,10 +140,11 @@ TEST(ecmech, driver_a)
    using namespace ecmech;
 
 #if KIN_TYPE
-   matModelEvptn_FCC_B* mmodel = new matModelEvptn_FCC_B();
+   using mat_model = matModelEvptn_FCC_B;
 #else
-   matModelEvptn_FCC_A* mmodel = new matModelEvptn_FCC_A();
+   using mat_model = matModelEvptn_FCC_A;
 #endif
+   mat_model* mmodel = new mat_model();
    matModelBase* mmb = dynamic_cast<matModelBase*>(mmodel);
 
 #include "setup_base.h"

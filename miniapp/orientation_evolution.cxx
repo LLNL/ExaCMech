@@ -1,5 +1,4 @@
-#include "ECMech_cases.h"
-#include "ECMech_evptnWrap.h"
+#include "ecm_cases/ECMech_cases_fcc_defs.h"
 #include "RAJA/RAJA.hpp"
 #include "RAJA/util/Timer.hpp"
 #if defined(RAJA_ENABLE_CUDA)

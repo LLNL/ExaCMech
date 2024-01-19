@@ -3,7 +3,8 @@
 
 #include "SNLS_TrDLDenseG.h"
 
-#include "ECMech_cases.h"
+#include "ecm_cases/ECMech_cases_fcc_defs.h"
+#include "ecm_cases/ECMech_cases_bcc_defs.h"
 #include "ECMech_evptnWrap.h"
 
 #define STACK_PARAMS
@@ -25,10 +26,10 @@ TEST(ecmech, px_orowan)
 
    using namespace ecmech;
 #ifdef KIN_BCC
-   matModelEvptn_BCC_B* mmodel = new matModelEvptn_BCC_B();
+   auto* mmodel = new matModelEvptn_BCC_C();
    const double exp_val = 0.0026093700951796;
 #else
-   matModelEvptn_FCC_C* mmodel = new matModelEvptn_FCC_C();
+   auto* mmodel = new matModelEvptn_FCC_C();
    const double exp_val = 0.0081242716836088;
 #endif
    matModelBase* mmb = dynamic_cast<matModelBase*>(mmodel);

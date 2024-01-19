@@ -2,8 +2,7 @@
 
 #include "SNLS_TrDLDenseG.h"
 
-#include "ECMech_cases.h"
-#include "ECMech_evptnWrap.h"
+#include "ecm_cases/ECMech_cases_fcc_defs.h"
 
 #include <random>
 

@@ -5,6 +5,7 @@
 
 #include <cassert>
 #include <cmath>
+#include "ECMech_port.h"
 
 #define ECMECH_NN_INDX(p, q, nDim) (p) * (nDim) + (q)
 
@@ -377,6 +378,9 @@ namespace ecmech {
                   dsdot_ds[ECMECH_NN_INDX(iSlip, iSlip, _nslip)] = -_h0 * temp2 * shrate_eff;
                }
             }
+         if (dsdot_dgdot) {
+            ECMECH_FAIL("test_aniso", "This model does not implement the dsdot_dgdot feature");
+         }
          }
    }; // class KineticsVocePL
 } // namespace ecmech

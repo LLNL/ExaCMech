@@ -655,8 +655,8 @@ namespace ecmech {
                 gdotmax = fmax(evolVals[islip], gdotmax);
                 
                 // smoothing factor to prevent numerical instabilities in the solve
-                double h0 = 1.5*_hdn_init;
-                double k = 15.0/_hdn_init;
+               //  double h0 = 1.5*_hdn_init;
+               //  double k = 15.0/_hdn_init;
                 kfact[islip] = 1.0;//1.0/(1.0+exp(-k*(exp(h[islip])-h0)));
             }
             

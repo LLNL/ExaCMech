@@ -15,6 +15,8 @@
 #include "ECMech_evptnNR.h"
 #include "ECMech_evptnFI.h"
 
+#include "ECMech_unused.h"
+
 namespace ecmech {
    namespace evptn {
       //
@@ -429,17 +431,17 @@ namespace ecmech {
 
             __ecmech_host__
             inline
-            void getResponseRetry( const double & dt,
-                                   const double * defRateV,
-                                   const double * spinV,
-                                   const double * volRatioV,
-                                   double * eIntV,
-                                   double * stressSvecPV,
-                                   double * histV,
-                                   double * tkelvV,
-                                   double * sddV,
-                                   double * mtanSDV,
-                                   const int& nPassed
+            void getResponseRetry( const double & UNUSED_EXTRA(dt),
+                                   const double * UNUSED_EXTRA(defRateV),
+                                   const double * UNUSED_EXTRA(spinV),
+                                   const double * UNUSED_EXTRA(volRatioV),
+                                   double * UNUSED_EXTRA(eIntV),
+                                   double * UNUSED_EXTRA(stressSvecPV),
+                                   double * UNUSED_EXTRA(histV),
+                                   double * UNUSED_EXTRA(tkelvV),
+                                   double * UNUSED_EXTRA(sddV),
+                                   double * UNUSED_EXTRA(mtanSDV),
+                                   const int& UNUSED_EXTRA(nPassed)
                                  ) const
             {
 #if defined(ECMECH_EXTRA_SOLVERS)

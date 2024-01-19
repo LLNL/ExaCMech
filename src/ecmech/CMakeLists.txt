@@ -4,6 +4,9 @@
 set(ECMECH_HEADERS
     ${ECMECH_HEADER_INCLUDE_DIR}/ECMech_config.h
     ECMech_cases.h
+    ecm_cases/ECMech_cases_bcc_defs.h
+    ecm_cases/ECMech_cases_fcc_defs.h
+    ecm_cases/ECMech_cases_hcp_defs.h
     ECMech_const.h
     ECMech_core.h
     ECMech_cuda_portability.h
@@ -19,6 +22,7 @@ set(ECMECH_HEADERS
     ECMech_port.h
     ECMech_slipgeom.h
     ECMech_util.h
+    ECMech_unused.h
     ECMech_matModelBase.h
     ECMech_evptnWrap.h
     mc_vars_set.h
@@ -28,9 +32,10 @@ set(ECMECH_HEADERS
     vw_vars_set.h)
 
 set(ECMECH_SOURCES
-    ECMech_kinetics.cxx
-    ECMech_cases.cxx)
-#    ECMech_slipgeom.cxx)
+    ecm_cases/ECMech_cases.cxx
+    ecm_cases/ECMech_cases_fcc.cxx
+    ecm_cases/ECMech_cases_bcc.cxx
+    ecm_cases/ECMech_cases_hcp.cxx)
 
 #------------------------------------------------------------------------------
 # Dependencies

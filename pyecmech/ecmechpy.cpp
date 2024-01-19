@@ -10,25 +10,24 @@
 
 #include "ecmechpy.hpp"
 
-typedef ecmech::evptn::matModel<ecmech::SlipGeom_BCC_A, ecmech::Kin_FCC_A, 
-               ecmech::evptn::ThermoElastNCubic, ecmech::EosModelConst<false> >
-               matModelEvptn_BCC_voce;
-
-typedef ecmech::evptn::matModel<ecmech::SlipGeom_BCC_A, ecmech::Kin_FCC_AH, 
-               ecmech::evptn::ThermoElastNCubic, ecmech::EosModelConst<false> >
-               matModelEvptn_BCC_voce_nl;
-
 #if defined(ECMECH_PYDEV)
 
-typedef pyEvptn_norm<ecmech::SlipGeomFCC, ecmech::Kin_FCC_A, ecmech::evptn::ThermoElastNCubic, ecmech::EosModelConst<false> > pyMatModelEvptn_FCC_A;
-typedef pyEvptn_norm<ecmech::SlipGeomFCC, ecmech::Kin_FCC_AH, ecmech::evptn::ThermoElastNCubic, ecmech::EosModelConst<false> > pyMatModelEvptn_FCC_AH;
-typedef pyEvptn_norm<ecmech::SlipGeomFCC, ecmech::Kin_FCC_B, ecmech::evptn::ThermoElastNCubic, ecmech::EosModelConst<false> > pyMatModelEvptn_FCC_B;
-typedef pyEvptn_norm<ecmech::SlipGeom_BCC_A, ecmech::Kin_BCC_A, ecmech::evptn::ThermoElastNCubic, ecmech::EosModelConst<false> > pyMatModelEvptn_BCC_A;
-typedef pyEvptn_norm<ecmech::SlipGeom_BCC_A, ecmech::Kin_FCC_A, ecmech::evptn::ThermoElastNCubic, ecmech::EosModelConst<false> > pyMatModelEvptn_BCC_B;
-typedef pyEvptn_norm<ecmech::SlipGeom_BCC_A, ecmech::Kin_FCC_AH, ecmech::evptn::ThermoElastNCubic, ecmech::EosModelConst<false> > pyMatModelEvptn_BCC_BH;
-typedef pyEvptn_norm<ecmech::SlipGeom_HCP_A, ecmech::Kin_HCP_A, ecmech::evptn::ThermoElastNHexag, ecmech::EosModelConst<false> > pyMatModelEvptn_HCP_A;
+#include "ecm_cases/ECMech_cases_bcc_defs.h"
+#include "ecm_cases/ECMech_cases_fcc_defs.h"
+#include "ecm_cases/ECMech_cases_hcp_defs.h"
 
-typedef pyEvptn_norm<ecmech::SlipGeomBCCPencil, ecmech::Kin_BCC_MD, ecmech::evptn::ThermoElastNCubic, ecmech::EosModelConst<false> > pyMatModelEvptn_BCC_MD;
+using pyMatModelEvptn_FCC_A = pyEvptn_norm<ecmech::SlipGeomFCC, ecmech::Kin_Voce, ecmech::EVPTN_cubic, ecmech::EOS_const_model >;
+using pyMatModelEvptn_FCC_AH = pyEvptn_norm<ecmech::SlipGeomFCC, ecmech::Kin_VoceNL, ecmech::EVPTN_cubic, ecmech::EOS_const_model >;
+using pyEvptn_norm<ecmech::SlipGeomFCC, ecmech::Kin_KMBalD_FFF, ecmech::EVPTN_cubic, ecmech::EOS_const_model > pyMatModelEvptn_FCC_B;
+
+using pyMatModelEvptn_BCC_A = pyEvptn_norm<ecmech::SlipGeom_BCC_A, ecmech::Kin_Voce, ecmech::EVPTN_cubic, ecmech::EOS_const_model>;
+using pyMatModelEvptn_BCC_AH = pyEvptn_norm<ecmech::SlipGeom_BCC_A, ecmech::Kin_VoceNL, ecmech::EVPTN_cubic, ecmech::EOS_const_model>;
+
+using pyMatModelEvptn_BCC_B = pyEvptn_norm<ecmech::SlipGeom_BCC_A, ecmech::Kin_KMBalD_TFF, ecmech::EVPTN_cubic, ecmech::EOS_const_model>;
+
+using pyEvptn_norm<ecmech::SlipGeomBCCPencil, ecmech::Kin_BCC_MD, ecmech::EVPTN_cubic, ecmech::EOS_const_model > pyMatModelEvptn_BCC_MD;
+
+using pyEvptn_norm<ecmech::SlipGeom_HCP_A, ecmech::Kin_HCP_A, ecmech::EVPTN_hex, ecmech::EOS_const_model > pyMatModelEvptn_HCP_A;
 
 #endif
 
@@ -88,36 +87,34 @@ pyECMech::pyECMech(std::string model_name, py_darray &params)
       model = ecmech::makeMatModel("evptn_FCC_AH");
       model->initFromParams(opts, cparams, strs);
    } else if (std::string(model_name) == "voce_bcc_norm") {
-      matModelEvptn_BCC_voce* mmECMEvptn = new matModelEvptn_BCC_voce();
-      model = dynamic_cast<ecmech::matModelBase*>(mmECMEvptn);
+      model = ecmech::makeMatModel("evptn_BCC_A");
       model->initFromParams(opts, cparams, strs);
    } else if (std::string(model_name) == "voce_nl_bcc_norm") {
-      matModelEvptn_BCC_voce_nl* mmECMEvptn = new matModelEvptn_BCC_voce_nl();
-      model = dynamic_cast<ecmech::matModelBase*>(mmECMEvptn);     
+      model = ecmech::makeMatModel("evptn_BCC_AH");    
       model->initFromParams(opts, cparams, strs);
    } else if (std::string(model_name) == "km_bal_dd_fcc_norm") {
       model = ecmech::makeMatModel("evptn_FCC_B");
       model->initFromParams(opts, cparams, strs);
    } else if (std::string(model_name) == "km_bal_dd_bcc_norm") {
-      model = ecmech::makeMatModel("evptn_BCC_A");
+      model = ecmech::makeMatModel("evptn_BCC_B");
       model->initFromParams(opts, cparams, strs);
    } else if (std::string(model_name) == "km_bal_dd_hcp_norm") {
       model = ecmech::makeMatModel("evptn_HCP_A");
       model->initFromParams(opts, cparams, strs);
    } else if (std::string(model_name) == "oro_dd_bcc_iso_norm") {
-      model = ecmech::makeMatModel("evptn_BCC_B");
-      model->initFromParams(opts, cparams, strs);
-   } else if (std::string(model_name) == "oro_dd_bcc_aniso_norm") {
       model = ecmech::makeMatModel("evptn_BCC_C");
       model->initFromParams(opts, cparams, strs);
-   } else if (std::string(model_name) == "oro_dd_bcc_24_iso_norm") {
-      model = ecmech::makeMatModel("evptn_BCC_B_24");
+   } else if (std::string(model_name) == "oro_dd_bcc_aniso_norm") {
+      model = ecmech::makeMatModel("evptn_BCC_D");
       model->initFromParams(opts, cparams, strs);
-   } else if (std::string(model_name) == "oro_dd_bcc_24_aniso_norm") {
+   } else if (std::string(model_name) == "oro_dd_bcc_24_iso_norm") {
       model = ecmech::makeMatModel("evptn_BCC_C_24");
       model->initFromParams(opts, cparams, strs);
+   } else if (std::string(model_name) == "oro_dd_bcc_24_aniso_norm") {
+      model = ecmech::makeMatModel("evptn_BCC_D_24");
+      model->initFromParams(opts, cparams, strs);
    } else if (std::string(model_name) == "oro_dd_bcc_aniso_non_schmid") {
-      model = ecmech::makeMatModel("evptn_BCC_D");
+      model = ecmech::makeMatModel("evptn_BCC_E");
       model->initFromParams(opts, cparams, strs);
    } else if (std::string(model_name) == "bcc_md") {
       model = ecmech::makeMatModel("evptn_BCC_MD");
@@ -209,13 +206,13 @@ pyECMechDev::pyECMechDev(std::string model_name, py_darray &params)
    } else if (std::string(model_name) == "voce_nl_fcc_norm") {
       model = new pyMatModelEvptn_FCC_AH(cparams);
    } else if (std::string(model_name) == "voce_bcc_norm") {
-      model = new pyMatModelEvptn_BCC_B(cparams);
+      model = new pyMatModelEvptn_BCC_A(cparams);
    } else if (std::string(model_name) == "voce_nl_bcc_norm") {
-      model = new pyMatModelEvptn_BCC_BH(cparams);
+      model = new pyMatModelEvptn_BCC_AH(cparams);
    } else if (std::string(model_name) == "km_bal_dd_fcc_norm") {
       model = new pyMatModelEvptn_FCC_B(cparams);
    } else if (std::string(model_name) == "km_bal_dd_bcc_norm") {
-      model = new pyMatModelEvptn_BCC_A(cparams);
+      model = new pyMatModelEvptn_BCC_B(cparams);
    } else if (std::string(model_name) == "km_bal_dd_hcp_norm") {
       model = new pyMatModelEvptn_HCP_A(cparams);
    }  else {
