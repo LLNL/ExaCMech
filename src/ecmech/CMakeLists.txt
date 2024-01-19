@@ -9,7 +9,7 @@ set(ECMECH_HEADERS
     ecm_cases/ECMech_cases_hcp_defs.h
     ECMech_const.h
     ECMech_core.h
-    ECMech_cuda_portability.h
+    ECMech_gpu_portability.h
     ECMech_eosSimple.h
     ECMech_evptn.h
     ECMech_evptnNR.h
@@ -43,7 +43,7 @@ set(ECMECH_SOURCES
 set(ECMECH_DEPENDS)
 
 ecmech_fill_depends_list(LIST_NAME  ECMECH_DEPENDS
-                        DEPENDS_ON raja snls cub camp cuda openmp)
+                        DEPENDS_ON raja snls cub cuda openmp blt::hip blt::hip_runtime)
 
 if(NOT USE_BUILT_SNLS)
     list(APPEND ECMECH_DEPENDS snls)

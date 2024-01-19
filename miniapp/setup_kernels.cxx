@@ -290,18 +290,17 @@ namespace {
          stress_svec_p[ecmech::iSvecP] = stress_mean;
       }); // end of qpt loop
    } // end setup_data_openmp
-
 #endif
 
-#if defined(RAJA_ENABLE_CUDA)
+#if defined(RAJA_ENABLE_CUDA) || defined(RAJA_ENABLE_HIP)
 
-   void setup_data_cuda(const int nqpts, const int nstatev,
-                        const double dt, const double* vel_grad_array,
-                        const double* stress_array, const double* state_vars_array,
-                        double* stress_svec_p_array, double* d_svec_p_array,
-                        double* w_vec_array, double* ddsdde_array,
-                        double* vol_ratio_array, double* eng_int_array,
-                        double* temp_array){
+   void setup_data_gpu(const int nqpts, const int nstatev,
+                       const double dt, const double* vel_grad_array,
+                       const double* stress_array, const double* state_vars_array,
+                       double* stress_svec_p_array, double* d_svec_p_array,
+                       double* w_vec_array, double* ddsdde_array,
+                       double* vol_ratio_array, double* eng_int_array,
+                       double* temp_array){
       // vgrad is kinda a pain to deal with as a raw 1d array, so we're
       // going to just use a RAJA view here. The data is taken to be in col. major format.
       // It might be nice to eventually create a type alias for the below or
@@ -318,7 +317,13 @@ namespace {
       // All of the below we could setup in one big RAJA loop/kernel
       RAJA::RangeSegment default_range(0, nqpts);
 
-      RAJA::forall<RAJA::cuda_exec<384> >(default_range, [ = ] RAJA_DEVICE(int i_qpts) {
+#if defined(RAJA_ENABLE_CUDA)
+      using policy = RAJA::cuda_exec<384>;
+#else
+      using policy = RAJA::hip_exec<384>;
+#endif
+
+      RAJA::forall<policy>(default_range, [ = ] RAJA_DEVICE(int i_qpts) {
          // Might want to eventually set these all up using RAJA views. It might simplify
          // things later on.
          // These are our inputs
@@ -380,8 +385,7 @@ namespace {
          stress_svec_p[2] += stress_mean;
          stress_svec_p[ecmech::iSvecP] = stress_mean;
       }); // end of qpt loop
-   } // end setup_data_cuda
-
+   } // end setup_data_gpu
 #endif
 }
 
@@ -415,7 +419,7 @@ void init_data(ecmech::ExecutionStrategy accel, const double* ori, const ecmech:
       break;
 #endif
       case ECM_EXEC_STRAT_CPU:
-      case ECM_EXEC_STRAT_CUDA:
+      case ECM_EXEC_STRAT_GPU:
       default:
       {
          init_data_cpu(ori, histInit_vec, nqpts, num_hardness, ind_gdot, num_slip, vdim, state_vars);
@@ -472,12 +476,12 @@ void setup_data(ecmech::ExecutionStrategy accel, const int nqpts, const int nsta
       }
       break;
 #endif
-#if defined(RAJA_ENABLE_CUDA)
-      case ECM_EXEC_STRAT_CUDA:
+#if defined(RAJA_ENABLE_CUDA) || defined(RAJA_ENABLE_HIP)
+      case ECM_EXEC_STRAT_GPU:
       {
-         setup_data_cuda(nqpts, nstatev, dt, vel_grad_array, stress_array, state_vars_array,
-                         stress_svec_p_array, d_svec_p_array, w_vec_array, ddsdde_array,
-                         vol_ratio_array, eng_int_array, temp_array);
+         setup_data_gpu(nqpts, nstatev, dt, vel_grad_array, stress_array, state_vars_array,
+                        stress_svec_p_array, d_svec_p_array, w_vec_array, ddsdde_array,
+                        vol_ratio_array, eng_int_array, temp_array);
       }
       break;
 #endif

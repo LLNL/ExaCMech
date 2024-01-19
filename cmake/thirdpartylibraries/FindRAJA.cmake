@@ -13,13 +13,13 @@ if(NOT RAJA_DIR)
 endif()
 
 if (NOT RAJA_CONFIG_CMAKE)
-   set(RAJA_CONFIG_CMAKE "${RAJA_DIR}/share/raja/cmake/raja-config.cmake")
+   set(RAJA_CONFIG_CMAKE "${RAJA_DIR}/raja-config.cmake")
 endif()
 if (EXISTS "${RAJA_CONFIG_CMAKE}")
    include("${RAJA_CONFIG_CMAKE}")
 endif()
 if (NOT RAJA_RELEASE_CMAKE)
-   set(RAJA_RELEASE_CMAKE "${RAJA_DIR}/share/raja/cmake/raja-release.cmake")
+   set(RAJA_RELEASE_CMAKE "${RAJA_DIR}/raja-release.cmake")
 endif()
 if (EXISTS "${RAJA_RELEASE_CMAKE}")
    include("${RAJA_RELEASE_CMAKE}")
@@ -30,9 +30,11 @@ find_package(RAJA REQUIRED)
 # message("-- RAJA version information: ${RAJA_VERSION_MAJOR}.${RAJA_VERSION_MINOR}")
 
 if(camp_DIR AND (RAJA_VERSION_MINOR GREATER 10 OR RAJA_VERSION_MAJOR GREATER 0))
-   find_package(camp REQUIRED)
-   blt_register_library(NAME camp
-                        INCLUDES ${camp_INSTALL_PREFIX}/include)
+   find_package(camp REQUIRED
+      NO_DEFAULT_PATH
+      PATHS ${camp_DIR}
+      ${camp_DIR}/lib/cmake/camp
+   )
    set(ENABLE_CAMP ON CACHE BOOL "")
 endif()
 

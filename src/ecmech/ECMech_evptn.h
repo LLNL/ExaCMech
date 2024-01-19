@@ -1156,7 +1156,7 @@ namespace ecmech {
                for (int iX = 0; iX < prob.nDimSys; ++iX) {
                   solver._x[iX] = (status2 == snls::converged) ? solver2.m_x[iX] : 0.0;
                }
-#ifdef __cuda_host_only__
+#ifdef __ecmech_host_only__
                if (status2 != snls::converged) {
                   std::cout << "trust region solver residual " << solver.getRes() << " exit status " << status << std::endl;
                   std::cout << "hybrid solver residual " << solver2.getRes() << " exit status " << status2 << std::endl;
@@ -1165,7 +1165,7 @@ namespace ecmech {
             }
             //
             if (status != snls::converged && status2 != snls::converged) {
-#ifdef __cuda_host_only__
+#ifdef __ecmech_host_only__
                ECMECH_WARN(__func__, "Both solvers failed to converge -- will try again with implicit elastic strain solve only");
 #endif
                return false;
