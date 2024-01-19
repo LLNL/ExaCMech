@@ -925,7 +925,7 @@ namespace ecmech {
             snls::SNLSStatus_t status = solver.solve( );
             //
             if (status != snls::converged) {
-#ifdef __cuda_host_only__
+#ifdef __ecmech_host_only__
                ECMECH_WARN(__func__, "Back-up fully implicit solver failed to converge -- will rerun to get output for debugging");
 
                // rerun to get more output for debugging
