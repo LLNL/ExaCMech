@@ -11,6 +11,12 @@
 #include "RAJA/policy/hip/raja_hiperrchk.hpp"
 #endif
 
+#include <stdio.h>
+#include <exception>
+#include <stdexcept>
+#define ALLOC_FAIL(loc, str) throw std::runtime_error(std::string("at ") + std::string(loc) + std::string( \
+                                                          " failure : ") + std::string(str));
+
 // We're going to use this to determine what RAJA code to run for our
 // kernels.
 // The HIP backend won't be able to run on AMD GPGPUs
@@ -49,6 +55,7 @@ namespace memoryManager
   else
 #endif
   {
+    if (!host) { ALLOC_FAIL(__func__, "alloc asked for none host memory when only host is available"); }
     ptr = new T[size];
   }
   return ptr;
@@ -70,6 +77,7 @@ void deallocate(T *&ptr, bool host)
       else
 #endif
       {
+        if (!host) { ALLOC_FAIL(__func__, "dealloc asked for none host memory when only host is available"); }
          delete[] ptr;
       }
       ptr = nullptr;
