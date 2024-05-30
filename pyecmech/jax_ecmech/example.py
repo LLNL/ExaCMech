@@ -7,15 +7,14 @@ Created on Fri Aug 25 08:22:12 2023
 """
 
 import numpy as np
-
 import jax
+
+#Can't save the jax compilation between runs yet :/
+# from jax.experimental.compilation_cache import compilation_cache as cc
+# cc.set_cache_dir("./jax-cache")
+
 import jax.numpy as jnp
-import jax.lax.linalg as lax_linalg
-from jax import custom_jvp
-from functools import partial
-from jax import lax
-from jax.numpy.linalg import solve
-from jax.config import config; config.update("jax_enable_x64", True);
+jax.config.update("jax_enable_x64", True)
 
 import jax_evptn_wrap as jevptnw
 import jax_ecmech_const as jecm
@@ -72,7 +71,7 @@ class JaxProb:
         temp_k_n1 = np.zeros_like(temp_k)
 
         if need_mtan:
-            jacob_np = np.zeros(npts, 6, 6)
+            jacob_np = np.zeros((npts, 6, 6))
         else:
             jacob_np = None
         

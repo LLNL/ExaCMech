@@ -10,7 +10,7 @@ import numpy as np
 
 import jax
 import jax.numpy as jnp
-from jax.config import config; config.update("jax_enable_x64", True)
+jax.config.update("jax_enable_x64", True)
 
 import jax_ecmech_util as jeu
 import jax_ecmech_const as jec

@@ -11,7 +11,7 @@ import pyecmech as pecm
 
 import jax
 import jax.numpy as jnp
-from jax.config import config; config.update("jax_enable_x64", True)
+jax.config.update("jax_enable_x64", True)
 
 NWVEC = pecm.constants.nwvec
 NTVEC = pecm.constants.ntvec

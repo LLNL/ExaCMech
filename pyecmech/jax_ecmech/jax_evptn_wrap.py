@@ -15,7 +15,7 @@ from jax import custom_jvp
 from functools import partial
 from jax import lax
 from jax.numpy.linalg import solve
-from jax.config import config; config.update("jax_enable_x64", True);
+jax.config.update("jax_enable_x64", True)
 
 import jax_ecmech_util as jeu
 import jax_ecmech_const as jec
@@ -80,8 +80,13 @@ class evptnWrapClass:
 
         self.hist_class = jec.HistClass(self.slip_geom_class, self.slip_kinetics_class, self.thermo_elas_class, self.eos_class)
         self.num_hist = self.hist_class.num_hist
+
+        self.get_response_jit = jax.jit(jevptn.get_response, static_argnums=(0, 1, 2, 3, 5))
+        self.mtan_jit = jax.jit(jax.jacrev(self.get_response_jit, argnums=6, has_aux=True), static_argnums=(0, 1, 2, 3, 5))
         # Still a WIP to get all the necessary things ported to JAX idioms so that
         # we can have vectorized calls
+        # So this does at least appear to work as the code doesn't crash...
+        # No idea if it actually works though...
         # self.batch_solve = jax.vmap(self.solve)
 
     def init_history_vec(self, elas_dev=None, quats=None, hard_state=None, slip_rate=None, shear_rate_eff=None, shear_eff=None, flow_strength=None):
@@ -147,6 +152,25 @@ class evptnWrapClass:
 
         return params
 
+    def mtan_calc(self, args=()):
+        delta_time, def_rate_samp, spin_vec_samp, vol_ratio_vec, internal_energy, stress_vec_pressure, history_vec, temp_k, sdd = args
+        jacobians, others = self.mtan_jit(
+                self.slip_geom_class, self.slip_kinetics_class, self.thermo_elas_class, self.eos_class,
+                delta_time, self.solver_tolerance, def_rate_samp, spin_vec_samp,
+                vol_ratio_vec, internal_energy, stress_vec_pressure, history_vec,
+                temp_k
+            )
+
+        jacob_bulk = np.zeros((6, 6))
+        jacob_bulk[-1,-1] = 3.0 * sdd[0]
+        jacob_bulk *= delta_time
+        jacob_bulk = jeu.mtan_conv_sd_svec(jacob_bulk, True)
+
+        jacob_np = np.asarray(jacobians) + jacob_bulk
+        jacob_np[3:-1, 3:-1] *= 0.5
+
+        return jacob_np
+
     def solve(self, delta_time, def_rate_samp, spin_vec_samp, vol_ratio_vec, internal_energy, stress_vec_pressure, history_vec, temp_k, need_mtan=False):
         '''
             Copied from example.py file for their solve case and need to update for batch solves
@@ -170,35 +194,29 @@ class evptnWrapClass:
         '''
         # In order to make sure we get out the right derivative information later on if needed,
         # we return this as the full Cauchy tensor rather than the 6d deviatoric + pressure variation
-        stress_vec, other = jevptn.get_response(
-                    self.slip_geom_class, self.slip_kinetics_class, self.thermo_elas_class, self.eos_class,
-                    delta_time, self.solver_tolerance, def_rate_samp, spin_vec_samp,
-                    vol_ratio_vec, internal_energy, stress_vec_pressure, history_vec,
-                    temp_k
-                )
-        
+        # stress_vec, others = jevptn.get_response(
+        #             self.slip_geom_class, self.slip_kinetics_class, self.thermo_elas_class, self.eos_class,
+        #             delta_time, self.solver_tolerance, def_rate_samp, spin_vec_samp,
+        #             vol_ratio_vec, internal_energy, stress_vec_pressure, history_vec,
+        #             temp_k
+        #         )
+
+        stress_vec, others = self.get_response_jit(
+                        self.slip_geom_class, self.slip_kinetics_class, self.thermo_elas_class, self.eos_class,
+                        delta_time, self.solver_tolerance, def_rate_samp, spin_vec_samp,
+                        vol_ratio_vec, internal_energy, stress_vec_pressure, history_vec,
+                        temp_k
+                    )
+
         pressure = -jnp.sum(stress_vec[0:3]) / 3.0
         stress_vec = stress_vec.at[0:3].set(stress_vec[0:3] + pressure)
         stress_vec_pressure_n1 = jnp.hstack((stress_vec, pressure))
-        history_update, internal_energy_n1, temp_k, sdd = other
+        history_update, internal_energy_n1, temp_k, sdd = others
 
         jacob_np = None
-
         if need_mtan:
-            jacobians, others = jax.jacrev(jevptn.get_response, argnums=6, has_aux=True)(
-                    self.slip_geom_class, self.slip_kinetics_class, self.thermo_elas_class, self.eos_class,
-                    delta_time, self.solver_tolerance, def_rate_samp, spin_vec_samp,
-                    vol_ratio_vec, internal_energy, stress_vec_pressure, history_vec,
-                    temp_k
-                )
-
-            jacob_bulk = np.zeros((6, 6))
-            jacob_bulk[-1,-1] = 3.0 * sdd[0]
-            jacob_bulk *= delta_time
-            jacob_bulk = jeu.mtan_conv_sd_svec(jacob_bulk, True)
-
-            jacob_np = np.asarray(jacobians) + jacob_bulk
-            jacob_np[3:-1, 3:-1] *= 0.5
+            args = (delta_time, def_rate_samp, spin_vec_samp, vol_ratio_vec, internal_energy, stress_vec_pressure, history_vec, temp_k, sdd)
+            jacob_np = self.mtan_calc(args)
 
         return (stress_vec_pressure_n1, history_update, internal_energy_n1, temp_k, sdd, jacob_np)
 
@@ -293,7 +311,5 @@ if __name__ == "__main__":
     jax.debug.print("{}", evptn_wc.hist_class.get_quats(history_update))
     print("Number of function evaluations")
     jax.debug.print("{}", history_update[evptn_wc.hist_class.ind_hist_num_func_evals])
-
-
 
 

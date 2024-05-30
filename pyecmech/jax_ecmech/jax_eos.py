@@ -10,7 +10,7 @@ import numpy as np
 
 import jax
 import jax.numpy as jnp
-from jax.config import config; config.update("jax_enable_x64", True)
+jax.config.update("jax_enable_x64", True)
 
 class eosSimple:
     def __init__(
@@ -47,15 +47,28 @@ class eosSimple:
         pressure = self.bulk_modulus * mu
         temp_k = self.temp_k_init
 
-        if not self.isothermal:
-            pressure += self.gamma * energy
-            temp_k += self.dtde * energy
+        pressure, temp_k = jax.lax.cond(
+            not self.isothermal,
+            lambda: (pressure + self.gamma * energy, temp_k + self.dtde * energy),
+            lambda: (pressure, temp_k)
+        )
+
+        # if not self.isothermal:
+        #     pressure += self.gamma * energy
+        #     temp_k += self.dtde * energy
         return (pressure, temp_k)
 
     def eval_temp(self, energy):
         temp_k = self.temp_k_init
-        if not self.isothermal:
-            temp_k += self.dtde * energy
+
+        temp_k = jax.lax.cond(
+            not self.isothermal,
+            lambda: temp_k + self.dtde * energy,
+            lambda: temp_k
+        )
+
+        # if not self.isothermal:
+        #     temp_k += self.dtde * energy
         return temp_k
 
     def eval_pressure_temp_diff(self, volume, energy):
@@ -68,12 +81,18 @@ class eosSimple:
         pressure = self.bulk_modulus * mu
         dtde = self.dtde
         dpde = 0.0
+
+        dtde, dpde, pressure = jax.lax.cond(
+            self.isothermal,
+            lambda: (dtde * 1e-8, dpde, pressure),
+            lambda: (dtde, self.gamma, pressure + self.gamma * energy)
+        )
         
-        if self.isothermal:
-            dtde *= 1e-8
-        else:
-            pressure += self.gamma * energy
-            dpde = self.gamma
+        # if self.isothermal:
+        #     dtde *= 1e-8
+        # else:
+        #     pressure += self.gamma * energy
+        #     dpde = self.gamma
 
         return (pressure, temp_k, bulk_mod_new, dpde, dtde)
 

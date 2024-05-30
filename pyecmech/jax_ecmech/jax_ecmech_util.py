@@ -10,7 +10,7 @@ import numpy as np
 
 import jax
 import jax.numpy as jnp
-from jax.config import config; config.update("jax_enable_x64", True)
+jax.config.update("jax_enable_x64", True)
 
 # Some more helper functions to go from voigt to matrix format and vice versa
 def voigtNotation(mat):
@@ -289,10 +289,11 @@ def mtan_conv_sd_svec(mtanSD_vecds_raw, l_ddsdde_gamma):
     mtanSD[:, 1] = -t1 - t2 + t3
     mtanSD[:, 2] = np.sqrt(2.0/3.0) * C[:, 1] + t3
 
-    if l_ddsdde_gamma:
-        val = 1.0 / np.sqrt(2.0)
-    else:
-        val = sqrt(2.0)
+    val = jax.lax.cond(
+       l_ddsdde_gamma,
+        lambda: 1.0 / np.sqrt(2.0),
+        lambda: np.sqrt(2.0)
+    )
 
     mtanSD[:, 3] = C[:, 4] * val
     mtanSD[:, 4] = C[:, 3] * val

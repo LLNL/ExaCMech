@@ -7,16 +7,15 @@ Created on Fri Aug 25 08:22:12 2023
 """
 
 import numpy as np
-
 import jax
 import jax.numpy as jnp
-from jax.config import config; config.update("jax_enable_x64", True)
-
-from scipy.optimize import root
+jax.config.update("jax_enable_x64", True)
 
 import jax_ecmech_const as jec
 import jax_slip_geom as jslgeo
 import jax_snls as snls
+
+import optimistix as optx
 
 class SlipKineticVocePowerLaw:
     def __init__(
@@ -90,18 +89,32 @@ class SlipKineticVocePowerLaw:
         return (values[0], jnp.asarray(values))
 
     def eval_slip_rates(self, rss, values):
+        def shear_abv_min(rss, abs_rss_crss_frac, rss_crss_frac):
+            return jax.lax.cond(
+                    abs_rss_crss_frac > self.t_max,
+                    lambda: jnp.copysign(jec.GAM_RATIO_OVFFX * self.gamma_0_w, rss),
+                    lambda: jnp.exp(jnp.log(abs_rss_crss_frac)  * self.inv_exp_m1) * self.gamma_0_w * rss_crss_frac
+                )
+        
         shear_dot = jnp.zeros(self.num_slip_systems)
 
         for islip in range(self.num_slip_systems):
             inv_crss = 1.0 / values[0]
             rss_crss_frac = rss[islip] * inv_crss
             abs_rss_crss_frac = jnp.abs(rss_crss_frac)
-            if abs_rss_crss_frac > self.t_min:
-                if abs_rss_crss_frac > self.t_max:
-                    shear_dot= shear_dot.at[islip].set(jnp.copysign(jec.GAM_RATIO_OVFFX * self.gamma_0_w, self.rss[islip]))
-                else:
-                    temp = jnp.exp(jnp.log(abs_rss_crss_frac)  * self.inv_exp_m1) * self.gamma_0_w
-                    shear_dot = shear_dot.at[islip].set(temp * rss_crss_frac)
+
+            shear_dot = jax.lax.cond(
+                abs_rss_crss_frac > self.t_min,
+                lambda: shear_dot.at[islip].set(shear_abv_min(rss[islip], abs_rss_crss_frac, rss_crss_frac)),
+                lambda: shear_dot
+            )
+
+            # if abs_rss_crss_frac > self.t_min:
+            #     if abs_rss_crss_frac > self.t_max:
+            #         shear_dot= shear_dot.at[islip].set(jnp.copysign(jec.GAM_RATIO_OVFFX * self.gamma_0_w, rss[islip]))
+            #     else:
+            #         temp = jnp.exp(jnp.log(abs_rss_crss_frac)  * self.inv_exp_m1) * self.gamma_0_w
+            #         shear_dot = shear_dot.at[islip].set(temp * rss_crss_frac)
         return shear_dot
 
     def update_hardness(self, hard_state_0, hard_vals, gdot, delta_time, temp_k):
@@ -110,10 +123,16 @@ class SlipKineticVocePowerLaw:
         init_sol = jnp.zeros_like(hard_state_0)
         args = (hard_state_0, evol_vals, delta_time)
 
-        solver = snls.SNLSTrDlDenseG(self.compute_resid_jacobian, xtolerance=1e-10, ndim=init_sol.shape[0], args=args)
-        solver.delta_control.deltaInit = 1.0
-        status, xs = solver.solve(init_sol)
-        nfev = solver.nfev
+        # solver = snls.SNLSTrDlDenseG(self.compute_resid_jacobian, xtolerance=1e-10, ndim=init_sol.shape[0], args=args)
+        # solver.delta_control.deltaInit = 1.0
+        # status, xs = solver.solve(init_sol)
+        # nfev = solver.nfev
+
+        solver = optx.Dogleg(rtol=1e-6, atol=1e-8, norm=optx.two_norm)
+        sol = optx.root_find(self.update_hard_resid, solver=solver, y0=init_sol, args=args, throw=False)
+        # jax.debug.print("{}", jnp.linalg.norm(self.update_hard_resid(sol.value, args)))
+        xs = sol.value
+        nfev = sol.stats["num_steps"]
 
         x_scale = jnp.minimum(hard_state_0, 1.0)
         hard_state = hard_state_0 + xs * x_scale #res.x * x_scale
@@ -132,7 +151,8 @@ class SlipKineticVocePowerLaw:
 
         return jnp.asarray([abs_shear_rate_sum, crss_sat])
 
-    def update_hard_resid(self, x, hard_state_0, evol_vals, delta_time):
+    def update_hard_resid(self, x, args=()):
+        hard_state_0, evol_vals, delta_time = args
         x_scale = jnp.minimum(hard_state_0, 1.0)
         res_scale = 1.0 / x_scale
 
@@ -143,12 +163,12 @@ class SlipKineticVocePowerLaw:
 
         return residual
 
-    def update_hard_jacob(self, x, hard_state_0, evol_vals, delta_time):
-        return jax.jacfwd(self.update_hard_resid, argnums=0)(x, hard_state_0, evol_vals, delta_time)
+    def update_hard_jacob(self, x, args=()):
+        return jax.jacfwd(self.update_hard_resid, argnums=0)(x, args)
 
-    def compute_resid_jacobian(self, x, hard_state_0, evol_vals, delta_time):
-        residual = self.update_hard_resid(x, hard_state_0, evol_vals, delta_time)
-        jacob = self.update_hard_jacob(x, hard_state_0, evol_vals, delta_time)
+    def compute_resid_jacobian(self, x, args=()):
+        residual = self.update_hard_resid(x, args)
+        jacob = self.update_hard_jacob(x, args)
         return (residual, jacob)
 
     def get_hard_state_dot(self, hard_state, evol_vals):
@@ -207,9 +227,9 @@ class SlipKineticMTSKocksMecking:
         xm = 1.0 / (2.0 * ((self.c1 / self.temp_k_ref) * self.shear_mod_ref * self.p_exponent * self.q_exponent))
 
         self.xnn = 1.0 / xm
-        self.xn  = self.xnn - 1.0
-        self.t_min = np.power(jec.GAM_RATIO_MIN, xm)
-        self.t_max = np.power(jec.GAM_RATIO_OVF, xm)
+        self.xn  = np.atleast_1d(self.xnn - 1.0)
+        self.t_min = np.atleast_1d(np.power(jec.GAM_RATIO_MIN, xm))
+        self.t_max = np.atleast_1d(np.power(jec.GAM_RATIO_OVF, xm))
 
         # dislocation evolution stuff
         self.k1 = params["slip_kinetics_k1"]
@@ -299,78 +319,125 @@ class SlipKineticMTSKocksMecking:
         # slip_rate
         gdot_w_pl_scaling = 10.0
 
-        if self.per_slip_system:
-            ipss = islip
-        else:
-            ipss = 0
+        ipss = jax.lax.cond(
+            self.per_slip_system,
+            lambda: islip,
+            lambda: 0
+        )
 
-        if self.per_slip_system:
-            xn  = self.xn[ipss]
-            t_min = self.t_min[ipss]
-            t_max = self.t_max[ipss]
-        else:
-            xn = self.xn
-            t_min = self.t_min
-            t_max = self.t_max
+        xn = self.xn[ipss]
+        t_min = self.t_min[ipss]
+        t_max = self.t_max[ipss]
+
+        # if self.per_slip_system:
+        #     ipss = islip
+        # else:
+        #     ipss = 0
+
+        # if self.per_slip_system:
+        #     xn  = self.xn[ipss]
+        #     t_min = self.t_min[ipss]
+        #     t_max = self.t_max[ipss]
+        # else:
+        #     xn = self.xn
+        #     t_min = self.t_min
+        #     t_max = self.t_max
 
         gin = values[2 + ipss]
         c_t   = values[2 + ipss + self.num_per_slip]
         gamma_w = values[0]
         gamma_r = values[1]
 
-        if self.gathermal:
-            gathermal = gin
-            inv_g = 1.0 / self.tau_a
-        else:
-            gathermal = self.tau_a
-            inv_g = 1.0 / gin
+        gathermal, inv_g = jax.lax.cond(
+            self.gathermal,
+            lambda: (gin, 1.0 / self.tau_a),
+            lambda: (self.tau_a, 1.0 / gin)
+        )
 
-        if jnp.abs(tau) < gathermal:
-            athermal_0 = 0.0
-        else:
-            athermal_0 = (jnp.abs(tau) - gathermal) * inv_g
+        # if self.gathermal:
+        #     gathermal = gin
+        #     inv_g = 1.0 / self.tau_a
+        # else:
+        #     gathermal = self.tau_a
+        #     inv_g = 1.0 / gin
+
+        athermal_0 = jax.lax.cond(
+            jnp.abs(tau) < gathermal,
+            lambda: 0.0,
+            lambda: (jnp.abs(tau) - gathermal) * inv_g
+        )
+
+        # if jnp.abs(tau) < gathermal:
+        #     athermal_0 = 0.0
+        # else:
+        #     athermal_0 = (jnp.abs(tau) - gathermal) * inv_g
 
         # phonon drag related terms first
         drag_exp_arg = (jnp.abs(tau) - gathermal) / self.phonon_drag_stress
-        if drag_exp_arg < jec.GAM_RATIO_MIN:
-            return 0.0
-        elif drag_exp_arg < jec.DBL_TINY_SQRT:
-            gdot_r = gamma_r * drag_exp_arg
-        else:
-            gdot_r = gamma_r * (1.0 - jnp.exp(-drag_exp_arg))
-        
-        # purely phonon drag limited slip
-        if athermal_0 > t_max:
-            return gdot_r * jnp.sign(tau)
+
+        gdot_r = jax.lax.cond(
+            drag_exp_arg < jec.DBL_TINY_SQRT,
+            lambda: gamma_r * drag_exp_arg,
+            lambda: gamma_r * (1.0 - jnp.exp(-drag_exp_arg))
+        )
+
+        # if drag_exp_arg < jec.GAM_RATIO_MIN:
+        #     return 0.0
+        # if drag_exp_arg < jec.DBL_TINY_SQRT:
+        #     gdot_r = gamma_r * drag_exp_arg
+        # else:
+        #     gdot_r = gamma_r * (1.0 - jnp.exp(-drag_exp_arg))
+
 
         # thermally activated slip kinetic terms next
         c_e = c_t * self.shear_mod_ref
         pt_frac = (jnp.abs(tau) - gathermal) * inv_g
         pexp_arg = self.mts_inner_calc(c_e, inv_g, pt_frac) 
 
-        # slip rate is effectively 0 due to thermally activated slip kinetics
-        if pexp_arg < jec.LN_GAM_RATIO_MIN:
-            return 0.0
-        
         gdot_w = gamma_w * jnp.exp(pexp_arg) 
 
         mt_frac = (-jnp.abs(tau) - gathermal) * inv_g
         mexp_arg = self.mts_inner_calc(c_e, inv_g, mt_frac)
 
-        if mexp_arg > jec.LN_GAM_RATIO_MIN:
-            # non-vanishing contribution from balancing MTS-like kinetics
-            gdot_w -= gamma_w * jnp.exp(mexp_arg)
+        gdot_w = jax.lax.cond(
+            mexp_arg > jec.LN_GAM_RATIO_MIN,
+            lambda: gdot_w - gamma_w * jnp.exp(mexp_arg),
+            lambda: gdot_w
+        )
 
-        if athermal_0 > t_min:
-            # Related to having a smooth transition between the thermal and phonon drag terms
-            blog = jnp.log(athermal_0) * xn
-            gdot_w_power_law = (gamma_w * gdot_w_pl_scaling) * jnp.exp(blog) * athermal_0
-            gdot_w += gdot_w_power_law
+        # if mexp_arg > jec.LN_GAM_RATIO_MIN:
+        #     # non-vanishing contribution from balancing MTS-like kinetics
+        #     gdot_w -= gamma_w * jnp.exp(mexp_arg)
+
+        gdot_w = jax.lax.cond(
+            athermal_0 > t_min,
+            lambda: gdot_w + (gamma_w * gdot_w_pl_scaling) * jnp.exp(jnp.log(athermal_0) * xn) * athermal_0,
+            lambda: gdot_w
+        )
+
+        # if athermal_0 > t_min:
+        #     # Related to having a smooth transition between the thermal and phonon drag terms
+        #     blog = jnp.log(athermal_0) * xn
+        #     gdot_w_power_law = (gamma_w * gdot_w_pl_scaling) * jnp.exp(blog) * athermal_0
+        #     gdot_w += gdot_w_power_law
 
         # Combine thermal and phonon drag terms
-        gdot = 1.0 / (1.0 / gdot_w + 1.0 / gdot_r) * jnp.sign(tau)
 
-        return gdot
+        # All the ways we could have returned early but jax doesn't allow that :( 
+        # # slip rate is effectively 0 due to thermally activated slip kinetics
+        # if pexp_arg < jec.LN_GAM_RATIO_MIN:
+        #     return 0.0
+        # # purely phonon drag limited slip
+        # if athermal_0 > t_max:
+        #     return gdot_r * jnp.sign(tau)
+        # if drag_exp_arg < jec.GAM_RATIO_MIN:
+        #     return 0.0
+        # gdot = 1.0 / (1.0 / gdot_w + 1.0 / gdot_r) * jnp.sign(tau)
+        # return gdot
+
+        return jnp.select(condlist=[pexp_arg < jec.LN_GAM_RATIO_MIN or drag_exp_arg < jec.GAM_RATIO_MIN, athermal_0 > t_max],
+                          choicelist=[0.0, gdot_r *jnp.sign(tau)],
+                          default = (1.0 / (1.0 / gdot_w + 1.0 / gdot_r) * jnp.sign(tau)))
 
     def eval_slip_rates(self, rss, values):
         shear_dot = jnp.zeros(self.num_slip_systems)
@@ -394,18 +461,24 @@ class SlipKineticMTSKocksMecking:
         init_sol = jnp.zeros_like(hard_state_init)
         args = (hard_state_init, evol_vals, delta_time)
 
-        solver = snls.SNLSTrDlDenseG(self.compute_resid_jacobian, xtolerance=1e-10, ndim=init_sol.shape[0], args=args)
-        solver.delta_control.deltaInit = 1.0
-        status, xs = solver.solve(init_sol)
+        # solver = snls.SNLSTrDlDenseG(self.compute_resid_jacobian, xtolerance=1e-10, ndim=init_sol.shape[0], args=args)
+        # solver.delta_control.deltaInit = 1.0
+        # status, xs = solver.solve(init_sol)
 
-        nfev = solver.nfev
+        # nfev = solver.nfev
+        solver = optx.Dogleg(rtol=1e-6, atol=1e-8, norm=optx.two_norm)
+        sol = optx.root_find(self.update_hard_resid, solver=solver, y0=init_sol, args=args, throw=False)
+        # jax.debug.print("{}", jnp.linalg.norm(self.update_hard_resid(sol.value, args)))
+        xs = sol.value
+        nfev = sol.stats["num_steps"]
         x_scale = jnp.minimum(hard_state_init, 1.0)
         hard_delta = xs * x_scale
         hard_state = jnp.exp(hard_state_init + hard_delta)
 
         return (nfev, jnp.copy(hard_state))
 
-    def update_hard_resid(self, x, hard_state_0, evol_vals, delta_time):
+    def update_hard_resid(self, x, args=()):
+        hard_state_0, evol_vals, delta_time = args
         x_scale = jnp.minimum(hard_state_0, 1.0)
         res_scale = 1.0 / x_scale
 
@@ -415,12 +488,12 @@ class SlipKineticMTSKocksMecking:
 
         return residual
 
-    def update_hard_jacob(self, x, hard_state_0, evol_vals, delta_time):
-        return jax.jacfwd(self.update_hard_resid, argnums=0)(x, hard_state_0, evol_vals, delta_time)
+    def update_hard_jacob(self, x, args=()):
+        return jax.jacfwd(self.update_hard_resid, argnums=0)(x, args)
 
-    def compute_resid_jacobian(self, x, hard_state_0, evol_vals, delta_time):
-        residual = self.update_hard_resid(x, hard_state_0, evol_vals, delta_time)
-        jacob = self.update_hard_jacob(x, hard_state_0, evol_vals, delta_time)
+    def compute_resid_jacobian(self, x, args=()):
+        residual = self.update_hard_resid(x, args)
+        jacob = self.update_hard_jacob(x, args)
         return (residual, jacob)
 
     def get_hard_state_dot(self, hard_state, evol_vals):
@@ -484,9 +557,9 @@ class SlipKineticOrowanD:
         xm = 1.0 / (2.0 * ((self.c1 / self.temp_k_ref) * self.shear_mod_ref * self.p_exponent * self.q_exponent))
 
         self.xnn = 1.0 / xm
-        self.xn  = self.xnn - 1.0
-        self.t_min = np.power(jec.GAM_RATIO_MIN, xm)
-        self.t_max = np.power(jec.GAM_RATIO_OVF, xm)
+        self.xn  = np.atleast_1d(self.xnn - 1.0)
+        self.t_min = np.atleast_1d(np.power(jec.GAM_RATIO_MIN, xm))
+        self.t_max = np.atleast_1d(np.power(jec.GAM_RATIO_OVF, xm))
 
         # dislocation evolution stuff
         self.c_ann = params["slip_kinetics_c_annihilation"]
@@ -604,82 +677,130 @@ class SlipKineticOrowanD:
         return -c_e * pq_fac
 
     def calc_slip_rates(self, tau, values, islip):
-        if tau == 0.0:
-            return 0.0
         # slip_rate
         gdot_w_pl_scaling = 10.0
 
-        if self.per_slip_system:
-            ipss = islip
-        else:
-            ipss = 0
+        ipss = jax.lax.cond(
+            self.per_slip_system,
+            lambda: islip,
+            lambda: 0
+        )
+
+        xn = self.xn[ipss]
+        t_min = self.t_min[ipss]
+        t_max = self.t_max[ipss]
+
+        # if self.per_slip_system:
+        #     ipss = islip
+        # else:
+        #     ipss = 0
+
+        # if self.per_slip_system:
+        #     xn  = self.xn[ipss]
+        #     t_min = self.t_min[ipss]
+        #     t_max = self.t_max[ipss]
+        # else:
+        #     xn = self.xn
+        #     t_min = self.t_min
+        #     t_max = self.t_max
+
         gin = values[1 + islip]
         qm  = values[1 + self.num_slip_systems + islip]
-        if self.per_slip_system:
-            xn  = self.xn[ipss]
-            t_min = self.t_min[ipss]
-            t_max = self.t_max[ipss]
-        else:
-            xn = self.xn
-            t_min = self.t_min
-            t_max = self.t_max
         c_t   = values[1 + 2 * self.num_slip_systems + ipss]
         gamma_w = self.lbar_berg * self.attempt_frequency / jnp.sqrt(qm)
         gamma_r = self.slip_gamma_phonon_ref * qm
 
-        if self.gathermal:
-            gathermal = gin
-            inv_g = 1.0 / self.tau_a
-        else:
-            gathermal = self.tau_a
-            inv_g = 1.0 / gin
+        gathermal, inv_g = jax.lax.cond(
+            self.gathermal,
+            lambda: (gin, 1.0 / self.tau_a),
+            lambda: (self.tau_a, 1.0 / gin)
+        )
 
-        if jnp.abs(tau) < gathermal:
-            athermal_0 = 0.0
-        else:
-            athermal_0 = (jnp.abs(tau) - gathermal) * inv_g
+        # if self.gathermal:
+        #     gathermal = gin
+        #     inv_g = 1.0 / self.tau_a
+        # else:
+        #     gathermal = self.tau_a
+        #     inv_g = 1.0 / gin
+
+        athermal_0 = jax.lax.cond(
+            jnp.abs(tau) < gathermal,
+            lambda: 0.0,
+            lambda: (jnp.abs(tau) - gathermal) * inv_g
+        )
+
+        # if jnp.abs(tau) < gathermal:
+        #     athermal_0 = 0.0
+        # else:
+        #     athermal_0 = (jnp.abs(tau) - gathermal) * inv_g
 
         # phonon drag related terms first
         drag_exp_arg = (jnp.abs(tau) - gathermal) / self.phonon_drag_stress
-        if drag_exp_arg < jec.GAM_RATIO_MIN:
-            return 0.0
-        elif drag_exp_arg < jec.DBL_TINY_SQRT:
-            gdot_r = gamma_r * drag_exp_arg
-        else:
-            gdot_r = gamma_r * (1.0 - jnp.exp(-drag_exp_arg))
-        
-        # purely phonon drag limited slip
-        if athermal_0 > t_max:
-            return gdot_r * jnp.sign(tau)
+
+        gdot_r = jax.lax.cond(
+            drag_exp_arg < jec.DBL_TINY_SQRT,
+            lambda: gamma_r * drag_exp_arg,
+            lambda: gamma_r * (1.0 - jnp.exp(-drag_exp_arg))
+        )
+
+        # if drag_exp_arg < jec.GAM_RATIO_MIN:
+        #     return 0.0
+        # if drag_exp_arg < jec.DBL_TINY_SQRT:
+        #     gdot_r = gamma_r * drag_exp_arg
+        # else:
+        #     gdot_r = gamma_r * (1.0 - jnp.exp(-drag_exp_arg))
 
         # thermally activated slip kinetic terms next
         c_e = c_t * self.shear_mod_ref
         pt_frac = (jnp.abs(tau) - gathermal) * inv_g
         pexp_arg = self.mts_inner_calc(c_e, inv_g, pt_frac) 
-
-        # slip rate is effectively 0 due to thermally activated slip kinetics
-        if pexp_arg < jec.LN_GAM_RATIO_MIN:
-            return 0.0
         
         gdot_w = gamma_w * jnp.exp(pexp_arg) 
 
         mt_frac = (-jnp.abs(tau) - gathermal) * inv_g
         mexp_arg = self.mts_inner_calc(c_e, inv_g, mt_frac)
 
-        if mexp_arg > jec.LN_GAM_RATIO_MIN:
-            # non-vanishing contribution from balancing MTS-like kinetics
-            gdot_w -= gamma_w * jnp.exp(mexp_arg)
+        gdot_w = jax.lax.cond(
+            mexp_arg > jec.LN_GAM_RATIO_MIN,
+            lambda: gdot_w - gamma_w * jnp.exp(mexp_arg),
+            lambda: gdot_w
+        )
 
-        if athermal_0 > t_min:
-            # Related to having a smooth transition between the thermal and phonon drag terms
-            blog = jnp.log(athermal_0) * xn
-            gdot_w_power_law = (gamma_w * gdot_w_pl_scaling) * jnp.exp(blog) * athermal_0
-            gdot_w += gdot_w_power_law
+        # if mexp_arg > jec.LN_GAM_RATIO_MIN:
+        #     # non-vanishing contribution from balancing MTS-like kinetics
+        #     gdot_w -= gamma_w * jnp.exp(mexp_arg)
+
+        gdot_w = jax.lax.cond(
+            athermal_0 > t_min,
+            lambda: gdot_w + (gamma_w * gdot_w_pl_scaling) * jnp.exp(jnp.log(athermal_0) * xn) * athermal_0,
+            lambda: gdot_w
+        )
+
+        # if athermal_0 > t_min:
+        #     # Related to having a smooth transition between the thermal and phonon drag terms
+        #     blog = jnp.log(athermal_0) * xn
+        #     gdot_w_power_law = (gamma_w * gdot_w_pl_scaling) * jnp.exp(blog) * athermal_0
+        #     gdot_w += gdot_w_power_law
 
         # Combine thermal and phonon drag terms
-        gdot = 1.0 / (1.0 / gdot_w + 1.0 / gdot_r) * jnp.sign(tau)
 
-        return gdot
+        # All the ways we could have returned early but jax doesn't allow that :( 
+        # if tau == 0.0:
+        #     return 0.0
+        # # slip rate is effectively 0 due to thermally activated slip kinetics
+        # if pexp_arg < jec.LN_GAM_RATIO_MIN:
+        #     return 0.0
+        # # purely phonon drag limited slip
+        # if athermal_0 > t_max:
+        #     return gdot_r * jnp.sign(tau)
+        # if drag_exp_arg < jec.GAM_RATIO_MIN:
+        #     return 0.0
+        # gdot = 1.0 / (1.0 / gdot_w + 1.0 / gdot_r) * jnp.sign(tau)
+        # return gdot
+
+        return jnp.select(condlist=[pexp_arg < jec.LN_GAM_RATIO_MIN or drag_exp_arg < jec.GAM_RATIO_MIN or tau == 0.0, athermal_0 > t_max],
+                          choicelist=[0.0, gdot_r *jnp.sign(tau)],
+                          default = (1.0 / (1.0 / gdot_w + 1.0 / gdot_r) * jnp.sign(tau)))
 
     def eval_slip_rates(self, rss, values):
         shear_dot = jnp.zeros(self.num_slip_systems)
@@ -696,18 +817,26 @@ class SlipKineticOrowanD:
         init_sol = jnp.zeros_like(hard_state_init)
         args = (hard_state_init, evol_vals, delta_time)
 
-        solver = snls.SNLSTrDlDenseG(self.compute_resid_jacobian, xtolerance=1e-10, ndim=init_sol.shape[0], args=args)
-        solver.delta_control.deltaInit = 1.0
-        status, xs = solver.solve(init_sol)
+        # solver = snls.SNLSTrDlDenseG(self.compute_resid_jacobian, xtolerance=1e-10, ndim=init_sol.shape[0], args=args)
+        # solver.delta_control.deltaInit = 1.0
+        # status, xs = solver.solve(init_sol)
 
-        nfev = solver.nfev
+        # nfev = solver.nfev
+
+        solver = optx.Dogleg(rtol=1e-6, atol=1e-8, norm=optx.two_norm)
+        sol = optx.root_find(self.update_hard_resid, solver=solver, y0=init_sol, args=args, throw=False)
+        # jax.debug.print("{}", jnp.linalg.norm(self.update_hard_resid(sol.value, args)))
+        xs = sol.value
+        nfev = sol.stats["num_steps"]
+
         x_scale = jnp.minimum(hard_state_init, 1.0)
         hard_delta = xs * x_scale
         hard_state = jnp.exp(hard_state_init + hard_delta)
 
         return (nfev, jnp.copy(hard_state))
 
-    def update_hard_resid(self, x, hard_state_0, evol_vals, delta_time):
+    def update_hard_resid(self, x, args=()):
+        hard_state_0, evol_vals, delta_time = args
         x_scale = jnp.minimum(hard_state_0, 1.0)
         res_scale = 1.0 / x_scale
 
@@ -718,12 +847,12 @@ class SlipKineticOrowanD:
 
         return residual
 
-    def update_hard_jacob(self, x, hard_state_0, evol_vals, delta_time):
-        return jax.jacfwd(self.update_hard_resid, argnums=0)(x, hard_state_0, evol_vals, delta_time)
+    def update_hard_jacob(self, x, args=()):
+        return jax.jacfwd(self.update_hard_resid, argnums=0)(x, args)
 
-    def compute_resid_jacobian(self, x, hard_state_0, evol_vals, delta_time):
-        residual = self.update_hard_resid(x, hard_state_0, evol_vals, delta_time)
-        jacob = self.update_hard_jacob(x, hard_state_0, evol_vals, delta_time)
+    def compute_resid_jacobian(self, x, args=()):
+        residual = self.update_hard_resid(x, args)
+        jacob = self.update_hard_jacob(x, args)
         return (residual, jacob)
 
     def get_hard_state_dot(self, hard_state, evol_vals):

@@ -15,11 +15,9 @@ from jax import custom_jvp
 from functools import partial
 from jax import lax
 from jax.numpy.linalg import solve
-from jax.config import config; config.update("jax_enable_x64", True);
+jax.config.update("jax_enable_x64", True)
 
-from scipy.optimize import minimize
-import scipy.stats as scist
-from scipy.optimize import root
+import optimistix as optx
 
 class MemoizeJac:
     """ Decorator that caches the return values of a function returning `(fun, grad)`
@@ -298,44 +296,75 @@ class DeltaControl:
 
         return (success, reject, rho, delta)
 
-def computeRJ2(x, mlambda):
+def computeRJ2(x, args=()):
+    mlambda = args
     ndim = 8
     r = jnp.zeros(ndim)
     jacob = jnp.zeros((ndim, ndim))
-    r[0] = (3.0 - 2.0 * x[0]) * x[0] - 2.0 * x[1] + 1.0
+    r = r.at[0].set((3.0 - 2.0 * x[0]) * x[0] - 2.0 * x[1] + 1.0)
     for i in range(1, ndim - 1, 1):
-        r[i] = (3.0 - 2.0 * x[i]) * x[i] - x[i-1] - 2.0 * x[i+1] + 1.0
+        r = r.at[i].set((3.0 - 2.0 * x[i]) * x[i] - x[i-1] - 2.0 * x[i+1] + 1.0)
 
     fn = (3.0 - 2.0 * x[-1]) * x[-1] - x[-2] + 1.0
-    r[-1] = (1.0 - mlambda) * fn + mlambda * (fn * fn)
+    r = r.at[-1].set((1.0 - mlambda) * fn + mlambda * (fn * fn))
 
     # F(0) = (3-2*x[0])*x[0] - 2*x[1] + 1
-    jacob[0, 0] = 3.0 - 4.0 * x[0]
-    jacob[0, 1] = -2.0
+    jacob = jacob.at[0, 0].set(3.0 - 4.0 * x[0])
+    jacob = jacob.at[0, 1].set(-2.0)
     # F(i) = (3-2*x[i])*x[i] - x[i-1] - 2*x[i+1] + 1
     for i in range(1, ndim - 1, 1):
-        jacob[i, i - 1] = -1.0
-        jacob[i, i] = 3.0 - 4.0 * x[i]
-        jacob[i,i + 1] = -2.0
+        jacob = jacob.at[i, i - 1].set(-1.0)
+        jacob = jacob.at[i, i].set(3.0 - 4.0 * x[i])
+        jacob = jacob.at[i,i + 1].set(-2.0)
 
     # F(n-1) = ((3-2*x[n-1])*x[n-1] - x[n-2] + 1)^2;
     fn = (3.0 - 2.0 * x[-1]) * x[-1] - x[-2] + 1.0
     dfndxn = 3.0 - 4.0 * x[-1]
-    jacob[-1, -1] = (1.0 - mlambda) * (dfndxn) + mlambda * (2.0 * dfndxn * fn)
-    jacob[-1, -2] = (1.0 - mlambda) * (-1.0) + mlambda * (-2.0 * fn)
+    jacob = jacob.at[-1, -1].set((1.0 - mlambda) * (dfndxn) + mlambda * (2.0 * dfndxn * fn))
+    jacob = jacob.at[-1, -2].set((1.0 - mlambda) * (-1.0) + mlambda * (-2.0 * fn))
     
     #print(jnp.linalg.norm(r))
     return (r, jacob)
+
+def computeRJ3(x, args):
+    mlambda = args
+    ndim = 8
+    r = jnp.zeros(ndim)
+    r = r.at[0].set((3.0 - 2.0 * x[0]) * x[0] - 2.0 * x[1] + 1.0)
+    for i in range(1, ndim - 1, 1):
+        r = r.at[i].set((3.0 - 2.0 * x[i]) * x[i] - x[i-1] - 2.0 * x[i+1] + 1.0)
+
+    fn1 = (3.0 - 2.0 * x[-1]) * x[-1] - x[-2] + 1.0
+    r = r.at[-1].set((1.0 - mlambda) * fn1 + mlambda * (fn1 * fn1))
+
+    return r
 
 if __name__ == "__main__":
     x = jnp.ones(8) * 0.0
     args = (0.99999999)
 
-    solver = SNLSTrDlDenseG(computeRJ2, xtolerance=1e-12, ndim=x.shape[0], args=args)
-    solver.delta_control.deltaInit = 100.0
+    solver = optx.Dogleg(rtol=1e-6, atol=1e-8)
+    sol = optx.root_find(computeRJ3, solver=solver, y0=x, args=args)
+    print(sol.stats)
+    xs = sol.value
 
-    status, xs = solver.solve(x)
+    @partial(jax.jit, static_argnums=(1,2))
+    def root_find(x, fn, args):
+        solver = optx.Dogleg(rtol=1e-6, atol=1e-8)
+        return optx.root_find(fn=fn, solver=solver, y0=x, args=args).value
+
+    xs2 = root_find(x, computeRJ3, args)
+
+    print(xs)
+    print(xs2)
+    print(np.linalg.norm(computeRJ3(xs, args)))
+
+    x = jnp.ones(8) * 0.0
+    solver1 = SNLSTrDlDenseG(computeRJ2, xtolerance=1e-12, ndim=x.shape[0], args=args)
+    solver1.delta_control.deltaInit = 100.0
+    status, xs = solver1.solve(x)
     print(status, xs)
-    print(solver.res)
-    print(solver.nfev, solver.njev)
+    res, _ = computeRJ2(xs, args)
+    print(np.linalg.norm(res))
+    print(solver1.nfev, solver1.njev)
     print()

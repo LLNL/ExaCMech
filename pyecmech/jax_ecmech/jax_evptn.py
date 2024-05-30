@@ -15,11 +15,13 @@ from jax import custom_jvp
 from functools import partial
 from jax import lax
 from jax.numpy.linalg import solve
-from jax.config import config; config.update("jax_enable_x64", True);
+jax.config.update("jax_enable_x64", True)
 
-from scipy.optimize import minimize
-import scipy.stats as scist
-from scipy.optimize import root
+# from scipy.optimize import minimize
+# import scipy.stats as scist
+# from scipy.optimize import root
+
+import optimistix as optx
 
 import jax_ecmech_util as jeu
 import jax_ecmech_const as jec
@@ -146,7 +148,7 @@ class evptnClass:
 
         return (rss, slip_rates, plastic_def_rate_dev_vecs, plastic_spin_dev_vecs)
     
-    def get_residual(self, x):
+    def get_residual(self, x, args=()):
         # Calculate related elastic strain and lattice rotation terms
         elas_delta_dev_vec, elas_dev_vec_n1, elas_dt_dev_vec = self.get_elas_strain_state(x)
         delta_omega, crystal_rmat, crystal_rot_mat5 = self.get_rotation_state(x)
@@ -176,7 +178,7 @@ class evptnClass:
 
         return jnp.hstack((residual_elas, residual_omega))
 
-    def get_jacobian(self, x):
+    def get_jacobian(self, x, args=()):
         return jax.jacfwd(self.get_residual, 0)(x)
 
     def compute_resid_jacobian(self, x, args=()):
@@ -256,10 +258,13 @@ def get_response(slip_geom_class, slip_kinetics_class, thermo_elas_class, eos_cl
 
     x0 = jnp.zeros(jec.NWVEC + jec.NTVEC)
     # res = root(evptn_class.compute_resid_jacobian, x0, jac=True, method='hybr', tol=1e-8)
-    solver = snls.SNLSTrDlDenseG(evptn_class.compute_resid_jacobian, xtolerance=solver_tolerance, ndim=x0.shape[0])
-    solver.delta_control.deltaInit = 1.0
-    status, xs = solver.solve(x0)
-
+    # solver = snls.SNLSTrDlDenseG(evptn_class.compute_resid_jacobian, xtolerance=solver_tolerance, ndim=x0.shape[0])
+    # solver.delta_control.deltaInit = 1.0
+    # status, xs = solver.solve()
+    # xs = res.x
+    solver = optx.Dogleg(rtol=1e-6, atol=1e-8)
+    sol = optx.root_find(evptn_class.get_residual, solver=solver, y0=x0, args=())
+    xs = sol.value
     evptn_class.calculate_other_terms(xs)
 
     elas_dev_vec_n1, crystal_quat_n1 = evptn_class.get_state_from_x(xs)
@@ -277,7 +282,7 @@ def get_response(slip_geom_class, slip_kinetics_class, thermo_elas_class, eos_cl
         lambda: evptn_class.hard_scale
     )
 
-    solver_iters = solver.nfev
+    solver_iters = sol.stats["num_steps"]
 
     cauchy_crystal = evptn_class.elas_strain_to_cauchy_stress(elas_dev_vec_n1)
 
@@ -376,7 +381,9 @@ if __name__ == "__main__":
     stress_vec_pressure = jnp.zeros((jec.NSVP))
     temp_k = 300.
 
-    stress_vec_pressure_n1, others = get_response(
+    get_response_jit = jax.jit(get_response, static_argnums=(0, 1, 2, 3, 5))
+
+    stress_vec_pressure_n1, others = get_response_jit(
                  slip_geom_class, slip_kinetics_class, thermo_elas_class, eos_class,
                  delta_time, params["sol_tolerance"], def_rate_vec7_samp, spin_vec_samp,
                  vol_ratio_vec, internal_energy, stress_vec_pressure, history_vec,
@@ -385,20 +392,20 @@ if __name__ == "__main__":
 
     history_update, internal_energy_n1, temp_k_n1, sdd = others
 
-    jacobians, others = jax.jacrev(get_response, argnums=6, has_aux=True)(
-                 slip_geom_class, slip_kinetics_class, thermo_elas_class, eos_class,
-                 delta_time, params["sol_tolerance"], def_rate_vec7_samp, spin_vec_samp,
-                 vol_ratio_vec, internal_energy, stress_vec_pressure, history_vec,
-                 temp_k
-                 )
+    # jacobians, others = jax.jacrev(get_response, argnums=6, has_aux=True)(
+    #              slip_geom_class, slip_kinetics_class, thermo_elas_class, eos_class,
+    #              delta_time, params["sol_tolerance"], def_rate_vec7_samp, spin_vec_samp,
+    #              vol_ratio_vec, internal_energy, stress_vec_pressure, history_vec,
+    #              temp_k
+    #              )
     # Add back the bulk contribution for the tangent stiffness matrix
-    jacob_bulk = np.zeros((6, 6))
-    jacob_bulk[-1,-1] = 3.0 * sdd[0]
-    jacob_bulk *= delta_time
-    jacob_bulk = jeu.mtan_conv_sd_svec(jacob_bulk, True)
+    # jacob_bulk = np.zeros((6, 6))
+    # jacob_bulk[-1,-1] = 3.0 * sdd[0]
+    # jacob_bulk *= delta_time
+    # jacob_bulk = jeu.mtan_conv_sd_svec(jacob_bulk, True)
 
-    jacob_np = np.asarray(jacobians) + jacob_bulk
-    jacob_np[3:-1, 3:-1] *= 0.5
+    # jacob_np = np.asarray(jacobians) + jacob_bulk
+    # jacob_np[3:-1, 3:-1] *= 0.5
 
     print(stress_vec_pressure_n1)
     print()
