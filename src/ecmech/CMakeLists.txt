@@ -4,9 +4,9 @@
 set(ECMECH_HEADERS
     ${ECMECH_HEADER_INCLUDE_DIR}/ECMech_config.h
     ECMech_cases.h
-    ecm_cases/ECMech_cases_bcc_defs.h
-    ecm_cases/ECMech_cases_fcc_defs.h
-    ecm_cases/ECMech_cases_hcp_defs.h
+    cases/ECMech_cases_bcc_defs.h
+    cases/ECMech_cases_fcc_defs.h
+    cases/ECMech_cases_hcp_defs.h
     ECMech_const.h
     ECMech_core.h
     ECMech_gpu_portability.h
@@ -32,10 +32,10 @@ set(ECMECH_HEADERS
     vw_vars_set.h)
 
 set(ECMECH_SOURCES
-    ecm_cases/ECMech_cases.cxx
-    ecm_cases/ECMech_cases_fcc.cxx
-    ecm_cases/ECMech_cases_bcc.cxx
-    ecm_cases/ECMech_cases_hcp.cxx)
+    cases/ECMech_cases.cxx
+    cases/ECMech_cases_fcc.cxx
+    cases/ECMech_cases_bcc.cxx
+    cases/ECMech_cases_hcp.cxx)
 
 #------------------------------------------------------------------------------
 # Dependencies

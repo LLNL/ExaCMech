@@ -2,7 +2,7 @@
 
 #include "SNLS_TrDLDenseG.h"
 
-#include "ecm_cases/ECMech_cases_fcc_defs.h"
+#include "cases/ECMech_cases_fcc_defs.h"
 
 #define STACK_PARAMS
 

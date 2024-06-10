@@ -4,9 +4,9 @@
 
 #include "ECMech_util.h"
 
-#include "ecm_cases/ECMech_cases_fcc_defs.h"
-#include "ecm_cases/ECMech_cases_bcc_defs.h"
-#include "ecm_cases/ECMech_cases_hcp_defs.h"
+#include "cases/ECMech_cases_fcc_defs.h"
+#include "cases/ECMech_cases_bcc_defs.h"
+#include "cases/ECMech_cases_hcp_defs.h"
 
 #ifndef KIN_TYPE
 #define KIN_TYPE 1

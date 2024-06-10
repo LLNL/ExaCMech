@@ -3,8 +3,8 @@
 
 #include "SNLS_TrDLDenseG.h"
 
-#include "ecm_cases/ECMech_cases_fcc_defs.h"
-#include "ecm_cases/ECMech_cases_bcc_defs.h"
+#include "cases/ECMech_cases_fcc_defs.h"
+#include "cases/ECMech_cases_bcc_defs.h"
 #include "ECMech_evptnWrap.h"
 
 #define STACK_PARAMS
@@ -68,7 +68,10 @@ TEST(ecmech, px_orowan)
    const int numHist = mmb->getNumHist();
    double V_hist[numHist * nPassed];
    {
-      std::default_random_engine gen;
+      // std::default_random_engine gen;
+      // Turns out with this is implementation dependent and on newer macos arm systems it doesn't follow our old rand distribution implementations :(
+      // std::default_random_engine gen(1);
+      std::minstd_rand0 gen(1);
       std::normal_distribution<double> distrib(0.0, 1.0);
       for (int iPassed = 0; iPassed < nPassed; iPassed++) {
          double* hist = &(V_hist[numHist * iPassed]);
