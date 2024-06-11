@@ -43,12 +43,11 @@ TEST(ecmech, kin_orowan_fcc)
 
       double gdot[nslip] = {0.0};
       double dgdot_dtau[nslip] = {0.0};
-      double dgdot_dg[nslip] = {0.0};
       double taua[nslip] = {0.0};
       for (int ig = 0; ig < nslip; ig++) {
          taua[ig] = init_tau; 
       }
-      kinetics.evalGdots(gdot, dgdot_dtau, dgdot_dg, taua, kin_vals);
+      kinetics.evalGdots(gdot, dgdot_dtau, taua, kin_vals);
 
 #ifdef ECMECH_DEBUG
       std::cout << "Gdot values : ";

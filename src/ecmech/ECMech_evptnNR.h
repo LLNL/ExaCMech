@@ -214,7 +214,6 @@ namespace ecmech {
                //
                //double taua[SlipGeom::nslip] = { 0.0 }; // crys%tmp4_slp
                double dgdot_dtau[SlipGeom::nslip] = { 0.0 }; // crys%tmp2_slp
-               double dgdot_dg[SlipGeom::nslip] = { 0.0 }; // crys%tmp3_slp
                double pl_vecd[ecmech::ntvec] = { 0.0 };
                double pl_wvec[ecmech::nwvec] = { 0.0 }; // \pcDhat
                
@@ -245,7 +244,7 @@ namespace ecmech {
                   _slipGeom.evalRSS(taua, T_vecds, slipP);
                   //
                   // CALL plaw_eval(pl_vecd, pl_wvec, gss, crys, tK, ierr)
-                  _kinetics.evalGdots(_gdot, dgdot_dtau, dgdot_dg, taua, _kin_vals);
+                  _kinetics.evalGdots(_gdot, dgdot_dtau, taua, _kin_vals);
                   //
                   // CALL sum_slip_def(pl_vecd, pl_wvec, crys%tmp1_slp, crys) ;
                   vecsVMa<ntvec, SlipGeom::nslip>(pl_vecd, slipP, _gdot);

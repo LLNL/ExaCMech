@@ -390,7 +390,7 @@ namespace ecmech {
             //
             // CALL plaw_eval(pl_vecd, pl_wvec, gss, crys, tK, ierr)
             // chi values are passed within extended taua array
-            slip_kinetics.evalGdots(gdot, dgdot_dtau, nullptr, abs_resolved_shear_stress, kinetic_values);
+            slip_kinetics.evalGdots(gdot, dgdot_dtau, abs_resolved_shear_stress, kinetic_values);
             
             //
             // CALL sum_slip_def(pl_vecd, pl_wvec, crys%tmp1_slp, crys) ;
@@ -457,7 +457,7 @@ namespace ecmech {
             elasticity.elas_strain_to_kirchoff_stress(kirchoff, elas_strain);
             // resolve stress onto slip systems
             slip_geom.evalRSS(abs_resolved_shear_stress, kirchoff, slip_geom.getP());
-            slip_kinetics.evalGdots(gdot, junk, junk, abs_resolved_shear_stress, kinetic_values);
+            slip_kinetics.evalGdots(gdot, junk, abs_resolved_shear_stress, kinetic_values);
             inv_det_vol * vecsyadotb<SlipGeom::nslip>(abs_resolved_shear_stress, gdot);
 #if defined(ECMECH_USE_DPEFF)
             vecsVMa<ntvec, SlipGeom::nslip>(plastic_def_rate, slip_geom.getP(), gdot);
