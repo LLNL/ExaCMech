@@ -275,6 +275,7 @@ namespace ecmech {
          * () should be equivalent to what happens in get_elas_strain_state<false>
          * () not necessarily safe if e_vecd is the same memory as _e_vecd_n or quat is the same as _Cn_quat
          */
+         // Assume that x has is at the location we need it to be at... 
          __ecmech_hdev__
          inline
          void stateFromX(double* const xtal_ori_quat,
@@ -282,7 +283,7 @@ namespace ecmech {
          {
             double delta_omega[ecmech::nwvec];
             double xtal_ori_quat_delta[ecmech::qdim];
-            vecsVxa<ecmech::nwvec>(delta_omega, ecmech::r_scale, &(x[ind_sub_r]));
+            vecsVxa<ecmech::nwvec>(delta_omega, ecmech::r_scale, x);
             emap_to_quat(xtal_ori_quat_delta, delta_omega);
             get_c_quat(xtal_ori_quat, xtal_ori_quat_delta, m_xtal_ori_quat_n);
          }
@@ -348,7 +349,7 @@ namespace ecmech {
          inline
          void get_deriv_hardening_wrt_omega(double* const /* jacobian */){}
 
-         private:
+         public:
          const double m_dt;
          const double* const m_xtal_ori_quat_n;
       };
@@ -622,26 +623,16 @@ namespace ecmech {
                               )
                : _slipGeom(slipGeom),
                _kinetics(kinetics),
-               _thermoElastN(thermoElastN),
                _lattice_strain_prob(thermoElastN, dt, detV, eVref, p_EOS, tK, e_vecd_n),
                _lattice_rot_prob(dt, Cn_quat),
-               _dt(dt),
-               _detV(detV),
                _eVref(eVref),
                _p_EOS(p_EOS),
                _tK(tK),
                _h_state(h_state),
-               _e_vecd_n(e_vecd_n),
-               _Cn_quat(Cn_quat),
                _d_vecd_sm(d_vecd_sm), // vel_grad_sm%d_vecds
                _w_veccp_sm(w_veccp_sm), // vel_grad_sm%w_veccp
                _mtan_sI(nullptr)
             {
-               _dt_ri = 1.0 / _dt;
-               _detV_ri = 1.0 / _detV;
-               _a_V = pow(detV, onethird);
-               _a_V_ri = 1.0 / _a_V;
-
                _hdn_scale = _kinetics.getVals(_kin_vals, _p_EOS, _tK, _h_state);
 
                double adots_ref = _kinetics.getFixedRefRate(_kin_vals);
@@ -650,10 +641,10 @@ namespace ecmech {
                   _epsdot_scale_inv = one / adots_ref;
                }
                else {
-                  _epsdot_scale_inv = fmin(one / eff, 1e6 * _dt);
+                  _epsdot_scale_inv = fmin(one / eff, 1e6 * _lattice_strain_prob.m_dt);
                }
                //
-               _rotincr_scale_inv = _dt_ri * _epsdot_scale_inv;
+               _rotincr_scale_inv = _lattice_strain_prob.m_inv_dt * _epsdot_scale_inv;
             }
 
             // deconstructor
@@ -670,15 +661,7 @@ namespace ecmech {
 
             __ecmech_hdev__
             inline
-            double getDtRi() const { return _dt_ri; }
-
-            __ecmech_hdev__
-            inline
-            double getShrateEff() const { return 1.0; }
-
-            __ecmech_hdev__
-            inline
-            double getDisRate() const { return 1.0; }
+            double getDtRi() const { return _lattice_strain_prob.m_inv_dt; }
 
             __ecmech_hdev__
             inline
@@ -695,7 +678,7 @@ namespace ecmech {
                             double* const quat,
                             const double* const x) {
                _lattice_strain_prob.stateFromX(e_vecd,  &(x[_i_sub_e]));
-               _lattice_rot_prob.stateFromX(quat,  x);
+               _lattice_rot_prob.stateFromX(quat,  &(x[_i_sub_r]));
             }
 
             __ecmech_hdev__
@@ -733,8 +716,8 @@ namespace ecmech {
                vecsVxa<ntvec>(edot_vecd, ecmech::e_scale, &(x[_i_sub_e]) ); // edot_vecd is now the delta, _not_ yet edot_vecd
                // e_vecd_f is end-of-step
                double e_vecd_f[ntvec];
-               vecsVapb<ntvec>(e_vecd_f, edot_vecd, _e_vecd_n);
-               vecsVsa<ntvec>(edot_vecd, _dt_ri); // _now_ edot_vecd has edot_vecd
+               vecsVapb<ntvec>(e_vecd_f, edot_vecd, _lattice_strain_prob.m_elast_dev_vec_n);
+               vecsVsa<ntvec>(edot_vecd, _lattice_strain_prob.m_inv_dt); // _now_ edot_vecd has edot_vecd
                //
                double xi_f[nwvec];
                vecsVxa<nwvec>(xi_f, ecmech::r_scale, &(x[_i_sub_r]) );
@@ -747,7 +730,7 @@ namespace ecmech {
                emap_to_quat(A_quat, xi_f);
                //
                double C_quat[ecmech::qdim];
-               get_c_quat(C_quat, A_quat, _Cn_quat);
+               get_c_quat(C_quat, A_quat, _lattice_rot_prob.m_xtal_ori_quat_n);
                //
                double C_matx[ecmech::ndim * ecmech::ndim];
                quat_to_tensor(C_matx, C_quat);
@@ -786,7 +769,7 @@ namespace ecmech {
                double A_e_M35[ecmech::nwvec * ecmech::ntvec];
                double ee_wvec[ecmech::nwvec];
                double ee_fac;
-               elasticity_higher_order_terms(A_e_M35, ee_wvec, ee_fac, _a_V_ri, e_vecd_f, edot_vecd);
+               elasticity_higher_order_terms(A_e_M35, ee_wvec, ee_fac, _lattice_strain_prob.m_inv_a_vol, e_vecd_f, edot_vecd);
 
                // Residual Calculations
                _lattice_strain_prob.get_elas_strain_residual(resid, _epsdot_scale_inv, edot_vecd, pl_vecd, d_vecd_lat);
@@ -805,7 +788,7 @@ namespace ecmech {
                   //
                   double dpl_deps_symm[ ecmech::ntvec * ecmech::ntvec ] = { 0.0 };
                   double dpl_deps_skew[ ecmech::nwvec * ecmech::ntvec ] = { 0.0 };
-                  get_slip_rate_deriv_terms(dpl_deps_symm, dpl_deps_skew, dgdot_dtau, _a_V_ri, _slipGeom, _thermoElastN);
+                  get_slip_rate_deriv_terms(dpl_deps_symm, dpl_deps_skew, dgdot_dtau, _lattice_strain_prob.m_inv_a_vol, _slipGeom, _lattice_strain_prob.m_thermo_elast_n);
 
                   //
                   //
@@ -815,7 +798,9 @@ namespace ecmech {
                   double dWsm_dxi[ ecmech::nwvec * ecmech::nwvec ];
                   eval_d_dxi_impl_quat(dC_quat_dxi_T, dDsm_dxi, dWsm_dxi,
                                        _d_vecd_sm, _w_veccp_sm,
-                                       xi_f, _Cn_quat, C_matx, C_quat);
+                                       xi_f, 
+                                       _lattice_rot_prob.m_xtal_ori_quat_n,
+                                       C_matx, C_quat);
 
                   // d(B_S)/d(e_vecd_f)
                   //
@@ -833,12 +818,14 @@ namespace ecmech {
 
                   if (_mtan_sI) {
                      double cauchy_stress_lattice[ ecmech::nsvec ];
-                     _thermoElastN.getCauchy(cauchy_stress_lattice, T_vecds, _detV_ri);
+                     _lattice_strain_prob.m_thermo_elast_n.getCauchy(cauchy_stress_lattice, T_vecds, _lattice_strain_prob.m_inv_det_vol);
                      get_material_tangent_stiffness<ThermoElastN, nDimSys, _i_sub_r>(_mtan_sI, Jacobian,
                                                                                      dC_quat_dxi_T, qr5x5_ls,
                                                                                      C_quat, C_matx,
-                                                                                     cauchy_stress_lattice, _detV_ri,
-                                                                                     _a_V_ri, _thermoElastN);
+                                                                                     cauchy_stress_lattice,
+                                                                                     _lattice_strain_prob.m_inv_det_vol,
+                                                                                     _lattice_strain_prob.m_inv_a_vol,
+                                                                                     _lattice_strain_prob.m_thermo_elast_n);
                   }
 
                   // SCALING
@@ -882,10 +869,6 @@ namespace ecmech {
 
             __ecmech_hdev__
             inline
-            const double* getGdot() const { return _gdot; };
-
-            __ecmech_hdev__
-            inline
             void get_slip_contribution(double& pl_disipation_rate,
                                        double& effective_shear_rate,
                                        double* const gdot,
@@ -893,7 +876,7 @@ namespace ecmech {
                                       )
             {
                get_slip_contributions(pl_disipation_rate, effective_shear_rate, gdot,
-                                      _detV_ri, elas_strain, _kin_vals,
+                                      _lattice_strain_prob.m_inv_det_vol, elas_strain, _kin_vals,
                                       _slipGeom, _kinetics, _lattice_strain_prob);
             }
                               
@@ -902,23 +885,17 @@ namespace ecmech {
 
             const SlipGeom &_slipGeom;
             const Kinetics &_kinetics;
-            const ThermoElastN &_thermoElastN;
             const EvptnLatticeStrainProblem<ThermoElastN> _lattice_strain_prob;
             const EvptnLatticeRotationProblem<ecmech::ntvec> _lattice_rot_prob;
 
-            double _dt, _detV, _eVref, _p_EOS, _tK, _a_V;
-            double _dt_ri, _a_V_ri, _detV_ri;
+            double _eVref, _p_EOS, _tK, _a_V;
 
             double _hdn_scale;
             double _epsdot_scale_inv, _rotincr_scale_inv;
 
-            double _gdot[SlipGeom::nslip]; // crys%tmp1_slp
-
             double _kin_vals[Kinetics::nVals];
 
             const double* const _h_state;
-            const double* const _e_vecd_n;
-            const double* const _Cn_quat;
             const double* const _d_vecd_sm; // d_vecds_sm would be fine too -- but do not use _d_vecd_sm[iSvecS];
             const double* const _w_veccp_sm;
 
@@ -1135,14 +1112,6 @@ namespace ecmech {
             prob.get_slip_contribution(pl_disipation_rate, effective_shear_rate,
                                         gdot, e_vecd_u);
 
-            //
-            // {
-            //    const double* gdot_u = prob.getGdot();
-            //    for (int i_gdot = 0; i_gdot < SlipGeom::nslip; i_gdot++) {
-            //       gdot[i_gdot] = gdot_u[i_gdot];
-            //    }
-            // }
-            //
             hist[iHistA_shrateEff] = effective_shear_rate;
             hist[iHistA_shrEff] += hist[iHistA_shrateEff] * dt;
             //
