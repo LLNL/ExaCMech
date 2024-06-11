@@ -279,19 +279,12 @@ namespace ecmech {
          void
          evalGdots(double* const gdot,
                    double* const dgdot_dtau,
-                   double* const dgdot_dg,
                    const double* const tau,
-                   const double* const vals,
-                   const bool dgdot_dh_conv = false,
-                   const double* const val_drivs = nullptr
+                   const double* const vals
                    ) const
-         {
-            assert(dgdot_dh_conv == false);
-            assert(val_drivs == nullptr);
-            
+         {     
             double tK = vals[2 * SlipGeom::nslip];
 
-            //printf("evalGdots:\n");
             for (int iSlip = 0; iSlip < _nslip; ++iSlip) {
                bool l_act;
                double taua = tau[iSlip];
@@ -300,12 +293,9 @@ namespace ecmech {
                double crss = vals[iSlip];
                double rhoa = vals[SlipGeom::nslip + iSlip];
 			   
-			   //printf("sys[%d]: tau = %e, chi = %e, rho = %e\n",iSlip,taua,chia*180.0/M_PI,rhoa*1e4);
-			   
                // traditionally we have a separate function that will calculate everything
                // for only one slip system
-               double junk;
-               this->evalGdot(gdot[iSlip], l_act, dgdot_dtau[iSlip], junk,
+               this->evalGdot(gdot[iSlip], l_act, dgdot_dtau[iSlip],
                               crss, rhoa, taua, chia, tK);
             }
 			//printf("---\n");
@@ -323,7 +313,6 @@ namespace ecmech {
             double & gdot,
             bool  & l_act,
             double & dgdot_dtau, // wrt resolved shear stress
-            double & dgdot_dg, // wrt slip system strength
             double   crss,
             double   rho,
             double   tau,
@@ -335,9 +324,7 @@ namespace ecmech {
             //// gdot_w = zero; gdot_r = zero; ! not used by l_linear or l_pl
             gdot = zero;
             //
-            dgdot_dtau = zero;
-            dgdot_dg = zero;
-            
+            dgdot_dtau = zero;            
             l_act = false;
         
             //double u = cos(chi + M_PI/6.0); // 1 for T, 0.5 for AT
@@ -406,12 +393,10 @@ namespace ecmech {
                   gdot = temp * t_frac;
 
                   dgdot_dtau = temp * xnn * g_i; // note: always positive, = xnn * gdot/t
-                  dgdot_dg = -dgdot_dtau * t_frac; // = - gdot * xnn * g_i
                   
                   if (fabs(gdot) > gmax) {
                       gdot = copysign(gmax, tau);
                       dgdot_dtau = zero;
-                      dgdot_dg = zero;
                   }
                }
             }
@@ -426,7 +411,6 @@ namespace ecmech {
 				gdot = copysign(gdot, tau);
 				
 				dgdot_dtau = temp;
-				dgdot_dg = -dgdot_dtau;
 			}
 #endif
          } // evalGdot
@@ -544,59 +528,6 @@ namespace ecmech {
 
             return nFEvals;
          }
-         
-         __ecmech_hdev__
-         inline
-         void
-         setH0Ext(double *const h0) const
-         {
-            for (int i = 0; i < nH; i++) {
-               h0[i] = log(fmax(h0[i], _hdn_min));
-            }
-            return;
-         }
-         
-         __ecmech_hdev__
-         inline
-         void
-         getHUpdate(const double *const h0,
-                    const double *const del_h,
-                    const double *const del_h_scale,
-                    double *const       h,
-                    const bool /*updateFinal*/) const
-         {
-            // We always return the non-log form of h even though
-            // we get the log form in as we need to make use of the
-            // regular form within the kinetics update and gdot eval
-            // calculations
-            for (int i = 0; i < nH; i++) {
-               const double factor = h0[i] + del_h[i] * del_h_scale[i];
-               h[i] = exp(factor);
-            }
-         }
-         
-         __ecmech_hdev__
-         inline
-         void
-         getExtDerivs(double* const hdot,
-                      double* const dhdot_dh,
-                      double* const dhdot_dgdot,
-                      double* const /*dgdot_dh*/,
-                      double* const hard,
-                      const double* const gdot,
-                      const double* const hvals,
-                      double tK) const
-         {
-            double gdotabs[SlipGeom::nslip];
-            double evolVals[nEvolVals];
-            // Transform this back into the log form for the later residual calculation
-            for(int islip = 0; islip < SlipGeom::nslip; islip++) {
-               hard[islip] = log(hard[islip]);
-               gdotabs[islip] = abs(gdot[islip]);
-            }
-            getEvolVals(evolVals, gdotabs);
-            getSdotN(hdot, dhdot_dh, hard, evolVals, hvals, tK, dhdot_dgdot);
-         }
 
          /// This calculates the variables I'd mentioned up above and now again down below
          /// related to the hardening state
@@ -635,11 +566,9 @@ namespace ecmech {
                   const double* const h,
                   const double* const evolVals,
                   const double* const hvals,
-                  double tK,
-                  double* const dsdot_dgdot = nullptr // optional parameter
+                  double tK
                 ) const
          {
-            assert(dsdot_dgdot == nullptr);
             {
                // we normally just assume  this value always exists
                const int nslip2 = SlipGeom::nslip * SlipGeom::nslip;
@@ -722,12 +651,12 @@ namespace ecmech {
             
             // TEST: adjust values while keeping the same saturation ratio k1/k2
             
-            for (int islip = 0; islip < SlipGeom::nslip; islip++) {
-                //double r = 0.2;
-                //k1[islip] *= r;
-                //k2[islip] *= r;
-				//printf("sys %d: chi = %e, k1 = %e, k2 = %e, rho = %e\n",islip,hvals[islip]*180.0/M_PI,k1[islip],k2[islip],exp(h[islip])*1e4);
-            }
+            // for (int islip = 0; islip < SlipGeom::nslip; islip++) {
+            //     //double r = 0.2;
+            //     //k1[islip] *= r;
+            //     //k2[islip] *= r;
+				// //printf("sys %d: chi = %e, k1 = %e, k2 = %e, rho = %e\n",islip,hvals[islip]*180.0/M_PI,k1[islip],k2[islip],exp(h[islip])*1e4);
+            // }
 			//printf("---\n");
             
             
