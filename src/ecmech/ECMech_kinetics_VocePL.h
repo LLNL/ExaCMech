@@ -194,7 +194,8 @@ namespace ecmech {
             double gAll = vals[0]; // gss%h(islip) // _gAll
             for (int iSlip = 0; iSlip<this->_nslip; ++iSlip) {
                bool l_act;
-               this->evalGdot(gdot[iSlip], l_act, dgdot_dtau[iSlip], dgdot_dh[iSlip],
+               double junk;
+               this->evalGdot(gdot[iSlip], l_act, dgdot_dtau[iSlip], junk,
                               gAll,
                               tau[iSlip],
                               _mu, // gss%ctrl%mu(islip)

@@ -405,9 +405,10 @@ namespace ecmech {
                    ) const
          {
             const int offset = dgdot_dh_conv ? nH : 1;
+            double dgdot_dh_fake[12] = {};
             for (int iSlip = 0; iSlip<this->_nslip; ++iSlip) {
                bool l_act;
-               this->evalGdot(gdot[iSlip], l_act, dgdot_dtau[iSlip], &(dgdot_dh[iSlip * offset]),
+               this->evalGdot(gdot[iSlip], l_act, dgdot_dtau[iSlip], dgdot_dh_fake,
                               vals, iSlip,
                               tau[iSlip],
                               _mu_ref, // gss%ctrl%mu(islip)

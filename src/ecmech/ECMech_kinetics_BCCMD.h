@@ -304,7 +304,8 @@ namespace ecmech {
 			   
                // traditionally we have a separate function that will calculate everything
                // for only one slip system
-               this->evalGdot(gdot[iSlip], l_act, dgdot_dtau[iSlip], dgdot_dg[iSlip],
+               double junk;
+               this->evalGdot(gdot[iSlip], l_act, dgdot_dtau[iSlip], junk,
                               crss, rhoa, taua, chia, tK);
             }
 			//printf("---\n");

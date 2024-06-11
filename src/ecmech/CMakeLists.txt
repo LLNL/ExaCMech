@@ -11,6 +11,7 @@ set(ECMECH_HEADERS
     ECMech_core.h
     ECMech_gpu_portability.h
     ECMech_eosSimple.h
+    ECMech_elastic.h
     ECMech_evptn.h
     ECMech_evptnNR.h
     ECMech_evptnFI.h

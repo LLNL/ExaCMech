@@ -7,6 +7,7 @@
 
 #include "ECMech_core.h"
 #include "ECMech_util.h"
+#include "ECMech_elastic.h"
 #include "ECMech_eosSimple.h"
 
 #include "SNLS_lup_solve.h"
@@ -40,375 +41,571 @@ namespace ecmech {
             static const int numHist = iHistLbH + Kinetics::nH + SlipGeom::nslip;
       }; // NumHist
 
-      /**
-       * for cubic cyrstal symmetry
-       *
-       * in Fortran mdef coding, corresponds to cem%l_lin_lnsd
-       *
-       */
-      class ThermoElastNCubic
+      template<class ThermoElastN>
+      class EvptnLatticeStrainProblem
       {
          public:
-            static const int nParams = 3;
+         static const int nDimSys = ecmech::ntvec;
 
-            // constructor and destructor
-            __ecmech_hdev__
-            inline ThermoElastNCubic() : _K_bulkMod(-1.0), _K_gmod(-1.0) {};
-            __ecmech_hdev__
-            inline ~ThermoElastNCubic() {};
+         __ecmech_hdev__
+         EvptnLatticeStrainProblem(const ThermoElastN& thermoElastN,
+                                 const double dt,
+                                 const double detV, 
+                                 const double eVref, 
+                                 const double p_EOS, 
+                                 const double tK,
+                                 const double* const e_vecd_n)
+            : m_thermo_elast_n(thermoElastN),
+            m_dt(dt), m_det_vol(detV), m_elast_vol_ref(eVref),
+            m_pressure_eos(p_EOS), m_temp_k(tK),
+            m_elast_dev_vec_n(e_vecd_n),
+            m_inv_dt(1.0 / dt),
+            m_inv_det_vol(1.0 / m_det_vol),
+            m_a_vol(pow(m_det_vol, onethird)),
+            m_inv_a_vol(1.0 / m_a_vol)
+            {};
 
-            __ecmech_host__
-            inline void setParams(const std::vector<double> & params // const double* const params
-                                  ) {
-               std::vector<double>::const_iterator parsIt = params.begin();
+         __ecmech_hdev__
+         ~EvptnLatticeStrainProblem() = default;
 
-               _c11 = *parsIt; ++parsIt;
-               _c12 = *parsIt; ++parsIt;
-               _c44 = *parsIt; ++parsIt;
-               //
-               assert((parsIt - params.begin()) == nParams);
+         // used to be elastNEtoT
+         __ecmech_hdev__
+         inline
+         void elas_strain_to_kirchoff_stress(double* const kirchoff_stress, // nsvec
+                                             const double* const elas_dev_vec // ntvec
+                                          ) const
+         {
+            //// do not need to use elaw_T_BT here as T and BT are the same
+            //
+            // specialize to cem%l_lin_lnsd
+            // CALL elawn_T(s_meas, e_vecd_f, crys%elas, tK, .TRUE., a_V, &
+            // & p_EOS, eVref, crys%i_eos_model, crys%eos_const &
+            // &)
+            double elas_dev_vol_vec[ecmech::nsvec];
+            vecsVxa<ntvec>(elas_dev_vol_vec, m_inv_a_vol, elas_dev_vec);
+            //// tr_Ee = three * DLOG(a_V%r)
+            //// CALL trace_to_vecds_s(s_meas%Ee_vecds(SVEC), tr_Ee)
+            elas_dev_vol_vec[iSvecS] = sqr3 * log(m_a_vol); // could go into constructor
+            //
+            //// Kirchhoff stress from elas_dev_vol_vec
+            // CALL elawn_lin_op(s_meas%T_vecds, s_meas%Ee_vecds, cem, tK, &
+            // & p_EOS, eVref, i_eos_model, eos_const)
+            m_thermo_elast_n.eval(kirchoff_stress, elas_dev_vol_vec, m_temp_k, m_pressure_eos, m_elast_vol_ref);
+         }
 
-               _K_diag[0] = _c11 - _c12;
-               _K_diag[1] = _c11 - _c12;
-               _K_diag[2] = two * _c44;
-               _K_diag[3] = two * _c44;
-               _K_diag[4] = two * _c44;
-               double K_vecds_s = _c11 + two * _c12;
-               _K_bulkMod = onethird * K_vecds_s;
-               _K_gmod = (two * _c11 - two * _c12 + six * _c44) * 0.2; // average of _K_diag entries
+         // used to be elastNEtoC
+         __ecmech_hdev__
+         inline
+         void elas_strain_to_cauchy_stress(double* const cauchy, // nsvec
+                                          const double* const e_vecd_f // ntvec
+                                          ) const
+         {
+            double kirchoff[ecmech::nsvec];
+            this->elas_strain_to_kirchoff_stress(kirchoff, e_vecd_f);
+            m_thermo_elast_n.getCauchy(cauchy, kirchoff, m_inv_det_vol);
+         }
+
+         __ecmech_hdev__
+         template<bool calc_strain_rate = false>
+         inline
+         void get_elas_strain_state(double* const elas_delta_dev_vec,
+                                    double* const elas_dt_dev_vec,
+                                    const double* const x) const
+         {
+            //////////////////////////////
+            // PULL VALUES out of x, with scalings
+            //
+            // double edot_vecd[ecmech::ntvec];
+            vecsVxa<ntvec>(elas_dt_dev_vec, ecmech::e_scale, x); // elas_dt_dev_vec is now the delta, _not_ yet edot_vecd
+            // e_vecd_f is end-of-step
+            // double e_vecd_f[ntvec];
+            vecsVapb<ntvec>(elas_delta_dev_vec, elas_dt_dev_vec, m_elast_dev_vec_n);
+            if constexpr(calc_strain_rate) {
+               vecsVsa<ntvec>(elas_dt_dev_vec, m_inv_dt); // _now_ elas_dt_dev_vec has dt contributions
             }
+         }
 
-            __ecmech_host__
-            inline void getParams(std::vector<double> & params
-                                  ) const {
-#ifdef ECMECH_DEBUG
-               // do not clear params in case adding to an existing set
-               int paramsStart = params.size();
-#endif
+         /*
+            * NOTES :
+            * () should be equivalent to what happens in get_elas_strain_state<false>
+            * () not necessarily safe if e_vecd is the same memory as _e_vecd_n or quat is the same as _Cn_quat
+            */
+         __ecmech_hdev__
+         inline
+         void stateFromX(double* const elast_dev_vec,
+                        const double* const x) const
+         {
+            double elast_dev_vec_delta[ecmech::ntvec] = {};
+            this->get_elas_strain_state(elast_dev_vec, elast_dev_vec_delta, x);
+         }
 
-               params.push_back(_c11);
-               params.push_back(_c12);
-               params.push_back(_c44);
-
-#ifdef ECMECH_DEBUG
-               assert((params.size() - paramsStart) == nParams);
-#endif
+         __ecmech_hdev__
+         inline
+         void get_elas_strain_residual(double* const residual,
+                                       const double epsdot_scale_inv,
+                                       const double* const elas_dt_dev_vec,
+                                       const double* const plastic_def_rate_dev_vec,
+                                       const double* const def_rate_dev_vec_lattice) const
+         {
+            for (size_t iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
+               residual[m_ind_sub_elas + iTvec] = epsdot_scale_inv * ( // SCALING
+                  m_inv_a_vol * elas_dt_dev_vec[iTvec] + plastic_def_rate_dev_vec[iTvec] - def_rate_dev_vec_lattice[iTvec]);
             }
+         }
 
-            __ecmech_hdev__
-            inline
-            void eval(double* const T_vecds,
-                      const double* const Ee_vecds,
-                      double, // tK
-                      double p_EOS,
-                      double // eVref
-                      ) const {
-               double ln_J = sqr3 * Ee_vecds[iSvecS]; // vecds_s_to_trace
-               double J = exp(ln_J);
-               double Ts_bulk = -sqr3 * J * p_EOS;
-
-               vecsVAdiagB<ntvec>(T_vecds, _K_diag, Ee_vecds);
-               T_vecds[iSvecS] = Ts_bulk; // _K_vecds_s * Ee_vecds(SVEC)
-            }
-
-            /**
-             * dT_deps[0:ntvec-1,:]^T * A, for non-square A[ntvec,p] (with p likely being nSlip)
-             * so that even if T_vecds[iSvecS] depends on Ee_vecds, that is not in the result
-             *
-             * combines calls to elawn_T_dif and eval_dtaua_deps_n
-             *
-             * for cubic, dT_deps is diag(K_diag * a_V%ri) (symmetric) ; dT_deps[iSvecS,:] = 0
-             */
-            __ecmech_hdev__
-            inline
-            void multDTDepsT(double* const P, // ntvec*p
-                             const double* const A, // ntvec*p
-                             double a_V_ri,
-                             int p) const {
-               for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
-                  double dTdepsThis = _K_diag[iTvec] * a_V_ri;
-                  for (int iP = 0; iP < p; ++iP) {
-                     int ii = ECMECH_NM_INDX(iTvec, iP, ecmech::ntvec, p);
-                     P[ii] = dTdepsThis * A[ii];
-                  }
+         __ecmech_hdev__
+         template<size_t JAC_SIZE>
+         inline
+         void get_deriv_elast_strain_wrt_elast_strain(double* const jacobian,
+                                                      const double* const dDp_hat_delast_strain) const
+         {
+            RAJA::View<double, RAJA::Layout<2>> jacob_ee(jacobian, JAC_SIZE, JAC_SIZE);
+            // dislocation plasticity;
+            // first contribution; overwrite
+            for (size_t jTvec = 0; jTvec < ecmech::ntvec; ++jTvec) {
+               for (size_t iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
+                  jacob_ee(iTvec, jTvec) = dDp_hat_delast_strain[ECMECH_NN_INDX(iTvec, jTvec, ecmech::ntvec)];
                }
             }
-
-            __ecmech_hdev__
-            inline
-            void getCauchy(double* const sigC_vecds_lat,
-                           const double* const T_vecds,
-                           double detVi) const
+            // elastic rate
+            //
             {
-               for (int iSvec = 0; iSvec < ecmech::nsvec; ++iSvec) {
-                  sigC_vecds_lat[iSvec] = detVi * T_vecds[iSvec];
+               const double adti = m_inv_a_vol * m_inv_dt;
+               for (size_t iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
+                  jacob_ee(iTvec, iTvec) += adti;
                }
             }
+         } 
 
-            /**
-             * like dsigC_de * A, with disgC_de[nsvec,ntvec] having come from elawn_Cauchy_dif
-             * for A[ntvec,ntvec]
-             *
-             * NOTE : dsigC_de[nsvec,ntvec] with nsvec in the first dimension
-             * because in general distorational deformation can produce
-             * pressure -- for example in materials with hexagonal symmetry,
-             * even if it does not happen in cubic symmetry
-             *
-             * NOTE : M6[nsvec,nsvec] with nsvec in the second dimension
-             * (instead of ntvec) to make things easier elsewhere
-             */
-            __ecmech_hdev__
-            inline
-            void multCauchyDif(double* const M6,
-                               const double* const A,
-                               double detVi,
-                               double a_V_ri
-                               ) const {
-               // CALL vecds_s_to_trace(tr_ln_V, s_meas%Ee_vecds(SVEC))
-               // detV = DEXP(tr_ln_V)
-               // detVi = one / detV
+         __ecmech_hdev__
+         template<size_t JAC_SIZE, size_t ind_sub_r>
+         inline
+         void get_deriv_omega_wrt_elast_strain(double* const jacobian,
+                                               const double* const elas_dt_dev_vec,
+                                               const double elast_elast_factor,
+                                               const double* const dWp_hat_delast_strain,
+                                               const double* const A_e_M35) const
+         {
+            // d(B_xi)/d(e_vecds_f)
+            //
+            RAJA::View<double, RAJA::Layout<2>> jacob_re(jacobian, JAC_SIZE, JAC_SIZE);
 
-               // dsigC_de(:,:) = detVi * s_meas%dT_deps(:,:)
-               // for cubic, dT_deps is diag(K_diag * a_V%ri) (symmetric) ; dT_deps[iSvecS,:] = 0
-               // M65_ij = dd_ii A_ij
-               for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
-                  double vFact = detVi * a_V_ri * _K_diag[iTvec];
-                  for (int jTvec = 0; jTvec < ecmech::ntvec; ++jTvec) {
-                     M6[ECMECH_NN_INDX(iTvec, jTvec, ecmech::nsvec)] = vFact * A[ECMECH_NN_INDX(iTvec, jTvec, ecmech::ntvec)];
-                  }
+            double A_edot_M35[ecmech::nwvec * ecmech::ntvec];
+            M35_d_AAoB_dA(A_edot_M35, elas_dt_dev_vec);
+
+            double dt_ee_fac = m_dt * elast_elast_factor;
+
+            for (size_t iWvec = 0; iWvec < ecmech::nwvec; ++iWvec) {
+               for (size_t jTvec = 0; jTvec < ecmech::ntvec; ++jTvec) {
+                  int ijWT = ECMECH_NM_INDX(iWvec, jTvec, ecmech::nwvec, ecmech::ntvec);
+                  jacob_re(iWvec + ind_sub_r, jTvec) =
+                     m_dt * dWp_hat_delast_strain[ijWT] - dt_ee_fac * (A_e_M35[ijWT] * m_inv_dt - A_edot_M35[ijWT]);
                }
+            }         
+         }
 
-               for (int jTvec = 0; jTvec < ecmech::ntvec; ++jTvec) {
-                  M6[ECMECH_NN_INDX(iSvecS, jTvec, ecmech::nsvec)] = 0.0;
+         __ecmech_hdev__
+         template<size_t JAC_SIZE, size_t ind_sub_h, size_t num_hard, size_t num_slip>
+         inline
+         void get_deriv_hardening_wrt_elast_strain(double* const jacobian,
+                                                   const double* const dhard_dgdot,
+                                                   const double* const dgdot_delast_strain) const
+         {
+            // d(B_h) / d(e)
+            // jacob_he = dt * (dhdot/dgdot)(dgdot/de)
+            // nh x ntvec matrix
+            double dhdot_delas_strain[num_hard * ecmech::ntvec];
+            vecsMABT<num_hard, ecmech::ntvec, num_slip>(dhdot_delas_strain, dhard_dgdot, dgdot_delast_strain);
+            RAJA::View<double, RAJA::Layout<2>> jacob_he(jacobian, JAC_SIZE, JAC_SIZE);
+            for (size_t iH = 0; iH < num_hard; ++iH) {
+               for (size_t jE = 0; jE < ecmech::ntvec; ++jE) {
+                  // could also make dhdot_delas_strain into a RAJA view, but not really needed
+                  jacob_he(iH + ind_sub_h, jE) = -m_dt * dhdot_delas_strain[ECMECH_NM_INDX(iH, jE, num_hard, ecmech::ntvec) ];
                }
+            }       
+         }
 
-               for (int iSvec = 0; iSvec < ecmech::nsvec; ++iSvec) {
-                  M6[ECMECH_NN_INDX(iSvec, iSvecS, ecmech::nsvec)] = 0.0;
-               }
-            }
-
-            __ecmech_hdev__
-            inline
-            double getBulkMod( ) const {
-               if (_K_bulkMod <= 0.0) {
-                  ECMECH_FAIL(__func__, "bulk modulus negative -- not initialized?");
-               }
-               return _K_bulkMod;
-            }
-
-            __ecmech_hdev__
-            inline
-            double getGmod(double, // tK
-                           double, // p_EOS
-                           double // eVref
-                           ) const {
-               if (_K_gmod <= 0.0) {
-                  ECMECH_FAIL(__func__, "effective shear modulus negative -- not initialized?");
-               }
-               return _K_gmod;
-            }
-
-         private:
-            double _c11, _c12, _c44;
-            double _K_diag[ecmech::ntvec];
-            double _K_bulkMod, _K_gmod;
-      };
-
-      /**
-       * for hexagonal cyrstal symmetry
-       *
-       * in Fortran mdef coding, corresponds to cem%l_lin_lnsd, cem%l_h
-       *
-       * Gruneisen gamma is diag(g_a,g_a,g_b)
-       * g_vecd is
-       *    (g11-g22)/sqrt(2.) = 0
-       *    (2. * g33 - g11 - g22)/sqrt(6.) = 2.0 * (g_b - g_a) / sqrt(6.)
-       *    sqrt(2.) * g12 = 0
-       *    sqrt(2.) * g13 = 0
-       *    sqrt(2.) * g23 = 0
-       * and just store the one non-zero as _g_vecd2
-       *
-       */
-      class ThermoElastNHexag
-      {
          public:
-            static const int nParams = 6;
+            static constexpr size_t m_ind_sub_elas = 0; // ntvec end_point
+            const ThermoElastN& m_thermo_elast_n;
+            const double m_dt, m_det_vol, m_elast_vol_ref;
+            const double m_pressure_eos, m_temp_k;
+            const double* const m_elast_dev_vec_n;
+            const double m_inv_dt, m_inv_det_vol, m_a_vol, m_inv_a_vol;
+      };
 
-            // constructor and destructor
-            __ecmech_hdev__
-            inline ThermoElastNHexag() : _K_bulkMod(-1.0), _K_gmod(-1.0) {};
-            __ecmech_hdev__
-            inline ~ThermoElastNHexag() {};
+      template <size_t ind_sub_r=ecmech::ntvec>
+      class EvptnLatticeRotationProblem {
+         public:
+         static constexpr size_t nDimSys = ecmech::nwvec;
 
-            __ecmech_host__
-            inline void setParams(const std::vector<double> & params // const double* const params
-                                  ) {
-               std::vector<double>::const_iterator parsIt = params.begin();
+         public:
+         __ecmech_hdev__
+         EvptnLatticeRotationProblem(const double dt,
+                                    const double* const Cn_quat)
+            : m_dt(dt), m_xtal_ori_quat_n(Cn_quat) {};
+         
+         __ecmech_hdev__
+         ~EvptnLatticeRotationProblem() = default;
 
-               _c11 = *parsIt; ++parsIt;
-               _c12 = *parsIt; ++parsIt;
-               _c13 = *parsIt; ++parsIt;
-               _c33 = *parsIt; ++parsIt;
-               _c44 = *parsIt; ++parsIt;
-               //
-               _g_vecd2 = *parsIt; ++parsIt;
-               //
-               assert((parsIt - params.begin()) == nParams);
+         __ecmech_hdev__
+         inline
+         void get_rotation_state(double* const delta_omega,
+                                 double* const xtal_rmat,
+                                 double* const xtal_rot_mat5,
+                                 const double* const x) const
+         {
+            vecsVxa<ecmech::nwvec>(delta_omega, ecmech::r_scale, &(x[ind_sub_r]));
+            //
+            // not done in EvpC :
+            // CALL exp_map_cpvec(A, xi_f)
+            // CALL get_c(c, A, C_n)
+            //
+            double xtal_ori_quat_delta[ecmech::qdim];
+            double xtal_ori_quat_n1[ecmech::qdim];
 
-               _K_diag[0] = _c11 - _c12;
-               _K_diag[1] = _c11 * onethird + _c12 * onethird - fourthirds * _c13 + twothird * _c33;
-               _K_diag[2] = _c11 - _c12;
-               _K_diag[3] = two * _c44;
-               _K_diag[4] = two * _c44;
-               double K_vecds_s = twothird * _c11 + twothird * _c12 + fourthirds * _c13 + _c33 * onethird;
-               _K_sdax3 = sqr2 * (-_c11 - _c12 + _c13 + _c33) * onethird;
-               _K_bulkMod = onethird * K_vecds_s;
-               //
-               // _K_gmod below ignores the _K_sdax3 contribution, but it is just meant to be approximate anyway
-               _K_gmod = 0.5 * 0.2 * vecsssum<ecmech::ntvec>(_K_diag); // 0.5 * (average of _K_diag entries)
+            emap_to_quat(xtal_ori_quat_delta, delta_omega);
+            get_c_quat(xtal_ori_quat_n1, xtal_ori_quat_delta, m_xtal_ori_quat_n);
+            quat_to_tensor(xtal_rmat, xtal_ori_quat_n1);
+            get_rot_mat_vecd(xtal_rot_mat5, xtal_rmat);
+         }
+
+         /*
+         * NOTES :
+         * () should be equivalent to what happens in get_elas_strain_state<false>
+         * () not necessarily safe if e_vecd is the same memory as _e_vecd_n or quat is the same as _Cn_quat
+         */
+         __ecmech_hdev__
+         inline
+         void stateFromX(double* const xtal_ori_quat,
+                        const double* const x) const
+         {
+            double delta_omega[ecmech::nwvec];
+            double xtal_ori_quat_delta[ecmech::qdim];
+            vecsVxa<ecmech::nwvec>(delta_omega, ecmech::r_scale, &(x[ind_sub_r]));
+            emap_to_quat(xtal_ori_quat_delta, delta_omega);
+            get_c_quat(xtal_ori_quat, xtal_ori_quat_delta, m_xtal_ori_quat_n);
+         }
+
+         __ecmech_hdev__
+         inline
+         void get_omega_residual(double* const residual,
+                                 const double rot_incr_scale_inv,
+                                 const double ee_fac,
+                                 const double* const delta_omega,
+                                 const double* const spin_vec_lat,
+                                 const double* const plastic_spin_vec,
+                                 const double* const ee_spin_vec) const
+         {
+            // RESIDUAL B_omega
+            for (int iWvec = 0; iWvec < ecmech::nwvec; ++iWvec) {
+               residual[ind_sub_r + iWvec] = rot_incr_scale_inv * // SCALING
+                                          (delta_omega[iWvec] - m_dt * (spin_vec_lat[iWvec]
+                                          - plastic_spin_vec[iWvec] + ee_fac * ee_spin_vec[iWvec]));
             }
+         }
 
-            __ecmech_host__
-            inline void getParams(std::vector<double> & params
-                                  ) const {
-#ifdef ECMECH_DEBUG
-               // do not clear params in case adding to an existing set
-               int paramsStart = params.size();
-#endif
-
-               params.push_back(_c11);
-               params.push_back(_c12);
-               params.push_back(_c13);
-               params.push_back(_c33);
-               params.push_back(_c44);
-               //
-               params.push_back(_g_vecd2);
-
-#ifdef ECMECH_DEBUG
-               assert((params.size() - paramsStart) == nParams);
-#endif
+         __ecmech_hdev__
+         template<size_t JAC_SIZE>
+         inline
+         void get_deriv_omega_wrt_omega(double* const jacobian,
+                                        const double* const dspin_samp_domega) const
+         {
+            // d(B_xi)/d(xi_f)
+            RAJA::View<double, RAJA::Layout<2>> jacob_rr(jacobian, JAC_SIZE, JAC_SIZE);
+            for (int iWvec = 0; iWvec < ecmech::nwvec; ++iWvec) {
+               for (int jWvec = 0; jWvec < ecmech::nwvec; ++jWvec) {
+                  int ijWW = ECMECH_NN_INDX(iWvec, jWvec, ecmech::nwvec);
+                  jacob_rr(iWvec + ind_sub_r, jWvec + ind_sub_r) = -m_dt * dspin_samp_domega[ijWW];
+               }
+               jacob_rr(iWvec + ind_sub_r, iWvec + ind_sub_r) += one;
             }
-
-            __ecmech_hdev__
-            inline
-            void eval(double* const T_vecds,
-                      const double* const Ee_vecds,
-                      double, // tK
-                      double p_EOS,
-                      double eVref
-                      ) const {
-               double ln_J = sqr3 * Ee_vecds[iSvecS]; // vecds_s_to_trace
-               double J = exp(ln_J);
-               double Ts_bulk = -sqr3 * J * p_EOS;
-
-               vecsVAdiagB<ntvec>(T_vecds, _K_diag, Ee_vecds);
-               T_vecds[iSvecS] = Ts_bulk; // _K_vecds_s * Ee_vecds(SVEC)
-
-               T_vecds[iTvecHex] += _K_sdax3 * Ee_vecds[iSvecS];
-               T_vecds[iSvecS] += _K_sdax3 * Ee_vecds[iTvecHex];
-
-               // anisotropic Gruneisen contribution; pressure part of Gruneisen tensor contribution should already be in p_EOS
-               // CALL eos_eval_e_Csdev(Cauchy_eos_vecd, eVref, J, &
-               // & i_eos_model, eos_const)
-               // -(Gamma' + a' * mu) * eVref // but do not do a'*mu part
-               // Cauchy_eos_vecd(:) = -eos_const(4:8) * eVref
-               // T_vecds(1:TVEC) = T_vecds(1:TVEC) + J * Cauchy_eos_vecd(:)
-               T_vecds[iTvecHex] += J * (-_g_vecd2 * eVref);
-            }
-
-            /**
-             * multDTDepsT ends up looking the same as in the cubic case because _K_sdax3 does not enter
-             */
-            __ecmech_hdev__
-            inline
-            void multDTDepsT(double* const P, // ntvec*p
-                             const double* const A, // ntvec*p
-                             double a_V_ri,
-                             int p) const {
-               for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
-                  double dTdepsThis = _K_diag[iTvec] * a_V_ri;
-                  for (int iP = 0; iP < p; ++iP) {
-                     int ii = ECMECH_NM_INDX(iTvec, iP, ecmech::ntvec, p);
-                     P[ii] = dTdepsThis * A[ii];
-                  }
+         }
+         __ecmech_hdev__
+         template<size_t JAC_SIZE>
+         inline
+         void get_deriv_elast_strain_wrt_omega(double* const jacobian,
+                                             const double* const ddef_rate_samp_domega) const
+         {
+            // d(B_S)/d(xi_f)
+            //
+            // jacob_er = -dDsm_dxi(:,:)
+            RAJA::View<double, RAJA::Layout<2> > jacob_er(jacobian, JAC_SIZE, JAC_SIZE);
+            for (int jWvec = 0; jWvec<ecmech::nwvec; ++jWvec) {
+               for (int iTvec = 0; iTvec<ecmech::ntvec; ++iTvec) {
+                  // could also make dDsm_dxi into a RAJA view, but not really needed
+                  const size_t ind = ECMECH_NM_INDX(iTvec, jWvec, ecmech::ntvec, ecmech::nwvec);
+                  jacob_er(iTvec, jWvec + ind_sub_r) = -ddef_rate_samp_domega[ind];
                }
             }
+         }
 
-            __ecmech_hdev__
-            inline
-            void getCauchy(double* const sigC_vecds_lat,
-                           const double* const T_vecds,
-                           double detVi) const
-            {
-               for (int iSvec = 0; iSvec < ecmech::nsvec; ++iSvec) {
-                  sigC_vecds_lat[iSvec] = detVi * T_vecds[iSvec];
-               }
-            }
-
-            __ecmech_hdev__
-            inline
-            void multCauchyDif(double* const M6,
-                               const double* const A,
-                               double detVi,
-                               double a_V_ri
-                               ) const {
-               for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
-                  double vFact = detVi * a_V_ri * _K_diag[iTvec];
-                  for (int jTvec = 0; jTvec < ecmech::ntvec; ++jTvec) {
-                     M6[ECMECH_NN_INDX(iTvec, jTvec, ecmech::nsvec)] = vFact * A[ECMECH_NN_INDX(iTvec, jTvec, ecmech::ntvec)];
-                  }
-               }
-
-               // M6[iSvecS,:] = dsigC_de[iSvecS, iTvecHex] * A[iTvecHex,:] // for hexagonal specifically
-               // dsigC_de[iTvecHex, iSvecS] does not end up getting used
-               {
-                  double vFact = detVi * a_V_ri * _K_sdax3;
-                  for (int jTvec = 0; jTvec < ecmech::ntvec; ++jTvec) {
-                     M6[ECMECH_NN_INDX(iSvecS, jTvec, ecmech::nsvec)] = vFact * A[ECMECH_NN_INDX(iTvecHex, jTvec, ecmech::ntvec)];
-                  }
-               }
-
-               for (int iSvec = 0; iSvec < ecmech::nsvec; ++iSvec) {
-                  M6[ECMECH_NN_INDX(iSvec, iSvecS, ecmech::nsvec)] = 0.0;
-               }
-            }
-
-            __ecmech_hdev__
-            inline
-            double getBulkMod( ) const {
-               if (_K_bulkMod <= 0.0) {
-                  ECMECH_FAIL(__func__, "bulk modulus negative -- not initialized?");
-               }
-               return _K_bulkMod;
-            }
-
-            __ecmech_hdev__
-            inline
-            double getGmod(double, // tK
-                           double, // p_EOS
-                           double // eVref
-                           ) const {
-               if (_K_gmod <= 0.0) {
-                  ECMECH_FAIL(__func__, "effective shear modulus negative -- not initialized?");
-               }
-               return _K_gmod;
-            }
+         /**
+            This method does nothing as most crystal plasticity hardening models have no dependency directly or indirectly with the
+            lattice rotation.
+         */
+         __ecmech_hdev__
+         inline
+         void get_deriv_hardening_wrt_omega(double* const /* jacobian */){}
 
          private:
-            double _c11, _c12, _c13, _c33, _c44;
-            double _K_sdax3;
-            double _g_vecd2;
-            double _K_diag[ecmech::ntvec];
-            double _K_bulkMod, _K_gmod;
-            static const int iTvecHex = 1;
+         const double m_dt;
+         const double* const m_xtal_ori_quat_n;
       };
+
+      __ecmech_hdev__
+      inline
+      void get_xtal_frame_vel_grad_terms(double* const def_rate_dev_vec_xtal,
+                                         double* const spin_vec_xtal,
+                                         const double* const def_rate_dev_vec_sample,
+                                         const double* const spin_vec_sample,
+                                         const double* const xtal_rmat,
+                                         const double* const xtal_rot_mat5)
+      {
+         vecsVMTa<ecmech::ntvec>(def_rate_dev_vec_xtal, xtal_rot_mat5, def_rate_dev_vec_sample);
+         vecsVMTa<ecmech::ndim>(spin_vec_xtal, xtal_rmat, spin_vec_sample);
+      }
+
+      __ecmech_hdev__
+      template<class SlipGeom, class SlipKinetics>
+      inline
+      void get_slip_rate_terms(double* const dgdot_dtau,
+                               double* const plastic_def_rate,
+                               double* const plastic_spin_vec,
+                               const double* const kirchoff,
+                               const double* const kinetic_values,
+                               const SlipGeom& slip_geom,
+                               const SlipKinetics& slip_kinetics
+                               )
+      {        
+         if constexpr (SlipGeom::nslip > 0) {
+            // default initialize everything to 0.0 
+            double abs_resolved_shear_stress[SlipGeom::nslip] = {};
+            double gdot[SlipGeom::nslip] = {};
+            // resolve stress onto slip systems
+            // CALL resolve_tau_a_n(crys%tmp4_slp, s_meas%T_vecds, crys)
+            //vecsVaTM<ntvec, SlipGeom::nslip>(taua, T_vecds, slipP);
+            slip_geom.evalRSS(abs_resolved_shear_stress, kirchoff, slip_geom.getP());
+            //
+            // CALL plaw_eval(pl_vecd, pl_wvec, gss, crys, tK, ierr)
+            // chi values are passed within extended taua array
+            slip_kinetics.evalGdots(gdot, dgdot_dtau, nullptr, abs_resolved_shear_stress, kinetic_values);
+            
+            //
+            // CALL sum_slip_def(pl_vecd, pl_wvec, crys%tmp1_slp, crys) ;
+            vecsVMa<ntvec, SlipGeom::nslip>(plastic_def_rate, slip_geom.getP(), gdot);
+            vecsVMa<nwvec, SlipGeom::nslip>(plastic_spin_vec, slip_geom.getQ(), gdot);
+         }
+      }
+
+      // This function performs the necessary chain rules to go from the:
+      // dgammadot_dRSS -> dDp_hat_dElas_strain
+      // dgammadot_dRSS -> dWp_hat_dElas_strain
+      // terms used typically in either the Jacobian or material tangent stiffness matrix
+      __ecmech_hdev__
+      template<class SlipGeom, class ThermoElastN>
+      inline
+      void get_slip_rate_deriv_terms(double* const dDp_hat_delast_strain,
+                                     double* const dWp_hat_delast_strain,
+                                     const double* const dgdot_dtau,
+                                     const double inv_a_vol,
+                                     const SlipGeom& slip_geom,
+                                     const ThermoElastN& thermoElastN
+                                    )
+      {
+         if constexpr (SlipGeom::nslip > 0) {
+            double dtaua_deps[ ecmech::ntvec * SlipGeom::nslip ];
+            thermoElastN.multDTDepsT(dtaua_deps, slip_geom.getP(), inv_a_vol, SlipGeom::nslip);
+
+            double dgdot_deps[ ecmech::ntvec * SlipGeom::nslip ];
+            for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
+               for (int iSlip = 0; iSlip < SlipGeom::nslip; ++iSlip) {
+                  int ijThis = ECMECH_NM_INDX(iTvec, iSlip, ecmech::ntvec, SlipGeom::nslip);
+                  dgdot_deps[ijThis] = dgdot_dtau[iSlip] * dtaua_deps[ijThis];
+               }
+            }
+            vecsMABT<ntvec, SlipGeom::nslip>(dDp_hat_delast_strain, slip_geom.getP(), dgdot_deps);
+            vecsMABT<nwvec, ntvec, SlipGeom::nslip>(dWp_hat_delast_strain, slip_geom.getQ(), dgdot_deps);
+         }
+      }
+
+      // The values returned here are usually useful for post-processing and might have application in
+      // application codes. However, they are not really state variables in that everything can be
+      // calculated post-state variable update. 
+      __ecmech_hdev__
+      template<class SlipGeom, class SlipKinetics, class Elasticty>
+      inline
+      void get_slip_contributions(double& pl_disipation_rate,
+                                  double& effective_shear_rate,
+                                  double* const gdot,
+                                  const double inv_det_vol,
+                                  const double* const elas_strain,
+                                  const double* const kinetic_values,
+                                  const SlipGeom& slip_geom,
+                                  const SlipKinetics& slip_kinetics,
+                                  const Elasticty& elasticity
+                                 )
+      {
+         pl_disipation_rate = 0.0;
+         effective_shear_rate = 0.0;
+         if constexpr (SlipGeom::nslip > 0) {
+            // default initialize everything to 0.0 
+            double abs_resolved_shear_stress[SlipGeom::nslip] = {};
+            double junk[SlipGeom::nslip] = {};
+            double kirchoff[ecmech::nsvec] = {};
+            elasticity.elas_strain_to_kirchoff_stress(kirchoff, elas_strain);
+            // resolve stress onto slip systems
+            slip_geom.evalRSS(abs_resolved_shear_stress, kirchoff, slip_geom.getP());
+            slip_kinetics.evalGdots(gdot, junk, junk, abs_resolved_shear_stress, kinetic_values);
+            inv_det_vol * vecsyadotb<SlipGeom::nslip>(abs_resolved_shear_stress, gdot);
+#if defined(ECMECH_USE_DPEFF)
+            vecsVMa<ntvec, SlipGeom::nslip>(plastic_def_rate, slip_geom.getP(), gdot);
+            effective_shear_rate = vecd_Deff(plastic_def_rate);
+#else
+            effective_shear_rate = vecsssumabs<SlipGeom::nslip>(gdot);
+#endif
+            pl_disipation_rate = inv_det_vol * vecsyadotb<SlipGeom::nslip>(abs_resolved_shear_stress, gdot);
+         }
+      }
+
+      // These terms are commonly used in the residual and jacobian terms related to omega
+      // We should probably try to create better names for these outputs...
+      __ecmech_hdev__
+      inline
+      void elasticity_higher_order_terms(double* const A_e_M35,
+                                         double* const ee_spin_vec,
+                                         double& ee_fac,
+                                         const double inv_a_vol,
+                                         const double* const elast_dev_vec,
+                                         const double* const elas_dt_dev_vec
+                                        )
+      {
+         // from e edot product term in spin (formerly neglected)
+         M35_d_AAoB_dA(A_e_M35, elast_dev_vec);
+         vecsVMa<nwvec, ntvec>(ee_spin_vec, A_e_M35, elas_dt_dev_vec);
+         ee_fac = onehalf * inv_a_vol * inv_a_vol;
+      }
+
+      // Quite a few of these variables could be calculated on the fly
+      // However, we already calculate most of them as part of the computeRJ portion of things
+      // so just do it again here...
+      // Might be able to rework this in a better way at some point...
+      __ecmech_hdev__
+      template<class ThermoElastN, size_t JAC_SIZE, size_t ind_sub_omega>
+      inline
+      void get_material_tangent_stiffness(double* const material_tangent,
+                                          const double* const jacobian,
+                                          const double* const dquat_domega_t, 
+                                          const double* const qr5x5_ls,
+                                          const double* const quat,
+                                          const double* const rmat,
+                                          const double* const cauchy_stress,
+                                          const double inv_det_vol,
+                                          const double inv_a_vol,
+                                          const ThermoElastN& thermo_elast_n
+                                          )
+      {
+         // Only concerned with the dCauchy/dDefRate at this point in time
+         // and more specifically only considering the deviatoric portion 
+         constexpr int nRHS = ecmech::ntvec;
+
+         // mtan_sample_frame
+         // = d/dDefRate_sample(Cauchy) = d/dDefRate(Q * alpha * (C_{elas} : lattice_strain)) 
+         // Q is the 5x5 rotation oper from crystal to sample 
+         // alpha is necessary scaling from Kirchoff to Cauchy
+         // C_{elas} is the elasticity tensor (deviatoric contributions)
+         // = d/dDefRate_s (Cauchy) = d(Q Cauchy) / dOmega_c * dOmega / dDefRate_s 
+         //   + Q * d(Cauchy)/delas_strain * delas_strain / dDefRate_s
+         // From our Jacobian we can calculate the dOmega / dDefRate_s and delas_strain / dDefRate_s terms
+         // The other ones are either simple to calculate or require some math...
+         //
+         // dstrainomega_ddef_rate_t => [dlat_strain_ddef_rate_sample; domega_ddef_rate_sample];
+         // Initially we set it to be our RHS
+         double dstrainomega_ddef_rate_t[ nRHS * JAC_SIZE ] = {}; // transpose for use in SNLS_LUP_SolveX !
+         {
+            // RHS calculations
+            //
+            // dstrainomega_ddef_rate_t => dResidual_ddef_rate_sample
+            {
+               // negatives cancel
+               // dstrainomega_ddef_rate_t[0:ind_omega_vec,:] = qr5x5_c2s
+               for (int jE = 0; jE < nRHS; ++jE) {
+                  for (int iE = 0; iE < ntvec; ++iE) { // ntvec, _not_ nDimSys // iE is same as index 
+                     dstrainomega_ddef_rate_t[ECMECH_NM_INDX(jE, iE, nRHS, JAC_SIZE)] = qr5x5_ls[ECMECH_NN_INDX(jE, iE, ntvec)];
+                  }
+               }
+               // If we had hardening terms then we'd add those here as well...
+               // dRhard_ddef_rate but typically we can but for most problems safe to treat that
+               // set of terms as being = 0
+            }
+            // Now solve for our dstrain_ddefrate and domega_ddefrate terms
+            int err = SNLS_LUP_SolveX<JAC_SIZE>(const_cast<double* const>(jacobian), dstrainomega_ddef_rate_t, nRHS);
+            if (err != 0) {
+               ECMECH_FAIL(__func__, "error from SNLS_LUP_SolveX");
+            }
+         }
+
+         {
+            double temp_M6[ ecmech::nsvec2 ];
+            for (int iTvec = 0; iTvec<ecmech::ntvec; ++iTvec) {
+               for (int jTvec = iTvec; jTvec<nRHS; ++jTvec) {
+                  const int offset1 = ECMECH_NM_INDX(iTvec, jTvec, nRHS, JAC_SIZE);
+                  const int offset2 = ECMECH_NM_INDX(jTvec, iTvec, nRHS, JAC_SIZE);
+                  const double tmp = dstrainomega_ddef_rate_t[offset1];
+                  dstrainomega_ddef_rate_t[offset1] = dstrainomega_ddef_rate_t[offset2];
+                  dstrainomega_ddef_rate_t[offset2] = tmp;
+               }
+            }
+            thermo_elast_n.template multCauchyDif<nRHS, JAC_SIZE>(temp_M6, dstrainomega_ddef_rate_t, inv_det_vol, inv_a_vol);
+            // Apply final rotation
+            qr6x6_pre_mul<ecmech::nsvec, false>(material_tangent, temp_M6, qr5x5_ls);
+         }
+
+         // Calculate the d(QCauchy) / dDefRate_s term now and add that to
+         {
+            double dcauchy_dquat[ ecmech::ntvec * ecmech::qdim ];
+            {
+               double drmat_dquat[ ecmech::ndim * ecmech::ndim * ecmech::qdim ];
+               d_quat_to_tensor(drmat_dquat, quat);
+               double dcauchy_drmat[ ecmech::ntvec * ecmech::ndim * ecmech::ndim ];
+               d_rot_mat_vecd_smop(dcauchy_drmat, rmat, cauchy_stress);
+               vecsMAB<ntvec, qdim, ndim*ndim>(dcauchy_dquat, dcauchy_drmat, drmat_dquat);
+            }
+
+            // We now need to be able to go from our domega_ddef_rate to dquat_ddef_rate
+            // dquat_ddef_rate = dquat_domega_t * domega_ddef_rate_t
+            double dquat_ddef_rate[ ecmech::qdim * nRHS ];
+            for (int ii_I = 0; ii_I < nRHS; ++ii_I) {
+               for (int ii_Q = 0; ii_Q < ecmech::qdim; ++ii_Q) {
+                  int iiQI = ECMECH_NM_INDX(ii_Q, ii_I, ecmech::qdim, nRHS);
+                  dquat_ddef_rate[iiQI] = 0.0;
+                  for (int ii_W = 0; ii_W < ecmech::nwvec; ++ii_W) {
+                     dquat_ddef_rate[iiQI] +=
+                        dquat_domega_t[ECMECH_NM_INDX(ii_W, ii_Q, ecmech::nwvec, ecmech::qdim)] *
+                        dstrainomega_ddef_rate_t[ECMECH_NM_INDX(ii_I, ind_sub_omega + ii_W, nRHS, JAC_SIZE)];
+                  }
+               }
+            }
+
+            // Now get the dcauchy_lattice_dI terms by doing ->
+            // dcauchy_lattice_dI = d_cauchy_lattice_dquat * dRmat_quat_dI
+            double dqcauchy_ddefrate[ ecmech::ntvec * nRHS ];
+            vecsMAB<ecmech::ntvec, nRHS, ecmech::qdim>(dcauchy_dquat, dcauchy_dquat, dquat_ddef_rate);
+            for (int ii_T = 0; ii_T < ecmech::ntvec; ++ii_T) {
+               for (int ii_I = 0; ii_I < nRHS; ++ii_I) {
+                  // NOTE : only looping over ntvec, but mtan_sI is nsvec in the first dimension
+                  material_tangent[ECMECH_NN_INDX(ii_T, ii_I, ecmech::nsvec)] += dqcauchy_ddefrate[ECMECH_NM_INDX(ii_T, ii_I, ecmech::ntvec, nRHS)];
+               }
+            }
+         }
+      }                                         
 
       template<class SlipGeom, class Kinetics, class ThermoElastN>
       class EvptnUpdstProblem
       {
          public:
 
-            static const int nDimSys = ecmech::ntvec + ecmech::nwvec;
+            static constexpr int nDimSys = ecmech::ntvec + ecmech::nwvec;
 
             // constructor
             __ecmech_hdev__
@@ -426,6 +623,8 @@ namespace ecmech {
                : _slipGeom(slipGeom),
                _kinetics(kinetics),
                _thermoElastN(thermoElastN),
+               _lattice_strain_prob(thermoElastN, dt, detV, eVref, p_EOS, tK, e_vecd_n),
+               _lattice_rot_prob(dt, Cn_quat),
                _dt(dt),
                _detV(detV),
                _eVref(eVref),
@@ -475,11 +674,11 @@ namespace ecmech {
 
             __ecmech_hdev__
             inline
-            double getShrateEff() const { return _shrate_eff_contrib; }
+            double getShrateEff() const { return 1.0; }
 
             __ecmech_hdev__
             inline
-            double getDisRate() const { return _dp_dis_rate_contrib; }
+            double getDisRate() const { return 1.0; }
 
             __ecmech_hdev__
             inline
@@ -495,52 +694,16 @@ namespace ecmech {
             void stateFromX(double* const e_vecd,
                             double* const quat,
                             const double* const x) {
-               double e_vecd_delta[ecmech::ntvec];
-               vecsVxa<ntvec>(e_vecd_delta, ecmech::e_scale, &(x[_i_sub_e]) );
-               vecsVapb<ntvec>(e_vecd, e_vecd_delta, _e_vecd_n);
-
-               double xi_f[nwvec];
-               vecsVxa<nwvec>(xi_f, ecmech::r_scale, &(x[_i_sub_r]) );
-               //
-               double A_quat[ecmech::qdim];
-               emap_to_quat(A_quat, xi_f);
-               //
-               // double C_quat[ecmech::qdim] ;
-               // get_c_quat(C_quat, A_quat, _Cn_quat) ;
-               get_c_quat(quat, A_quat, _Cn_quat);
-            }
-
-            __ecmech_hdev__
-            inline
-            void elastNEtoT(double* const T_vecds, // nsvec
-                            const double* const e_vecd_f // ntvec
-                            ) {
-               //// do not need to use elaw_T_BT here as T and BT are the same
-               //
-               // specialize to cem%l_lin_lnsd
-               // CALL elawn_T(s_meas, e_vecd_f, crys%elas, tK, .TRUE., a_V, &
-               // & p_EOS, eVref, crys%i_eos_model, crys%eos_const &
-               // &)
-               double Ee_vecds[ecmech::nsvec];
-               vecsVxa<ntvec>(Ee_vecds, _a_V_ri, e_vecd_f);
-               //// tr_Ee = three * DLOG(a_V%r)
-               //// CALL trace_to_vecds_s(s_meas%Ee_vecds(SVEC), tr_Ee)
-               Ee_vecds[iSvecS] = sqr3 * log(_a_V); // could go into constructor
-               //
-               //// Kirchhoff stress from Ee_vecds
-               // CALL elawn_lin_op(s_meas%T_vecds, s_meas%Ee_vecds, cem, tK, &
-               // & p_EOS, eVref, i_eos_model, eos_const)
-               _thermoElastN.eval(T_vecds, Ee_vecds, _tK, _p_EOS, _eVref);
+               _lattice_strain_prob.stateFromX(e_vecd,  &(x[_i_sub_e]));
+               _lattice_rot_prob.stateFromX(quat,  x);
             }
 
             __ecmech_hdev__
             inline
             void elastNEtoC(double* const C_vecds, // nsvec
                             const double* const e_vecd_f // ntvec
-                            ) {
-               double T_vecds[ecmech::nsvec];
-               this->elastNEtoT(T_vecds, e_vecd_f);
-               _thermoElastN.getCauchy(C_vecds, T_vecds, _detV_ri);
+                            ) const {
+               _lattice_strain_prob.elas_strain_to_cauchy_stress(C_vecds, e_vecd_f);
             }
 
             __ecmech_hdev__
@@ -594,7 +757,7 @@ namespace ecmech {
                //
                // CALL matt_x_vec_5(qr5x5_ls, vel_grad_sm%d_vecds(1:TVEC), d_vecd_lat)
                double d_vecd_lat[ecmech::ntvec];
-               vecsVMTa<ntvec>(d_vecd_lat, qr5x5_ls, _d_vecd_sm);
+               // vecsVMTa<ntvec>(d_vecd_lat, qr5x5_ls, _d_vecd_sm);
                // d_vecds_lat(SVEC) = vel_grad_sm%d_vecds(SVEC)
                //
                //// CALL rot_mat_vecd(A, qr5x5_A)
@@ -602,96 +765,34 @@ namespace ecmech {
                // CALL rot_mat_wveccp(C_matx, qr3x3_ls) // amounts to qr3x3_ls = C_matx
                // CALL matt_x_vec_3(qr3x3_ls, vel_grad_sm%w_veccp, w_vec_lat)
                double w_vec_lat[ecmech::nwvec]; // assumes nwvec = ndim
-               vecsVMTa<ndim>(w_vec_lat, C_matx, _w_veccp_sm);
+               // vecsVMTa<ndim>(w_vec_lat, C_matx, _w_veccp_sm);
+
+               get_xtal_frame_vel_grad_terms(d_vecd_lat, w_vec_lat, _d_vecd_sm,  _w_veccp_sm, C_matx, qr5x5_ls);
 
                //////////////////////////////
                // CALCULATIONS
 
                double T_vecds[ecmech::nsvec];
-               this->elastNEtoT(T_vecds, e_vecd_f);
-               //
-               //double taua[SlipGeom::nslip] = { 0.0 }; // crys%tmp4_slp
+               _lattice_strain_prob.elas_strain_to_kirchoff_stress(T_vecds, e_vecd_f);
+
                double dgdot_dtau[SlipGeom::nslip] = { 0.0 }; // crys%tmp2_slp
                double dgdot_dg[SlipGeom::nslip] = { 0.0 }; // crys%tmp3_slp
                double pl_vecd[ecmech::ntvec] = { 0.0 };
                double pl_wvec[ecmech::nwvec] = { 0.0 }; // \pcDhat
-               
-               // Changes to allow for dynamic slip systems.
-               // Probably need to do the same in evptnFI
-               const double* slipP;
-               const double* slipQ;
-               double P[ecmech::ntvec * SlipGeom::nslip];
-               double Q[ecmech::nwvec * SlipGeom::nslip];
-               // We'll use taua to pass the chia values as the second half of the array
-               // so that we don't need to change the signature of evalGdots()
-               double taua[2*SlipGeom::nslip] = { 0.0 };
-               if (SlipGeom::dynamic) {
-                   double SvecP[ecmech::nsvec+1];
-                   vecdsToSvecP(SvecP, T_vecds);
-                   _slipGeom.getPQ(&taua[SlipGeom::nslip], P, Q, SvecP);
-                   slipP = P;
-                   slipQ = Q;
-               } else {
-                   slipP = _slipGeom.getP();
-                   slipQ = _slipGeom.getQ();
-               }
-               
-               if (SlipGeom::nslip > 0) {
-                  // resolve stress onto slip systems
-                  // CALL resolve_tau_a_n(crys%tmp4_slp, s_meas%T_vecds, crys)
-                  //vecsVaTM<ntvec, SlipGeom::nslip>(taua, T_vecds, slipP);
-                  _slipGeom.evalRSS(taua, T_vecds, slipP);
-                  //
-                  // CALL plaw_eval(pl_vecd, pl_wvec, gss, crys, tK, ierr)
-                  // chi values are passed within extended taua array
-                  _kinetics.evalGdots(_gdot, dgdot_dtau, dgdot_dg, taua, _kin_vals);
-                  
-                  //
-                  // CALL sum_slip_def(pl_vecd, pl_wvec, crys%tmp1_slp, crys) ;
-                  vecsVMa<ntvec, SlipGeom::nslip>(pl_vecd, slipP, _gdot);
-                  vecsVMa<nwvec, SlipGeom::nslip>(pl_wvec, slipQ, _gdot);
-               }
-               //
-               //// shrate_l%gdot => crys%tmp1_slp
 
-               // from e edot product term in spin (formerly neglected)
-               //
+               get_slip_rate_terms(dgdot_dtau, pl_vecd, pl_wvec, T_vecds, _kin_vals, _slipGeom, _kinetics);
+
+               // Higher-order terms related to the elasticity stuff that's used in the residuals and jacobian calculation
                double A_e_M35[ecmech::nwvec * ecmech::ntvec];
-               M35_d_AAoB_dA(A_e_M35, e_vecd_f);
-               //
                double ee_wvec[ecmech::nwvec];
-               vecsVMa<nwvec, ntvec>(ee_wvec, A_e_M35, edot_vecd);
-               //
-               double ee_fac = onehalf * _a_V_ri * _a_V_ri;
+               double ee_fac;
+               elasticity_higher_order_terms(A_e_M35, ee_wvec, ee_fac, _a_V_ri, e_vecd_f, edot_vecd);
 
-               // RESIDUAL B_S
-               //
-               for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
-                  resid[_i_sub_e + iTvec] = _epsdot_scale_inv * ( // SCALING
-                     _a_V_ri * edot_vecd[iTvec] + pl_vecd[iTvec] - d_vecd_lat[iTvec]);
-               }
+               // Residual Calculations
+               _lattice_strain_prob.get_elas_strain_residual(resid, _epsdot_scale_inv, edot_vecd, pl_vecd, d_vecd_lat);
+               _lattice_rot_prob.get_omega_residual(resid, _rotincr_scale_inv, ee_fac, xi_f, w_vec_lat, pl_wvec, ee_wvec);
 
-               // RESIDUAL B_xi
-               //
-               for (int iWvec = 0; iWvec < ecmech::nwvec; ++iWvec) {
-                  resid[_i_sub_r + iWvec] = _rotincr_scale_inv * // SCALING
-                                            (xi_f[iWvec] - _dt * (w_vec_lat[iWvec] - pl_wvec[iWvec] + ee_fac * ee_wvec[iWvec]) );
-               }
 
-               _dp_dis_rate_contrib = zero;
-               if (SlipGeom::nslip > 0) {
-                  // CALL calc_pl_dis(dp_dis_rate_contrib, crys%tmp4_slp, crys%tmp1_slp, detV%ri)
-                  _dp_dis_rate_contrib = _detV_ri * vecsyadotb<SlipGeom::nslip>(taua, _gdot);
-               }
-
-               //// need shrate%eff instead
-               //// CALL calc_pl_eff(dp_def_rate_contrib, pl_vecd, detV%ri)
-               // CALL setup_ss_shrate_vals(shrate_l, crys%tmp1_slp, zero, .TRUE.)
-#if defined(ECMECH_USE_DPEFF)
-               _shrate_eff_contrib = vecd_Deff(pl_vecd);
-#else
-               _shrate_eff_contrib = vecsssumabs<SlipGeom::nslip>(_gdot);
-#endif
                //////////////////////////////////////////////////////////////////////
                // JACOBIAN, fixed hardness and temperature
                //
@@ -700,43 +801,12 @@ namespace ecmech {
                   // can always swap this out later if it ends up being too heavyweight ;
                   // RAJA defaults to "row-major" -- final dimension indexing the fastest
                   //
-                  const int JDIM = 2;
-                  //
                   // preliminaries
                   //
                   double dpl_deps_symm[ ecmech::ntvec * ecmech::ntvec ] = { 0.0 };
                   double dpl_deps_skew[ ecmech::nwvec * ecmech::ntvec ] = { 0.0 };
-                  if (SlipGeom::nslip > 0) {
-                     // CALL elawn_T_dif(s_meas, e_vecd_f, crys%elas, tK, a_V, &
-                     // & p_EOS, eVref, crys%i_eos_model, crys%eos_const, &
-                     // & dpEOS_dtK, .FALSE., .FALSE., .FALSE.)
-                     // CALL eval_dtaua_deps_n(dtaua_deps, s_meas%dT_deps, crys)
-                     //
-                     double dtaua_deps[ ecmech::ntvec * SlipGeom::nslip ];
-                     _thermoElastN.multDTDepsT(dtaua_deps, slipP, _a_V_ri, SlipGeom::nslip);
+                  get_slip_rate_deriv_terms(dpl_deps_symm, dpl_deps_skew, dgdot_dtau, _a_V_ri, _slipGeom, _thermoElastN);
 
-                     // CALL plaw_eval_dif_sn(TVEC, &
-                     // & dpl_deps_symm, dpl_deps_skew, dgdot_deps, &
-                     // & dtaua_deps, gss, crys, s_meas, .FALSE.)
-                     double dgdot_deps[ ecmech::ntvec * SlipGeom::nslip ];
-                     for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
-                        for (int iSlip = 0; iSlip < SlipGeom::nslip; ++iSlip) {
-                           int ijThis = ECMECH_NM_INDX(iTvec, iSlip, ecmech::ntvec, SlipGeom::nslip);
-                           dgdot_deps[ijThis] = dgdot_dtau[iSlip] * dtaua_deps[ijThis];
-                        }
-                     }
-
-                     // DO islip = 1, crys%nslip
-                     // DO i_TVEC = 1, TVEC
-                     // dpl_deps_symm(:,i_TVEC) +=
-                     // & crys%P_ref_vec(:,islip) * dgdot_deps(i_TVEC,islip)
-                     // dpl_deps_skew(:,i_TVEC) +=
-                     // & crys%Q_ref_vec(:,islip) * dgdot_deps(i_TVEC,islip)
-                     // END DO
-                     // END DO
-                     vecsMABT<ntvec, SlipGeom::nslip>(dpl_deps_symm, slipP, dgdot_deps);
-                     vecsMABT<nwvec, ntvec, SlipGeom::nslip>(dpl_deps_skew, slipQ, dgdot_deps);
-                  }
                   //
                   //
                   // derivatives with respect to lattice orientation changes
@@ -749,192 +819,27 @@ namespace ecmech {
 
                   // d(B_S)/d(e_vecd_f)
                   //
-                  {
-                     RAJA::View<double, RAJA::Layout<JDIM> > jacob_ee(Jacobian, nDimSys, nDimSys);
-
-                     // dislocation plasticity;
-                     // first contribution; overwrite
-                     for (int jTvec = 0; jTvec < ecmech::ntvec; ++jTvec) {
-                        for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
-                           jacob_ee(iTvec, jTvec) = dpl_deps_symm[ECMECH_NN_INDX(iTvec, jTvec, ecmech::ntvec)];
-                        }
-                     }
-
-                     // elastic rate
-                     //
-                     {
-                        double adti = _a_V_ri * _dt_ri;
-                        for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
-                           jacob_ee(iTvec, iTvec) += adti;
-                        }
-                     }
-                  }
-
+                  _lattice_strain_prob.template get_deriv_elast_strain_wrt_elast_strain<nDimSys>(Jacobian, dpl_deps_symm);
                   // d(B_S)/d(xi_f)
                   //
                   // jacob_er = -dDsm_dxi(:,:)
-                  {
-                     RAJA::View<double, RAJA::Layout<JDIM> > jacob_er(Jacobian, nDimSys, nDimSys);
-                     for (int jWvec = 0; jWvec<ecmech::nwvec; ++jWvec) {
-                        for (int iTvec = 0; iTvec<ecmech::ntvec; ++iTvec) {
-                           // could also make dDsm_dxi into a RAJA view, but not really needed
-                           jacob_er(iTvec,
-                                    jWvec + _i_sub_r) = -dDsm_dxi[ ECMECH_NM_INDX(iTvec, jWvec, ecmech::ntvec, ecmech::nwvec) ];
-                        }
-                     }
-                  }
-
+                  _lattice_rot_prob.template get_deriv_elast_strain_wrt_omega<nDimSys>(Jacobian, dDsm_dxi);
                   // d(B_xi)/d(e_vecds_f)
                   //
-                  {
-                     RAJA::View<double, RAJA::Layout<JDIM> > jacob_re(Jacobian, nDimSys, nDimSys);
-
-                     double A_edot_M35[ecmech::nwvec * ecmech::ntvec];
-                     M35_d_AAoB_dA(A_edot_M35, edot_vecd);
-
-                     double dt_ee_fac = _dt * ee_fac;
-
-                     for (int iWvec = 0; iWvec < ecmech::nwvec; ++iWvec) {
-                        for (int jTvec = 0; jTvec < ecmech::ntvec; ++jTvec) {
-                           int ijWT = ECMECH_NM_INDX(iWvec, jTvec, ecmech::nwvec, ecmech::ntvec);
-                           jacob_re(iWvec + _i_sub_r, jTvec) =
-                              _dt * dpl_deps_skew[ijWT] - dt_ee_fac * (A_e_M35[ijWT] * _dt_ri - A_edot_M35[ijWT]);
-                        }
-                     }
-                  }
-
+                  _lattice_strain_prob.template get_deriv_omega_wrt_elast_strain<nDimSys, _i_sub_r>(Jacobian, edot_vecd, ee_fac, dpl_deps_skew, A_e_M35); 
                   // d(B_xi)/d(xi_f)
                   //
-                  {
-                     RAJA::View<double, RAJA::Layout<JDIM> > jacob_rr(Jacobian, nDimSys, nDimSys);
+                  _lattice_rot_prob.template get_deriv_omega_wrt_omega<nDimSys>(Jacobian, dWsm_dxi);
 
-                     for (int iWvec = 0; iWvec < ecmech::nwvec; ++iWvec) {
-                        for (int jWvec = 0; jWvec < ecmech::nwvec; ++jWvec) {
-                           int ijWW = ECMECH_NN_INDX(iWvec, jWvec, ecmech::nwvec);
-                           jacob_rr(iWvec + _i_sub_r, jWvec + _i_sub_r) = -_dt * dWsm_dxi[ijWW];
-                        }
-
-                        jacob_rr(iWvec + _i_sub_r, iWvec + _i_sub_r) += one;
-                     }
+                  if (_mtan_sI) {
+                     double cauchy_stress_lattice[ ecmech::nsvec ];
+                     _thermoElastN.getCauchy(cauchy_stress_lattice, T_vecds, _detV_ri);
+                     get_material_tangent_stiffness<ThermoElastN, nDimSys, _i_sub_r>(_mtan_sI, Jacobian,
+                                                                                     dC_quat_dxi_T, qr5x5_ls,
+                                                                                     C_quat, C_matx,
+                                                                                     cauchy_stress_lattice, _detV_ri,
+                                                                                     _a_V_ri, _thermoElastN);
                   }
-
-                  if (_mtan_sI) { // l_eval_derivs
-                     //
-                     // material tangent, do before scaling of Jacobian
-                     // eval_mtan()
-
-                     // must solve a set of systems to get needed partial derivatives
-
-                     // eval_mtan_pfrac_r(de_dI, dxi_dI)
-                     // compared to Fortran coding, dI has reduced back down to being only the deviatoric part of the deformation rate ; UB_I = ntvec
-                     const int nRHS = ecmech::ntvec;
-                     double pfrac_rhs_T[ nRHS * nDimSys ] = { 0.0 }; // transpose for use in SNLS_LUP_SolveX !
-                     // derivatives end up in pfrac_rhs_T
-                     // de_dI  is pfrac_rhs_T[ :, _i_sub_e:i_sup_e ] // ecmech::ntvec * ecmech::ntvec
-                     // dxi_dI is pfrac_rhs_T[ :, _i_sub_r:i_sup_r ] // ecmech::nwvec * ecmech::ntvec
-                     {
-                        // RHS
-                        //
-                        {
-                           // negatives cancel
-                           // pfrac_rhs(i_sub_e:i_sup_e,I_subD:I_supD) = TRANSPOSE(qr5x5_ls)
-                           for (int jE = 0; jE<nRHS; ++jE) {
-                              for (int iE = 0; iE<ntvec; ++iE) { // ntvec, _not_ nDimSys // iE is same as index into nDimSys, give how d(resid)/d(_d_vecd_sm) works out
-                                 // pfrac_rhs[ECMECH_NM_INDX(iE,jE,nDimSys,nRHS)] = qr5x5_ls[ECMECH_NN_INDX(jE,iE,ntvec)] ;
-                                 pfrac_rhs_T [ECMECH_NM_INDX(jE, iE, nRHS, nDimSys)] = qr5x5_ls[ECMECH_NN_INDX(jE, iE, ntvec)];
-                              }
-                           }
-                        }
-
-                        // SYSTEM
-                        //
-                        double pfrac_sys[ _nXnDim ];
-
-                        for (int i_jac = 0; i_jac < _nXnDim; i_jac++) {
-                           pfrac_sys[i_jac] = Jacobian[i_jac];
-                        }
-
-                        int err = SNLS_LUP_SolveX<nDimSys>(pfrac_sys, pfrac_rhs_T, nRHS);
-                        if (err != 0) {
-                           ECMECH_FAIL(__func__, "error from SNLS_LUP_SolveX");
-                        }
-                     } // eval_mtan_pfrac_r
-
-                     // in Fortran code dCn_quat_dI was used to store dC_quat_dI, but here just call it dC_quat_dI
-                     double dC_quat_dI[ ecmech::qdim * nRHS ];
-                     for (int ii_I = 0; ii_I<nRHS; ++ii_I) {
-                        for (int ii_Q = 0; ii_Q<ecmech::qdim; ++ii_Q) {
-                           int iiQI = ECMECH_NM_INDX(ii_Q, ii_I, ecmech::qdim, nRHS);
-                           dC_quat_dI[iiQI] = 0.0;
-                           for (int ii_W = 0; ii_W<ecmech::nwvec; ++ii_W) {
-                              // dC_quat_dI[iiQI] += dC_quat_dxi_T(ii_W,ii_Q) * dxi_dI(ii_W,ii_I)
-                              dC_quat_dI[iiQI] +=
-                                 dC_quat_dxi_T[ECMECH_NM_INDX(ii_W, ii_Q, ecmech::nwvec, ecmech::qdim)] *
-                                 pfrac_rhs_T[ECMECH_NM_INDX(ii_I, _i_sub_r + ii_W, nRHS, nDimSys)];
-                           }
-                        }
-                     }
-
-
-                     // contribution through e
-                     //
-                     // double temp_M6I[ ecmech::nsvec*nRHS ] ; // (SVEC,UB_I)
-                     double temp_M6[ ecmech::nsvec2 ]; // (SVEC,UB_I)
-                     // dsigClat_def(:,:) = detVi * s_meas%dT_deps(:,:)
-                     // temp_M6I = MATMUL(dsigClat_def(:,1:TVEC), de_dI(:,:))
-                     {
-                        // TODO : get rid of the need for this memory copy (with transpose) into de_dI
-                        double de_dI[ ecmech::ntvec * nRHS ]; // nRHS=ecmech::ntvec, but put nRHS in here for clarity, and thus use ECMECH_NM_INDX instead of ECMECH_NN_INDX
-                        for (int iTvec = 0; iTvec<ecmech::ntvec; ++iTvec) {
-                           for (int jTvec = 0; jTvec<nRHS; ++jTvec) {
-                              de_dI[ECMECH_NM_INDX(iTvec, jTvec, ecmech::ntvec,
-                                                   nRHS)] = pfrac_rhs_T[ECMECH_NM_INDX(jTvec, iTvec, nRHS, nDimSys)];
-                           }
-                        }
-
-                        _thermoElastN.multCauchyDif(temp_M6, de_dI, _detV_ri, _a_V_ri);
-                     }
-                     //
-                     // CALL qr6x6_pre_mul(mtan_sI, temp_M6I, qr5x5_ls, UB_I, .FALSE.)
-                     // UB_I=nRHS ; but here do nsvec instead of nRHS so that there is less monkeying with memory later
-                     qr6x6_pre_mul<nsvec, false>(_mtan_sI, temp_M6, qr5x5_ls);
-
-                     //
-                     // dxi_dI has already been folded into dC_quat_dI;
-                     // the use of the following here would be incomplete:
-                     //
-                     // ! get dsigClat_dxi
-                     // CALL eval_d_dxi_Slat(dsigClat_dxi, sigC_vecds_lat, dC_matx_dxi, C_matx)
-                     // mtan_sI(1:TVEC,:) = mtan_sI(1:TVEC,:) + &
-                     // & MATMUL(dsigClat_dxi(1:TVEC,:), dxi_dI(:,:))
-                     //
-                     // contribution: dSlat_dCmatx(i,p,q) . dCmatx_dCquat(p,q,r) . dCquat_dI(r,j)
-                     //
-                     double dsigClat_dCquat[ ecmech::ntvec * ecmech::qdim ];
-                     {
-                        double dCmatx_dCquat[ ecmech::ndim * ecmech::ndim * ecmech::qdim ];
-                        d_quat_to_tensor(dCmatx_dCquat, C_quat);
-
-                        double sigC_vecds_lat[ ecmech::nsvec ];
-                        _thermoElastN.getCauchy(sigC_vecds_lat, T_vecds, _detV_ri);
-
-                        double dsigClat_dCmatx[ ecmech::ntvec * ecmech::ndim * ecmech::ndim ];
-                        d_rot_mat_vecd_smop(dsigClat_dCmatx, C_matx, sigC_vecds_lat);
-                        //
-                        vecsMAB<ntvec, qdim, ndim*ndim>(dsigClat_dCquat, dsigClat_dCmatx, dCmatx_dCquat);
-                     }
-                     //
-                     double dsigClat_dI[ ecmech::ntvec * nRHS ];
-                     vecsMAB<ntvec, nRHS, qdim>(dsigClat_dI, dsigClat_dCquat, dC_quat_dI);
-                     //
-                     for (int ii_T = 0; ii_T < ecmech::ntvec; ++ii_T) {
-                        for (int ii_I = 0; ii_I<nRHS; ++ii_I) {
-                           // NOTE : only looping over ntvec, but mtan_sI is nsvec in the first dimension
-                           _mtan_sI[ECMECH_NN_INDX(ii_T, ii_I,
-                                                   ecmech::nsvec)] += dsigClat_dI[ECMECH_NM_INDX(ii_T, ii_I, ecmech::ntvec, nRHS)];
-                        }
-                     }
-                  } // l_eval_derivs
 
                   // SCALING
                   {
@@ -971,8 +876,7 @@ namespace ecmech {
                         }
                      }
                   } // SCALING
-               } // doComputeJ
-
+               }
                return true;
             } // computeRJ
 
@@ -980,11 +884,27 @@ namespace ecmech {
             inline
             const double* getGdot() const { return _gdot; };
 
+            __ecmech_hdev__
+            inline
+            void get_slip_contribution(double& pl_disipation_rate,
+                                       double& effective_shear_rate,
+                                       double* const gdot,
+                                       const double* const elas_strain
+                                      )
+            {
+               get_slip_contributions(pl_disipation_rate, effective_shear_rate, gdot,
+                                      _detV_ri, elas_strain, _kin_vals,
+                                      _slipGeom, _kinetics, _lattice_strain_prob);
+            }
+                              
+
          private:
 
             const SlipGeom &_slipGeom;
             const Kinetics &_kinetics;
             const ThermoElastN &_thermoElastN;
+            const EvptnLatticeStrainProblem<ThermoElastN> _lattice_strain_prob;
+            const EvptnLatticeRotationProblem<ecmech::ntvec> _lattice_rot_prob;
 
             double _dt, _detV, _eVref, _p_EOS, _tK, _a_V;
             double _dt_ri, _a_V_ri, _detV_ri;
@@ -1002,11 +922,9 @@ namespace ecmech {
             const double* const _d_vecd_sm; // d_vecds_sm would be fine too -- but do not use _d_vecd_sm[iSvecS];
             const double* const _w_veccp_sm;
 
-            static const int _nXnDim = nDimSys * nDimSys;
-            static const int _i_sub_e = 0; // ntvec
-            static const int _i_sub_r = ecmech::ntvec; // nwvec
-
-            double _dp_dis_rate_contrib, _shrate_eff_contrib;
+            static constexpr size_t _nXnDim = nDimSys * nDimSys;
+            static constexpr size_t _i_sub_e = 0; // ntvec
+            static constexpr size_t _i_sub_r = ecmech::ntvec; // nwvec
 
             // for mtan (material tangent stiffnes)
             double* _mtan_sI; // null if not wanting tangent evaluation
@@ -1120,13 +1038,14 @@ namespace ecmech {
          double* quat_u = &(hist[iHistLbQ]);
          double vNew = volRatio[1];
          {
-            EvptnUpdstProblem<SlipGeom, Kinetics, ThermoElastN> prob(slipGeom, kinetics, elastN,
-                                                                     dt,
-                                                                     vNew, eNew, pEOS, tkelv,
-                                                                     h_state_u, e_vecd_n, quat_n,
-                                                                     d_vecd_sm, w_veccp_sm);
 
-            snls::SNLSTrDlDenseG<EvptnUpdstProblem<SlipGeom, Kinetics, ThermoElastN> > solver(prob);
+            EvptnUpdstProblem prob(slipGeom, kinetics, elastN,
+                                   dt,
+                                   vNew, eNew, pEOS, tkelv,
+                                   h_state_u, e_vecd_n, quat_n,
+                                   d_vecd_sm, w_veccp_sm);
+
+            snls::SNLSTrDlDenseG<decltype(prob)> solver(prob);
 
             snls::TrDeltaControl deltaControl;
             deltaControl._deltaInit = 1e0;
@@ -1210,22 +1129,28 @@ namespace ecmech {
                h_state[i_hstate] = h_state_u[i_hstate];
             }
 
+            double pl_disipation_rate = 0.0;
+            double effective_shear_rate = 0.0;
+
+            prob.get_slip_contribution(pl_disipation_rate, effective_shear_rate,
+                                        gdot, e_vecd_u);
+
             //
-            {
-               const double* gdot_u = prob.getGdot();
-               for (int i_gdot = 0; i_gdot < SlipGeom::nslip; i_gdot++) {
-                  gdot[i_gdot] = gdot_u[i_gdot];
-               }
-            }
+            // {
+            //    const double* gdot_u = prob.getGdot();
+            //    for (int i_gdot = 0; i_gdot < SlipGeom::nslip; i_gdot++) {
+            //       gdot[i_gdot] = gdot_u[i_gdot];
+            //    }
+            // }
             //
-            hist[iHistA_shrateEff] = prob.getShrateEff();
+            hist[iHistA_shrateEff] = effective_shear_rate;
             hist[iHistA_shrEff] += hist[iHistA_shrateEff] * dt;
             //
             {
                double dEff = vecd_Deff(d_vecd_sm);
                double flow_strength = prob.getHdnScale();
                if (dEff > idp_tiny_sqrt) {
-                  flow_strength = prob.getDisRate() / dEff;
+                  flow_strength = pl_disipation_rate / dEff;
                }
                hist[iHistA_flowStr] = flow_strength;
             }

@@ -1,7 +1,6 @@
 #include <gtest/gtest.h>
 
 #include "SNLS_TrDLDenseG.h"
-
 #include "ECMech_util.h"
 
 #include "cases/ECMech_cases_fcc_defs.h"
@@ -117,11 +116,24 @@ TEST(ecmech, evptn_a)
    std::cout << "Last 'rho' in solver: " << solver.getRhoLast() << std::endl;
 #ifdef ECMECH_DEBUG
    std::cout << "Slip system shearing rates : ";
-   printVec<slipGeom.nslip>(prob.getGdot(), std::cout);
+   {
+      double gdot[slipGeom.nslip] = {};
+      double junk = 0.0;
+      double junk_vec[ecmech::qdim] = {};
+      double elas_strain[ecmech::ntvec] = {};
+      prob.stateFromX(elas_strain, junk_vec, solver._x);
+      prob.get_slip_contribution(junk, junk, gdot, elas_strain);
+      printVec<slipGeom.nslip>(gdot, std::cout);
+   }
 #endif
    EXPECT_TRUE(solver.getNFEvals() == expectedNFEvals) << "Not the expected number of function evaluations";
    {
-      const double* gdot = prob.getGdot();
+      double gdot[slipGeom.nslip] = {};
+      double junk = 0.0;
+      double junk_vec[ecmech::qdim] = {};
+      double elas_strain[ecmech::ntvec] = {};
+      prob.stateFromX(elas_strain, junk_vec, solver._x);
+      prob.get_slip_contribution(junk, junk, gdot, elas_strain);
       EXPECT_LT(fabs(gdot[iGdotExpected] - expectedGdotVal), 1e-8) <<
          "Did not get expected value for gdot[iGdotExpected]";
    }

@@ -1326,7 +1326,7 @@ namespace ecmech {
 
    template<int n>
    inline void
-   printVec(const double* const y, std::ostream & oss) {
+   printVec(const double* const y, std::ostream & oss = std::cout) {
       for (int iX = 0; iX<n; ++iX) {
          oss << std::setw(21) << std::setprecision(14) << y[iX] << " ";
       }
@@ -1345,14 +1345,27 @@ namespace ecmech {
    
    template<int n>
    inline void
-   printMat(const double* const A, std::ostream & oss) {
+   printMat(const double* const A, std::ostream & oss = std::cout) {
       for (int iX = 0; iX<n; ++iX) {
          for (int jX = 0; jX<n; ++jX) {
             oss << std::setw(21) << std::setprecision(14) << A[ECMECH_NN_INDX(iX, jX, n)] << " ";
          }
+         oss << std::endl;
+      }
+      oss << std::endl;
+   }
+
+   template<int n, int m>
+   inline void
+   printMat(const double* const A, std::ostream & oss = std::cout) {
+      for (int iX = 0; iX<n; ++iX) {
+         for (int jX = 0; jX<m; ++jX) {
+            oss << std::setw(21) << std::setprecision(14) << A[ECMECH_NM_INDX(iX, jX, n, m)] << " ";
+         }
 
          oss << std::endl;
       }
+      oss << std::endl;
    }
 
 #endif
