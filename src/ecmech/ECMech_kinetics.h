@@ -41,7 +41,6 @@
  *  void
  *  evalGdots( double* const gdot,
  *             double* const dgdot_dtau,
- *             double* const dgdot_dg,
  *             const double* const tau,
  *             const double* const vals
  *             ) const ;
