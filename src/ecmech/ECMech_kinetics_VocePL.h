@@ -184,23 +184,17 @@ namespace ecmech {
          void
          evalGdots(double* const gdot,
                    double* const dgdot_dtau,
-                   double* const dgdot_dh,
                    const double* const tau,
-                   const double* const vals,
-                   const bool dgdot_dh_conv = false,
-                   const double* const val_derivs = nullptr
+                   const double* const vals
                    ) const
          {
             double gAll = vals[0]; // gss%h(islip) // _gAll
             for (int iSlip = 0; iSlip<this->_nslip; ++iSlip) {
                bool l_act;
-               double junk;
-               this->evalGdot(gdot[iSlip], l_act, dgdot_dtau[iSlip], junk,
+               this->evalGdot(gdot[iSlip], l_act, dgdot_dtau[iSlip],
                               gAll,
                               tau[iSlip],
-                              _mu, // gss%ctrl%mu(islip)
-                              dgdot_dh_conv,
-                              val_derivs
+                              _mu // gss%ctrl%mu(islip)
                               );
             }
          }
@@ -215,7 +209,6 @@ namespace ecmech {
             double & gdot,
             bool  & l_act,
             double & dgdot_dtau, // wrt resolved shear stress
-            double & dgdot_dh,   // wrt hardening variables aka dgdot_dg dg/dh
 #if MORE_DERIVS
             double & dgdot_dmu,   // wrt shear modulus, not through g
             double & dgdot_dgamo, // wrt reference rate for thermal part
@@ -229,9 +222,6 @@ namespace ecmech {
             ,
             double   tK
 #endif
-            ,
-            const bool /*dgdot_dh_conv = false*/, // dgdot_dh and dgdot_dg are the same so need to change things here
-            const double* const /*val_derivs = nullptr*/
             ) const
          {
             // zero things so that can more easily just return in inactive
@@ -239,7 +229,6 @@ namespace ecmech {
             gdot = zero;
             //
             dgdot_dtau = zero;
-            dgdot_dh = zero;
 #if MORE_DERIVS
             dgdot_dmu = zero;
             dgdot_dgamo = zero;
@@ -273,8 +262,6 @@ namespace ecmech {
                   dgdot_dtau = _xnn * gdot / tau;
                   // dgdot_dtau = temp * _xnn * g_i; // note: always positive, = xnn * gdot/t
                   // dgdot_dh and dgdot_dg are the same thing for the voce model
-                  dgdot_dh = -_xnn * gdot * g_i;
-                  // dgdot_dh = -dgdot_dtau * t_frac; // = - gdot * xnn * g_i
 #if MORE_DERIVS
                   // dgdot_dmu   =  zero ; // already done
                   dgdot_dgamo = gdot / _gam_w;
@@ -317,43 +304,6 @@ namespace ecmech {
          __ecmech_hdev__
          inline
          void
-         setH0Ext(double *const /*h0*/) const
-         {
-            return;
-         }
-
-         __ecmech_hdev__
-         inline
-         void
-         getHUpdate(const double *const h0,
-                    const double *const del_h,
-                    const double *const del_h_scale,
-                    double *const       h,
-                    const bool /*updateFinal*/) const
-         {
-            h[0] = h0[0] + del_h[0] * del_h_scale[0];
-         }
-
-         __ecmech_hdev__
-         inline
-         void
-         getExtDerivs(double* const hdot,
-                      double* const dhdot_dh,
-                      double* const dhdot_dgdot,
-                      double* const /*dgdot_dh*/,
-                      const double* const hard,
-                      const double* const gdot,
-                      const double* const /*hvals*/,
-                      double tK) const
-         {
-            double evolVals[nEvolVals];
-            getEvolVals(evolVals, gdot);
-            getSdot1(hdot[0], dhdot_dh[0], hard[0], evolVals, tK, dhdot_dgdot);
-         }
-
-         __ecmech_hdev__
-         inline
-         void
          getEvolVals(double* const evolVals,
                      const double* const gdot
                      ) const
@@ -376,16 +326,13 @@ namespace ecmech {
                   double &dsdot_ds,
                   double h,
                   const double* const evolVals,
-                  double /*tK*/,
-                  double* const dsdot_dgdot = nullptr // optional parameter
+                  double /*tK*/
                   ) const
          {
             double shrate_eff = evolVals[0];
             double sv_sat = evolVals[1];
             // When the below ternary op is true then sdot and dsdot_ds remain zero.
             double temp2 = (sv_sat <= _tausi) ? zero : one / (sv_sat - _tausi);
-            const bool extra_derivs = (dsdot_dgdot != nullptr) ? true : false;
-
             // IF (PRESENT(dfdtK)) THEN
             // dfdtK(1) = zero
             // END IF
@@ -400,37 +347,6 @@ namespace ecmech {
                sdot = temp1 * shrate_eff;
                // double dfdshr = temp1 + _h0 * ( (h - _tausi) / (temp2*temp2)) * _xms * sv_sat ;
                dsdot_ds = -_h0 * temp2 * shrate_eff;
-            }
-
-            if (extra_derivs)
-            {
-               //   This form is only good for the isotropic voce hardening model.
-               //
-               //   _h0 * ((sv_sat - h) / (sv_sat - _tausi))^n
-               //   - _ho * _xmprime * ((sv_sat - g) / (sv_sat - _tausi))^_xmprime1
-               //   * (_taus0 * _xms * (shrate_eff / _gamss0)^(_xms - 1))
-               //   / (_gamss0 * (sv_sat - h))
-               //   * ( ((sv_sat - h) / (sv_sat - _tausi)) - 1)
-               //   * shrate_eff
-               // We could probably try some dependency on whether this is nonlinear voce or linear
-               // but it's probably not worth making the code even more complicated.
-               const double term0 = (sv_sat - h) * temp2;
-               const double term1a = _h0 * pow(term0, _xmprime1);
-               const double term1 = term1a * term0;
-               double term2 = 0;
-               // If this value is small then the rest of the deriv is essentially zero.
-               if (shrate_eff > ecmech::idp_tiny_sqrt) {
-                  term2 = _xmprime * term1a;
-                  const double i_gamss0 = 1.0 / _gamss0;
-                  const double sv_sat1 = _taus0 * _xms * pow((shrate_eff * i_gamss0), _xms - 1);
-                  const double term3 = sv_sat1 * i_gamss0 * temp2;
-                  const double term4 = term0 - 1.0;
-                  term2 *= term3 * term4 * shrate_eff;
-               }
-               const double cdsdot_dgdot = term1 - term2;
-               for (int iSlip = 0; iSlip < _nslip; iSlip++) {
-                  dsdot_dgdot[iSlip] = cdsdot_dgdot;
-               }
             }
          }
    }; // class KineticsVocePL
