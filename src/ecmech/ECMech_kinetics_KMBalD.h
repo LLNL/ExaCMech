@@ -293,22 +293,16 @@ namespace ecmech {
          void
          evalGdots(double* const gdot,
                    double* const dgdot_dtau,
-                   double* const dgdot_dh,
                    const double* const tau,
-                   const double* const vals,
-                   const bool dgdot_dh_conv = false,
-                   const double* const val_derivs = nullptr
+                   const double* const vals
                    ) const
          {
             for (int iSlip = 0; iSlip<this->_nslip; ++iSlip) {
                bool l_act;
-               double junk;
-               this->evalGdot(gdot[iSlip], l_act, dgdot_dtau[iSlip], junk,
+               this->evalGdot(gdot[iSlip], l_act, dgdot_dtau[iSlip],
                               vals, iSlip,
                               tau[iSlip],
-                              _mu_ref, // gss%ctrl%mu(islip)
-                              dgdot_dh_conv,
-                              val_derivs
+                              _mu_ref // gss%ctrl%mu(islip)
                               );
             }
          }
@@ -380,7 +374,6 @@ namespace ecmech {
             double & gdot,
             bool   & l_act,
             double & dgdot_dtau, // wrt resolved shear stress
-            double & dgdot_dh,   // wrt hardening variable
 #if MORE_DERIVS
             double & dgdot_dmu, // wrt shear modulus, not through g
             double & dgdot_dgamo, // wrt reference rate for thermal part
@@ -395,9 +388,6 @@ namespace ecmech {
             ,
             double   tK
 #endif
-            ,
-            const bool dgdot_dh_conv = false,
-            const double* const val_derivs = nullptr
             ) const
          {
             static const double gdot_w_pl_scaling = 10.0;
@@ -417,7 +407,6 @@ namespace ecmech {
             gdot = zero;
             //
             dgdot_dtau = zero;
-            dgdot_dh = zero;
 #if MORE_DERIVS
             dgdot_dmu = zero;
             dgdot_dgamo = zero;
@@ -481,18 +470,6 @@ namespace ecmech {
                gdot = gdot_r;
 
                dgdot_dtau = dgdot_r;
-               if (withGAthermal) {
-                  dgdot_dh = -copysign(dgdot_r, tau);
-               }
-               else {
-                  dgdot_dh = zero;
-               }
-               if (dgdot_dh_conv) {
-                  // _gam_ro * gdot_r / gam_r + dgdot_dh * dg_dh
-                  dgdot_dh *= val_derivs[1 + iSlip];
-                  // This other portion has same sign as tau
-                  dgdot_dh += copysign((_gam_ro * gdot_r / gam_r), tau);
-               }
 #if MORE_DERIVS
                dgdot_dmu = zero;
                dgdot_dgamo = zero;
@@ -588,27 +565,11 @@ namespace ecmech {
                dgdot_dtau = (gdot * gdot) * (dgdot_w * gdwdiv2 + dgdot_r * gdrdiv2);
                //
                double temp = gdot * copysign(gdot, tau) * gdwdiv2;
-               // neglect difference in at_0 versus t_frac for dgdot_dh evaluation
-               const double dgdot_w1 = dgdot_dh_conv ? (gdot_w / gam_w * val_derivs[0]) : ecmech::zero;
-               const double dgdot_w2 = dgdot_dh_conv ? (withGAthermal ? (dgdot_w * val_derivs[1 + iSlip]) : (dgdot_wg * val_derivs[1 + iSlip])) : ecmech::zero;
-               if (withGAthermal) {
-                  dgdot_dh = dgdot_dh_conv ? (-temp * (-dgdot_w1 + dgdot_w2)) : (-temp * dgdot_w);  // opposite sign as signed gdot for dg/dh portion
-               }
-               else {
-                  dgdot_dh = dgdot_dh_conv ? (-temp * (-dgdot_w1 + dgdot_w2)) : (-temp * dgdot_wg);  // opposite sign as signed gdot for dg/dh portion
-               }
 #if MORE_DERIVS
                dgdot_dgamo = temp * (gdot_w / gam_w);
                dgdot_dmu = temp * dgdotw_dmu;
                dgdot_dtK = temp * dgdotw_dtK;
 #endif
-               //
-               temp = gdot * copysign(gdot, tau) * gdrdiv2;
-               if (withGAthermal) {
-                  dgdot_r = dgdot_dh_conv ? (dgdot_r * val_derivs[1 + iSlip]) : dgdot_r;
-                  const double dgdot_r2 = dgdot_dh_conv ? (_gam_ro * gdot_r / gam_r) : ecmech::zero;
-                  dgdot_dh += (-temp * (dgdot_r - dgdot_r2)); // opposite sign as signed gdot for dg/dh portion
-               }
 #if MORE_DERIVS
                dgdot_dgamr = temp * (gdot_r / gam_r);
                dgdot_dtK = dgdot_dtK + temp * dgdotr_dtK;
@@ -645,59 +606,6 @@ namespace ecmech {
          __ecmech_hdev__
          inline
          void
-         setH0Ext(double *const h0) const
-         {
-            h0[0] = log(fmax(h0[0], _hdn_min));
-            return;
-         }
-
-         __ecmech_hdev__
-         inline
-         void
-         getHUpdate(const double *const h0,
-                    const double *const del_h,
-                    const double *const del_h_scale,
-                    double *const       h,
-                    const bool /*updateFinal*/) const
-         {
-            // We always return the non-log form of h even though
-            // we get the log form in as we need to make use of the
-            // regular form within the kinetics update and gdot eval
-            // calculations
-            const double factor = h0[0] + del_h[0] * del_h_scale[0];
-            h[0] = exp(factor);
-         }
-
-         __ecmech_hdev__
-         inline
-         void
-         getExtDerivs(double* const hdot,
-                      double* const dhdot_dh,
-                      double* const dhdot_dgdot,
-                      double* const dgdot_dh,
-                      double* const hard,
-                      const double* const gdot,
-                      const double* const /*hvals*/,
-                      double tK) const
-         {
-            double evolVals[nEvolVals];
-            getEvolVals(evolVals, gdot);
-
-            // We need to correct dgdot_dh as our h we're solving for here will be log_h;
-            // h = exp(log_h) dh / d(log_h) = exp(log_h) aka dh / d(log_h) = h
-            for (int i = 0; i < _nslip; i++) {
-               dgdot_dh[i] *= hard[0];
-            }
-
-            // Transform this back into the log form for the later residual calculation
-            hard[0] = log(hard[0]);
-            getSdot1(hdot[0], dhdot_dh[0], hard[0], evolVals, tK, dhdot_dgdot);
-
-         }
-
-         __ecmech_hdev__
-         inline
-         void
          getEvolVals(double* const evolVals,
                      const double* const gdot
                      ) const
@@ -721,14 +629,11 @@ namespace ecmech {
                   double &dsdot_ds,
                   double h,
                   const double* const evolVals,
-                  double /*tK*/,
-                  double* const dsdot_dgdot = nullptr // optional parameter
+                  double /*tK*/
                   ) const
          {
             double shrate_eff = evolVals[0];
             double k2 = evolVals[1];
-            const bool extra_derivs = (dsdot_dgdot != nullptr) ? true : false;
-
             // IF (PRESENT(dfdtK)) THEN
             // dfdtK(1) = zero
             // END IF
@@ -745,20 +650,6 @@ namespace ecmech {
             sdot = temp1 * shrate_eff;
             // dfdshr = temp1 + _ninv * k2 ;
             dsdot_ds = (-_k1 * onehalf * temp_hs_a) * shrate_eff;
-
-            if (extra_derivs)
-            {
-               // Since, we're dealing with a log formulation here for s/h
-               // we have slightly different dh/dgdot
-               // since it's really d dot(log(h)) / dgdot
-               // dsdot / dgdot =
-               // (k1 * 1/sqrt(exp(-0.5 * h)) - _k2o * pow((_gamma_o / shrate_eff), _ninv) )
-               // +  _k2o * _ninv * pow((_gamma_o / shrate_eff), _ninv)
-               const double cdsdot_dgdot = temp1 + k2 * _ninv;
-               for (int iSlip = 0; iSlip < _nslip; iSlip++) {
-                  dsdot_dgdot[iSlip] = cdsdot_dgdot;
-               }
-            }
             // }
          }
    }; // class KineticsKMBalD
