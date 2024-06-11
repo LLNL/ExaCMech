@@ -397,23 +397,16 @@ namespace ecmech {
          void
          evalGdots(double* const gdot,
                    double* const dgdot_dtau,
-                   double* const dgdot_dh,
                    const double* const tau,
-                   const double* const vals,
-                   const bool dgdot_dh_conv = false,
-                   const double* const val_drivs = nullptr
+                   const double* const vals
                    ) const
          {
-            const int offset = dgdot_dh_conv ? nH : 1;
-            double dgdot_dh_fake[12] = {};
             for (int iSlip = 0; iSlip<this->_nslip; ++iSlip) {
                bool l_act;
-               this->evalGdot(gdot[iSlip], l_act, dgdot_dtau[iSlip], dgdot_dh_fake,
+               this->evalGdot(gdot[iSlip], l_act, dgdot_dtau[iSlip],
                               vals, iSlip,
                               tau[iSlip],
-                              _mu_ref, // gss%ctrl%mu(islip)
-                              dgdot_dh_conv,
-                              val_drivs
+                              _mu_ref // gss%ctrl%mu(islip)
                               );
             }
          }
@@ -486,7 +479,6 @@ namespace ecmech {
             double & gdot,
             bool   & l_act,
             double & dgdot_dtau, // wrt resolved shear stress
-            double* const dgdot_dh, // wrt slip system strength
 #if MORE_DERIVS
             double & dgdot_dmu, // wrt shear modulus, not through g
             double & dgdot_dgamo, // wrt reference rate for thermal part
@@ -501,9 +493,6 @@ namespace ecmech {
             ,
             double   tK
 #endif
-            ,
-            const bool dgdot_dh_conv = false,
-            const double* const val_derivs = nullptr
             ) const
          {
             static const double gdot_w_pl_scaling = 10.0;
@@ -523,7 +512,6 @@ namespace ecmech {
             gdot = zero;
             //
             dgdot_dtau = zero;
-            dgdot_dh[0] = zero;
 #if MORE_DERIVS
             dgdot_dmu = zero;
             dgdot_dgamo = zero;
@@ -586,38 +574,6 @@ namespace ecmech {
                gdot = gdot_r;
 
                dgdot_dtau = dgdot_r_dtau;
-               if (withGAthermal) {
-                  if (dgdot_dh_conv) {
-                     for (int jSlip = 0; jSlip < SlipGeom::nslip; jSlip++) {
-                        dgdot_dh[jSlip] = zero;
-                     }
-                  } else {
-                     dgdot_dh[0] = zero;
-                  }
-               }
-               else {
-                  if (dgdot_dh_conv) {
-                     for (int jSlip = 0; jSlip < SlipGeom::nslip; jSlip++) {
-                        dgdot_dh[SlipGeom::nslip + jSlip] = -copysign(dgdot_dtau, tau);
-                     }
-                  } else {
-                     dgdot_dh[0] = -copysign(dgdot_dtau, tau);
-                  }
-               }
-               if (dgdot_dh_conv)
-               {
-                  // qM terms which are the second portion of things
-                  // _gam_ro * gdot_r / gam_r + dgdot_dh * dg_dh
-                  //
-                  const double cdg_dh = val_derivs[iSlip];
-                  for (int jSlip = 0; jSlip < SlipGeom::nslip; jSlip++)
-                  {
-                     const double aterm = isotropic ? _inter_mat[0] : _inter_mat[iSlip * _nslip + jSlip];
-                     dgdot_dh[SlipGeom::nslip + jSlip] *= cdg_dh *  aterm;
-                  }
-                  // This other portion has same sign as tau
-                  dgdot_dh[iSlip] += copysign((_gam_ro * gdot_r / gam_r), tau);
-               }
 #if MORE_DERIVS
                dgdot_dmu = zero;
                dgdot_dgamo = zero;
@@ -720,35 +676,6 @@ namespace ecmech {
                dgdot_dtau = (gdot * gdot) * (dgdot_w_dtau * gdwdiv2 + dgdot_r_dtau * gdrdiv2);
                //
                double temp = gdot * copysign(gdot, tau) * gdwdiv2;
-               // neglect difference in at_0 versus t_frac for dgdot_dg evaluation
-               if (withGAthermal) {
-                  if (dgdot_dh_conv) {
-                     const double cdg_dh = val_derivs[iSlip];
-                     for (int jSlip = 0; jSlip < SlipGeom::nslip; jSlip++)
-                     {
-                        const double aterm = isotropic ? _inter_mat[0] : _inter_mat[iSlip * _nslip + jSlip];
-                        dgdot_dh[SlipGeom::nslip + jSlip] = -temp * dgdot_w_dtau * cdg_dh *  aterm;
-                     }
-                     // This other portion has same sign as tau
-                     dgdot_dh[iSlip] = temp * _lbar_b * _fD * gdot_w / gam_w;
-                  } else {
-                     dgdot_dh[0] = -temp * dgdot_w_dtau; // opposite sign as signed gdot
-                  }
-               }
-               else {
-                  if (dgdot_dh_conv) {
-                     const double cdg_dh = val_derivs[iSlip];
-                     for (int jSlip = 0; jSlip < SlipGeom::nslip; jSlip++)
-                     {
-                        const double aterm = isotropic ? _inter_mat[0] : _inter_mat[iSlip * _nslip + jSlip];
-                        dgdot_dh[SlipGeom::nslip + jSlip] = -temp * dgdot_w_dtau * cdg_dh *  aterm;
-                     }
-                     // This other portion has same sign as tau
-                     dgdot_dh[iSlip] = temp * _lbar_b * _fD * gdot_w / gam_w;
-                  } else {
-                     dgdot_dh[0] = -temp * dgdot_w_dg; // opposite sign as signed gdot
-                  }
-               }
 #if MORE_DERIVS
                // The reference rate is a bit different for the orowonian
                // framework then the previous version
@@ -758,20 +685,6 @@ namespace ecmech {
 #endif
                //
                temp = gdot * copysign(gdot, tau) * gdrdiv2;
-               if (withGAthermal) {
-                  if (dgdot_dh_conv) {
-                     const double cdg_dh = val_derivs[iSlip];
-                     for (int jSlip = 0; jSlip < SlipGeom::nslip; jSlip++)
-                     {
-                        const double aterm = isotropic ? _inter_mat[0] : _inter_mat[iSlip * _nslip + jSlip];
-                        dgdot_dh[SlipGeom::nslip + jSlip] += -temp * dgdot_r_dtau * cdg_dh *  aterm;
-                     }
-                     // This other portion has same sign as tau
-                     dgdot_dh[iSlip] += temp * _gam_ro * gdot_r / gam_r;
-                  } else {
-                     dgdot_dh[0] += -temp * dgdot_r_dtau; // opposite sign as signed gdot
-                  }
-               }
 #if MORE_DERIVS
                // There reference value here is just the shear speed...
                dgdot_dgamr = temp * (gdot_r / gam_r);
@@ -885,76 +798,6 @@ namespace ecmech {
          __ecmech_hdev__
          inline
          void
-         setH0Ext(double *const h0) const
-         {
-            for (int i = 0; i < _nslip * 2; i++) {
-               h0[i] = fmax(h0[i], _hdn_min);
-            }
-            return;
-         }
-
-         __ecmech_hdev__
-         inline
-         void
-         getHUpdate(const double *const h0,
-                    const double *const del_h,
-                    const double *const del_h_scale,
-                    double *const       h,
-                    const bool updateFinal = false) const
-         {
-            for (int i = 0; i < nH; i++) {
-               h[i] = h0[i] + del_h[i] * del_h_scale[i];
-            }
-            // Check for negative DD values if this is final update
-            // We could check this every iteration but it would slow things
-            // down even more than just running this costly system of PDEs...
-            if (updateFinal) {
-               bool flag = false;
-               for (int i = 0; i < 2 * _nslip; i++) {
-                  if(h[i] < zero) {
-                     flag = true;
-                     break;
-                  }
-               }
-               if (flag)
-               {
-                  for (int iSlip = 0; iSlip < 2 * SlipGeom::nslip; iSlip++) {
-                     printf("dd[%d]: %lf ", iSlip, h[iSlip]);
-                  }
-                  printf("\n");
-                  ECMECH_FAIL(__func__, "Solver returned negative dislocation values!");
-               }
-            }
-         }
-
-         __ecmech_hdev__
-         inline
-         void
-         getExtDerivs(double* const hdot,
-                      double* const dhdot_dh,
-                      double* const dhdot_dgdot,
-                      double* const /*dgdot_dh*/,
-                      const double* const hard,
-                      const double* const gdot,
-                      const double* const hvals,
-                      double tK) const
-         {
-            double nu[SlipGeom::nslip];
-            double evolVals[nEvolVals];
-            for (int i = 0; i < _nslip * 2; i++) {
-               if (i < _nslip) {
-                  const double div = perSS ? fmax(hard[i], _hdn_min) * _berg_mag[i] :
-                                     fmax(hard[i], _hdn_min) * _berg_mag[0];
-                  nu[i] = abs(gdot[i]) / (div);
-               }
-            }
-            getEvolVals(evolVals, nu);
-            getSdotN(hdot, dhdot_dh, hard, evolVals, hvals, tK, dhdot_dgdot);
-         }
-
-         __ecmech_hdev__
-         inline
-         void
          getEvolVals(double* const evolVals,
                      const double* const nu
                      ) const
@@ -975,9 +818,7 @@ namespace ecmech {
                    const double* const h_i,
                    const double* const evolVals,
                    const double* const /*hvals*/,
-                   double /*tK*/,
-                   double* const dsdot_dgdot = nullptr // optional parameter
-                   ) const
+                   double /*tK*/                   ) const
          {
             // Hopefully, the compiler is pretty smart here and is able to optimize these
             // loops as if we're using the templated values. Since, this is essentially
@@ -985,8 +826,6 @@ namespace ecmech {
             const int nslip = SlipGeom::nslip;
             const int JDIM = 2;
             const int nDimSys = 2 * SlipGeom::nslip;
-
-            const bool extra_derivs = (dsdot_dgdot != nullptr) ? true : false;
 
             double forest_dis[nslip];
             constexpr int h_content = (LOGFORM) ? 2 * SlipGeom::nslip : 1;
@@ -1082,34 +921,6 @@ namespace ecmech {
                   }
                }
             } // if dsdot_ds
-
-            if (extra_derivs) {
-               for (int i = 0; i < SlipGeom::nslip * nDimSys; i++)
-               {
-                  dsdot_dgdot[i] = ecmech::zero;
-               }
-               // dsdot / dgdot aka dqdot / dgdot = (dsdot / dnu) (dnu / dgdot)
-               // dsdot / dnu is trivial to compute and results in a diagonal matrix for each qM and qT
-               // term
-               // dnu / dgdot is just 1 / (bergs_mag[iSlip] * qM[iSlip]) and once again is just a diagonal
-               // matrix
-               RAJA::View<double, RAJA::Layout<JDIM> > dsdot_dgdot_view(dsdot_dgdot, nDimSys, SlipGeom::nslip);
-               for (int i = 0; i < SlipGeom::nslip; i++) {
-                  const double div = perSS ? 1.0 / (fmax(h[i], _hdn_min) * _berg_mag[i]) :
-                                     1.0 / (fmax(h[i], _hdn_min) * _berg_mag[0]);
-                  const double sqrt_fd = sqrt(forest_dis[i]);
-                  const double q_dmult = _c_mult * sqrt_fd * h[i];
-                  const double q_dtrap = _c_trap * sqrt_fd * h[i];
-                  // This could become a very large number and could become problematic
-                  // later on. Do we want to cap it at some large value?
-                  // Although, it might be that this is only a problem if q and qM are defined
-                  // with units 1/m^2 rather than 1/mm^2 or 1/micron^2
-                  const double q_dann = _c_ann * _d_ann * h[i] * h[i];
-
-                  dsdot_dgdot_view(i, i) = div * (q_dmult - q_dtrap - q_dann);
-                  dsdot_dgdot_view(i + SlipGeom::nslip, i) = div * (q_dmult - q_dann);
-               }
-            }// end extra derivs
          }
    }; // class KineticsOrowanD
 } // namespace ecmech
