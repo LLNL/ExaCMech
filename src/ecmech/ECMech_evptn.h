@@ -13,7 +13,7 @@
 namespace ecmech {
    namespace evptn {
 
-      template<class SlipGeom, class Kinetics, class ThermoElastN>
+      template<class SlipGeom, class Kinetics, class ThermoElastN, class ProblemState>
       class EvptnUpdstProblem
       {
          public:
@@ -25,24 +25,18 @@ namespace ecmech {
             EvptnUpdstProblem(const SlipGeom& slipGeom,
                               const Kinetics& kinetics,
                               const ThermoElastN& thermoElastN,
-                              double dt,
-                              double detV, double eVref, double p_EOS, double tK,
-                              const double* const h_state,
-                              const double* const e_vecd_n,
-                              const double* const Cn_quat,
-                              const double* const d_vecd_sm, // okay to pass d_vecds_sm, but d_vecd_sm[iSvecS] is not used
-                              const double* const w_veccp_sm
+                              ProblemState& prob_state
                               )
                : _slipGeom(slipGeom),
                _kinetics(kinetics),
-               _lattice_strain_prob(thermoElastN, dt, detV, eVref, p_EOS, tK, e_vecd_n),
-               _lattice_rot_prob(dt, Cn_quat),
-               _eVref(eVref),
-               _p_EOS(p_EOS),
-               _tK(tK),
-               _h_state(h_state),
-               _d_vecd_sm(d_vecd_sm), // vel_grad_sm%d_vecds
-               _w_veccp_sm(w_veccp_sm), // vel_grad_sm%w_veccp
+               _lattice_strain_prob(thermoElastN, prob_state.dt, prob_state.vNew, prob_state.eNew, prob_state.pEOS, prob_state.tkelv, prob_state.e_vecd_n),
+               _lattice_rot_prob(prob_state.dt, prob_state.quat_n),
+               _eVref(prob_state.eNew),
+               _p_EOS(prob_state.pEOS),
+               _tK(prob_state.tkelv),
+               _h_state(prob_state.h_state_u),
+               _d_vecd_sm(prob_state.d_vecd_sm), // vel_grad_sm%d_vecds
+               _w_veccp_sm(prob_state.w_veccp_sm), // vel_grad_sm%w_veccp
                _mtan_sI(nullptr)
             {
                _hdn_scale = _kinetics.getVals(_kin_vals, _p_EOS, _tK, _h_state);

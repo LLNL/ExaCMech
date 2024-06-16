@@ -39,8 +39,9 @@ TEST(ecmech, evptn_a)
    using Kinetics = Kin_Voce;
    using ThermoElastN =  EVPTN_cubic;
 #endif
+   using ProblemState = evptn::ProblemState<SlipGeom, Kinetics, ThermoElastN, EosModelConst<false>>;
 
-   using Prob = evptn::EvptnUpdstProblem<SlipGeom, Kinetics, ThermoElastN>;
+   using Prob = evptn::EvptnUpdstProblem<SlipGeom, Kinetics, ThermoElastN, ProblemState>;
    using Solver = snls::SNLSTrDlDenseG<Prob>;
 
    SlipGeom slipGeom;
@@ -72,7 +73,7 @@ TEST(ecmech, evptn_a)
 
    //////////////////////////////
 
-   double p = 0.0, tK = 300.0;
+   double tK = 300.0;
    std::vector<double> h_state_vec;
    double* h_state;
    {
@@ -84,16 +85,25 @@ TEST(ecmech, evptn_a)
    }
 
 #include "setup_conditions.h"
-   double detV = 1.0;
-   double eVref = 0.0;
-   double e_vecd_n[ecmech::ntvec] = { 0.0 };
-   double Cn_quat[ecmech::qdim] = { 1.0, 0.0, 0.0, 0.0 };
 
-   Prob prob(slipGeom, kinetics, elastN,
-             dt,
-             detV, eVref, p, tK,
-             h_state, e_vecd_n, Cn_quat,
-             d_vecd_sm, w_veccp_sm);
+   constexpr int numHist1 = evptn::NumHist<SlipGeom, Kinetics, ThermoElastN, EosModelConst<false>>::numHist;
+   double hist2[numHist1] = {};
+
+   ProblemState prob_state(hist2, nullptr, tK, d_svec_kk_sm, w_veccp_sm, volRatio, dt);
+
+   prob_state.quat_n[0] = 1.0;
+   for (int iqdim = 1; iqdim < ecmech::qdim; iqdim++) {
+      prob_state.quat_n[iqdim] = 0.0;
+   }
+
+   for (size_t iH = 0; iH < h_state_vec.size(); iH++) {
+      prob_state.h_state_u[iH] = h_state[iH];
+   }
+
+   prob_state.eNew = 0.0;
+   prob_state.pEOS = 0.0;
+
+   Prob prob(slipGeom, kinetics, elastN, prob_state); 
 
    Solver solver(prob);
 
@@ -154,7 +164,7 @@ TEST(ecmech, evptn_a)
    static const int iHistLbGdot = evptn::NumHist<SlipGeom, Kinetics, ThermoElastN, EosModel>::iHistLbGdot;
    static const int numHist = evptn::NumHist<SlipGeom, Kinetics, ThermoElastN, EosModel>::numHist;
    double hist[numHist] = { 0.0 };
-   std::copy(Cn_quat, Cn_quat + ecmech::qdim, hist + evptn::iHistLbQ);
+   std::copy(prob_state.quat_n, prob_state.quat_n + ecmech::qdim, hist + evptn::iHistLbQ);
    std::copy(h_state, h_state + kinetics.nH, hist + evptn::iHistLbH);
    double* gdot = &(hist[iHistLbGdot]); // already zerod
    // do not bother with other stuff (like e_vecd_n) that is all zero above

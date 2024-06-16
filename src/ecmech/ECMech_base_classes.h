@@ -33,6 +33,74 @@ namespace evptn {
         static const int numHist = iHistLbH + Kinetics::nH + SlipGeom::nslip;
     }; // NumHist
 
+    // These are largely things that we need to persist between function calls / what we want to pass around various function calls
+    template<class SlipGeom, class Kinetics, class ThermoElastN, class EosModel>
+    struct ProblemState
+    {
+        static constexpr int iHistLbGdot = NumHist<SlipGeom, Kinetics, ThermoElastN, EosModel>::iHistLbGdot;
+
+        double* const h_state;
+        double* const gdot;
+        double* const e_vecd_u;
+        double* const quat_u;
+        double& eps_dot;
+        double& eps;
+        double& flow_strength;
+        double* const stressSvecP;
+        const double* const w_veccp_sm;
+        const double vNew;
+        const double dt;
+        double& tkelv;
+
+
+        double d_vecd_sm[ecmech::ntvec];
+        double e_vecd_n[ecmech::ntvec];
+        double quat_n[ecmech::qdim];
+        double h_state_u[Kinetics::nH];
+        double pEOS, eNew, bulkNew;
+
+        __ecmech_hdev__
+        ProblemState(double* const hist, double* const stressSvecP,
+                    double& tkelv,
+                    const double* const d_svec_kk_sm,
+                    const double* const w_veccp_sm,
+                    const double* const volRatio,
+                    const double dt) :
+        h_state(&(hist[iHistLbH])),
+        gdot(&(hist[iHistLbGdot])),
+        e_vecd_u(&(hist[iHistLbE])),
+        quat_u(&(hist[iHistLbQ])),
+        eps_dot(hist[iHistA_shrateEff]),
+        eps(hist[iHistA_shrEff]),
+        flow_strength(hist[iHistA_flowStr]),
+        stressSvecP(stressSvecP),
+        w_veccp_sm(w_veccp_sm),
+        vNew(volRatio[1]),
+        dt(dt),
+        tkelv(tkelv)
+        {
+            // convert deformation rate convention
+            //
+            // double d_vecd_sm[ecmech::ntvec];
+            svecToVecd(d_vecd_sm, d_svec_kk_sm);
+            //
+            // copies, to keep beginning-of-step state safe
+            //
+            for (int i_hist = 0; i_hist < ecmech::ntvec; i_hist++) {
+                e_vecd_n[i_hist] = hist[iHistLbE + i_hist];
+            }
+
+            for (int i_hist = 0; i_hist < ecmech::qdim; i_hist++) {
+                quat_n[i_hist] = hist[iHistLbQ + i_hist];
+            }
+            //
+            // normalize quat just in case
+            vecsVNormalize<qdim>(quat_n);
+        }
+        __ecmech_hdev__
+        ~ProblemState() = default;
+    };
+
     template<class ThermoElastN>
     class EvptnLatticeStrainProblem
     {
