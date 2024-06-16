@@ -11,9 +11,9 @@
 #endif
 
 #include "ECMech_matModelBase.h"
-#include "ECMech_evptn.h"
-#include "ECMech_evptnNR.h"
-#include "ECMech_evptnFI.h"
+#include "ECMech_evptn_base.h"
+// #include "ECMech_evptnNR.h"
+// #include "ECMech_evptnFI.h"
 
 #include "ECMech_unused.h"
 
@@ -490,27 +490,9 @@ namespace ecmech {
                            mtanSDThis,
                            _outputLevel);
 
+                        status_all += (int) (!status);
                         if (!status) {
-
-                           status = getResponseFISngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
-                                 (_slipGeom, _kinetics, _elastN, _eosModel,
-                                 dt,
-                                 _tolerance,
-                                 &defRateV[def_rate_stride * i],
-                                 &spinV[spin_v_stride * i],
-                                 &volRatioV[vol_ratio_stride * i],
-                                 &eIntV[int_eng_stride * i],
-                                 &stressSvecPV[stress_stride * i],
-                                 &histV[history_stride * i],
-                                 tkelvV[tkelv_stride * i],
-                                 &sddV[sdd_stride * i],
-                                 mtanSDThis,
-                                 _outputLevel);
-
-                           status_all += (int) (!status);
-                           if (!status) {
-                              histV[history_stride * i + iHistA_nFEval] *= -1;
-                           }
+                           histV[history_stride * i + iHistA_nFEval] *= -1;
                         }
                         }
                      });
@@ -555,27 +537,9 @@ namespace ecmech {
                            mtanSDThis,
                            _outputLevel);
 
+                        status_all += (int) (!status);
                         if (!status) {
-
-                           status = getResponseFISngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
-                                 (_slipGeom, _kinetics, _elastN, _eosModel,
-                                 dt,
-                                 _tolerance,
-                                 &defRateV[def_rate_stride * i],
-                                 &spinV[spin_v_stride * i],
-                                 &volRatioV[vol_ratio_stride * i],
-                                 &eIntV[int_eng_stride * i],
-                                 &stressSvecPV[stress_stride * i],
-                                 &histV[history_stride * i],
-                                 tkelvV[tkelv_stride * i],
-                                 &sddV[sdd_stride * i],
-                                 mtanSDThis,
-                                 _outputLevel);
-
-                           status_all += (int) (!status);
-                           if (!status) {
-                              histV[history_stride * i + iHistA_nFEval] *= -1;
-                           }
+                           histV[history_stride * i + iHistA_nFEval] *= -1;
                         }
                         }
                      });
@@ -609,28 +573,11 @@ namespace ecmech {
                            mtanSDThis,
                            _outputLevel);
 
+                        status_all += (int) (!status);
                         if (!status) {
-
-                           status = getResponseFISngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
-                                 (_slipGeom, _kinetics, _elastN, _eosModel,
-                                 dt,
-                                 _tolerance,
-                                 &defRateV[def_rate_stride * i],
-                                 &spinV[spin_v_stride * i],
-                                 &volRatioV[vol_ratio_stride * i],
-                                 &eIntV[int_eng_stride * i],
-                                 &stressSvecPV[stress_stride * i],
-                                 &histV[history_stride * i],
-                                 tkelvV[tkelv_stride * i],
-                                 &sddV[sdd_stride * i],
-                                 mtanSDThis,
-                                 _outputLevel);
-
-                           status_all += (int) (!status);
-                           if (!status) {
-                              histV[history_stride * i + iHistA_nFEval] *= -1;
-                           }
+                           histV[history_stride * i + iHistA_nFEval] *= -1;
                         }
+
                         }
                      });
 
