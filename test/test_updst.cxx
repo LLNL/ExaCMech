@@ -225,12 +225,10 @@ TEST(ecmech, driver_a)
 
 #if !(DO_FD_CHECK_MTAN)
    std::cout << "# time, Axial deviatoric stress, h[0], p : " << std::endl;
-#endif
    double time = 0.0;
+#endif
    //
    for (int iStep = 0; iStep<nStep; ++iStep) {
-      //
-      time += dt;
 
       // update current relative volume from the volumetric deformation rate
       //
@@ -244,6 +242,7 @@ TEST(ecmech, driver_a)
                           nPassed);
 
 #if !(DO_FD_CHECK_MTAN)
+      time += dt;
       std::cout << time << " "
                 << std::setprecision(14) << stressSvecP[2] << " "
                 << std::setprecision(14) << hist[ecmech::evptn::iHistLbH + 0] << " "

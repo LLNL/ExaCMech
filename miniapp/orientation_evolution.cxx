@@ -1,4 +1,4 @@
-#include "ecm_cases/ECMech_cases_fcc_defs.h"
+#include "cases/ECMech_cases_fcc_defs.h"
 #include "RAJA/RAJA.hpp"
 #include "RAJA/util/Timer.hpp"
 #include "miniapp_util.h"

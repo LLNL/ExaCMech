@@ -675,17 +675,15 @@ namespace ecmech {
                // dgdot_dtau = dgdot_r_dtau;
                dgdot_dtau = (gdot * gdot) * (dgdot_w_dtau * gdwdiv2 + dgdot_r_dtau * gdrdiv2);
                //
-               double temp = gdot * copysign(gdot, tau) * gdwdiv2;
 #if MORE_DERIVS
+               double temp = gdot * copysign(gdot, tau) * gdwdiv2;
                // The reference rate is a bit different for the orowonian
                // framework then the previous version
                dgdot_dgamo = temp * (gdot_w / gam_w);
                dgdot_dmu = temp * dgdot_w_dmu;
                dgdot_dtK = temp * dgdot_w_dtK;
-#endif
                //
                temp = gdot * copysign(gdot, tau) * gdrdiv2;
-#if MORE_DERIVS
                // There reference value here is just the shear speed...
                dgdot_dgamr = temp * (gdot_r / gam_r);
                dgdot_dtK = dgdot_dtK + temp * dgdot_r_dtK;

@@ -564,13 +564,11 @@ namespace ecmech {
                double gdwdiv2 = one / (gdot_w * gdot_w);
                dgdot_dtau = (gdot * gdot) * (dgdot_w * gdwdiv2 + dgdot_r * gdrdiv2);
                //
-               double temp = gdot * copysign(gdot, tau) * gdwdiv2;
 #if MORE_DERIVS
+               double temp = gdot * copysign(gdot, tau) * gdwdiv2;
                dgdot_dgamo = temp * (gdot_w / gam_w);
                dgdot_dmu = temp * dgdotw_dmu;
                dgdot_dtK = temp * dgdotw_dtK;
-#endif
-#if MORE_DERIVS
                dgdot_dgamr = temp * (gdot_r / gam_r);
                dgdot_dtK = dgdot_dtK + temp * dgdotr_dtK;
 #endif
