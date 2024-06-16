@@ -25,9 +25,15 @@ struct ProblemState
     double* const gdot;
     double* const e_vecd_u;
     double* const quat_u;
-    double* const hist;
+    double& eps_dot;
+    double& eps;
+    double& flow_strength;
     double* const stressSvecP;
+    const double* const w_veccp_sm;
     const double vNew;
+    const double dt;
+    double& tkelv;
+
 
     double d_vecd_sm[ecmech::ntvec];
     double e_vecd_n[ecmech::ntvec];
@@ -37,15 +43,23 @@ struct ProblemState
 
     __ecmech_hdev__
     ProblemState(double* const hist, double* const stressSvecP,
+                 double& tkelv,
                  const double* const d_svec_kk_sm,
-                 const double* const volRatio) :
+                 const double* const w_veccp_sm,
+                 const double* const volRatio,
+                 const double dt) :
     h_state(&(hist[iHistLbH])),
     gdot(&(hist[iHistLbGdot])),
     e_vecd_u(&(hist[iHistLbE])),
     quat_u(&(hist[iHistLbQ])),
-    hist(hist),
+    eps_dot(hist[iHistA_shrateEff]),
+    eps(hist[iHistA_shrEff]),
+    flow_strength(hist[iHistA_flowStr]),
     stressSvecP(stressSvecP),
-    vNew(volRatio[1])
+    w_veccp_sm(w_veccp_sm),
+    vNew(volRatio[1]),
+    dt(dt),
+    tkelv(tkelv)
     {
         // convert deformation rate convention
         //
@@ -75,12 +89,10 @@ inline
 void preprocess(const SlipGeom& slipGeom,
                 const Kinetics& kinetics,
                 const EosModel& eos,
-                const double dt,
                 const double* const volRatio,
                 const double* const eInt,
                 const double* const d_svec_kk_sm,
                 ProbState& prob_state,
-                double& tkelv,
                 double& halfVMidDt,
                 double& eDevTot)
 {
@@ -89,7 +101,7 @@ void preprocess(const SlipGeom& slipGeom,
     //
     // just beginning-of-step stress part so far
     //
-    halfVMidDt = oneqrtr * (volRatio[0] + volRatio[1]) * dt;
+    halfVMidDt = oneqrtr * (volRatio[0] + volRatio[1]) * prob_state.dt;
     eDevTot = halfVMidDt * vecsInnerSvecDev(prob_state.stressSvecP, d_svec_kk_sm);
 
     // EOS
@@ -100,7 +112,7 @@ void preprocess(const SlipGeom& slipGeom,
     {
         double pBOS;
         const double vOld = volRatio[0];
-        eos.evalPT(pBOS, tkelv, vOld, eOld);
+        eos.evalPT(pBOS, prob_state.tkelv, vOld, eOld);
     }
 
     {
@@ -123,7 +135,7 @@ void preprocess(const SlipGeom& slipGeom,
         // still need to rotate stress state back to original value
         slipGeom.getPQ(hvals, P, Q, prob_state.stressSvecP);
     }
-    kinetics.updateH(prob_state.h_state_u, prob_state.h_state, dt, prob_state.gdot, hvals, tkelv);
+    kinetics.updateH(prob_state.h_state_u, prob_state.h_state, prob_state.dt, prob_state.gdot, hvals, prob_state.tkelv);
 }
 
 __ecmech_hdev__
@@ -197,7 +209,6 @@ template<int kinNH, class Problem, class ProblemState>
 inline
 void postprocess_prob(Problem& prob,
                       ProblemState& prob_state,
-                      const double dt,
                       double* const Cstr_vecds_lat
                      )
 {
@@ -211,8 +222,8 @@ void postprocess_prob(Problem& prob,
     prob.get_slip_contribution(pl_disipation_rate, effective_shear_rate,
                                prob_state.gdot, prob_state.e_vecd_u);
 
-    prob_state.hist[iHistA_shrateEff] = effective_shear_rate;
-    prob_state.hist[iHistA_shrEff] += prob_state.hist[iHistA_shrateEff] * dt;
+    prob_state.eps_dot = effective_shear_rate;
+    prob_state.eps += prob_state.eps_dot * prob_state.dt;
     //
     {
         double dEff = vecd_Deff(prob_state.d_vecd_sm);
@@ -220,7 +231,7 @@ void postprocess_prob(Problem& prob,
         if (dEff > idp_tiny_sqrt) {
             flow_strength = pl_disipation_rate / dEff;
         }
-        prob_state.hist[iHistA_flowStr] = flow_strength;
+        prob_state.flow_strength = flow_strength;
     }
         // get Cauchy stress
         //
@@ -234,7 +245,6 @@ inline
 void postprocess(ProblemState& prob_state,
                  const ThermoElastN& elastN,
                  const double* const d_svec_kk_sm,
-                 const double tkelv,
                  double* const sdd,
                  double* const eInt,
                  double* const Cstr_vecds_lat,
@@ -270,7 +280,7 @@ void postprocess(ProblemState& prob_state,
     }
 
     {
-        double gmod = elastN.getGmod(tkelv, prob_state.pEOS, prob_state.eNew);
+        double gmod = elastN.getGmod(prob_state.tkelv, prob_state.pEOS, prob_state.eNew);
         sdd[i_sdd_bulk] = prob_state.bulkNew;
         sdd[i_sdd_gmod] = gmod;
     }
@@ -313,17 +323,18 @@ bool getResponseSngl(const SlipGeom& slipGeom,
                      double* const mtanSD,
                      int outputLevel = 0)
 {
-    auto prob_state = ProblemState<SlipGeom, Kinetics, ThermoElastN, EosModel>(hist, stressSvecP, d_svec_kk_sm, volRatio);
+    auto prob_state = ProblemState<SlipGeom, Kinetics, ThermoElastN, EosModel>(hist, stressSvecP, tkelv, d_svec_kk_sm, w_veccp_sm, volRatio, dt);
+
     double halfVMidDt, eDevTot;
-    preprocess(slipGeom, kinetics, eos, dt, volRatio, eInt, d_svec_kk_sm, prob_state, tkelv, halfVMidDt, eDevTot);
+    preprocess(slipGeom, kinetics, eos, volRatio, eInt, d_svec_kk_sm, prob_state, halfVMidDt, eDevTot);
 
     double Cstr_vecds_lat[ecmech::nsvec];
     {
         EvptnUpdstProblem prob(slipGeom, kinetics, elastN,
-                                dt,
-                                prob_state.vNew, prob_state.eNew, prob_state.pEOS, tkelv,
+                                prob_state.dt,
+                                prob_state.vNew, prob_state.eNew, prob_state.pEOS, prob_state.tkelv,
                                 prob_state.h_state_u, prob_state.e_vecd_n, prob_state.quat_n,
-                                prob_state.d_vecd_sm, w_veccp_sm);
+                                prob_state.d_vecd_sm, prob_state.w_veccp_sm);
 
         // Solver update of things
         {
@@ -343,9 +354,9 @@ bool getResponseSngl(const SlipGeom& slipGeom,
             //
             hist[iHistA_nFEval] = solver.getNFEvals(); // does _not_ include updateH iterations
         }
-        postprocess_prob<Kinetics::nH>(prob, prob_state, dt, Cstr_vecds_lat);
+        postprocess_prob<Kinetics::nH>(prob, prob_state, Cstr_vecds_lat);
     }
-    postprocess(prob_state, elastN, d_svec_kk_sm, tkelv, sdd, eInt, Cstr_vecds_lat, eDevTot, halfVMidDt);
+    postprocess(prob_state, elastN, d_svec_kk_sm, sdd, eInt, Cstr_vecds_lat, eDevTot, halfVMidDt);
     return true;
 } // getResponseSngl
 
