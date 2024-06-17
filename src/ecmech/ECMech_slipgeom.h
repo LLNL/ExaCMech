@@ -56,14 +56,11 @@ namespace ecmech {
          __ecmech_hdev__ inline const double* getM() const { return _m_ref_vec; };
          __ecmech_hdev__ inline const double* getS() const { return _s_ref_vec; };
          
-         __ecmech_hdev__ inline virtual void getPQ(double* chia, 
+         __ecmech_hdev__ inline virtual void getPQ(double* /* chia */, 
                                                    double* _P_vec, 
                                                    double* _Q_vec, 
                                                    const double* const /* SvecP = nullptr */) const 
          {
-             for (int iSlip = 0; iSlip < nslip; iSlip++) {
-                 chia[iSlip] = ecmech::zero;
-             }
              for (int iTvec = 0; iTvec < ecmech::ntvec * nslip; ++iTvec) {
                  _P_vec[iTvec] = _P_ref_vec[iTvec];
              }

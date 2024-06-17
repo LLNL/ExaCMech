@@ -16,11 +16,12 @@ namespace ecmech {
 namespace evptn {
 
 __ecmech_hdev__
-template<class SlipGeom, class Kinetics, class EosModel, class ProbState>
+template<class SlipGeom, class Kinetics, class EosModel, class ThermoElastN, class ProbState>
 inline
 void preprocess(const SlipGeom& slipGeom,
                 const Kinetics& kinetics,
                 const EosModel& eos,
+                const ThermoElastN& thermoElastN,
                 const double* const volRatio,
                 const double* const eInt,
                 const double* const d_svec_kk_sm,
@@ -59,13 +60,27 @@ void preprocess(const SlipGeom& slipGeom,
     // update hardness state to the end of the step
     // gdot is still at beginning-of-step
     //
-    double hvals[SlipGeom::nslip] = { 0.0 }; // additional values needed to update the hardening state
+    constexpr size_t nslip_dyn = (SlipGeom::dynamic) ? (SlipGeom::nslip) : 1;
+    double hvals[nslip_dyn] = {}; // additional values needed to update the hardening state
     if constexpr(SlipGeom::dynamic) {
+
+        double T_vecds[ecmech::nsvec] = {};
+        double elas_dev_vol_vec[ecmech::nsvec] = {};
+        double SvecP[ecmech::nsvec+1] = {};
+
+       double m_a_vol = pow(prob_state.vNew, onethird);
+       double m_inv_a_vol = 1.0 / prob_state.vNew;
+
+        vecsVxa<ntvec>(elas_dev_vol_vec, m_inv_a_vol, prob_state.e_vecd_n);
+        elas_dev_vol_vec[iSvecS] = sqr3 * log(m_a_vol);
+        thermoElastN.eval(T_vecds, elas_dev_vol_vec, prob_state.tkelv, prob_state.pEOS, prob_state.eNew);
+        vecdsToSvecP(SvecP, T_vecds);
+
         // For dynamic slip systems we need the chi angle
         double P[ecmech::ntvec * SlipGeom::nslip];
         double Q[ecmech::nwvec * SlipGeom::nslip];
         // still need to rotate stress state back to original value
-        slipGeom.getPQ(hvals, P, Q, prob_state.stressSvecP);
+        slipGeom.getPQ(hvals, P, Q, SvecP);
     }
     kinetics.updateH(prob_state.h_state_u, prob_state.h_state, prob_state.dt, prob_state.gdot, hvals, prob_state.tkelv);
 }
@@ -258,7 +273,7 @@ bool getResponseSngl(const SlipGeom& slipGeom,
     auto prob_state = ProblemState<SlipGeom, Kinetics, ThermoElastN, EosModel>(hist, stressSvecP, tkelv, d_svec_kk_sm, w_veccp_sm, volRatio, dt);
 
     double halfVMidDt, eDevTot;
-    preprocess(slipGeom, kinetics, eos, volRatio, eInt, d_svec_kk_sm, prob_state, halfVMidDt, eDevTot);
+    preprocess(slipGeom, kinetics, eos, elastN, volRatio, eInt, d_svec_kk_sm, prob_state, halfVMidDt, eDevTot);
 
     double Cstr_vecds_lat[ecmech::nsvec];
     {

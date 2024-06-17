@@ -116,7 +116,7 @@ namespace evptn {
                                 const double tK,
                                 const double* const e_vecd_n)
         : m_thermo_elast_n(thermoElastN),
-        m_dt(dt), m_det_vol(detV), m_elast_vol_ref(eVref),
+        m_dt(dt), m_det_vol(detV), m_energy_vol_ref(eVref),
         m_pressure_eos(p_EOS), m_temp_k(tK),
         m_elast_dev_vec_n(e_vecd_n),
         m_inv_dt(1.0 / dt),
@@ -150,7 +150,7 @@ namespace evptn {
         //// Kirchhoff stress from elas_dev_vol_vec
         // CALL elawn_lin_op(s_meas%T_vecds, s_meas%Ee_vecds, cem, tK, &
         // & p_EOS, eVref, i_eos_model, eos_const)
-        m_thermo_elast_n.eval(kirchoff_stress, elas_dev_vol_vec, m_temp_k, m_pressure_eos, m_elast_vol_ref);
+        m_thermo_elast_n.eval(kirchoff_stress, elas_dev_vol_vec, m_temp_k, m_pressure_eos, m_energy_vol_ref);
         }
 
         // used to be elastNEtoC
@@ -288,7 +288,7 @@ namespace evptn {
         public:
         static constexpr size_t m_ind_sub_elas = 0; // ntvec end_point
         const ThermoElastN& m_thermo_elast_n;
-        const double m_dt, m_det_vol, m_elast_vol_ref;
+        const double m_dt, m_det_vol, m_energy_vol_ref;
         const double m_pressure_eos, m_temp_k;
         const double* const m_elast_dev_vec_n;
         const double m_inv_dt, m_inv_det_vol, m_a_vol, m_inv_a_vol;
