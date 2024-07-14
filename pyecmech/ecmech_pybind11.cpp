@@ -26,6 +26,14 @@ PYBIND11_MODULE(pyecmech, m) {
     constants.attr("nsvp") = &ecmech::nsvp;
     constants.attr("nwvec") = &ecmech::nwvec;
     constants.attr("nsdd") = &ecmech::nsdd;
+    constants.attr("qdim") = &ecmech::qdim;
+    constants.attr("dbl_tiny_sqrt") = &ecmech::idp_tiny_sqrt;
+    constants.attr("gam_ratio_ovffx") = &ecmech::gam_ratio_ovffx;
+    constants.attr("gam_ratio_ovf") = &ecmech::gam_ratio_ovf;
+    constants.attr("gam_ratio_min") = &ecmech::gam_ratio_min;
+    constants.attr("ln_gam_ratio_min") = &ecmech::ln_gam_ratio_min;
+    constants.attr("e_scale") = &ecmech::e_scale;
+    constants.attr("r_scale") = &ecmech::r_scale;
 
     py::class_<pyECMech>(m, "pyECMech", "Provides pyECMech")
         .def(py::init([](std::string &model_name, py_darray &params) {
