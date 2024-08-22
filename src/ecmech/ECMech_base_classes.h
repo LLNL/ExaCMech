@@ -350,6 +350,18 @@ namespace evptn {
 
         __ecmech_hdev__
         inline
+        void deltaOmegaFromState(double* const delta_omega,
+                                 const double* const xtal_ori_quat_n,
+                                 const double* const xtal_ori_quat_n1) const
+        {
+            double xtal_ori_quat_delta[ecmech::qdim] = {};
+
+            quat_rel_rotation(xtal_ori_quat_delta, xtal_ori_quat_n1, xtal_ori_quat_n);
+            quat_to_emap(delta_omega, xtal_ori_quat_delta);
+        }
+
+        __ecmech_hdev__
+        inline
         void get_omega_residual(double* const residual,
                                 const double rot_incr_scale_inv,
                                 const double ee_fac,
@@ -415,192 +427,7 @@ namespace evptn {
     };
 
 #if defined(ECMECH_EXTRA_SOLVERS)
-    template<class SlipGeom, class ThermoElastN>
-    class RstarUpdProblem
-    {
-        public:
-        static const int nDimSys = ecmech::nwvec;
-        
-        __ecmech_hdev__
-        RstarUpdProblem(const SlipGeom& slipGeom,
-                        const ThermoElastN& thermoElastN,
-                        double dt,
-                        double detV, double eVref, double p_EOS, double tK,
-                        const double* const gdot,
-                        const double* const e_vecd_n,
-                        const double* const Cn_quat,
-                        const double* const d_vecd_sm, // okay to pass d_vecds_sm, but d_vecd_sm[iSvecS] is not used
-                        const double* const w_veccp_sm)
-                        : 
-            _slipGeom(slipGeom),
-            _thermoElastN(thermoElastN),
-            _lattice_strain_prob(thermoElastN, dt, detV, eVref, p_EOS, tK, e_vecd_n),
-            _lattice_rot_prob(dt, Cn_quat),
-            _eVref(eVref),
-            _p_EOS(p_EOS),
-            _tK(tK),
-            _gdot(gdot),
-            _e_vecd_n(e_vecd_n),
-            _Cn_quat(Cn_quat),
-            _d_vecd_sm(d_vecd_sm), // vel_grad_sm%d_vecds
-            _w_veccp_sm(w_veccp_sm) // vel_grad_sm%w_veccp
-        {
-            _dt_ri = 1.0 / _dt;
-            _detV_ri = 1.0 / _detV;
-            _a_V = pow(detV, onethird);
-            _a_V_ri = 1.0 / _a_V;
 
-            double adots_ref = vecNorm<SlipGeom::nslip>(gdot);
-
-            double eff = vecNorm<ecmech::ntvec>(_d_vecd_sm); // do not worry about factor of sqrt(twothird)
-            if (eff < epsdot_scl_nzeff * adots_ref) {
-                _epsdot_scale_inv = one / adots_ref;
-            }
-            else {
-                _epsdot_scale_inv = fmin(one / eff, 1e6 * _lattice_strain_prob.m_dt);
-            }
-            //
-            _rotincr_scale_inv = _lattice_strain_prob.m_inv_dt * _epsdot_scale_inv;
-        }
-
-        // deconstructor
-        __ecmech_hdev__
-        ~RstarUpdProblem() {}
-
-                    __ecmech_hdev__
-        inline
-        void stateFromX(double* const quat,
-                        const double* const x) {
-            _lattice_rot_prob.stateFromX(quat, x);
-        }
-        
-        __ecmech_hdev__
-        bool computeRJ(double* const resid,
-                        double* const Jacobian,
-                        const double* const x) {
-            bool doComputeJ = (Jacobian != nullptr);
-
-            if (doComputeJ) {
-                // zero the Jacobian so that do not need to worry about zero
-                // entries in the midst of other things later
-                //
-                for (int ijJ = 0; ijJ< _nXnDim; ++ijJ) {
-                    Jacobian[ijJ] = 0.0;
-                }
-            }
-            //
-            for (int iR = 0; iR<nDimSys; ++iR) {
-                resid[iR] = 0.0;
-            }
-
-            double edot_vecd[ecmech::ntvec];
-            // Calculate what this edot_vecd term should be given the current
-            // state information.
-            for (int i = 0; i < ecmech::ntvec; i++)
-            {
-                edot_vecd[i] = _a_V_ri * (d_vecd_lat[i] - pl_vecd[i]);
-            }
-
-            double xi_f[nwvec];
-            vecsVxa<nwvec>(xi_f, ecmech::r_scale, x);
-            //
-            // not done in EvpC :
-            // CALL exp_map_cpvec(A, xi_f)
-            // CALL get_c(c, A, C_n)
-            //
-            double A_quat[ecmech::qdim];
-            emap_to_quat(A_quat, xi_f);
-            //
-            double C_quat[ecmech::qdim];
-            get_c_quat(C_quat, A_quat, _lattice_rot_prob.m_xtal_ori_quat_n);
-            //
-            double C_matx[ecmech::ndim * ecmech::ndim];
-            quat_to_tensor(C_matx, C_quat);
-            //
-            double qr5x5_ls[ecmech::ntvec * ecmech::ntvec];
-            get_rot_mat_vecd(qr5x5_ls, C_matx);
-
-            // CALL matt_x_vec_5(qr5x5_ls, vel_grad_sm%d_vecds(1:TVEC), d_vecd_lat)
-            double d_vecd_lat[ecmech::ntvec];
-            // vecsVMTa<ntvec>(d_vecd_lat, qr5x5_ls, _d_vecd_sm);
-            // d_vecds_lat(SVEC) = vel_grad_sm%d_vecds(SVEC)
-            //
-            //// CALL rot_mat_vecd(A, qr5x5_A)
-            //
-            // CALL rot_mat_wveccp(C_matx, qr3x3_ls) // amounts to qr3x3_ls = C_matx
-            // CALL matt_x_vec_3(qr3x3_ls, vel_grad_sm%w_veccp, w_vec_lat)
-            double w_vec_lat[ecmech::nwvec]; // assumes nwvec = ndim
-            // vecsVMTa<ndim>(w_vec_lat, C_matx, _w_veccp_sm);
-
-            get_xtal_frame_vel_grad_terms(d_vecd_lat, w_vec_lat, _d_vecd_sm,  _w_veccp_sm, C_matx, qr5x5_ls);
-
-            double pl_vecd[ecmech::ntvec] = { 0.0 };
-            double pl_wvec[ecmech::nwvec] = { 0.0 }; // \pcDhat
-            {
-                // Yeah we're going to do a bit more work here but at the gdot and elasticity stuff will always be consistent
-                double T_vecds[ecmech::nsvec];
-                _lattice_strain_prob.elas_strain_to_kirchoff_stress(T_vecds, _lattice_strain_prob.m_elast_dev_vec_n);
-                double dgdot_dtau[SlipGeom::nslip] = { 0.0 }; // crys%tmp2_slp
-                get_slip_rate_terms(dgdot_dtau, pl_vecd, pl_wvec, T_vecds, _kin_vals, _slipGeom, _kinetics);
-            }
-
-            // Higher-order terms related to the elasticity stuff that's used in the residuals and jacobian calculation
-            double A_e_M35[ecmech::nwvec * ecmech::ntvec];
-            double ee_wvec[ecmech::nwvec];
-            double ee_fac;
-            elasticity_higher_order_terms(A_e_M35, ee_wvec, ee_fac, _lattice_strain_prob.m_inv_a_vol, _lattice_strain_prob.m_elast_dev_vec_n, edot_vecd);
-
-            // Residual Calculations
-            _lattice_rot_prob.get_omega_residual(resid, _rotincr_scale_inv, ee_fac, xi_f, w_vec_lat, pl_wvec, ee_wvec);
-
-            //////////////////////////////////////////////////////////////////////
-            // JACOBIAN, fixed hardness and temperature
-            //
-            if (doComputeJ) {
-
-                //
-                //
-                // derivatives with respect to lattice orientation changes
-                double dC_quat_dxi_T[ ecmech::nwvec * ecmech::qdim ];
-                double dDsm_dxi[ ecmech::ntvec * ecmech::nwvec ];
-                double dWsm_dxi[ ecmech::nwvec * ecmech::nwvec ];
-                eval_d_dxi_impl_quat(dC_quat_dxi_T, dDsm_dxi, dWsm_dxi,
-                                    _d_vecd_sm, _w_veccp_sm,
-                                    xi_f, 
-                                    _lattice_rot_prob.m_xtal_ori_quat_n,
-                                    C_matx, C_quat);
-
-                // d(B_xi)/d(xi_f)
-                //
-                _lattice_rot_prob.template get_deriv_omega_wrt_omega<nDimSys>(Jacobian, dWsm_dxi);
-
-                const double scaleFactorJ = _rotincr_scale_inv * ecmech::r_scale;
-                for (int iJ = 0; iJ<nDimSys; ++iJ) {
-                    // Jacobian(i_sub_r:i_sup_r,i_sub_r:i_sup_r) = jacob_rr * rotincr_scale_inv * r_scale
-                    for (int jJ = 0; jJ<nDimSys; ++jJ) { // <_i_sup_r
-                        int ijJ = ECMECH_NN_INDX(iJ, jJ, nDimSys);
-                        Jacobian[ ijJ ] *= scaleFactorJ;
-                    }
-                }
-            }
-            return true;
-        }
-
-        private:
-
-        const SlipGeom &_slipGeom;
-        const ThermoElastN &_thermoElastN;
-        const EvptnLatticeStrainProblem<ThermoElastN> _lattice_strain_prob;
-        const EvptnLatticeRotationProblem<0> _lattice_rot_prob;
-
-        double _eVref, _p_EOS, _tK, _a_V;
-        double _epsdot_scale_inv, _rotincr_scale_inv;
-
-        const double* const _d_vecd_sm; // d_vecds_sm would be fine too -- but do not use _d_vecd_sm[iSvecS];
-        const double* const _w_veccp_sm;
-
-        static const int _nXnDim = nDimSys * nDimSys;
-    };
 #endif
 
 }

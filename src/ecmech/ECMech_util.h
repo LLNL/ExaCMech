@@ -485,6 +485,27 @@ namespace ecmech {
       inv_to_quat(quat, inv);
    }
 
+   // emap is simply the condensed 3 component version of an angle-axis vector
+   __ecmech_hdev__
+   inline void quat_to_emap(double* const emap,
+                            const double* const quat) {
+
+      constexpr auto tol = std::numeric_limits<double>::epsilon();
+      const auto phi = 2.0 * acos(quat[0]);
+
+      if (fabs(quat[0]) < tol) {
+         emap[0] = quat[1] * M_PI;
+         emap[1] = quat[2] * M_PI;
+         emap[2] = quat[3] * M_PI;
+      } else {
+         const double sign = (quat[0] < 0.0) ? -1.0 : 1.0; 
+         const double s = sign / sqrt(quat[1] * quat[1] + quat[2] * quat[2] + quat[3] * quat[3]);
+         emap[0] = s * quat[1] * phi;
+         emap[1] = s * quat[2] * phi;
+         emap[2] = s * quat[3] * phi; 
+      }
+   }
+
    /**
     * @brief calculate quaternion product q = a . b
     */
@@ -497,6 +518,33 @@ namespace ecmech {
       q[1] = a[0] * b[1] + a[1] * b[0] + a[2] * b[3] - a[3] * b[2];
       q[2] = a[0] * b[2] - a[1] * b[3] + a[2] * b[0] + a[3] * b[1];
       q[3] = a[0] * b[3] + a[1] * b[2] - a[2] * b[1] + a[3] * b[0];
+   }
+
+   /**
+    * @brief calculate quaternion inverse q^{-1}
+    * q^{-1} = 1 / |q| [q0, -q1, -q2, -q3]
+    */
+   __ecmech_hdev__
+   inline void quat_inverse(double* const inv_quat,
+                            const double* const quat) {
+      // I mean this should be equal to 1 as we're dealing with unit quats...
+      const double inv_quat_norm = 1.0 / vecNorm<ecmech::qdim>(quat);
+      inv_quat[0] = inv_quat_norm * quat[0];
+      inv_quat[1] = -inv_quat_norm * quat[1];
+      inv_quat[2] = -inv_quat_norm * quat[2];
+      inv_quat[3] = -inv_quat_norm * quat[3];
+   }
+
+   /**
+    * @brief calculate quaternion product q' = q^{-1}_1 . q_2
+    */
+   __ecmech_hdev__
+   inline void quat_rel_rotation(double* const qprime,
+                                 const double* const q1,
+                                 const double* const q2) {
+      double q1_inv[4] = {1.0, 0.0, 0.0, 0.0};
+      quat_inverse(q1_inv, q1);
+      quat_prod(qprime, q1_inv, q2);
    }
 
    __ecmech_hdev__

@@ -16,7 +16,7 @@ namespace ecmech {
 namespace evptn {
 
 __ecmech_hdev__
-template<class SlipGeom, class Kinetics, class EosModel, class ThermoElastN, class ProbState>
+template<class SlipGeom, class Kinetics, class EosModel, class ThermoElastN, class ProbState, bool RStarSolve=false>
 inline
 void preprocess(const SlipGeom& slipGeom,
                 const Kinetics& kinetics,
@@ -83,6 +83,21 @@ void preprocess(const SlipGeom& slipGeom,
         slipGeom.getPQ(hvals, P, Q, SvecP);
     }
     kinetics.updateH(prob_state.h_state_u, prob_state.h_state, prob_state.dt, prob_state.gdot, hvals, prob_state.tkelv);
+#if defined(ECMECH_EXTRA_SOLVERS)
+    if constexpr (RStarSolve) {
+        auto prob = RotUpdProblem(slipGeom, thermoElastN, prob_state);
+         // update Rstar aka Rdot * dt
+         // gdot is still at beginning-of-step
+        snls::SNLSTrDlDenseG<decltype(prob)> solver(prob);
+        const bool status = main_problem(1e-8, solver, 0);
+        if (!status) {
+            return;
+        }
+
+        prob.stateFromX(prob_state.quat_u, solver._x);
+    }
+
+#endif
 }
 
 __ecmech_hdev__
@@ -124,10 +139,11 @@ void computeTangentStiffness(Problem& prob,
                              ProblemState& prob_state,
                              double* const mtanSD)
 {
-    double mtanSD_vecds[ ecmech::nsvec2 ];
+    double mtanSD_vecds[ ecmech::nsvec2 ] = {};
     prob.provideMTan(mtanSD_vecds);
     {
-        double residual[prob.nDimSys], Jacobian[prob.nDimSys * prob.nDimSys];
+        double residual[Problem::nDimSys] = {};
+        double Jacobian[Problem::nDimSys * Problem::nDimSys] = {};
         solver.computeRJ(&residual[0], &Jacobian[0]);
     }
     prob.clearMTan();
@@ -302,6 +318,67 @@ bool getResponseSngl(const SlipGeom& slipGeom,
     postprocess(prob_state, elastN, d_svec_kk_sm, sdd, eInt, Cstr_vecds_lat, eDevTot, halfVMidDt);
     return true;
 } // getResponseSngl
+
+#if defined(ECMECH_EXTRA_SOLVERS)
+/*
+* for steady-flow capability, might want to check out Dlsmm_getEnabled() stuff in EvpC.c
+*
+* convention for spin coming in should be consistent with w_veccp_sm convention
+*/
+template<class SlipGeom, class Kinetics, class ThermoElastN, class EosModel>
+__ecmech_hdev__
+inline
+bool getResponseNRSngl(
+                     const SlipGeom& slipGeom,
+                     const Kinetics& kinetics,
+                     const ThermoElastN& elastN,
+                     const EosModel& eos,
+                     const double dt,
+                     const double tolerance,
+                     const double* const d_svec_kk_sm, // defRate,
+                     const double* const w_veccp_sm, // spin
+                     const double* const volRatio,
+                     double* const eInt,
+                     double* const stressSvecP,
+                     double* const hist,
+                     double& tkelv,
+                     double* const sdd,
+                     double* const mtanSD,
+                     int outputLevel = 0)
+{
+    auto prob_state = ProblemState<SlipGeom, Kinetics, ThermoElastN, EosModel>(hist, stressSvecP, tkelv, d_svec_kk_sm, w_veccp_sm, volRatio, dt);
+
+    double halfVMidDt, eDevTot;
+    preprocess<SlipGeom, Kinetics, EosModel, ThermoElastN, decltype(prob_state), true>(slipGeom, kinetics, eos, elastN, volRatio, eInt, d_svec_kk_sm, prob_state, halfVMidDt, eDevTot);
+
+    double Cstr_vecds_lat[ecmech::nsvec];
+    {
+        EvptnNRUpdstProblem prob(slipGeom, kinetics, elastN, prob_state);
+
+        // Solver update of things
+        {
+            snls::SNLSTrDlDenseG<decltype(prob)> solver(prob);
+            bool status = main_problem(tolerance, solver, outputLevel);
+
+            if (!status) {
+                return false;
+            }
+
+            if (mtanSD != nullptr) {
+                computeTangentStiffness(prob, solver, prob_state, mtanSD);
+            }
+            // store updated state
+            //
+            prob.stateFromX(prob_state.e_vecd_u, solver._x);
+            //
+            hist[iHistA_nFEval] = solver.getNFEvals(); // does _not_ include updateH iterations
+        }
+        postprocess_prob<Kinetics::nH>(prob, prob_state, Cstr_vecds_lat);
+    }
+    postprocess(prob_state, elastN, d_svec_kk_sm, sdd, eInt, Cstr_vecds_lat, eDevTot, halfVMidDt);
+    return true;
+} // getResponseSngl
+#endif
 
 }
 }

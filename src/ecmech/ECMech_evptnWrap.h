@@ -11,9 +11,8 @@
 #endif
 
 #include "ECMech_matModelBase.h"
+#include "ECMech_evptn.h"
 #include "ECMech_evptn_base.h"
-// #include "ECMech_evptnNR.h"
-// #include "ECMech_evptnFI.h"
 
 #include "ECMech_unused.h"
 
