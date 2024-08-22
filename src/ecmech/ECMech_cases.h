@@ -1,9 +1,9 @@
 // -*-c++-*-
 
-#include "ECMech_evptn.h"
-#include "ECMech_evptnWrap.h"
-#include "ECMech_kinetics.h"
+#include "evptn/ECMech_evptn.h"
+#include "kinetics/ECMech_kinetics.h"
 #include "ECMech_slipgeom.h"
+#include "ECMech_evptnWrap.h"
 
 namespace ecmech {
 

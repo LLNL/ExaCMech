@@ -7,20 +7,20 @@ set(ECMECH_HEADERS
     cases/ECMech_cases_bcc_defs.h
     cases/ECMech_cases_fcc_defs.h
     cases/ECMech_cases_hcp_defs.h
+    evptn/ECMech_base_classes.h
+    evptn/ECMech_base_fcns.h
+    evptn/ECMech_evptnSngl.h
+    evptn/ECMech_evptn.h
+    kinetics/ECMech_kinetics.h
+    kinetics/ECMech_kinetics_KMBalD.h
+    kinetics/ECMech_kinetics_OrowanD.h
+    kinetics/ECMech_kinetics_VocePL.h
+    kinetics/ECMech_kinetics_BCCMD.h
     ECMech_const.h
     ECMech_core.h
     ECMech_gpu_portability.h
     ECMech_eosSimple.h
     ECMech_elastic.h
-    ECMech_base_classes.h
-    ECMech_base_fcns.h
-    ECMech_evptnSngl.h
-    ECMech_evptn.h
-    ECMech_kinetics.h
-    ECMech_kinetics_KMBalD.h
-    ECMech_kinetics_OrowanD.h
-    ECMech_kinetics_VocePL.h
-    ECMech_kinetics_BCCMD.h
     ECMech_port.h
     ECMech_slipgeom.h
     ECMech_util.h

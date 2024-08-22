@@ -2,7 +2,7 @@
 
 #include "SNLS_TrDLDenseG.h"
 
-#include "ECMech_kinetics.h"
+#include "kinetics/ECMech_kinetics.h"
 #include "test_aniso_kinetics_VocePL.h"
 
 static int outputLevel = 1;

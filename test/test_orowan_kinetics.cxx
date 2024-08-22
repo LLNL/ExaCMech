@@ -2,7 +2,7 @@
 
 #include "SNLS_TrDLDenseG.h"
 
-#include "ECMech_kinetics.h"
+#include "kinetics/ECMech_kinetics.h"
 #include "cases/ECMech_cases_fcc_defs.h"
 
 #include <iostream>

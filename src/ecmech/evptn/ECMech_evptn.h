@@ -7,8 +7,8 @@
 
 #include "ECMech_core.h"
 #include "ECMech_util.h"
-#include "ECMech_base_classes.h"
-#include "ECMech_base_fcns.h"
+#include "evptn/ECMech_base_classes.h"
+#include "evptn/ECMech_base_fcns.h"
 
 namespace ecmech {
    namespace evptn {

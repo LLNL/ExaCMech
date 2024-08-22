@@ -4,10 +4,9 @@
 #include "ECMech_util.h"
 #include "ECMech_elastic.h"
 #include "ECMech_eosSimple.h"
-#include "ECMech_base_classes.h"
-#include "ECMech_base_fcns.h"
-
-#include "ECMech_evptn.h"
+#include "evptn/ECMech_base_classes.h"
+#include "evptn/ECMech_base_fcns.h"
+#include "evptn/ECMech_evptn.h"
 
 #include "SNLS_TrDLDenseG.h"
 #include "SNLS_HybrdTrDLDenseG.h"

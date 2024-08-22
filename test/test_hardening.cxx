@@ -2,7 +2,7 @@
 
 #include "SNLS_TrDLDenseG.h"
 
-#include "ECMech_kinetics.h"
+#include "kinetics/ECMech_kinetics.h"
 #include "ECMech_cases.h"
 
 static int outputLevel = 1;
