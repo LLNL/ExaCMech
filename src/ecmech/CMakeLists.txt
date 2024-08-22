@@ -14,10 +14,8 @@ set(ECMECH_HEADERS
     ECMech_elastic.h
     ECMech_base_classes.h
     ECMech_base_fcns.h
-    ECMech_evptn_base.h
+    ECMech_evptnSngl.h
     ECMech_evptn.h
-    ECMech_evptnNR.h
-    ECMech_evptnFI.h
     ECMech_kinetics.h
     ECMech_kinetics_KMBalD.h
     ECMech_kinetics_OrowanD.h
