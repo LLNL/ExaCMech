@@ -97,7 +97,7 @@ namespace evptn {
             // normalize quat just in case
             vecsVNormalize<qdim>(quat_n);
         }
-        __ecmech_hdev__
+
         ~ProblemState() = default;
     };
 
@@ -125,7 +125,6 @@ namespace evptn {
         m_inv_a_vol(1.0 / m_a_vol)
         {};
 
-        __ecmech_hdev__
         ~EvptnLatticeStrainProblem() = default;
 
         // used to be elastNEtoT
@@ -165,8 +164,8 @@ namespace evptn {
         m_thermo_elast_n.getCauchy(cauchy, kirchoff, m_inv_det_vol);
         }
 
-        __ecmech_hdev__
         template<bool calc_strain_rate = false>
+        __ecmech_hdev__
         inline
         void get_elas_strain_state(double* const elas_delta_dev_vec,
                                 double* const elas_dt_dev_vec,
@@ -213,8 +212,8 @@ namespace evptn {
         }
         }
 
-        __ecmech_hdev__
         template<size_t JAC_SIZE>
+        __ecmech_hdev__
         inline
         void get_deriv_elast_strain_wrt_elast_strain(double* const jacobian,
                                                     const double* const dDp_hat_delast_strain) const
@@ -237,8 +236,8 @@ namespace evptn {
         }
         } 
 
-        __ecmech_hdev__
         template<size_t JAC_SIZE, size_t ind_sub_r>
+        __ecmech_hdev__
         inline
         void get_deriv_omega_wrt_elast_strain(double* const jacobian,
                                             const double* const elas_dt_dev_vec,
@@ -264,8 +263,8 @@ namespace evptn {
         }         
         }
 
-        __ecmech_hdev__
         template<size_t JAC_SIZE, size_t ind_sub_h, size_t num_hard, size_t num_slip>
+        __ecmech_hdev__
         inline
         void get_deriv_hardening_wrt_elast_strain(double* const jacobian,
                                                 const double* const dhard_dgdot,
@@ -305,7 +304,6 @@ namespace evptn {
                                 const double* const xtal_ori_quat_n)
         : m_dt(dt), m_xtal_ori_quat_n(xtal_ori_quat_n) {};
         
-        __ecmech_hdev__
         ~EvptnLatticeRotationProblem() = default;
 
         __ecmech_hdev__
@@ -378,8 +376,8 @@ namespace evptn {
         }
         }
 
-        __ecmech_hdev__
         template<size_t JAC_SIZE>
+        __ecmech_hdev__
         inline
         void get_deriv_omega_wrt_omega(double* const jacobian,
                                     const double* const dspin_samp_domega) const
@@ -394,8 +392,9 @@ namespace evptn {
             jacob_rr(iWvec + ind_sub_r, iWvec + ind_sub_r) += one;
         }
         }
-        __ecmech_hdev__
+
         template<size_t JAC_SIZE>
+        __ecmech_hdev__
         inline
         void get_deriv_elast_strain_wrt_omega(double* const jacobian,
                                             const double* const ddef_rate_samp_domega) const
@@ -425,10 +424,6 @@ namespace evptn {
         const double m_dt;
         const double* const m_xtal_ori_quat_n;
     };
-
-#if defined(ECMECH_EXTRA_SOLVERS)
-
-#endif
 
 }
 }

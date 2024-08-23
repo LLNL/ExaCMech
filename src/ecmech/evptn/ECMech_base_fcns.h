@@ -21,8 +21,8 @@ namespace evptn {
         vecsVMTa<ecmech::ndim>(spin_vec_xtal, xtal_rmat, spin_vec_sample);
     }
 
-    __ecmech_hdev__
     template<class SlipGeom, class SlipKinetics>
+    __ecmech_hdev__
     inline
     void get_slip_rate_terms(double* const dgdot_dtau,
                             double* const plastic_def_rate,
@@ -57,8 +57,8 @@ namespace evptn {
     // dgammadot_dRSS -> dDp_hat_dElas_strain
     // dgammadot_dRSS -> dWp_hat_dElas_strain
     // terms used typically in either the Jacobian or material tangent stiffness matrix
-    __ecmech_hdev__
     template<class SlipGeom, class ThermoElastN>
+    __ecmech_hdev__
     inline
     void get_slip_rate_deriv_terms(double* const dDp_hat_delast_strain,
                                     double* const dWp_hat_delast_strain,
@@ -87,8 +87,8 @@ namespace evptn {
     // The values returned here are usually useful for post-processing and might have application in
     // application codes. However, they are not really state variables in that everything can be
     // calculated post-state variable update. 
-    __ecmech_hdev__
     template<class SlipGeom, class SlipKinetics, class Elasticty>
+    __ecmech_hdev__
     inline
     void get_slip_contributions(double& pl_disipation_rate,
                                 double& effective_shear_rate,
@@ -144,8 +144,8 @@ namespace evptn {
     // However, we already calculate most of them as part of the computeRJ portion of things
     // so just do it again here...
     // Might be able to rework this in a better way at some point...
-    __ecmech_hdev__
     template<class ThermoElastN, size_t JAC_SIZE, size_t ind_sub_omega>
+    __ecmech_hdev__
     inline
     void get_material_tangent_stiffness(double* const material_tangent,
                                         const double* const jacobian,
@@ -193,7 +193,7 @@ namespace evptn {
             // set of terms as being = 0
         }
         // Now solve for our dstrain_ddefrate and domega_ddefrate terms
-        int err = SNLS_LUP_SolveX<JAC_SIZE>(const_cast<double* const>(jacobian), dstrainomega_ddef_rate_t, nRHS);
+        int err = SNLS_LUP_SolveX<JAC_SIZE>(const_cast<double*>(jacobian), dstrainomega_ddef_rate_t, nRHS);
         if (err != 0) {
             ECMECH_FAIL(__func__, "error from SNLS_LUP_SolveX");
         }

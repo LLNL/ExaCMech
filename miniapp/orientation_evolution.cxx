@@ -455,7 +455,7 @@ int main(int argc, char *argv[]){
                RAJA::ReduceSum<RAJA::seq_reduce, double> seq_sum(0.0);
                RAJA::ReduceMin<RAJA::seq_reduce, double> seq_min(100.0); // We know this shouldn't ever be more than 100
                RAJA::ReduceMax<RAJA::seq_reduce, double> seq_max(0.0); // We know this will always be at least 1.0
-               RAJA::forall<RAJA::loop_exec>(default_range, [ = ] (int i_qpts){
+               RAJA::forall<RAJA::seq_exec>(default_range, [ = ] (int i_qpts){
                   double* nfunceval = &(d_state_vars[i_qpts * num_state_vars + 2]);
                   seq_sum += wts * nfunceval[0];
                   seq_max.max(nfunceval[0]);
@@ -466,7 +466,7 @@ int main(int argc, char *argv[]){
             }
             for (int j = 0; j < ecmech::nsvec; j++) {
                RAJA::ReduceSum<RAJA::seq_reduce, double> seq_sum(0.0);
-               RAJA::forall<RAJA::loop_exec>(default_range, [ = ] (int i_qpts){
+               RAJA::forall<RAJA::seq_exec>(default_range, [ = ] (int i_qpts){
                   const double* stress = &(d_stress_array[i_qpts * ecmech::nsvec]);
                   seq_sum += wts * stress[j];
                });

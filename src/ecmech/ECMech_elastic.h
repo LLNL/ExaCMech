@@ -122,8 +122,8 @@ namespace evptn {
             * NOTE : M6[nsvec,nsvec] with nsvec in the second dimension
             * (instead of ntvec) to make things easier elsewhere
             */
-        __ecmech_hdev__
         template<size_t N=ecmech::ntvec, size_t M=ecmech::ntvec>
+        __ecmech_hdev__
         inline
         void multCauchyDif(double* const M6,
                             const double* const A,
@@ -311,8 +311,8 @@ namespace evptn {
             }
         }
 
-        __ecmech_hdev__
         template<size_t N=ecmech::ntvec, size_t M=ecmech::ntvec>
+        __ecmech_hdev__
         inline
         void multCauchyDif(double* const M6,
                             const double* const A,

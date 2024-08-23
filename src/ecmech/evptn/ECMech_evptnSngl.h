@@ -14,8 +14,8 @@
 namespace ecmech {
 namespace evptn {
 
-__ecmech_hdev__
 template<class SlipGeom, class Kinetics, class EosModel, class ThermoElastN, class ProbState, bool RStarSolve=false>
+__ecmech_hdev__
 inline
 void preprocess(const SlipGeom& slipGeom,
                 const Kinetics& kinetics,
@@ -99,8 +99,8 @@ void preprocess(const SlipGeom& slipGeom,
 #endif
 }
 
-__ecmech_hdev__
 template<class SNLS_Solver>
+__ecmech_hdev__
 inline
 bool main_problem(const double tolerance,
                   SNLS_Solver& solver,
@@ -130,8 +130,8 @@ bool main_problem(const double tolerance,
     return true;
 }
 
-__ecmech_hdev__
 template<class Problem, class Solver, class ProblemState>
+__ecmech_hdev__
 inline
 void computeTangentStiffness(Problem& prob,
                              Solver& solver,
@@ -166,8 +166,8 @@ void computeTangentStiffness(Problem& prob,
     mtan_conv_sd_svec<true>(mtanSD, mtanSD_vecds);
 }
 
-__ecmech_hdev__
 template<int kinNH, class Problem, class ProblemState>
+__ecmech_hdev__
 inline
 void postprocess_prob(Problem& prob,
                       ProblemState& prob_state,
@@ -201,8 +201,8 @@ void postprocess_prob(Problem& prob,
 }
 
 
-__ecmech_hdev__
 template<class ProblemState, class ThermoElastN>
+__ecmech_hdev__
 inline
 void postprocess(ProblemState& prob_state,
                  const ThermoElastN& elastN,
