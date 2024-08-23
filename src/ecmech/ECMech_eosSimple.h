@@ -14,7 +14,7 @@ namespace ecmech {
    class EosModelConst
    {
       public:
-         static const int nParams = 5;
+         static constexpr int nParams = 5;
 
          // constructor
          __ecmech_hdev__

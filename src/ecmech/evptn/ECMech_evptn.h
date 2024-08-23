@@ -296,7 +296,7 @@ namespace ecmech {
       class RotUpdProblem
       {
          public:
-         static const int nDimSys = ecmech::nwvec;
+         static constexpr int nDimSys = ecmech::nwvec;
 
          __ecmech_hdev__
          RotUpdProblem(const SlipGeom& slipGeom,
@@ -440,7 +440,7 @@ namespace ecmech {
          const double* const m_def_rate_dev_vec_sample; // d_vecds_sm would be fine too -- but do not use m_def_rate_dev_vec_sample[iSvecS];
          const double* const m_spin_vec_sample;
 
-         static const int m_nXnDim = nDimSys * nDimSys;
+         static constexpr int m_nXnDim = nDimSys * nDimSys;
       };
 
       template<class SlipGeom, class Kinetics, class ThermoElastN, class ProblemState>
@@ -697,9 +697,9 @@ namespace ecmech {
             const double* const m_def_rate_dev_vec_sample; // d_vecds_sm would be fine too -- but do not use m_def_rate_dev_vec_sample[iSvecS];
             const double* const m_spin_vec_sample;
 
-            static const int m_nXnDim = nDimSys * nDimSys;
-            static const int m_i_sub_e = 0; // ntvec
-            static const int m_i_sub_r = ecmech::ntvec; // nwvec
+            static constexpr int m_nXnDim = nDimSys * nDimSys;
+            static constexpr int m_i_sub_e = 0; // ntvec
+            static constexpr int m_i_sub_r = ecmech::ntvec; // nwvec
             // for mtan (material tangent stiffnes)
             double* m_mtan_sI; // null if not wanting tangent evaluation
       }; // class EvptnNRUpdstProblem

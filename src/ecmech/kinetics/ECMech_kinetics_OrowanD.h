@@ -47,11 +47,11 @@ namespace ecmech {
    class KineticsOrowanD
    {
       public:
-         static const int nH = 2 * SlipGeom::nslip; // Number of mobile and total dislocation density
-         static const int nIH = isotropic ? 1 : (SlipGeom::nslip * SlipGeom::nslip); // Number of params in interaction matrix
-         static const int nParams = 12 + 4 * nVPer + nH + nIH + SlipGeom::nParams;
-         static const int nVals = 1 + nVPer + 2 * SlipGeom::nslip; //Our ref_slip_rate, CRSS, C1/T, and b*q_m params
-         static const int nEvolVals = SlipGeom::nslip; // We really don't need to evolve anything here
+         static constexpr int nH = 2 * SlipGeom::nslip; // Number of mobile and total dislocation density
+         static constexpr int nIH = isotropic ? 1 : (SlipGeom::nslip * SlipGeom::nslip); // Number of params in interaction matrix
+         static constexpr int nParams = 12 + 4 * nVPer + nH + nIH + SlipGeom::nParams;
+         static constexpr int nVals = 1 + nVPer + 2 * SlipGeom::nslip; //Our ref_slip_rate, CRSS, C1/T, and b*q_m params
+         static constexpr int nEvolVals = SlipGeom::nslip; // We really don't need to evolve anything here
          // constructor
          __ecmech_hdev__
          KineticsOrowanD(int _nslip) : nslip(_nslip) {

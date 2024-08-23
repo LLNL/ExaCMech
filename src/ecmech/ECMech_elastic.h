@@ -14,7 +14,7 @@ namespace evptn {
     class ThermoElastNCubic
     {
         public:
-        static const int nParams = 3;
+        static constexpr int nParams = 3;
 
         // constructor and destructor
         __ecmech_hdev__
@@ -198,7 +198,7 @@ namespace evptn {
     class ThermoElastNHexag
     {
         public:
-        static const int nParams = 6;
+        static constexpr int nParams = 6;
 
         // constructor and destructor
         __ecmech_hdev__
@@ -367,7 +367,7 @@ namespace evptn {
         double m_g_vecd2;
         double m_K_diag[ecmech::ntvec];
         double m_bulk_modulus, m_shear_modulus;
-        static const int iTvecHex = 1;
+        static constexpr int iTvecHex = 1;
     };
 
 }

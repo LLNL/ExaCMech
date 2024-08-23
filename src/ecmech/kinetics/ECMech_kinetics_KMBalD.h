@@ -42,10 +42,10 @@ namespace ecmech {
    class KineticsKMBalD
    {
       public:
-         static const int nH = 1;
-         static const int nParams = 8 + 3 * nVPer + 4 + nH;
-         static const int nVals = 2 + nVPer + nVPer;
-         static const int nEvolVals = 2;
+         static constexpr int nH = 1;
+         static constexpr int nParams = 8 + 3 * nVPer + 4 + nH;
+         static constexpr int nVals = 2 + nVPer + nVPer;
+         static constexpr int nEvolVals = 2;
          // constructor
          __ecmech_hdev__
          KineticsKMBalD(int _nslip) : nslip(_nslip) {

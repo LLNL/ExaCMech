@@ -85,7 +85,7 @@ namespace ecmech {
    class Kinetics_H1Problem
    {
       public:
-         static const int nDimSys = Kinetics::nH;
+         static constexpr int nDimSys = Kinetics::nH;
 
          // constructor
          __ecmech_hdev__
@@ -195,7 +195,7 @@ namespace ecmech {
    class Kinetics_HNProblem
    {
       public:
-         static const int nDimSys = Kinetics::nH;
+         static constexpr int nDimSys = Kinetics::nH;
 
          // constructor
          __ecmech_hdev__

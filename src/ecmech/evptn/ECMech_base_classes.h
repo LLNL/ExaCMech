@@ -29,8 +29,8 @@ namespace evptn {
     {
         public:
         // see n_rsv_matmod in F90 code
-        static const int iHistLbGdot = iHistLbH + Kinetics::nH;
-        static const int numHist = iHistLbH + Kinetics::nH + SlipGeom::nslip;
+        static constexpr int iHistLbGdot = iHistLbH + Kinetics::nH;
+        static constexpr int numHist = iHistLbH + Kinetics::nH + SlipGeom::nslip;
     }; // NumHist
 
     // These are largely things that we need to persist between function calls / what we want to pass around various function calls
@@ -105,7 +105,7 @@ namespace evptn {
     class EvptnLatticeStrainProblem
     {
         public:
-        static const int nDimSys = ecmech::ntvec;
+        static constexpr int nDimSys = ecmech::ntvec;
 
         __ecmech_hdev__
         EvptnLatticeStrainProblem(const ThermoElastN& thermoElastN,

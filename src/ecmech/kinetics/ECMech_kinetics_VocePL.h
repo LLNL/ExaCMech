@@ -16,10 +16,10 @@ namespace ecmech {
    class KineticsVocePL
    {
       public:
-         static const int nH = 1;
-         static const int nParams = 3 + 5 + nH + (nonlinear ? 1 : 0);
-         static const int nVals = 1;
-         static const int nEvolVals = 2;
+         static constexpr int nH = 1;
+         static constexpr int nParams = 3 + 5 + nH + (nonlinear ? 1 : 0);
+         static constexpr int nVals = 1;
+         static constexpr int nEvolVals = 2;
          // constructor
          __ecmech_hdev__
          KineticsVocePL(int _nslip) : nslip(_nslip) {};

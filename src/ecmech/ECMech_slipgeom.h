@@ -49,7 +49,7 @@ namespace ecmech {
    template<int Nslip>
    class SlipGeom {
       public:
-         static const int nslip = Nslip;
+         static constexpr int nslip = Nslip;
           
          __ecmech_hdev__ inline const double* getP() const { return m_P_ref_vec; };
          __ecmech_hdev__ inline const double* getQ() const { return m_Q_ref_vec; };
@@ -89,7 +89,7 @@ namespace ecmech {
    {
       public:
          static const bool dynamic = false;
-         static const int nParams = 0;
+         static constexpr int nParams = 0;
 
          // constructor and destructor
          __ecmech_hdev__  SlipGeomFCC() {};
@@ -163,18 +163,18 @@ namespace ecmech {
    class SlipGeomBCC : public SlipGeom<nSlipTmplt>
    {
       private:
-         static const int nslipAddBase = 12;
-         static const int nslipAddPGa = 12;
-         static const int nslipAddPGb = 24;
+         static constexpr int nslipAddBase = 12;
+         static constexpr int nslipAddPGa = 12;
+         static constexpr int nslipAddPGb = 24;
 
       public:
          static const bool dynamic = false;
-         static const int nslip = nSlipTmplt;
-         static const int nParams = 0;
+         static constexpr int nslip = nSlipTmplt;
+         static constexpr int nParams = 0;
 
-         static const int nslipBase = nslipAddBase;
-         static const int nslipPGa = nslipAddBase + nslipAddPGa;
-         static const int nslipPGb = nslipAddBase + nslipAddPGa + nslipAddPGb;
+         static constexpr int nslipBase = nslipAddBase;
+         static constexpr int nslipPGa = nslipAddBase + nslipAddPGa;
+         static constexpr int nslipPGb = nslipAddBase + nslipAddPGa + nslipAddPGb;
 
          // constructor and destructor
          __ecmech_hdev__  SlipGeomBCC() {
@@ -369,8 +369,8 @@ namespace ecmech {
          // 3  slip systems in prismatic <a> family
          // 6  slip systems in pyramidal <a> family
          // 12  slip systems in pyramidal 1 <c+a> family
-         //static const int nslip = 3 + 3 + 6 + 12;
-         static const int nParams = 1;
+         //static constexpr int nslip = 3 + 3 + 6 + 12;
+         static constexpr int nParams = 1;
 
          // constructor and destructor
          __ecmech_hdev__  SlipGeomHCPaBRYcaY1() {};
@@ -507,7 +507,7 @@ namespace ecmech {
       public:
 
          static const bool dynamic = true;
-         static const int nParams = 0;
+         static constexpr int nParams = 0;
 
          // constructor and destructor
          __ecmech_hdev__  SlipGeomBCCPencil() {};
@@ -626,7 +626,7 @@ namespace ecmech {
    {
       public:
          static const bool dynamic = true;
-         static const int nParams = 3;
+         static constexpr int nParams = 3;
 
          // constructor and destructor
          __ecmech_hdev__  SlipGeomBCCNonSchmid() {};

@@ -29,18 +29,18 @@ namespace ecmech {
          /// Number of hardening state variables
          /// The hardening state can be either the CRSS or it could be something like
          /// the DD content or someting else
-         static const int nH = SlipGeom::nslip;
+         static constexpr int nH = SlipGeom::nslip;
          /// Number of slip systems we're dealing with if it that is something useful
-         static const int m_num_slip = SlipGeom::nslip;
+         static constexpr int m_num_slip = SlipGeom::nslip;
          /// Number of parameters the model needs to be instantiated
-         static const int nParams = 8+4+1;
+         static constexpr int nParams = 8+4+1;
          /// Number of slip kinetic related-variables outputted
          /// Think of this as things like the CRSS values, evolving reference
          /// slip rates for both thermal and phonon drag contributions, and potentially
          /// other evolving variables that we can calculate at the beginning of time
          /// step and not have to recalculate every iterations of our coupled solve
          /// of the elastic strain and lattice rotation
-         static const int nVals = 2 * SlipGeom::nslip + 1;
+         static constexpr int nVals = 2 * SlipGeom::nslip + 1;
          /// These are variables that the hardening equation would need to solve for
          /// its update but the variables are not constant themselves.
          /// A common set would be for example in a voce model, the updated
@@ -48,7 +48,7 @@ namespace ecmech {
          /// as the saturation strength evolves based on the sum of the absolute value of the gammadots.
          /// In the orowan model as another example, we need the signed mobile dislocation scalar velocity
          /// as an input.
-         static const int nEvolVals = nH;
+         static constexpr int nEvolVals = nH;
 
          // Generally  don't using anything other than the default here
          __ecmech_hdev__
