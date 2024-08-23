@@ -51,7 +51,6 @@ namespace ecmech {
          static const int nIH = isotropic ? 1 : (SlipGeom::nslip * SlipGeom::nslip); // Number of params in interaction matrix
          static const int nParams = 12 + 4 * nVPer + nH + nIH + SlipGeom::nParams;
          static const int nVals = 1 + nVPer + 2 * SlipGeom::nslip; //Our ref_slip_rate, CRSS, C1/T, and b*q_m params
-         static const int nValsDerivs = SlipGeom::nslip; // Only need part of the dg/dh equation everything else can be calculated on fly
          static const int nEvolVals = SlipGeom::nslip; // We really don't need to evolve anything here
          // constructor
          __ecmech_hdev__
@@ -213,7 +212,6 @@ namespace ecmech {
             // do not clear params in case adding to an existing set
             int paramsStart = params.size();
 #endif
-
             params.push_back(m_mu_ref);
             params.push_back(m_temp_k_ref);
             for (int iVal = 0; iVal < nVPer; ++iVal) {
@@ -261,7 +259,6 @@ namespace ecmech {
             }
 
             //////////////////////////////
-
 #ifdef ECMECH_DEBUG
             assert((params.size() - paramsStart) == nParams);
 #endif
@@ -478,20 +475,10 @@ namespace ecmech {
             double & gdot,
             bool   & l_act,
             double & dgdot_dtau, // wrt resolved shear stress
-#if MORE_DERIVS
-            double & dgdot_dmu, // wrt shear modulus, not through g
-            double & dgdot_dgamo, // wrt reference rate for thermal part
-            double & dgdot_dgamr, // wrt reference rate for drag limited part
-            double & dgdot_dtemp_k, // wrt temperature, with other arguments fixed
-#endif
             const double* const vals,
             int      iSlip,
             double   tau,
             double   mu
-#if MORE_DERIVS
-            ,
-            double   temp_k
-#endif
             ) const
          {
             static const double gdot_w_pl_scaling = 10.0;
@@ -511,12 +498,6 @@ namespace ecmech {
             gdot = zero;
             //
             dgdot_dtau = zero;
-#if MORE_DERIVS
-            dgdot_dmu = zero;
-            dgdot_dgamo = zero;
-            dgdot_dgamr = zero;
-            dgdot_dtemp_k = zero;
-#endif
             l_act = false;
 
             double g_i;
@@ -536,9 +517,6 @@ namespace ecmech {
             // calculate drag limited kinetics
             //
             double gdot_r, dgdot_r_dtau;
-#if MORE_DERIVS
-            double dgdot_r_dtemp_k;
-#endif
             {
                double exp_arg = (fabs(tau) - gAth) / m_wrD;
                double temp;
@@ -556,15 +534,6 @@ namespace ecmech {
                   gdot_r = gam_r * (one - temp);
                }
                dgdot_r_dtau = gam_r * temp / m_wrD;
-#if MORE_DERIVS
-               double dgdotr_dtemp_k;
-               if (withGAthermal) {
-                  dgdot_r_dtemp_k = -gam_r * temp * exp_arg * m_wrDT / m_wrD;
-               }
-               else {
-                  dgdot_r_dtemp_k = -gam_r * temp * fabs(tau) * m_wrDT / (m_wrD * m_wrD);
-               }
-#endif
             }
             //
             if (at_0 > t_max) {
@@ -573,12 +542,6 @@ namespace ecmech {
                gdot = gdot_r;
 
                dgdot_dtau = dgdot_r_dtau;
-#if MORE_DERIVS
-               dgdot_dmu = zero;
-               dgdot_dgamo = zero;
-               dgdot_dtemp_k = copysign(dgdotr_dtemp_k, tau);
-               dgdot_dgamr = zero;
-#endif
                gdot = copysign(gdot, tau);
 
                l_act = true;
@@ -587,10 +550,6 @@ namespace ecmech {
 
             double gdot_w, dgdot_w_dtau;
             double dgdot_w_dg; // only used if !withGAthermal
-#if MORE_DERIVS
-            double dgdot_w_dmu;
-            double dgdot_w_dtemp_k;
-#endif
             //
             // calculate thermally activated kinetics
             {
@@ -606,10 +565,6 @@ namespace ecmech {
                   return;
                }
                //
-#if MORE_DERIVS
-               dgdot_w_dmu = zero;
-               dgdot_w_dtemp_k = zero;
-#endif
                //
                // !IF (exp_arg > ln_gam_ratio_ovf) THEN
                // !END IF
@@ -620,10 +575,6 @@ namespace ecmech {
                if (!withGAthermal) {
                   dgdot_w_dg = dgdot_w_dtau * t_frac;
                }
-#if MORE_DERIVS
-               dgdot_w_dmu = gdot_w * (-exp_arg / mu);
-               dgdot_w_dtemp_k = gdot_w * (exp_arg / temp_k); // negatives cancel
-#endif
                //
                double t_frac_m = (-fabs(tau) - gAth) * g_i;
                double exp_arg_m, mts_dfac_m;
@@ -674,19 +625,6 @@ namespace ecmech {
                // dgdot_dtau = dgdot_r_dtau;
                dgdot_dtau = (gdot * gdot) * (dgdot_w_dtau * gdwdiv2 + dgdot_r_dtau * gdrdiv2);
                //
-#if MORE_DERIVS
-               double temp = gdot * copysign(gdot, tau) * gdwdiv2;
-               // The reference rate is a bit different for the orowonian
-               // framework then the previous version
-               dgdot_dgamo = temp * (gdot_w / gam_w);
-               dgdot_dmu = temp * dgdot_w_dmu;
-               dgdot_dtemp_k = temp * dgdot_w_dtemp_k;
-               //
-               temp = gdot * copysign(gdot, tau) * gdrdiv2;
-               // There reference value here is just the shear speed...
-               dgdot_dgamr = temp * (gdot_r / gam_r);
-               dgdot_dtemp_k = dgdot_dtemp_k + temp * dgdot_r_dtemp_k;
-#endif
             }
 
             gdot = copysign(gdot, tau);

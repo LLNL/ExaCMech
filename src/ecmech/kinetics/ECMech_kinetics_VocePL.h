@@ -19,7 +19,6 @@ namespace ecmech {
          static const int nH = 1;
          static const int nParams = 3 + 5 + nH + (nonlinear ? 1 : 0);
          static const int nVals = 1;
-         static const int nValsDerivs = 1;
          static const int nEvolVals = 2;
          // constructor
          __ecmech_hdev__
@@ -209,19 +208,9 @@ namespace ecmech {
             double & gdot,
             bool  & l_act,
             double & dgdot_dtau, // wrt resolved shear stress
-#if MORE_DERIVS
-            double & dgdot_dmu,   // wrt shear modulus, not through g
-            double & dgdot_dgamo, // wrt reference rate for thermal part
-            double & dgdot_dgamr, // wrt reference rate for drag limited part
-            double & dgdot_dtemp_k,   // wrt temperature, with other arguments fixed
-#endif
             double   gIn,
             double   tau,
             double // mu not currently used
-#if MORE_DERIVS
-            ,
-            double   temp_k
-#endif
             ) const
          {
             // zero things so that can more easily just return in inactive
@@ -229,12 +218,6 @@ namespace ecmech {
             gdot = zero;
             //
             dgdot_dtau = zero;
-#if MORE_DERIVS
-            dgdot_dmu = zero;
-            dgdot_dgamo = zero;
-            dgdot_dgamr = zero;
-            dgdot_dtemp_k = zero;
-#endif
             l_act = false;
 
             double g_i = one / gIn; // assume have checked gIn>0 elsewhere
@@ -262,21 +245,6 @@ namespace ecmech {
                   dgdot_dtau = m_xnn * gdot / tau;
                   // dgdot_dtau = temp * m_xnn * g_i; // note: always positive, = xnn * gdot/t
                   // dgdot_dh and dgdot_dg are the same thing for the voce model
-#if MORE_DERIVS
-                  // dgdot_dmu   =  zero ; // already done
-                  dgdot_dgamo = gdot / m_gam_w;
-                  // dgdot_dgamr = zero ; // already done
-                  // dgdot_dtemp_k   = zero ; // already done
-
-                  // IF (pl%tdp%T_dep) THEN
-                  // dgdot_dtemp_k   =  gdot * pl%tdp%qoverr / (temp_k * temp_k)
-                  // END IF
-                  // IF (pl%tdp%T_dep_m) THEN !  .AND. pl%xm < XM_UB_p
-                  // dxn_dtemp_k = -(pl%xnn*pl%xnn) * pl%tdp%dxm_dtemp_k_current
-                  // dgdot_dtemp_k = dgdot_dtemp_k + &
-                  // & gdot * abslog * dxn_dtemp_k
-                  // END IF
-#endif
                }
             }
          } // evalGdot

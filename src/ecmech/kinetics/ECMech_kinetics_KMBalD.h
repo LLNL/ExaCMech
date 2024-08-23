@@ -45,7 +45,6 @@ namespace ecmech {
          static const int nH = 1;
          static const int nParams = 8 + 3 * nVPer + 4 + nH;
          static const int nVals = 2 + nVPer + nVPer;
-         static const int nValsDerivs = 1 + nVPer;
          static const int nEvolVals = 2;
          // constructor
          __ecmech_hdev__
@@ -374,20 +373,10 @@ namespace ecmech {
             double & gdot,
             bool   & l_act,
             double & dgdot_dtau, // wrt resolved shear stress
-#if MORE_DERIVS
-            double & dgdot_dmu, // wrt shear modulus, not through g
-            double & dgdot_dgamo, // wrt reference rate for thermal part
-            double & dgdot_dgamr, // wrt reference rate for drag limited part
-            double & dgdot_dtemp_k, // wrt temperature, with other arguments fixed
-#endif
             const double* const vals,
             int      iSlip,
             double   tau,
             double   mu
-#if MORE_DERIVS
-            ,
-            double   temp_k
-#endif
             ) const
          {
             static const double gdot_w_pl_scaling = 10.0;
@@ -407,12 +396,6 @@ namespace ecmech {
             gdot = zero;
             //
             dgdot_dtau = zero;
-#if MORE_DERIVS
-            dgdot_dmu = zero;
-            dgdot_dgamo = zero;
-            dgdot_dgamr = zero;
-            dgdot_dtemp_k = zero;
-#endif
             l_act = false;
 
             double g_i;
@@ -433,9 +416,6 @@ namespace ecmech {
             // calculate drag limited kinetics
             //
             double gdot_r, dgdot_r;
-#if MORE_DERIVS
-            double dgdotr_dtemp_k;
-#endif
             {
                double exp_arg = (fabs(tau) - gAth) / m_wrD;
                double temp;
@@ -453,15 +433,6 @@ namespace ecmech {
                   gdot_r = gam_r * (one - temp);
                }
                dgdot_r = gam_r * temp / m_wrD;
-#if MORE_DERIVS
-               double dgdotr_dtemp_k;
-               if (withGAthermal) {
-                  dgdotr_dtemp_k = -gam_r * temp * exp_arg * m_wrDT / m_wrD;
-               }
-               else {
-                  dgdotr_dtemp_k = -gam_r * temp * fabs(tau) * m_wrDT / (m_wrD * m_wrD);
-               }
-#endif
             }
             //
             if (at_0 > t_max) {
@@ -470,12 +441,6 @@ namespace ecmech {
                gdot = gdot_r;
 
                dgdot_dtau = dgdot_r;
-#if MORE_DERIVS
-               dgdot_dmu = zero;
-               dgdot_dgamo = zero;
-               dgdot_dtemp_k = copysign(dgdotr_dtemp_k, tau);
-               dgdot_dgamr = copysign(gdot, tau) / gam_r;
-#endif
                gdot = copysign(gdot, tau);
 
                l_act = true;
@@ -499,10 +464,6 @@ namespace ecmech {
                   return;
                }
                //
-#if MORE_DERIVS
-               dgdotw_dmu = zero;
-               dgdotw_dtemp_k = zero;
-#endif
                //
                // !IF (exp_arg > ln_gam_ratio_ovf) THEN
                // !END IF
@@ -513,10 +474,6 @@ namespace ecmech {
                if (!withGAthermal) {
                   dgdot_wg = dgdot_w * t_frac;
                }
-#if MORE_DERIVS
-               dgdotw_dmu = gdot_w * (-exp_arg / mu);
-               dgdotw_dtemp_k = gdot_w * (exp_arg / temp_k); // negatives cancel
-#endif
                //
                double t_frac_m = (-fabs(tau) - gAth) * g_i;
                double exp_arg_m, mts_dfac_m;
@@ -563,15 +520,6 @@ namespace ecmech {
                double gdrdiv2 = one / (gdot_r * gdot_r);
                double gdwdiv2 = one / (gdot_w * gdot_w);
                dgdot_dtau = (gdot * gdot) * (dgdot_w * gdwdiv2 + dgdot_r * gdrdiv2);
-               //
-#if MORE_DERIVS
-               double temp = gdot * copysign(gdot, tau) * gdwdiv2;
-               dgdot_dgamo = temp * (gdot_w / gam_w);
-               dgdot_dmu = temp * dgdotw_dmu;
-               dgdot_dtemp_k = temp * dgdotw_dtemp_k;
-               dgdot_dgamr = temp * (gdot_r / gam_r);
-               dgdot_dtemp_k = dgdot_dtemp_k + temp * dgdotr_dtemp_k;
-#endif
             }
 
             gdot = copysign(gdot, tau);
@@ -632,21 +580,9 @@ namespace ecmech {
          {
             double shrate_eff = evolVals[0];
             double k2 = evolVals[1];
-            // IF (PRESENT(dfdtemp_k)) THEN
-            // dfdtemp_k(1) = zero
-            // END IF
-
-            // sdot = 0.0 ;
-            // dsdot_ds = 0.0 ;
-            //
-            // if ( shrate_eff <= zero ) {
-            //// do not get any evolution, and will get errors if proceed with calculations below
-            // }
-            // else {
             double temp_hs_a = exp(-onehalf * h);
             double temp1 = m_k1 * temp_hs_a - k2;
             sdot = temp1 * shrate_eff;
-            // dfdshr = temp1 + m_ninv * k2 ;
             dsdot_ds = (-m_k1 * onehalf * temp_hs_a) * shrate_eff;
             // }
          }

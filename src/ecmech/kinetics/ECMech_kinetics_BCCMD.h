@@ -41,7 +41,6 @@ namespace ecmech {
          /// step and not have to recalculate every iterations of our coupled solve
          /// of the elastic strain and lattice rotation
          static const int nVals = 2 * SlipGeom::nslip + 1;
-         static const int nValsDerivs = SlipGeom::nslip;
          /// These are variables that the hardening equation would need to solve for
          /// its update but the variables are not constant themselves.
          /// A common set would be for example in a voce model, the updated
@@ -296,7 +295,6 @@ namespace ecmech {
                this->evalGdot(gdot[iSlip], l_act, dgdot_dtau[iSlip],
                               crss, rhoa, taua, chia, temp_k);
             }
-			//printf("---\n");
          }
 
          /// Calculates the slip rate and derivatives for a given slip system
@@ -441,7 +439,6 @@ namespace ecmech {
                log_hs_o[islip] = log(fmax(hs_o[islip], m_hdn_min));
                gdotabs[islip] = abs(gdot[islip]);
             }
-			//printf("updateH\n");
             // If the equation is incredibly  stiff it's possible this won't solve
             int nFEvals = updateHN<KineticsBCCMD>(this,
                                                   log_hs_u, log_hs_o, dt, gdotabs, hvals, temp_k,
