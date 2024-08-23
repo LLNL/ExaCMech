@@ -55,10 +55,10 @@ namespace ecmech {
          static const int nEvolVals = SlipGeom::nslip; // We really don't need to evolve anything here
          // constructor
          __ecmech_hdev__
-         KineticsOrowanD(int nslip) : _nslip(nslip) {
-            assert(_nslip == SlipGeom::nslip);
+         KineticsOrowanD(int _nslip) : nslip(_nslip) {
+            assert(nslip == SlipGeom::nslip);
             if (perSS) {
-               assert(_nslip == nVPer);
+               assert(nslip == nVPer);
             }
             else {
                assert(nVPer == 1);
@@ -76,42 +76,42 @@ namespace ecmech {
             //////////////////////////////
             // power-law stuff
 
-            _mu_ref = *parsIt; ++parsIt;
-            _tK_ref = *parsIt; ++parsIt;
+            m_mu_ref = *parsIt; ++parsIt;
+            m_tK_ref = *parsIt; ++parsIt;
             for (int iVal = 0; iVal < nVPer; ++iVal) {
-               _berg_mag[iVal] = *parsIt; ++parsIt;
+               m_berg_mag[iVal] = *parsIt; ++parsIt;
             }
 
-            _lbar_b = *parsIt; ++parsIt;
+            m_lbar_b = *parsIt; ++parsIt;
 
-            _gam_ro = *parsIt; ++parsIt;
-            _wrD = *parsIt; ++parsIt;
+            m_gam_ro = *parsIt; ++parsIt;
+            m_wrD = *parsIt; ++parsIt;
 
             // thermal activation params
-            _fD = *parsIt; ++parsIt;
+            m_fD = *parsIt; ++parsIt;
             for (int iVal = 0; iVal < nVPer; ++iVal) {
-               _c_1[iVal] = *parsIt; ++parsIt;
+               m_c_1[iVal] = *parsIt; ++parsIt;
             }
 
-            _tau_a = *parsIt; ++parsIt;
-            _p = *parsIt; ++parsIt;
-            _q = *parsIt; ++parsIt;
+            m_tau_a = *parsIt; ++parsIt;
+            m_p = *parsIt; ++parsIt;
+            m_q = *parsIt; ++parsIt;
             for (int iVal = 0; iVal < nVPer; ++iVal) {
-               _c_2[iVal] = *parsIt; ++parsIt;
+               m_c_2[iVal] = *parsIt; ++parsIt;
             }
 
             for (int iVal = 0; iVal < nIH; ++iVal) {
-               _inter_mat[iVal] = *parsIt; ++parsIt;
+               m_inter_mat[iVal] = *parsIt; ++parsIt;
             }
 
             if (withGAthermal) {
-               assert(_tau_a > zero);
+               assert(m_tau_a > zero);
             }
             if (pOne) {
-               assert(_p == one);
+               assert(m_p == one);
             }
             if (qOne) {
-               assert(_q == one);
+               assert(m_q == one);
             }
 
 
@@ -121,51 +121,51 @@ namespace ecmech {
             //
             for (int iVal = 0; iVal<nVPer; ++iVal) {
                // pl%xm = getMtsxmEffective(pl, mu_ref, T_ref)
-               double xm = one / (two * ((_c_1[iVal] / _tK_ref) * _mu_ref * _p * _q));
+               double xm = one / (two * ((m_c_1[iVal] / m_tK_ref) * m_mu_ref * m_p * m_q));
                //
                // CALL fill_power_law(pl)
                // xmm  = xm - one ;
-               _xnn[iVal] = one / xm;
-               _xn[iVal] = _xnn[iVal] - one;
+               m_xnn[iVal] = one / xm;
+               m_xn[iVal] = m_xnn[iVal] - one;
                // xMp1 = xnn + one
                //
                // CALL set_t_min_max(pl)
                // These factors are the same from the balanced-MTS kinetic mobility law
-               // and if the ratio tau/crss is below _t_min we aren't moving at all
-               // and if the ratio is above _t_max we're strictly in phonon drag mobility
-               _t_min[iVal] = pow(ecmech::gam_ratio_min, xm);
-               _t_max[iVal] = pow(ecmech::gam_ratio_ovf, xm);
+               // and if the ratio tau/crss is below m_t_min we aren't moving at all
+               // and if the ratio is above m_t_max we're strictly in phonon drag mobility
+               m_t_min[iVal] = pow(ecmech::gam_ratio_min, xm);
+               m_t_max[iVal] = pow(ecmech::gam_ratio_ovf, xm);
 
             }
 
             //////////////////////////////
             // Dislocation evolution stuff
 
-            _c_ann = *parsIt; ++parsIt;
-            _d_ann = *parsIt; ++parsIt;
-            _c_trap = *parsIt; ++parsIt;
-            _c_mult = *parsIt; ++parsIt;
+            m_c_ann = *parsIt; ++parsIt;
+            m_d_ann = *parsIt; ++parsIt;
+            m_c_trap = *parsIt; ++parsIt;
+            m_c_mult = *parsIt; ++parsIt;
 
             //////////////////////////////
             // Dislocation Densities
             for (int iVal = 0; iVal < SlipGeom::nslip; iVal++) {
-               _qM[iVal] = *parsIt; ++parsIt;
+               m_qM[iVal] = *parsIt; ++parsIt;
             }
 
             for (int iVal = 0; iVal < SlipGeom::nslip; iVal++) {
-               _qT[iVal] = *parsIt; ++parsIt;
+               m_qT[iVal] = *parsIt; ++parsIt;
             }
 
-            _hdn_min = _qM[0];
+            m_hdn_min = m_qM[0];
             // The mobile dd should be the smallest so find the smallest
-            // here and base our _hdn_min on that.
+            // here and base our m_hdn_min on that.
             for (int iVal = 0; iVal < SlipGeom::nslip; iVal++) {
-               if (_hdn_min > _qM[iVal]) {
-                  _hdn_min = _qM[iVal];
+               if (m_hdn_min > m_qM[iVal]) {
+                  m_hdn_min = m_qM[iVal];
                }
             }
             // Might want to make this smaller if provided large initial DD value?
-            _hdn_min *= 1.0e-4;
+            m_hdn_min *= 1.0e-4;
 
             //////////////////////////////
             // Initialize slip system matrix
@@ -181,7 +181,7 @@ namespace ecmech {
                // A^{\alpha\beta} = 1/2 * (|m^alpha \cdot s^alpha| + |m^alpha \cdot (m^beta \cross s^beta)|)
                RAJA::View<const double, RAJA::Layout<2> > mView(mref, SlipGeom::nslip, ecmech::ndim);
                RAJA::View<const double, RAJA::Layout<2> > sView(sref, SlipGeom::nslip, ecmech::ndim);
-               RAJA::View<double, RAJA::Layout<2> > aView(&_a_mat[0], SlipGeom::nslip, SlipGeom::nslip);
+               RAJA::View<double, RAJA::Layout<2> > aView(&m_a_mat[0], SlipGeom::nslip, SlipGeom::nslip);
 
                for (int alpha = 0; alpha < SlipGeom::nslip; alpha++) {
                   for (int beta = 0; beta < SlipGeom::nslip; beta++) {
@@ -195,7 +195,7 @@ namespace ecmech {
                      aView(alpha, beta) = 1.0 / 2.0 * (std::abs(mds) + std::abs(mdmxs));
 #else
                      // use interaction matrix
-                     aView(alpha, beta) = _inter_mat[alpha * SlipGeom::nslip + beta];
+                     aView(alpha, beta) = m_inter_mat[alpha * SlipGeom::nslip + beta];
 #endif
                   }
                }
@@ -214,50 +214,50 @@ namespace ecmech {
             int paramsStart = params.size();
 #endif
 
-            params.push_back(_mu_ref);
-            params.push_back(_tK_ref);
+            params.push_back(m_mu_ref);
+            params.push_back(m_tK_ref);
             for (int iVal = 0; iVal < nVPer; ++iVal) {
-               params.push_back(_berg_mag[iVal]);
+               params.push_back(m_berg_mag[iVal]);
             }
 
-            params.push_back(_lbar_b);
+            params.push_back(m_lbar_b);
             // phonon drag params
-            params.push_back(_gam_ro);
-            params.push_back(_wrD);
+            params.push_back(m_gam_ro);
+            params.push_back(m_wrD);
 
             // thermal activation params
-            params.push_back(_fD);
+            params.push_back(m_fD);
             for (int iVal = 0; iVal < nVPer; ++iVal) {
-               params.push_back(_c_1[iVal]);
+               params.push_back(m_c_1[iVal]);
             }
 
-            params.push_back(_tau_a);
-            params.push_back(_p);
-            params.push_back(_q);
+            params.push_back(m_tau_a);
+            params.push_back(m_p);
+            params.push_back(m_q);
             for (int iVal = 0; iVal < nVPer; ++iVal) {
-               params.push_back(_c_2[iVal]);
+               params.push_back(m_c_2[iVal]);
             }
 
             for (int iVal = 0; iVal < nIH; ++iVal) {
-               params.push_back(_inter_mat[iVal]);
+               params.push_back(m_inter_mat[iVal]);
             }
 
             //////////////////////////////
             // Dislocation evolution stuff
 
-            params.push_back(_c_ann);
-            params.push_back(_d_ann);
-            params.push_back(_c_trap);
-            params.push_back(_c_mult);
+            params.push_back(m_c_ann);
+            params.push_back(m_d_ann);
+            params.push_back(m_c_trap);
+            params.push_back(m_c_mult);
 
             //////////////////////////////
             // Dislocation Densities
             for (int iVal = 0; iVal < SlipGeom::nslip; iVal++) {
-               params.push_back(_qM[iVal]);
+               params.push_back(m_qM[iVal]);
             }
 
             for (int iVal = 0; iVal < SlipGeom::nslip; iVal++) {
-               params.push_back(_qT[iVal]);
+               params.push_back(m_qT[iVal]);
             }
 
             //////////////////////////////
@@ -274,14 +274,14 @@ namespace ecmech {
                           std::vector<bool>        & state) const {
             for (int iSlip = 0; iSlip < SlipGeom::nslip; iSlip++) {
                names.push_back("rho_dd_mobile_" + std::to_string(iSlip));
-               init.push_back(_qM[iSlip]);
+               init.push_back(m_qM[iSlip]);
                plot.push_back(true);
                state.push_back(true);
             }
 
             for (int iSlip = 0; iSlip < SlipGeom::nslip; iSlip++) {
                names.push_back("rho_dd_total_" + std::to_string(iSlip));
-               init.push_back(_qT[iSlip]);
+               init.push_back(m_qT[iSlip]);
                plot.push_back(true);
                state.push_back(true);
             }
@@ -289,48 +289,47 @@ namespace ecmech {
 
       private:
 
-         const int _nslip; // could template on this if there were call to do so
+         const int nslip; // could template on this if there were call to do so
 
          //////////////////////////////
          // MTS-like stuff
 
          // parameters
-         double _lbar_b; // We might need to make this per SS as well
-         double _mu_ref;
-         double _tK_ref;
-         double _fD;
-         double _c_3[nVPer];
-         double _berg_mag[nVPer];
-         double _c_1[nVPer];
-         double _tau_a;
-         double _c_2[nVPer];
-         double _p; // only used if pOne is false
-         double _q; // only used if qOne is false
-         double _inter_mat[nIH]; // symmetric matrix
+         double m_lbar_b; // We might need to make this per SS as well
+         double m_mu_ref;
+         double m_tK_ref;
+         double m_fD;
+         double m_berg_mag[nVPer];
+         double m_c_1[nVPer];
+         double m_tau_a;
+         double m_c_2[nVPer];
+         double m_p; // only used if pOne is false
+         double m_q; // only used if qOne is false
+         double m_inter_mat[nIH]; // symmetric matrix
 
-         double _gam_ro;
-         double _wrD;
+         double m_gam_ro;
+         double m_wrD;
 
          // derived from parameters
-         double _t_max[nVPer], _t_min[nVPer], _xn[nVPer], _xnn[nVPer];
+         double m_t_max[nVPer], m_t_min[nVPer], m_xn[nVPer], m_xnn[nVPer];
 
          //////////////////////////////
          // Dislocation evolution stuff
 
-         double _c_ann;
-         double _d_ann;
-         double _c_trap;
-         double _c_mult;
+         double m_c_ann;
+         double m_d_ann;
+         double m_c_trap;
+         double m_c_mult;
          // stored c-style
-         double _a_mat[SlipGeom::nslip * SlipGeom::nslip]; // Forest interaction matrix
+         double m_a_mat[SlipGeom::nslip * SlipGeom::nslip]; // Forest interaction matrix
 
          //////////////////////////////
          // Initial dislocation densities
          // so _hdn_init in other models
 
-         double _qM[SlipGeom::nslip];
-         double _qT[SlipGeom::nslip];
-         double _hdn_min;
+         double m_qM[SlipGeom::nslip];
+         double m_qT[SlipGeom::nslip];
+         double m_hdn_min;
 
       public:
 
@@ -358,24 +357,24 @@ namespace ecmech {
                  double* const val_derivs = nullptr
                  ) const
          {
-            double const nVPerInv = 1.0 / _nslip;
+            double const nVPerInv = 1.0 / nslip;
 
             double maxRefRate = 0.0;
             double hdnScale = 0.;
-            for (int iVal = 0; iVal < _nslip; ++iVal) {
-               const double int_q = isotropic ? sqrt(_inter_mat[0] * vecsssumabs<SlipGeom::nslip>(&h_state[_nslip])) :
-                                                sqrt(vecsyadotb<SlipGeom::nslip>(&_inter_mat[iVal * _nslip], &h_state[_nslip]));
-               const double hdnI = perSS ? (_c_2[iVal] * int_q) : (_c_2[0] * int_q);
+            for (int iVal = 0; iVal < nslip; ++iVal) {
+               const double int_q = isotropic ? sqrt(m_inter_mat[0] * vecsssumabs<SlipGeom::nslip>(&h_state[nslip])) :
+                                                sqrt(vecsyadotb<SlipGeom::nslip>(&m_inter_mat[iVal * nslip], &h_state[nslip]));
+               const double hdnI = perSS ? (m_c_2[iVal] * int_q) : (m_c_2[0] * int_q);
                if (val_derivs != nullptr) {
-                  val_derivs[iVal] = perSS ? _c_2[iVal] : _c_2[0];
+                  val_derivs[iVal] = perSS ? m_c_2[iVal] : m_c_2[0];
                   val_derivs[iVal] *= ecmech::onehalf / int_q;
                }
                hdnScale += hdnI;
                vals[1 + iVal] = hdnI;
-               vals[1 + _nslip + iVal] = h_state[iVal];
+               vals[1 + nslip + iVal] = h_state[iVal];
                // Thermal activation + phonon ref slip rate = (1/(f_D * \bar{L}/b * sqrt(qM_0)/sqrt(qM)) + 1/(gammadot_r0 * qM))^-1
-               const double isqrth = 1.0 / sqrt(vals[1 + _nslip + iVal]);
-               const double rate = 1.0 / ((1.0 / (_lbar_b * _fD * isqrth)) + (1.0 / (_gam_ro * vals[1 + _nslip + iVal])));
+               const double isqrth = 1.0 / sqrt(vals[1 + nslip + iVal]);
+               const double rate = 1.0 / ((1.0 / (m_lbar_b * m_fD * isqrth)) + (1.0 / (m_gam_ro * vals[1 + nslip + iVal])));
                if (rate > maxRefRate) {
                   maxRefRate = rate;
                }
@@ -386,7 +385,7 @@ namespace ecmech {
             vals[0] = maxRefRate;
 
             for (int iVal = 0; iVal < nVPer; ++iVal) {
-               vals[1 + 2 * _nslip + iVal] = _c_1[iVal] / tK; // _c_t
+               vals[1 + 2 * nslip + iVal] = m_c_1[iVal] / tK; // _c_t
             }
 
             return hdnScale;
@@ -401,12 +400,12 @@ namespace ecmech {
                    const double* const vals
                    ) const
          {
-            for (int iSlip = 0; iSlip<this->_nslip; ++iSlip) {
+            for (int iSlip = 0; iSlip<this->nslip; ++iSlip) {
                bool l_act;
                this->evalGdot(gdot[iSlip], l_act, dgdot_dtau[iSlip],
                               vals, iSlip,
                               tau[iSlip],
-                              _mu_ref // gss%ctrl%mu(islip)
+                              m_mu_ref // gss%ctrl%mu(islip)
                               );
             }
          }
@@ -439,10 +438,10 @@ namespace ecmech {
                   // !END IF
                }
                else {
-                  p_func = pow(fabs(t_frac), _p);
+                  p_func = pow(fabs(t_frac), m_p);
                   p_func = copysign(p_func, t_frac);
                   mts_dfac = mts_dfac *
-                             _p * p_func / t_frac; // always positive
+                             m_p * p_func / t_frac; // always positive
                }
             }
 
@@ -459,9 +458,9 @@ namespace ecmech {
                   pq_fac = q_arg;
                }
                else {
-                  double temp = pow(fabs(q_arg), _q);
+                  double temp = pow(fabs(q_arg), m_q);
                   mts_dfac = mts_dfac *
-                             _q * temp / fabs(q_arg); // always positive
+                             m_q * temp / fabs(q_arg); // always positive
                   pq_fac = copysign(temp, q_arg);
                }
             }
@@ -499,14 +498,14 @@ namespace ecmech {
             static const double one = 1.0, zero = 0.0;
 
             const double gIn = vals[1 + iSlip];
-            const double qm = vals[1 + _nslip + iSlip];
-            const double xn = perSS ? _xn[iSlip] : _xn[0];
-            const double xnn = perSS ? _xnn[iSlip] : _xnn[0];
-            const double t_min = perSS ? _t_min[iSlip] : _t_min[0];
-            const double t_max = perSS ? _t_max[iSlip] : _t_max[0];
-            const double c_t = perSS ? vals[1 + 2 * _nslip + iSlip] : vals[1 + 2 * _nslip];
-            const double gam_w = _lbar_b * _fD / sqrt(qm);
-            const double gam_r = _gam_ro * qm;
+            const double qm = vals[1 + nslip + iSlip];
+            const double xn = perSS ? m_xn[iSlip] : m_xn[0];
+            const double xnn = perSS ? m_xnn[iSlip] : m_xnn[0];
+            const double t_min = perSS ? m_t_min[iSlip] : m_t_min[0];
+            const double t_max = perSS ? m_t_max[iSlip] : m_t_max[0];
+            const double c_t = perSS ? vals[1 + 2 * nslip + iSlip] : vals[1 + 2 * nslip];
+            const double gam_w = m_lbar_b * m_fD / sqrt(qm);
+            const double gam_r = m_gam_ro * qm;
 
             // zero things so that can more easily just return if inactive
             gdot = zero;
@@ -524,10 +523,10 @@ namespace ecmech {
             double gAth;
             if (withGAthermal) {
                gAth = gIn;
-               g_i = one / _tau_a;
+               g_i = one / m_tau_a;
             }
             else {
-               gAth = _tau_a;
+               gAth = m_tau_a;
                if (tau == zero) {
                   return;
                }
@@ -541,7 +540,7 @@ namespace ecmech {
             double dgdot_r_dtK;
 #endif
             {
-               double exp_arg = (fabs(tau) - gAth) / _wrD;
+               double exp_arg = (fabs(tau) - gAth) / m_wrD;
                double temp;
                if (exp_arg < gam_ratio_min) { // ! IF (gdot_r < gam_ratio_min) THEN
                   // note that this should catch tau <= g
@@ -550,20 +549,20 @@ namespace ecmech {
                else if (exp_arg < idp_eps_sqrt) {
                   // linear expansion is cheaper and more accurate
                   gdot_r = gam_r * exp_arg;
-                  temp = one - exp_arg; // still use temp below as approximation to exp(-fabs(tau)/_wrD)
+                  temp = one - exp_arg; // still use temp below as approximation to exp(-fabs(tau)/m_wrD)
                }
                else {
                   temp = exp(-exp_arg);
                   gdot_r = gam_r * (one - temp);
                }
-               dgdot_r_dtau = gam_r * temp / _wrD;
+               dgdot_r_dtau = gam_r * temp / m_wrD;
 #if MORE_DERIVS
                double dgdotr_dtK;
                if (withGAthermal) {
-                  dgdot_r_dtK = -gam_r * temp * exp_arg * _wrDT / _wrD;
+                  dgdot_r_dtK = -gam_r * temp * exp_arg * m_wrDT / m_wrD;
                }
                else {
-                  dgdot_r_dtK = -gam_r * temp * fabs(tau) * _wrDT / (_wrD * _wrD);
+                  dgdot_r_dtK = -gam_r * temp * fabs(tau) * m_wrDT / (m_wrD * m_wrD);
                }
 #endif
             }
@@ -707,13 +706,13 @@ namespace ecmech {
 
             double ihs_o[SlipGeom::nslip * 2];
             double nu[SlipGeom::nslip];
-            for (int i = 0; i < _nslip * 2; i++) {
-               if (i < _nslip) {
-                  const double div = perSS ? fmax(hs_o[i], _hdn_min) * _berg_mag[i] :
-                                     fmax(hs_o[i], _hdn_min) * _berg_mag[0];
+            for (int i = 0; i < nslip * 2; i++) {
+               if (i < nslip) {
+                  const double div = perSS ? fmax(hs_o[i], m_hdn_min) * m_berg_mag[i] :
+                                     fmax(hs_o[i], m_hdn_min) * m_berg_mag[0];
                   nu[i] = abs(gdot[i]) / (div);
                }
-               ihs_o[i] = fmax(hs_o[i], _hdn_min);
+               ihs_o[i] = fmax(hs_o[i], m_hdn_min);
                if (LOGFORM) {
                   ihs_o[i] = log(ihs_o[i]);
                }
@@ -723,7 +722,7 @@ namespace ecmech {
                                                    &hs_u[0], &ihs_o[0], dt, nu, hvals, tK,
                                                    outputLevel);
             if (LOGFORM) {
-               for (int i = 0; i < _nslip * 2; i++) {
+               for (int i = 0; i < nslip * 2; i++) {
                   hs_u[i] = exp(hs_u[i]);
                }
             }
@@ -738,7 +737,7 @@ namespace ecmech {
                // evolve the dd content. We would get a solution, but it wouldn't necessarily
                // be correct.
                bool flag = false;
-               for (int i = 0; i < 2 * _nslip; i++) {
+               for (int i = 0; i < 2 * nslip; i++) {
                   if(hs_u[i] < zero) {
                      flag = true;
                      break;
@@ -753,17 +752,17 @@ namespace ecmech {
                   double hs_temp[2 * SlipGeom::nslip];
 
                   for (int iSlip = 0; iSlip < 2 * SlipGeom::nslip; iSlip++) {
-                     hs_u[iSlip] = fmax(hs_o[iSlip], _hdn_min);
+                     hs_u[iSlip] = fmax(hs_o[iSlip], m_hdn_min);
                   }
 
                   for (int i = 0; i < 10; i++)
                   {
                      for (int iSlip = 0; iSlip < 2 * SlipGeom::nslip; iSlip++) {
-                        hs_temp[iSlip] = fmax(hs_u[iSlip], _hdn_min);
-                        if (iSlip < _nslip)
+                        hs_temp[iSlip] = fmax(hs_u[iSlip], m_hdn_min);
+                        if (iSlip < nslip)
                         {
-                           const double div = perSS ? fmax(hs_temp[iSlip], _hdn_min) * _berg_mag[iSlip] :
-                           fmax(hs_temp[iSlip], _hdn_min) * _berg_mag[0];
+                           const double div = perSS ? fmax(hs_temp[iSlip], m_hdn_min) * m_berg_mag[iSlip] :
+                           fmax(hs_temp[iSlip], m_hdn_min) * m_berg_mag[0];
                            nu[iSlip] = abs(gdot[iSlip]) / (div);
                         }
                      }
@@ -771,7 +770,7 @@ namespace ecmech {
                                                          &hs_u[0], hs_temp, dtnew, nu, hvals, tK,
                                                          outputLevel);
                      flag = false;
-                     for (int iSlip = 0; iSlip < 2 * _nslip; iSlip++) {
+                     for (int iSlip = 0; iSlip < 2 * nslip; iSlip++) {
                         if(hs_u[iSlip] < zero) {
                            flag = true;
                            break;
@@ -834,17 +833,17 @@ namespace ecmech {
                }
             }
             const double* const h = (LOGFORM) ? const_cast<const double* const>(&hexp[0]) : h_i;
-            vecsVMa<SlipGeom::nslip>(&forest_dis[0], &_a_mat[0], &h[nslip]);
+            vecsVMa<SlipGeom::nslip>(&forest_dis[0], &m_a_mat[0], &h[nslip]);
 
             for (int iM = 0; iM < nslip; iM++) {
-               const double sqrt_fd = sqrt(forest_dis[iM]);
-               const double q_dmult = _c_mult * sqrt_fd * h[iM] * evolVals[iM];
-               const double q_dtrap = _c_trap * sqrt_fd * h[iM] * evolVals[iM];
+               const double sqrt_fD = sqrt(forest_dis[iM]);
+               const double q_dmult = m_c_mult * sqrt_fD * h[iM] * evolVals[iM];
+               const double q_dtrap = m_c_trap * sqrt_fD * h[iM] * evolVals[iM];
                // This could become a very large number and could become problematic
                // later on. Do we want to cap it at some large value?
                // Although, it might be that this is only a problem if q and qM are defined
                // with units 1/m^2 rather than 1/mm^2 or 1/micron^2
-               const double q_dann = _c_ann * _d_ann * h[iM] * h[iM] * evolVals[iM];
+               const double q_dann = m_c_ann * m_d_ann * h[iM] * h[iM] * evolVals[iM];
                // mobile dislocation density rate of change
                sdot[iM] = q_dmult - q_dtrap - q_dann;
                // total dislocation density rate of change
@@ -866,33 +865,33 @@ namespace ecmech {
                RAJA::View<double, RAJA::Layout<JDIM> > dsdot_ds_view(dsdot_ds, nDimSys, nDimSys);
                // dqM/dqM portion of dsdot_ds
                for (int iM = 0; iM < nslip; iM++) {
-                  const double sqrt_fd = sqrt(forest_dis[iM]);
-                  const double q_dmult_dtrap = (_c_mult - _c_trap) * sqrt_fd;
+                  const double sqrt_fD = sqrt(forest_dis[iM]);
+                  const double q_dmult_dtrap = (m_c_mult - m_c_trap) * sqrt_fD;
                   // Although, it might be that this is only a problem if q and qM are defined
                   // with units 1/m^2 rather than 1/mm^2 or 1/micron^2
-                  const double q_dann = 2 * _c_ann * _d_ann * h[iM];
+                  const double q_dann = 2 * m_c_ann * m_d_ann * h[iM];
                   dsdot_ds_view(iM, iM) = evolVals[iM] * (q_dmult_dtrap - q_dann);
                }
 
                // dq/dqM portion of dsdot_ds
                for (int iT = 0; iT < nslip; iT++) {
-                  const double sqrt_fd = sqrt(forest_dis[iT]);
-                  const double q_dmult = _c_mult * sqrt_fd;
+                  const double sqrt_fD = sqrt(forest_dis[iT]);
+                  const double q_dmult = m_c_mult * sqrt_fD;
                   // This could become a very large number and could become problematic
                   // later on. Do we want to cap it at some large value?
                   // Although, it might be that this is only a problem if q and qM are defined
                   // with units 1/m^2 rather than 1/mm^2 or 1/micron^2
-                  const double q_dann = 2 * _c_ann * _d_ann * h[iT];
+                  const double q_dann = 2 * m_c_ann * m_d_ann * h[iT];
                   dsdot_ds_view(iT + nslip, iT) =  evolVals[iT] * (q_dmult - q_dann);
                }
 
-               RAJA::View<const double, RAJA::Layout<JDIM> > amat(&_a_mat[0], nslip, nslip);
+               RAJA::View<const double, RAJA::Layout<JDIM> > amat(&m_a_mat[0], nslip, nslip);
                // dq/dq portion of dsdot_ds
                for (int iT = 0; iT < nslip; iT++) {
                   for (int jT = 0; jT < nslip; jT++) {
                      // First, terms found only on the diagonal of this submatrix
                      const double ifact = ecmech::onehalf / sqrt(forest_dis[iT]);
-                     const double q_dmult = _c_mult * amat(iT, jT) * ifact;
+                     const double q_dmult = m_c_mult * amat(iT, jT) * ifact;
 
                      dsdot_ds_view(iT + nslip, jT + nslip) = h[iT] * evolVals[iT] * q_dmult;
                   }
@@ -902,7 +901,7 @@ namespace ecmech {
                for (int iT = 0; iT < nslip; iT++) {
                   for (int jT = 0; jT < nslip; jT++) {
                      const double ifact = ecmech::onehalf / sqrt(forest_dis[iT]);
-                     const double q_dmult_dtrap = (_c_mult - _c_trap) * amat(iT, jT) * ifact;
+                     const double q_dmult_dtrap = (m_c_mult - m_c_trap) * amat(iT, jT) * ifact;
 
                      dsdot_ds_view(iT, jT + nslip) = h[iT] * evolVals[iT] * (q_dmult_dtrap);
                   }

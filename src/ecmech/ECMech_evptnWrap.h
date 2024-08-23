@@ -41,24 +41,24 @@ namespace ecmech {
             __ecmech_host__
             matModel()
                : matModelBase(),
-               _kinetics(SlipGeom::nslip)
+               m_kinetics(SlipGeom::nslip)
             {
                // Should the tangent stiff matrix be included in these stride calculations?
-               _strides[istride_def_rate] = ecmech::nsvp;
-               _strides[istride_spin_v] = ecmech::ndim;
-               _strides[istride_vol_ratio] = ecmech::nvr;
-               _strides[istride_int_eng] = ecmech::ne;
-               _strides[istride_stress] = ecmech::nsvp;
-               _strides[istride_history] = NumHist<SlipGeom, Kinetics, ThermoElastN, EosModel>::numHist;
-               _strides[istride_tkelv] = 1;
-               _strides[istride_sdd ] = ecmech::nsdd;
+               m_strides[istride_def_rate] = ecmech::nsvp;
+               m_strides[istride_spin_v] = ecmech::ndim;
+               m_strides[istride_vol_ratio] = ecmech::nvr;
+               m_strides[istride_int_eng] = ecmech::ne;
+               m_strides[istride_stress] = ecmech::nsvp;
+               m_strides[istride_history] = NumHist<SlipGeom, Kinetics, ThermoElastN, EosModel>::numHist;
+               m_strides[istride_tkelv] = 1;
+               m_strides[istride_sdd ] = ecmech::nsdd;
             };
 
             // constructor
             __ecmech_host__
             matModel(const unsigned int* strides, const unsigned int stride_len)
                : matModelBase(),
-               _kinetics(SlipGeom::nslip)
+               m_kinetics(SlipGeom::nslip)
             {
                unsigned int nhist = NumHist<SlipGeom, Kinetics, ThermoElastN, EosModel>::numHist;
 
@@ -149,7 +149,7 @@ namespace ecmech {
 #endif
                }
                for (unsigned int i = 0; i < stride_len; i++) {
-                  _strides[i] = strides[i];
+                  m_strides[i] = strides[i];
                }
             };
 
@@ -166,9 +166,9 @@ namespace ecmech {
                                 ) override final
             {
                // keep parameters for later
-               _opts = opts;
-               _pars = pars;
-               _strs = strs;
+               m_opts = opts;
+               m_pars = pars;
+               m_strs = strs;
 
                if (pars.size() != (unsigned int) nParams) {
                   ECMECH_FAIL(__func__, "wrong number of pars");
@@ -183,36 +183,36 @@ namespace ecmech {
 
                std::vector<double>::const_iterator parsIt = pars.begin();
 
-               _rho0 = *parsIt; ++parsIt;
-               _cvav = *parsIt; ++parsIt;
+               m_rho0 = *parsIt; ++parsIt;
+               m_cvav = *parsIt; ++parsIt;
 
-               _tolerance = *parsIt; ++parsIt;
+               m_tolerance = *parsIt; ++parsIt;
 
                {
                   const std::vector<double> paramsThese(parsIt, parsIt + SlipGeom::nParams);
-                  _slipGeom.setParams(paramsThese); parsIt += SlipGeom::nParams;
+                  m_slipGeom.setParams(paramsThese); parsIt += SlipGeom::nParams;
                }
                {
                   const std::vector<double> paramsThese(parsIt, parsIt + ThermoElastN::nParams);
-                  _elastN.setParams(paramsThese); parsIt += ThermoElastN::nParams;
+                  m_elastN.setParams(paramsThese); parsIt += ThermoElastN::nParams;
                }
                {
                   const std::vector<double> paramsThese(parsIt, parsIt + Kinetics::nParams);
-                  _kinetics.setParams(paramsThese); parsIt += Kinetics::nParams;
+                  m_kinetics.setParams(paramsThese); parsIt += Kinetics::nParams;
                }
                {
-                  double bulkMod = _elastN.getBulkMod();
+                  double bulkMod = m_elastN.getBulkMod();
                   std::vector<double> paramsThese(EosModel::nParams);
-                  paramsThese[0] = _rho0;
+                  paramsThese[0] = m_rho0;
                   paramsThese[1] = bulkMod;
-                  paramsThese[2] = _cvav;
+                  paramsThese[2] = m_cvav;
                   std::copy(parsIt, parsIt + nParamsEOS, paramsThese.begin() + nParamsEOSHave);
 
-                  _eosModel.setParams(paramsThese); parsIt += nParamsEOS;
+                  m_eosModel.setParams(paramsThese); parsIt += nParamsEOS;
 
                   {
                      double vMin, vMax;
-                     _eosModel.getInfo(vMin, vMax, _e0, _v0);
+                     m_eosModel.getInfo(vMin, vMax, m_e0, m_v0);
                   }
                }
 
@@ -224,26 +224,26 @@ namespace ecmech {
 #if defined(__ecmech_host_only__)
                //////////////////////////////
 
-               _rhvNames.clear();
-               _rhvVals.clear();
-               _rhvPlot.clear();
-               _rhvState.clear();
+               m_rhvNames.clear();
+               m_rhvVals.clear();
+               m_rhvPlot.clear();
+               m_rhvState.clear();
 
 #if defined(ECMECH_USE_DPEFF)
-               _rhvNames.push_back("dplas_eff"); _rhvVals.push_back(0.); _rhvPlot.push_back(true); _rhvState.push_back(true); // iHistA_shrateEff
-               _rhvNames.push_back("eps"); _rhvVals.push_back(0.); _rhvPlot.push_back(true); _rhvState.push_back(true); // iHistA_shrEff
+               m_rhvNames.push_back("dplas_eff"); m_rhvVals.push_back(0.); m_rhvPlot.push_back(true); m_rhvState.push_back(true); // iHistA_shrateEff
+               m_rhvNames.push_back("eps"); m_rhvVals.push_back(0.); m_rhvPlot.push_back(true); m_rhvState.push_back(true); // iHistA_shrEff
 #else
-               _rhvNames.push_back("shrate_eff"); _rhvVals.push_back(0.); _rhvPlot.push_back(true); _rhvState.push_back(true); // iHistA_shrateEff
-               _rhvNames.push_back("shr_eff"); _rhvVals.push_back(0.); _rhvPlot.push_back(true); _rhvState.push_back(true); // iHistA_shrEff
+               m_rhvNames.push_back("shrate_eff"); m_rhvVals.push_back(0.); m_rhvPlot.push_back(true); m_rhvState.push_back(true); // iHistA_shrateEff
+               m_rhvNames.push_back("shr_eff"); m_rhvVals.push_back(0.); m_rhvPlot.push_back(true); m_rhvState.push_back(true); // iHistA_shrEff
 #endif
-               _rhvNames.push_back("flow_str"); _rhvVals.push_back(0.); _rhvPlot.push_back(true); _rhvState.push_back(false); // iHistA_flowStr
-               _rhvNames.push_back("n_feval"); _rhvVals.push_back(0.); _rhvPlot.push_back(true); _rhvState.push_back(false); // iHistA_nFEval
+               m_rhvNames.push_back("flow_str"); m_rhvVals.push_back(0.); m_rhvPlot.push_back(true); m_rhvState.push_back(false); // iHistA_flowStr
+               m_rhvNames.push_back("n_feval"); m_rhvVals.push_back(0.); m_rhvPlot.push_back(true); m_rhvState.push_back(false); // iHistA_nFEval
                // numHistAux
                //
                for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
                   std::ostringstream os;
                   os << "t" << iTvec + 1;
-                  _rhvNames.push_back(os.str()); _rhvVals.push_back(0.); _rhvPlot.push_back(true); _rhvState.push_back(true);
+                  m_rhvNames.push_back(os.str()); m_rhvVals.push_back(0.); m_rhvPlot.push_back(true); m_rhvState.push_back(true);
                }
 
                //
@@ -252,21 +252,21 @@ namespace ecmech {
                   for (int iQ = 0; iQ < ecmech::qdim; ++iQ) {
                      std::ostringstream os;
                      os << "quat_" << iQ + 1;
-                     _rhvNames.push_back(os.str()); _rhvVals.push_back(qVal); _rhvPlot.push_back(true); _rhvState.push_back(true);
+                     m_rhvNames.push_back(os.str()); m_rhvVals.push_back(qVal); m_rhvPlot.push_back(true); m_rhvState.push_back(true);
                      qVal = 0.0;
                   }
                }
                //
-               _kinetics.getHistInfo(_rhvNames, _rhvVals, _rhvPlot, _rhvState);
+               m_kinetics.getHistInfo(m_rhvNames, m_rhvVals, m_rhvPlot, m_rhvState);
                //
                for (int iSlip = 0; iSlip < SlipGeom::nslip; ++iSlip) {
                   std::ostringstream os;
                   os << "shrate_" << iSlip + 1;
-                  _rhvNames.push_back(os.str()); _rhvVals.push_back(0.); _rhvPlot.push_back(true); _rhvState.push_back(true);
+                  m_rhvNames.push_back(os.str()); m_rhvVals.push_back(0.); m_rhvPlot.push_back(true); m_rhvState.push_back(true);
                }
 
                //
-               if (_rhvNames.size() != numHist) {
+               if (m_rhvNames.size() != numHist) {
                   ECMECH_FAIL(__func__, "mismatch in numHist");
                }
 #endif
@@ -278,9 +278,9 @@ namespace ecmech {
                            std::vector<double>& pars,
                            std::vector<std::string>& strs) const override final
             {
-               opts = _opts;
-               pars = _pars;
-               strs = _strs;
+               opts = m_opts;
+               pars = m_pars;
+               strs = m_strs;
             };
 
             using matModelBase::getResponseECM;
@@ -297,22 +297,22 @@ namespace ecmech {
                                 double * mtanSDV,
                                 const int& nPassed) const override final
             {
-               if (!_complete) {
+               if (!m_complete) {
                   ECMECH_FAIL(__func__, "not complete");
                }
 
                RAJA::RangeSegment default_range(0, nPassed);
                // All of the stride lengths are constant within this function
-               const unsigned int def_rate_stride = _strides[istride_def_rate];
-               const unsigned int spin_v_stride = _strides[istride_spin_v];
-               const unsigned int vol_ratio_stride = _strides[istride_vol_ratio];
-               const unsigned int int_eng_stride = _strides[istride_int_eng];
-               const unsigned int stress_stride = _strides[istride_stress];
-               const unsigned int history_stride = _strides[istride_history];
-               const unsigned int tkelv_stride = _strides[istride_tkelv];
-               const unsigned int sdd_stride = _strides[istride_sdd];
+               const unsigned int def_rate_stride = m_strides[istride_def_rate];
+               const unsigned int spin_v_stride = m_strides[istride_spin_v];
+               const unsigned int vol_ratio_stride = m_strides[istride_vol_ratio];
+               const unsigned int int_eng_stride = m_strides[istride_int_eng];
+               const unsigned int stress_stride = m_strides[istride_stress];
+               const unsigned int history_stride = m_strides[istride_history];
+               const unsigned int tkelv_stride = m_strides[istride_tkelv];
+               const unsigned int sdd_stride = m_strides[istride_sdd];
 
-               switch (_accel) {
+               switch (m_accel) {
 #if defined(RAJA_ENABLE_OPENMP)
                   case ECM_EXEC_STRAT_OPENMP:
                   {
@@ -321,9 +321,9 @@ namespace ecmech {
                         double *mtanSDThis       = ( mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr );
                         const bool status = 
                         getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
-                        (_slipGeom, _kinetics, _elastN, _eosModel,
+                        (m_slipGeom, m_kinetics, m_elastN, m_eosModel,
                         dt,
-                        _tolerance,
+                        m_tolerance,
                         &defRateV[def_rate_stride * i],
                         &spinV[spin_v_stride * i],
                         &volRatioV[vol_ratio_stride * i],
@@ -333,7 +333,7 @@ namespace ecmech {
                         tkelvV[tkelv_stride * i],
                         &sddV[sdd_stride * i],
                         mtanSDThis,
-                        _outputLevel);
+                        m_outputLevel);
 
                         status_all += (int) (!status);
                         if (!status) {
@@ -362,15 +362,15 @@ namespace ecmech {
                      RAJA::ReduceSum<gpu_reduce, int> status_all(0);
                      RAJA::forall<gpu_policy>(default_range, [ =
 #if defined(ECMECH_NON_CORAL1_MACHINE)|| defined(RAJA_ENABLE_HIP)
-                      , _slipGeom=this->_slipGeom, _kinetics=this->_kinetics, _elastN=this->_elastN, _eosModel=this->_eosModel, _tolerance=this->_tolerance, _outputLevel=this->_outputLevel
+                      , m_slipGeom=this->m_slipGeom, m_kinetics=this->m_kinetics, m_elastN=this->m_elastN, m_eosModel=this->m_eosModel, m_tolerance=this->m_tolerance, m_outputLevel=this->m_outputLevel
 #endif
                       ] RAJA_DEVICE(int i) {
                         double *mtanSDThis = (mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr);
                         const bool status =
 		                  getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
-                        (_slipGeom, _kinetics, _elastN, _eosModel,
+                        (m_slipGeom, m_kinetics, m_elastN, m_eosModel,
                            dt,
-                           _tolerance,
+                           m_tolerance,
                            &defRateV[def_rate_stride * i],
                            &spinV[spin_v_stride * i],
                            &volRatioV[vol_ratio_stride * i],
@@ -380,7 +380,7 @@ namespace ecmech {
                            tkelvV[tkelv_stride * i],
                            &sddV[sdd_stride * i],
                            mtanSDThis,
-                           _outputLevel);
+                           m_outputLevel);
 
                         status_all += (int) (!status);
                         if (!status) {
@@ -404,9 +404,9 @@ namespace ecmech {
                         double *mtanSDThis       = ( mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr );
                         const bool status = 
                         getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
-                           (_slipGeom, _kinetics, _elastN, _eosModel,
+                           (m_slipGeom, m_kinetics, m_elastN, m_eosModel,
                               dt,
-                              _tolerance,
+                              m_tolerance,
                               &defRateV[def_rate_stride * i],
                               &spinV[spin_v_stride * i],
                               &volRatioV[vol_ratio_stride * i],
@@ -416,7 +416,7 @@ namespace ecmech {
                               tkelvV[tkelv_stride * i],
                               &sddV[sdd_stride * i],
                               mtanSDThis,
-                              _outputLevel);
+                              m_outputLevel);
 
                         status_all += (int) (!status);
                         if (!status) {
@@ -456,14 +456,14 @@ namespace ecmech {
 
                RAJA::RangeSegment default_range(0, nPassed);
                // All of the stride lengths are constant within this function
-               const unsigned int def_rate_stride = _strides[istride_def_rate];
-               const unsigned int spin_v_stride = _strides[istride_spin_v];
-               const unsigned int vol_ratio_stride = _strides[istride_vol_ratio];
-               const unsigned int int_eng_stride = _strides[istride_int_eng];
-               const unsigned int stress_stride = _strides[istride_stress];
-               const unsigned int history_stride = _strides[istride_history];
-               const unsigned int tkelv_stride = _strides[istride_tkelv];
-               const unsigned int sdd_stride = _strides[istride_sdd];
+               const unsigned int def_rate_stride = m_strides[istride_def_rate];
+               const unsigned int spin_v_stride = m_strides[istride_spin_v];
+               const unsigned int vol_ratio_stride = m_strides[istride_vol_ratio];
+               const unsigned int int_eng_stride = m_strides[istride_int_eng];
+               const unsigned int stress_stride = m_strides[istride_stress];
+               const unsigned int history_stride = m_strides[istride_history];
+               const unsigned int tkelv_stride = m_strides[istride_tkelv];
+               const unsigned int sdd_stride = m_strides[istride_sdd];
 
                switch (_accel) {
 #if defined(RAJA_ENABLE_OPENMP)
@@ -474,9 +474,9 @@ namespace ecmech {
                         if (histV[history_stride * i + iHistA_nFEval] < 0) { // skip elements that were successful
                         double *mtanSDThis       = ( mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr );
                         bool status = getResponseNRSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
-                           (_slipGeom, _kinetics, _elastN, _eosModel,
+                           (m_slipGeom, m_kinetics, m_elastN, m_eosModel,
                            dt,
-                           _tolerance,
+                           m_tolerance,
                            &defRateV[def_rate_stride * i],
                            &spinV[spin_v_stride * i],
                            &volRatioV[vol_ratio_stride * i],
@@ -486,7 +486,7 @@ namespace ecmech {
                            tkelvV[tkelv_stride * i],
                            &sddV[sdd_stride * i],
                            mtanSDThis,
-                           _outputLevel);
+                           m_outputLevel);
 
                         status_all += (int) (!status);
                         if (!status) {
@@ -515,15 +515,15 @@ namespace ecmech {
                      RAJA::ReduceSum<gpu_reduce, int> status_all(0);
                      RAJA::forall<gpu_policy>(default_range, [ =
 #if defined(ECMECH_NON_CORAL1_MACHINE)|| defined(RAJA_ENABLE_HIP)
-                      , _slipGeom=this->_slipGeom, _kinetics=this->_kinetics, _elastN=this->_elastN, _eosModel=this->_eosModel, _tolerance=this->_tolerance, _outputLevel=this->_outputLevel
+                      , m_slipGeom=this->m_slipGeom, m_kinetics=this->m_kinetics, m_elastN=this->m_elastN, m_eosModel=this->m_eosModel, m_tolerance=this->m_tolerance, m_outputLevel=this->m_outputLevel
 #endif
                       ] RAJA_DEVICE(int i) {
                         if (histV[history_stride * i + iHistA_nFEval] < 0) { // skip elements that were successful
                         double *mtanSDThis = (mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr);
                         bool status = getResponseNRSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
-                           (_slipGeom, _kinetics, _elastN, _eosModel,
+                           (m_slipGeom, m_kinetics, m_elastN, m_eosModel,
                            dt,
-                           _tolerance,
+                           m_tolerance,
                            &defRateV[def_rate_stride * i],
                            &spinV[spin_v_stride * i],
                            &volRatioV[vol_ratio_stride * i],
@@ -533,7 +533,7 @@ namespace ecmech {
                            tkelvV[tkelv_stride * i],
                            &sddV[sdd_stride * i],
                            mtanSDThis,
-                           _outputLevel);
+                           m_outputLevel);
 
                         status_all += (int) (!status);
                         if (!status) {
@@ -557,9 +557,9 @@ namespace ecmech {
                         if (histV[history_stride * i + iHistA_nFEval] < 0) { // skip elements that were successful
                         double *mtanSDThis       = ( mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr );
                         bool status = getResponseNRSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
-                           (_slipGeom, _kinetics, _elastN, _eosModel,
+                           (m_slipGeom, m_kinetics, m_elastN, m_eosModel,
                            dt,
-                           _tolerance,
+                           m_tolerance,
                            &defRateV[def_rate_stride * i],
                            &spinV[spin_v_stride * i],
                            &volRatioV[vol_ratio_stride * i],
@@ -569,7 +569,7 @@ namespace ecmech {
                            tkelvV[tkelv_stride * i],
                            &sddV[sdd_stride * i],
                            mtanSDThis,
-                           _outputLevel);
+                           m_outputLevel);
 
                         status_all += (int) (!status);
                         if (!status) {
@@ -597,13 +597,13 @@ namespace ecmech {
                              std::vector<double>      & vals,
                              std::vector<bool>        & plot,
                              std::vector<bool>        & state) const override final {
-               if (_rhvNames.size() != numHist) {
+               if (m_rhvNames.size() != numHist) {
                   ECMECH_FAIL(__func__, "have not yet set up history information");
                }
-               names.resize(numHist); std::copy(_rhvNames.begin(), _rhvNames.end(), names.begin() );
-               vals.resize(numHist); std::copy(_rhvVals.begin(), _rhvVals.end(), vals.begin() );
-               plot.resize(numHist); std::copy(_rhvPlot.begin(), _rhvPlot.end(), plot.begin() );
-               state.resize(numHist); std::copy(_rhvState.begin(), _rhvState.end(), state.begin() );
+               names.resize(numHist); std::copy(m_rhvNames.begin(), m_rhvNames.end(), names.begin() );
+               vals.resize(numHist); std::copy(m_rhvVals.begin(), m_rhvVals.end(), vals.begin() );
+               plot.resize(numHist); std::copy(m_rhvPlot.begin(), m_rhvPlot.end(), plot.begin() );
+               state.resize(numHist); std::copy(m_rhvState.begin(), m_rhvState.end(), state.begin() );
             };
 
             __ecmech_host__
@@ -614,8 +614,8 @@ namespace ecmech {
             __ecmech_host__
             void complete( ) override final
             {
-               _bulkRef = _eosModel.getBulkRef();
-               _complete = true;
+               m_bulkRef = m_eosModel.getBulkRef();
+               m_complete = true;
             };
 
             // Constant getter functions to return the underlying templated classes.
@@ -625,33 +625,33 @@ namespace ecmech {
             // Note: Stability of the underlying templated class API's is not
             // guaranteed, so breaking changes can occur from point release to
             // point release.
-            const SlipGeom & getSlipGeom() const { return _slipGeom; }
+            const SlipGeom & getSlipGeom() const { return m_slipGeom; }
 
-            const Kinetics & getKinetics() const { return _kinetics; }
+            const Kinetics & getKinetics() const { return m_kinetics; }
 
-            const ThermoElastN & getThermoElastN() const { return _elastN; }
+            const ThermoElastN & getThermoElastN() const { return m_elastN; }
 
-            const EosModel & getEosModel() const { return _eosModel; }
+            const EosModel & getEosModel() const { return m_eosModel; }
 
          private:
 
-            SlipGeom _slipGeom;
-            Kinetics _kinetics;
-            ThermoElastN _elastN;
-            EosModel _eosModel;
+            SlipGeom m_slipGeom;
+            Kinetics m_kinetics;
+            ThermoElastN m_elastN;
+            EosModel m_eosModel;
 
-            double _tolerance;
-            unsigned int _strides[ecmech::nstride];
+            double m_tolerance;
+            unsigned int m_strides[ecmech::nstride];
 
-            std::vector<std::string> _rhvNames;
-            std::vector<double>      _rhvVals;
-            std::vector<bool>        _rhvPlot;
-            std::vector<bool>        _rhvState;
+            std::vector<std::string> m_rhvNames;
+            std::vector<double>      m_rhvVals;
+            std::vector<bool>        m_rhvPlot;
+            std::vector<bool>        m_rhvState;
 
             // keep initFromParams vectors as a convenience
-            std::vector<int>          _opts;
-            std::vector<double>       _pars;
-            std::vector<std::string>  _strs;
+            std::vector<int>          m_opts;
+            std::vector<double>       m_pars;
+            std::vector<std::string>  m_strs;
       }; // class matModel
    } // namespace evptn
 } // namespace ecmech

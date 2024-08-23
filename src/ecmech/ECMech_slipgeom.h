@@ -51,21 +51,21 @@ namespace ecmech {
       public:
          static const int nslip = Nslip;
           
-         __ecmech_hdev__ inline const double* getP() const { return _P_ref_vec; };
-         __ecmech_hdev__ inline const double* getQ() const { return _Q_ref_vec; };
-         __ecmech_hdev__ inline const double* getM() const { return _m_ref_vec; };
-         __ecmech_hdev__ inline const double* getS() const { return _s_ref_vec; };
+         __ecmech_hdev__ inline const double* getP() const { return m_P_ref_vec; };
+         __ecmech_hdev__ inline const double* getQ() const { return m_Q_ref_vec; };
+         __ecmech_hdev__ inline const double* getM() const { return m_m_ref_vec; };
+         __ecmech_hdev__ inline const double* getS() const { return m_s_ref_vec; };
          
          __ecmech_hdev__ inline virtual void getPQ(double* /* chia */, 
-                                                   double* _P_vec, 
-                                                   double* _Q_vec, 
+                                                   double* P_vec, 
+                                                   double* Q_vec, 
                                                    const double* const /* SvecP = nullptr */) const 
          {
              for (int iTvec = 0; iTvec < ecmech::ntvec * nslip; ++iTvec) {
-                 _P_vec[iTvec] = _P_ref_vec[iTvec];
+                 P_vec[iTvec] = m_P_ref_vec[iTvec];
              }
              for (int iWvec = 0; iWvec < ecmech::nwvec * nslip; ++iWvec) {
-                 _Q_vec[iWvec] = _Q_ref_vec[iWvec];
+                 Q_vec[iWvec] = m_Q_ref_vec[iWvec];
              }
          };
          
@@ -78,10 +78,10 @@ namespace ecmech {
          }
        
       protected:
-         double _m_ref_vec[ ecmech::ndim * nslip ];
-         double _s_ref_vec[ ecmech::ndim * nslip ];
-         double _P_ref_vec[ ecmech::ntvec * nslip ];
-         double _Q_ref_vec[ ecmech::nwvec * nslip ];
+         double m_m_ref_vec[ ecmech::ndim * nslip ];
+         double m_s_ref_vec[ ecmech::ndim * nslip ];
+         double m_P_ref_vec[ ecmech::ntvec * nslip ];
+         double m_Q_ref_vec[ ecmech::nwvec * nslip ];
    };
    
    
@@ -136,12 +136,12 @@ namespace ecmech {
                P2, Z,  P2,
                P2, P2, Z};
 
-            fillFromMS(this->_P_ref_vec, this->_Q_ref_vec,
+            fillFromMS(this->m_P_ref_vec, this->m_Q_ref_vec,
                        mVecs, sVecs, this->nslip);
 
             for (int i = 0; i < nslip * ecmech::ndim; i++) {
-               _s_ref_vec[i] = sVecs[i];
-               _m_ref_vec[i] = mVecs[i];
+               m_s_ref_vec[i] = sVecs[i];
+               m_m_ref_vec[i] = mVecs[i];
             }
 
             // assert((parsIt - params.begin()) == nParams);
@@ -163,18 +163,18 @@ namespace ecmech {
    class SlipGeomBCC : public SlipGeom<nSlipTmplt>
    {
       private:
-         static const int _nslipAddBase = 12;
-         static const int _nslipAddPGa = 12;
-         static const int _nslipAddPGb = 24;
+         static const int nslipAddBase = 12;
+         static const int nslipAddPGa = 12;
+         static const int nslipAddPGb = 24;
 
       public:
          static const bool dynamic = false;
          static const int nslip = nSlipTmplt;
          static const int nParams = 0;
 
-         static const int nslipBase = _nslipAddBase;
-         static const int nslipPGa = _nslipAddBase + _nslipAddPGa;
-         static const int nslipPGb = _nslipAddBase + _nslipAddPGa + _nslipAddPGb;
+         static const int nslipBase = nslipAddBase;
+         static const int nslipPGa = nslipAddBase + nslipAddPGa;
+         static const int nslipPGb = nslipAddBase + nslipAddPGa + nslipAddPGb;
 
          // constructor and destructor
          __ecmech_hdev__  SlipGeomBCC() {
@@ -193,7 +193,7 @@ namespace ecmech {
             {
                // m = (/ zero, sqr2i, -sqr2i /)
                // s = (/ sqr3i, sqr3i, sqr3i /)
-               const int nslipThese = _nslipAddBase;
+               const int nslipThese = nslipAddBase;
                //
                // do not yet bother with making slip systems from symmetry group -- just write them out
                const double P3 = sqr3i, M3 = -sqr3i;
@@ -236,7 +236,7 @@ namespace ecmech {
                const double twSqr6i = 2.0 * sqr6i;
 
                // 12 {112}<111> slip systems
-               const int nslipThese = _nslipAddPGa;
+               const int nslipThese = nslipAddPGa;
 
                const double mVecsThese[ nslipThese * ecmech::ndim ] = {
                   -twSqr6i, sqr6i, sqr6i,
@@ -276,7 +276,7 @@ namespace ecmech {
                const double mPg2c = 3.0 / sqrt(14.0);
 
                // 24 {123}<111> slip systems
-               const int nslipThese = _nslipAddPGb;
+               const int nslipThese = nslipAddPGb;
 
                const double mVecsThese[ nslipThese * ecmech::ndim ] = {
                   mPg2c, -mPg2a, -mPg2b,
@@ -334,12 +334,12 @@ namespace ecmech {
                sVecs.insert(sVecs.end(), &(sVecsThese[0]), &(sVecsThese[nslipThese * ecmech::ndim]));
             }
 
-            fillFromMS(this->_P_ref_vec, this->_Q_ref_vec,
+            fillFromMS(this->m_P_ref_vec, this->m_Q_ref_vec,
                        &(mVecs[0]), &(sVecs[0]), this->nslip);
 
             for (int i = 0; i < nslip * ecmech::ndim; i++) {
-               this->_s_ref_vec[i] = sVecs.at(i);
-               this->_m_ref_vec[i] = mVecs.at(i);
+               this->m_s_ref_vec[i] = sVecs.at(i);
+               this->m_m_ref_vec[i] = mVecs.at(i);
             }
 
             // assert((parsIt - params.begin()) == nParams);
@@ -382,7 +382,7 @@ namespace ecmech {
          {
             std::vector<double>::const_iterator parsIt = params.begin();
 
-            _cOverA = *parsIt; ++parsIt;
+            m_cOverA = *parsIt; ++parsIt;
 
             // pyramidal 10-11 1-210 depends on c/a
             //
@@ -393,7 +393,7 @@ namespace ecmech {
                //
                miller_to_orthog_sngl(an, ab,
                                      m_ya, s_ya,
-                                     _cOverA);
+                                     m_cOverA);
             }
             double m_ya_pp = sqrt(1.0 - m_ya[2] * m_ya[2]);
 
@@ -406,7 +406,7 @@ namespace ecmech {
                //
                miller_to_orthog_sngl(an, ab,
                                      m_y1ca, s_y1ca,
-                                     _cOverA);
+                                     m_cOverA);
             }
             double m_y1ca_pp = sqrt(1.0 - m_y1ca[2] * m_y1ca[2]);
             double s_y1ca_pp = sqrt(1.0 - s_y1ca[2] * s_y1ca[2]);
@@ -470,12 +470,12 @@ namespace ecmech {
                s_y1ca[0], -s_y1ca[1], s_y1ca[2]
             };
 
-            fillFromMS(this->_P_ref_vec, this->_Q_ref_vec,
+            fillFromMS(this->m_P_ref_vec, this->m_Q_ref_vec,
                        mVecs, sVecs, this->nslip);
 
             for (int i = 0; i < nslip * ecmech::ndim; i++) {
-               _s_ref_vec[i] = sVecs[i];
-               _m_ref_vec[i] = mVecs[i];
+               m_s_ref_vec[i] = sVecs[i];
+               m_m_ref_vec[i] = mVecs[i];
             }
 
             assert((parsIt - params.begin()) == nParams);
@@ -489,7 +489,7 @@ namespace ecmech {
             int paramsStart = params.size();
 #endif
 
-            params.push_back(_cOverA);
+            params.push_back(m_cOverA);
 
 #ifdef ECMECH_DEBUG
             assert((params.size() - paramsStart) == nParams);
@@ -497,7 +497,7 @@ namespace ecmech {
          }
 
       private:
-         double _cOverA;
+         double m_cOverA;
     
    }; // SlipGeomHCPaBRYcaY1
    
@@ -535,12 +535,12 @@ namespace ecmech {
                Z, P2, P2,
                Z, P2, P2};
 
-            fillFromMS(this->_P_ref_vec, this->_Q_ref_vec,
+            fillFromMS(this->m_P_ref_vec, this->m_Q_ref_vec,
                        mVecs, sVecs, this->nslip);
 
             for (int i = 0; i < nslip * ecmech::ndim; i++) {
-               _s_ref_vec[i] = sVecs[i];
-               _m_ref_vec[i] = mVecs[i];
+               m_s_ref_vec[i] = sVecs[i];
+               m_m_ref_vec[i] = mVecs[i];
             }
 
             // assert((parsIt - params.begin()) == nParams);
@@ -553,8 +553,8 @@ namespace ecmech {
          }
 
          __ecmech_hdev__ inline void getPQ(double* chia, 
-                                           double* _P_vec, 
-                                           double* _Q_vec, 
+                                           double* P_vec, 
+                                           double* Q_vec, 
                                            const double* const SvecP) const
          {
              double eps = 1e-10;
@@ -570,7 +570,7 @@ namespace ecmech {
              S[ECMECH_NN_INDX(0, 1, 3)] = S[ECMECH_NN_INDX(1, 0, 3)] = SvecP[5];
              
              for (int iSlip = 0; iSlip < nslip; ++iSlip) {
-                 const double* sVec = &_s_ref_vec[iSlip * ecmech::ndim];
+                 const double* sVec = &m_s_ref_vec[iSlip * ecmech::ndim];
                  
                  // PK force direction
                  double fpk[ecmech::ndim] = {0.0};
@@ -587,7 +587,7 @@ namespace ecmech {
                      vecsVNormalize<ecmech::ndim>(mVec);
                  } else {
                      for (int i = 0; i < ecmech::ndim; i++)
-                        mVec[i] = _m_ref_vec[iSlip * ecmech::ndim + i];
+                        mVec[i] = m_m_ref_vec[iSlip * ecmech::ndim + i];
                  }
                  
                  // MRSSP angle
@@ -616,7 +616,7 @@ namespace ecmech {
                  chia[iSlip] = chi;
              }
              
-             fillFromMS(_P_vec, _Q_vec, mVecs, _s_ref_vec, nslip);
+             fillFromMS(P_vec, Q_vec, mVecs, m_s_ref_vec, nslip);
          };
 
    }; // SlipGeomBCCPencil
@@ -638,9 +638,9 @@ namespace ecmech {
          {
             std::vector<double>::const_iterator parsIt = params.begin();
             
-            _omegas[0] = *parsIt; ++parsIt;
-            _omegas[1] = *parsIt; ++parsIt;
-            _omegas[2] = *parsIt; ++parsIt;
+            m_omegas[0] = *parsIt; ++parsIt;
+            m_omegas[1] = *parsIt; ++parsIt;
+            m_omegas[2] = *parsIt; ++parsIt;
             
              
             const double P3 = sqr3i, M3 = -sqr3i;
@@ -677,12 +677,12 @@ namespace ecmech {
                  Z,  M2, P2,
                  M2,  Z, M2};
             
-            fillFromMS(this->_P_ref_vec, this->_Q_ref_vec,
+            fillFromMS(this->m_P_ref_vec, this->m_Q_ref_vec,
                        mVecs, sVecs, this->nslip);
 
             for (int i = 0; i < nslip * ecmech::ndim; i++) {
-               _s_ref_vec[i] = sVecs[i];
-               _m_ref_vec[i] = mVecs[i];
+               m_s_ref_vec[i] = sVecs[i];
+               m_m_ref_vec[i] = mVecs[i];
             }
 
             assert((parsIt - params.begin()) == nParams);
@@ -695,9 +695,9 @@ namespace ecmech {
             // do not clear params in case adding to an existing set
             int paramsStart = params.size();
 #endif
-            params.push_back(_omegas[0]);
-            params.push_back(_omegas[1]);
-            params.push_back(_omegas[2]);
+            params.push_back(m_omegas[0]);
+            params.push_back(m_omegas[1]);
+            params.push_back(m_omegas[2]);
 
 #ifdef ECMECH_DEBUG
             assert((params.size() - paramsStart) == nParams);
@@ -705,8 +705,8 @@ namespace ecmech {
          }
          
          __ecmech_hdev__ inline void NSprojection(double* taua,
-                                                  double* _P_vec, 
-                                                  double* _Q_vec, 
+                                                  double* P_vec, 
+                                                  double* Q_vec, 
                                                   const double* const T_vecds,
                                                   bool fill_PQ) const
          {
@@ -723,10 +723,10 @@ namespace ecmech {
                      double P_tmp[ecmech::ntvec];
                      double Q_tmp[ecmech::nwvec];
                      
-                     const double* mVec = &_m_ref_vec[iSlip * ecmech::ndim];
+                     const double* mVec = &m_m_ref_vec[iSlip * ecmech::ndim];
                      double sVec[ecmech::ndim];
                      for (int i = 0; i < ecmech::ndim; i++)
-                         sVec[i] = (1 - 2*iS) * _s_ref_vec[iSlip * ecmech::ndim + i];
+                         sVec[i] = (1 - 2*iS) * m_s_ref_vec[iSlip * ecmech::ndim + i];
                          
                      // Schmid
                      fillFromMS(P_tmp, Q_tmp, mVec, sVec, 1);
@@ -748,13 +748,13 @@ namespace ecmech {
                      // Omega 1
                      fillFromMS(P_tmp, Q_tmp, mpVec, sVec, 1);
                      for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
-                         tau_s[iS] += _omegas[0] * T_vecds[iTvec] * P_tmp[iTvec];
+                         tau_s[iS] += m_omegas[0] * T_vecds[iTvec] * P_tmp[iTvec];
                      }
                      
                      // Omega 2
                      fillFromMS(P_tmp, Q_tmp, mVec, smVec, 1);
                      for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
-                         tau_s[iS] -= _omegas[1] * T_vecds[iTvec] * P_tmp[iTvec];
+                         tau_s[iS] -= m_omegas[1] * T_vecds[iTvec] * P_tmp[iTvec];
                      }
                      
                      // Omega 3
@@ -762,7 +762,7 @@ namespace ecmech {
                      vecCrossProd(mpsVec, mpVec, sVec);
                      fillFromMS(P_tmp, Q_tmp, mpVec, mpsVec, 1);
                      for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
-                         tau_s[iS] += _omegas[2] * T_vecds[iTvec] * P_tmp[iTvec];
+                         tau_s[iS] += m_omegas[2] * T_vecds[iTvec] * P_tmp[iTvec];
                      }
                  }
                  
@@ -774,18 +774,18 @@ namespace ecmech {
                  
                  if (fill_PQ) {
                      for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
-                         _P_vec[ECMECH_NM_INDX(iTvec, iSlip, ecmech::ntvec, nslip)] = P_s[iS * ecmech::ntvec + iTvec];
+                         P_vec[ECMECH_NM_INDX(iTvec, iSlip, ecmech::ntvec, nslip)] = P_s[iS * ecmech::ntvec + iTvec];
                      }
                      for (int iWvec = 0; iWvec < ecmech::nwvec; ++iWvec) {
-                         _Q_vec[ECMECH_NM_INDX(iWvec, iSlip, ecmech::nwvec, nslip)] = Q_s[iS * ecmech::nwvec + iWvec];
+                         Q_vec[ECMECH_NM_INDX(iWvec, iSlip, ecmech::nwvec, nslip)] = Q_s[iS * ecmech::nwvec + iWvec];
                      }
                  }
              }
          }
          
          __ecmech_hdev__ inline void getPQ(double* /*chia*/,
-                                           double* _P_vec, 
-                                           double* _Q_vec, 
+                                           double* P_vec, 
+                                           double* Q_vec, 
                                            const double* const SvecP) const
          {
              // we need to reverse the stress first...
@@ -798,7 +798,7 @@ namespace ecmech {
              T_vecds[2] = sqr2 * SvecP[5]; // 12
              
              double taua[nslip];
-             NSprojection(taua, _P_vec, _Q_vec, T_vecds, true);
+             NSprojection(taua, P_vec, Q_vec, T_vecds, true);
          }
          
          __ecmech_hdev__ inline void evalRSS(double* taua, 
@@ -809,7 +809,7 @@ namespace ecmech {
          }
          
      private:
-         double _omegas[3];
+         double m_omegas[3];
 
    }; // SlipGeomBCCNonSchmid
    

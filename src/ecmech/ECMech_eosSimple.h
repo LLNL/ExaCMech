@@ -33,14 +33,14 @@ namespace ecmech {
 
             //////////////////////////////
 
-            _rho0 = *parsIt; ++parsIt;
-            _bulkMod = *parsIt; ++parsIt;
-            _cvav = *parsIt; ++parsIt;
-            _gamma = *parsIt; ++parsIt;
-            _ec0 = *parsIt; ++parsIt;
+            m_rho0 = *parsIt; ++parsIt;
+            m_bulkMod = *parsIt; ++parsIt;
+            m_cvav = *parsIt; ++parsIt;
+            m_gamma = *parsIt; ++parsIt;
+            m_ec0 = *parsIt; ++parsIt;
 
-            _dtde = one / _cvav;
-            _tK0 = -_ec0 * _dtde;
+            m_dtde = one / m_cvav;
+            m_tK0 = -m_ec0 * m_dtde;
 
             //////////////////////////////
 
@@ -59,11 +59,11 @@ namespace ecmech {
 
             //////////////////////////////
 
-            params.push_back(_rho0);
-            params.push_back(_bulkMod);
-            params.push_back(_cvav);
-            params.push_back(_gamma);
-            params.push_back(_ec0);
+            params.push_back(m_rho0);
+            params.push_back(m_bulkMod);
+            params.push_back(m_cvav);
+            params.push_back(m_gamma);
+            params.push_back(m_ec0);
 
             //////////////////////////////
 
@@ -81,12 +81,12 @@ namespace ecmech {
             double mu = one / v - one;
 
             if (isothermal) {
-               p = _bulkMod * mu;
-               tK = _tK0;
+               p = m_bulkMod * mu;
+               tK = m_tK0;
             }
             else {
-               p = _bulkMod * mu + _gamma * e;
-               tK = _tK0 + e * _dtde;
+               p = m_bulkMod * mu + m_gamma * e;
+               tK = m_tK0 + e * m_dtde;
             }
          }
 
@@ -105,16 +105,16 @@ namespace ecmech {
             tK = this->evalT(e);
 
             if (isothermal) {
-               p = _bulkMod * mu;
+               p = m_bulkMod * mu;
                dpde = zero;
-               dtde = 1e-8 * _dtde; // instead of zero, to prevent divide-by-zero elsewhere
+               dtde = 1e-8 * m_dtde; // instead of zero, to prevent divide-by-zero elsewhere
             }
             else {
-               p = _bulkMod * mu + _gamma * e;
-               dpde = _gamma;
-               dtde = _dtde;
+               p = m_bulkMod * mu + m_gamma * e;
+               dpde = m_gamma;
+               dtde = m_dtde;
             }
-            bulkNew = _bulkMod * eta;
+            bulkNew = m_bulkMod * eta;
          }
 
          __ecmech_hdev__
@@ -132,13 +132,13 @@ namespace ecmech {
          __ecmech_hdev__
          inline
          double getBulkRef() const {
-            return _bulkMod;
+            return m_bulkMod;
          }
 
          __ecmech_hdev__
          inline
          double getRho0() const {
-            return _rho0;
+            return m_rho0;
          }
 
       private:
@@ -147,10 +147,10 @@ namespace ecmech {
          inline double evalT(double  e) const {
             double tK;
             if (isothermal) {
-               tK = _tK0;
+               tK = m_tK0;
             }
             else {
-               tK = _tK0 + e * _dtde;
+               tK = m_tK0 + e * m_dtde;
             }
             return tK;
          }
@@ -158,10 +158,10 @@ namespace ecmech {
       private:
 
          // parameters
-         double _rho0, _bulkMod, _gamma, _ec0, _cvav;
+         double m_rho0, m_bulkMod, m_gamma, m_ec0, m_cvav;
 
          // derived from parameters
-         double _dtde, _tK0;
+         double m_dtde, m_tK0;
    }; // class EosModelConst
 
    template<class EosModel>

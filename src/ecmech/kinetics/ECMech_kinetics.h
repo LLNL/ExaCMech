@@ -1,7 +1,7 @@
 // -*-c++-*-
 
-#ifndef ECMECH_KINETICS_H
-#define ECMECH_KINETICS_H
+#ifndef ECMECH_kinetics_H
+#define ECMECH_kinetics_H
 
 #include "SNLS_TrDLDenseG.h"
 
@@ -94,11 +94,11 @@ namespace ecmech {
                             double dt,
                             const double* const evolVals,
                             double tK) :
-            _kinetics(kinetics), _h_o(h_o), _dt(dt), _evolVals(evolVals), _tK(tK)
+            m_kinetics(kinetics), m_h_o(h_o), m_dt(dt), m_evolVals(evolVals), m_tK(tK)
          {
-            _x_scale = fmax(_h_o, 1.0); // TO_DO -- generalize this to not max with 1
-            // NOTE : see comment below about changing Jacobian calculation if _res_scale != one / s_scale
-            _res_scale = one / _x_scale;
+            m_x_scale = fmax(m_h_o, 1.0); // TO_DO -- generalize this to not max with 1
+            // NOTE : see comment below about changing Jacobian calculation if m_res_scale != one / s_scale
+            m_res_scale = one / m_x_scale;
          }
 
          // deconstructor
@@ -108,7 +108,7 @@ namespace ecmech {
          __ecmech_hdev__
          inline
          double getHn(const double* const x) const {
-            return _h_o + x[0] * _x_scale;
+            return m_h_o + x[0] * m_x_scale;
          }
 
          __ecmech_hdev__
@@ -118,30 +118,30 @@ namespace ecmech {
                         const double* const x) {
             bool doComputeJ = (Jacobian != nullptr);
 
-            double h_delta = x[0] * _x_scale;
-            double h = _h_o + h_delta;
+            double h_delta = x[0] * m_x_scale;
+            double h = m_h_o + h_delta;
 
             double sdot, dsdot_ds;
-            _kinetics->getSdot1(sdot, dsdot_ds, h, _evolVals, _tK);
+            m_kinetics->getSdot1(sdot, dsdot_ds, h, m_evolVals, m_tK);
 
-            resid[0] = (h_delta - sdot * _dt) * _res_scale;
+            resid[0] = (h_delta - sdot * m_dt) * m_res_scale;
 
             if (doComputeJ) {
-               // The below is based on the assumption that _res_scale = 1/_x_scale
+               // The below is based on the assumption that m_res_scale = 1/m_x_scale
                // if this were to change in the future version than this would need to become
-               // Jacobian[0] = (one - dsdot_ds * _dt) * _res_scale * _x_scale;
-               Jacobian[0] = (one - dsdot_ds * _dt);
+               // Jacobian[0] = (one - dsdot_ds * m_dt) * m_res_scale * m_x_scale;
+               Jacobian[0] = (one - dsdot_ds * m_dt);
             }
 
             return true;
          } // computeRJ
 
       private:
-         const Kinetics* _kinetics;
-         const double _h_o, _dt;
-         const double* const _evolVals;
-         const double _tK;
-         double _x_scale, _res_scale;
+         const Kinetics* m_kinetics;
+         const double m_h_o, m_dt;
+         const double* const m_evolVals;
+         const double m_tK;
+         double m_x_scale, m_res_scale;
    }; // class Kinetics_H1Problem
 
    /*
@@ -205,12 +205,12 @@ namespace ecmech {
                             const double* const evolVals,
                             const double* const hvals,
                             double tK) :
-            _kinetics(kinetics), _h_o(h_o), _dt(dt), _evolVals(evolVals), _hvals(hvals), _tK(tK)
+            m_kinetics(kinetics), m_h_o(h_o), m_dt(dt), m_evolVals(evolVals), m_hvals(hvals), m_tK(tK)
          {
             for (int i = 0; i < nDimSys; i++) {
-               _x_scale[i] = fmax(_h_o[i], 1.0); // TO_DO -- generalize this to not max with 1
-               // NOTE : see comment below about changing Jacobian calculation if _res_scale != one / s_scale
-               _res_scale[i] = one / _x_scale[i];
+               m_x_scale[i] = fmax(m_h_o[i], 1.0); // TO_DO -- generalize this to not max with 1
+               // NOTE : see comment below about changing Jacobian calculation if m_res_scale != one / s_scale
+               m_res_scale[i] = one / m_x_scale[i];
             }
          }
 
@@ -222,7 +222,7 @@ namespace ecmech {
          inline
          void getHn(double* h, const double* const x) const {
             for (int i = 0; i < nDimSys; i++) {
-               h[i] = _h_o[i] + x[i] * _x_scale[i];
+               h[i] = m_h_o[i] + x[i] * m_x_scale[i];
             }
          }
 
@@ -233,29 +233,29 @@ namespace ecmech {
                         const double* const x) {
             double h[nDimSys];
             for (int i = 0; i < nDimSys; i++) {
-               h[i] = _h_o[i] + x[i] * _x_scale[i];
+               h[i] = m_h_o[i] + x[i] * m_x_scale[i];
             }
 
             double sdot[nDimSys];
             // The dsdot_ds portion of the Jacobian is set in here if it was provided
-            _kinetics->getSdotN(sdot, Jacobian, h, _evolVals, _hvals, _tK);
+            m_kinetics->getSdotN(sdot, Jacobian, h, m_evolVals, m_hvals, m_tK);
 
             for (int i = 0; i < nDimSys; i++) {
-               resid[i] = (x[i] * _x_scale[i] - sdot[i] * _dt) * _res_scale[i];
+               resid[i] = (x[i] * m_x_scale[i] - sdot[i] * m_dt) * m_res_scale[i];
             }
 
             if (Jacobian) {
                // Multiply dsdot_ds terms by the negative outer product of x_scale and res_scale and dt
                for (int i = 0; i < nDimSys; i++) {
                   for (int j = 0; j < nDimSys; j++) {
-                     Jacobian[ECMECH_NN_INDX(i, j, nDimSys)] *= -_x_scale[j] * _res_scale[i] * _dt;
+                     Jacobian[ECMECH_NN_INDX(i, j, nDimSys)] *= -m_x_scale[j] * m_res_scale[i] * m_dt;
                   }
                }
 
                // Now add in the identity term
-               // The below is based on the assumption that _res_scale = 1/_x_scale
+               // The below is based on the assumption that m_res_scale = 1/m_x_scale
                // if this were to change in the future version than this would need to become
-               // Jacobian[ECMECH_NN_INDX(i, i, nDimSys)] += ecmech::one * _x_scale[i] * _r_scale[i]
+               // Jacobian[ECMECH_NN_INDX(i, i, nDimSys)] += ecmech::one * m_x_scale[i] * _r_scale[i]
                for (int i = 0; i < nDimSys; i++) {
                   Jacobian[ECMECH_NN_INDX(i, i, nDimSys)] += ecmech::one;
                }
@@ -265,13 +265,13 @@ namespace ecmech {
          } // computeRJ
 
       private:
-         const Kinetics* _kinetics;
-         const double* const _h_o;
-         const double _dt;
-         const double* const _evolVals;
-         const double* const _hvals;
-         const double _tK;
-         double _x_scale[nDimSys], _res_scale[nDimSys];
+         const Kinetics* m_kinetics;
+         const double* const m_h_o;
+         const double m_dt;
+         const double* const m_evolVals;
+         const double* const m_hvals;
+         const double m_tK;
+         double m_x_scale[nDimSys], m_res_scale[nDimSys];
    }; // class Kinetics_HNProblem
 
    /*

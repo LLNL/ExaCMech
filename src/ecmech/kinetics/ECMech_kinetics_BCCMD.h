@@ -53,7 +53,7 @@ namespace ecmech {
 
          // Generally  don't using anything other than the default here
          __ecmech_hdev__
-         KineticsBCCMD(int nslip) : _nslip(nslip) {};
+         KineticsBCCMD(int) {};
          // deconstructor
          __ecmech_hdev__
          ~KineticsBCCMD() {}
@@ -71,29 +71,29 @@ namespace ecmech {
             //////////////////////////////
             // power-law stuff
             // shear modulus in case the model uses it
-            _mu = *parsIt; ++parsIt;
+            m_mu = *parsIt; ++parsIt;
             // Burgers vector magnitude
-            _bmag = *parsIt; ++parsIt;
+            m_bmag = *parsIt; ++parsIt;
             // This would be the power law exponent term
-            _xm = *parsIt; ++parsIt;
+            m_xm = *parsIt; ++parsIt;
             // This would be the references slip rate term
-            _gam_w0 = *parsIt; ++parsIt;
+            m_gam_w0 = *parsIt; ++parsIt;
             // Peierls stress
-            _tau_p = *parsIt; ++parsIt;
+            m_tau_p = *parsIt; ++parsIt;
 			// alpha Peierls
-            _alpha_p = *parsIt; ++parsIt;
+            m_alpha_p = *parsIt; ++parsIt;
             // Shear velocity
-            _vmax = *parsIt; ++parsIt;
+            m_vmax = *parsIt; ++parsIt;
             // Drag stress
-            _tau_drag = *parsIt; ++parsIt;
+            m_tau_drag = *parsIt; ++parsIt;
 
             // CALL fill_power_law(pl)
             // xmm  = xm - one ;
             // These are terms that are constant during the simulation and we don't
             // really need to calculate them every time we call slip kinetics portion
             // of the class
-            _xnn = one / _xm;
-            _xn = _xnn - one;
+            m_xnn = one / m_xm;
+            m_xn = m_xnn - one;
             // xMp1 = xnn + one
             //
             // CALL set_t_min_max(pl)
@@ -101,15 +101,15 @@ namespace ecmech {
             // that translates to either a slip rate that is essentially zero
             // or slip rate that is going off to infinity but we really want to
             // cap it to some large number
-            _t_min = pow(ecmech::gam_ratio_min, _xm);
-            _t_max = pow(ecmech::gam_ratio_ovf, _xm);
+            m_t_min = pow(ecmech::gam_ratio_min, m_xm);
+            m_t_max = pow(ecmech::gam_ratio_ovf, m_xm);
 
             //////////////////////////////
             // Hardening parameters
-            _alpha = *parsIt; ++parsIt;
-            _k1 = *parsIt; ++parsIt;
-            _k2 = *parsIt; ++parsIt;
-            _krelax = *parsIt; ++parsIt;
+            m_alpha = *parsIt; ++parsIt;
+            m_k1 = *parsIt; ++parsIt;
+            m_k2 = *parsIt; ++parsIt;
+            m_krelax = *parsIt; ++parsIt;
             
             //////////////////////////////
             // nH
@@ -119,8 +119,8 @@ namespace ecmech {
             // Also, if you'd like to based on the initial state you could provide a lower
             // bound for example related to the dislocation content that you don't want the
             // model to go under when you start try to update your hardening state.
-            _hdn_init = *parsIt; ++parsIt;
-            _hdn_min = 1e-4 * _hdn_init;
+            m_hdn_init = *parsIt; ++parsIt;
+            m_hdn_min = 1e-4 * m_hdn_init;
 
             //////////////////////////////
 
@@ -140,26 +140,26 @@ namespace ecmech {
             //////////////////////////////
             // power-law stuff
 
-            params.push_back(_mu);
-            params.push_back(_bmag);
-            params.push_back(_xm);
-            params.push_back(_gam_w0);
-            params.push_back(_tau_p);
-            params.push_back(_alpha_p);
-            params.push_back(_vmax);
-            params.push_back(_tau_drag);
+            params.push_back(m_mu);
+            params.push_back(m_bmag);
+            params.push_back(m_xm);
+            params.push_back(m_gam_w0);
+            params.push_back(m_tau_p);
+            params.push_back(m_alpha_p);
+            params.push_back(m_vmax);
+            params.push_back(m_tau_drag);
 
             //////////////////////////////
             // hardening stuff
-            params.push_back(_alpha);
-            params.push_back(_k1);
-            params.push_back(_k2);
-            params.push_back(_krelax);
+            params.push_back(m_alpha);
+            params.push_back(m_k1);
+            params.push_back(m_k2);
+            params.push_back(m_krelax);
 
             //////////////////////////////
             // nH
 
-            params.push_back(_hdn_init);
+            params.push_back(m_hdn_init);
 
             //////////////////////////////
 #ifdef ECMECH_DEBUG
@@ -178,7 +178,7 @@ namespace ecmech {
             for (int iSlip = 0; iSlip < SlipGeom::nslip; iSlip++) {
                names.push_back("rho_" + std::to_string(iSlip));
                //init.push_back(h_state[iSlip]);
-               init.push_back(_hdn_init);
+               init.push_back(m_hdn_init);
                plot.push_back(true);
                state.push_back(true);
             }
@@ -187,29 +187,27 @@ namespace ecmech {
       private:
 
          // static const _nXnDim = nH*nH ; // do not bother
-         const int _nslip; // could template on this if there were call to do so
-
          //////////////////////////////
          // Power-law stuff
 
-         double _mu, _bmag;
-         double _xm;
-         double _gam_w0;
-         double _tau_p, _alpha_p;
-         double _vmax, _tau_drag;
+         double m_mu, m_bmag;
+         double m_xm;
+         double m_gam_w0;
+         double m_tau_p, m_alpha_p;
+         double m_vmax, m_tau_drag;
 
          // derived from parameters
-         double _t_max, _t_min, _xn, _xnn;
+         double m_t_max, m_t_min, m_xn, m_xnn;
 
          //////////////////////////////
          // Hardening
-         double _alpha;
-         double _k1, _k2, _krelax;
+         double m_alpha;
+         double m_k1, m_k2, m_krelax;
 
          //////////////////////////////
          // nH
-         double _hdn_init;
-         double _hdn_min;
+         double m_hdn_init;
+         double m_hdn_min;
 
       public:
 
@@ -218,8 +216,8 @@ namespace ecmech {
          /// For models where that value is slip system dependent,
          /// you can do something similar to what I did with the orowan model
          /*      // Thermal activation + phonon ref slip rate = (1/(f_D * \bar{L}/b * sqrt(qM_0)/sqrt(qM)) + 1/(gammadot_r0 * qM))^-1
-               const double isqrth = 1.0 / sqrt(vals[1 + _nslip + iVal]);
-               const double rate = 1.0 / ((1.0 / (_lbar_b * _fD * isqrth)) + (1.0 / (_gam_ro * vals[1 + _nslip + iVal])));
+               const double isqrth = 1.0 / sqrt(vals[1 + m_num_slip + iVal]);
+               const double rate = 1.0 / ((1.0 / (_lbar_b * _fD * isqrth)) + (1.0 / (_gam_ro * vals[1 + m_num_slip + iVal])));
                if (rate > maxRefRate) {
                   maxRefRate = rate;
                }
@@ -228,7 +226,7 @@ namespace ecmech {
          inline double getFixedRefRate(const double* const // vals, not used
                                        ) const
          {
-            return _gam_w0;
+            return m_gam_w0;
          }
 
          /// This is where all of those kinetic values are evaluated
@@ -250,22 +248,22 @@ namespace ecmech {
          {
             assert(val_derivs == nullptr);
             double crss = ecmech::zero;
-            for (int iSlip = 0; iSlip < _nslip; ++iSlip) {
+            for (int iSlip = 0; iSlip < m_num_slip; ++iSlip) {
                crss += h_state[iSlip];
                assert(h_state[iSlip] > zero);
             }
-            crss = _alpha * _mu * _bmag * sqrt(crss);
+            crss = m_alpha * m_mu * m_bmag * sqrt(crss);
             
             double mVals = ecmech::zero;
-            for (int iSlip = 0; iSlip < _nslip; ++iSlip) {
+            for (int iSlip = 0; iSlip < m_num_slip; ++iSlip) {
                vals[iSlip] = crss;
-               vals[_nslip + iSlip] = h_state[iSlip];
+               vals[m_num_slip + iSlip] = h_state[iSlip];
                mVals += vals[iSlip];
                assert(vals[iSlip] > zero);
             }
-            mVals /= _nslip;
+            mVals /= m_num_slip;
             
-            vals[2*_nslip] = tK;
+            vals[2*m_num_slip] = tK;
 
             return mVals;
          }
@@ -285,7 +283,7 @@ namespace ecmech {
          {     
             double tK = vals[2 * SlipGeom::nslip];
 
-            for (int iSlip = 0; iSlip < _nslip; ++iSlip) {
+            for (int iSlip = 0; iSlip < m_num_slip; ++iSlip) {
                bool l_act;
                double taua = tau[iSlip];
                double chia = tau[SlipGeom::nslip + iSlip];
@@ -328,9 +326,9 @@ namespace ecmech {
             l_act = false;
         
             //double u = cos(chi + M_PI/6.0); // 1 for T, 0.5 for AT
-            //double tau_p = _tau_p + 1.0*(1.0-u) * _tau_p;
+            //double tau_p = m_tau_p + 1.0*(1.0-u) * m_tau_p;
 			
-            double tau_p = _tau_p / cos(chi-_alpha_p);
+            double tau_p = m_tau_p / cos(chi-m_alpha_p);
 			
             double t_eff = fmax(fabs(tau) - tau_p, 0.0);
             
@@ -338,9 +336,9 @@ namespace ecmech {
             //double t_eff = fmax(fabs(u * tau) - tau_p, 0.0);
 			
 			
-			double xnn = _xnn;
-			double xn = _xn;
-			double gam_w0 = _gam_w0;
+			double xnn = m_xnn;
+			double xn = m_xn;
+			double gam_w0 = m_gam_w0;
 			/*
 			// NEW //
 			
@@ -370,15 +368,15 @@ namespace ecmech {
             
             double gam_w;
             if (gam_w0 < 0.0) gam_w = fabs(gam_w0);
-            else gam_w = rho * _bmag * gam_w0;
+            else gam_w = rho * m_bmag * gam_w0;
             
-            double gmax = rho * _bmag * _vmax * (1.0-exp(-t_eff/_tau_drag));
+            double gmax = rho * m_bmag * m_vmax * (1.0-exp(-t_eff/m_tau_drag));
 			
-			if (at > _t_min) {
+			if (at > m_t_min) {
                //
                l_act = true;
 
-               if (at > _t_max) {
+               if (at > m_t_max) {
                   // ierr = IERR_OVF_p
                   // set gdot big, evpp may need this for recovery
                   gdot = ecmech::gam_ratio_ovffx * gam_w;
@@ -403,7 +401,7 @@ namespace ecmech {
 #else
 			{
 				double Bdrag = 2e-8; // MBar.us
-				double temp = rho * _bmag * _bmag / Bdrag;
+				double temp = rho * m_bmag * m_bmag / Bdrag;
 				
 				t_eff = fmax(fabs(tau) - tau_p - crss, 0.0);
 				
@@ -440,7 +438,7 @@ namespace ecmech {
             double gdotabs[SlipGeom::nslip];
             
             for(int islip = 0; islip < SlipGeom::nslip; islip++) {
-               log_hs_o[islip] = log(fmax(hs_o[islip], _hdn_min));
+               log_hs_o[islip] = log(fmax(hs_o[islip], m_hdn_min));
                gdotabs[islip] = abs(gdot[islip]);
             }
 			//printf("updateH\n");
@@ -476,13 +474,13 @@ namespace ecmech {
                    double log_hs_temp[SlipGeom::nslip];
 
                    for (int islip = 0; islip < SlipGeom::nslip; islip++) {
-                      log_hs_u[islip] = log(fmax(hs_o[islip], _hdn_min));
+                      log_hs_u[islip] = log(fmax(hs_o[islip], m_hdn_min));
                    }
 
                    for (int i = 0; i < nsub; i++)
                    {
                       for (int islip = 0; islip < SlipGeom::nslip; islip++) {
-                         log_hs_temp[islip] = fmax(log_hs_u[islip], log(_hdn_min));
+                         log_hs_temp[islip] = fmax(log_hs_u[islip], log(m_hdn_min));
                       }
                       nFEvals += updateHN<KineticsBCCMD>(this,
                                                          log_hs_u, log_hs_temp, dtnew, gdotabs, hvals, tK,
@@ -522,7 +520,7 @@ namespace ecmech {
             
             
             for(int islip = 0; islip < SlipGeom::nslip; islip++) {
-               hs_u[islip] = fmax(exp(log_hs_u[islip]), _hdn_min);
+               hs_u[islip] = fmax(exp(log_hs_u[islip]), m_hdn_min);
             }
             //printf("dens = %e %e %e %e\n",hs_u[0]*1e4,hs_u[1]*1e4,hs_u[2]*1e4,hs_u[3]*1e4);
 
@@ -545,7 +543,7 @@ namespace ecmech {
                      const double* const gdotabs
                      ) const
          {
-            for (int i = 0; i < _nslip; i++) {
+            for (int i = 0; i < m_num_slip; i++) {
                 evolVals[i] = gdotabs[i];
             }
          }
@@ -585,8 +583,8 @@ namespace ecmech {
                 gdotmax = fmax(evolVals[islip], gdotmax);
                 
                 // smoothing factor to prevent numerical instabilities in the solve
-               //  double h0 = 1.5*_hdn_init;
-               //  double k = 15.0/_hdn_init;
+               //  double h0 = 1.5*m_hdn_init;
+               //  double k = 15.0/m_hdn_init;
                 kfact[islip] = 1.0;//1.0/(1.0+exp(-k*(exp(h[islip])-h0)));
             }
             
@@ -597,8 +595,8 @@ namespace ecmech {
                     double ratiothres = 0.01;
                     frel[islip] = 1.0-1.0/(1.0+exp(-100.0*(ratio-ratiothres)));
                     
-                    //if (h[islip] < log(1e2*_hdn_min)) frel[islip] = 0.0;
-                    //if (h[islip] < log(2*_hdn_init)) frel[islip] = 0.0;
+                    //if (h[islip] < log(1e2*m_hdn_min)) frel[islip] = 0.0;
+                    //if (h[islip] < log(2*m_hdn_init)) frel[islip] = 0.0;
                     
                     frel[islip] = frel[islip] * kfact[islip];
                 }
@@ -608,7 +606,7 @@ namespace ecmech {
             double k1[SlipGeom::nslip];
             //printf("getSdotN:\n");
             for (int islip = 0; islip < SlipGeom::nslip; islip++) {
-                k1[islip] = _k1;
+                k1[islip] = m_k1;
                 if (SlipGeom::dynamic) {
                     double chia = hvals[islip];
                     // If we are in the AT zone, then we need to increase k1
@@ -620,16 +618,16 @@ namespace ecmech {
                     //double a = fmin(1.0 + (amin - 1.0) * chia * 6.0 / M_PI, 1.0);
                     //a = 1.0 / a;
 					
-                    double a = 1.0/(1.0/cos(M_PI/6.0 - _alpha_p)-1.0) * (1.0/amin - 1.0);
-                    a = 1.0 + a * (1.0 / cos(chia - _alpha_p) - 1.0);
+                    double a = 1.0/(1.0/cos(M_PI/6.0 - m_alpha_p)-1.0) * (1.0/amin - 1.0);
+                    a = 1.0 + a * (1.0 / cos(chia - m_alpha_p) - 1.0);
 					
-                    k1[islip] = _k1 * a;
+                    k1[islip] = m_k1 * a;
                     //printf("sys[%d] chi = %e, rho = %e, gdot = %e\n",islip,chia*180.0/M_PI,exp(h[islip]),evolVals[islip]);
                 }
             }
             
             // Define k2 as a function of gdot and tK
-            double k2_ref = _k2; // reference k2 value for 2e8/s at 300K
+            double k2_ref = m_k2; // reference k2 value for 2e8/s at 300K
             double k2_temp = 0.05756349443979855 * log(tK / 7.309541735840538e-06);
             //printf("temp = %e, k2_temp = %e\n",tK,k2_temp);
             
@@ -643,7 +641,7 @@ namespace ecmech {
             for (int islip = 0; islip < SlipGeom::nslip; islip++) {
                 k2[islip] = k2_ref * k2_rate * k2_temp * kfact[islip];
                 if (gtot < 1e-10) k2[islip] = 0.0;
-                //if (h[islip] < log(1e2*_hdn_min)) k2[islip] = 0.0;
+                //if (h[islip] < log(1e2*m_hdn_min)) k2[islip] = 0.0;
                 //printf("sys[%d] k1 = %e, k2 = %e, frel = %e\n",islip,k1[islip],k2[islip],frel[islip]);
             }
             //printf("gtot = %e, k2 = %e\n",gtot,k2);
@@ -684,7 +682,7 @@ namespace ecmech {
             for (int islip = 0; islip < SlipGeom::nslip; islip++) {
                double temp_hs_a = exp(-onehalf * h[islip]);
                double temp1 = k1[islip] * temp_hs_a - k2[islip];
-               sdot[islip] = temp1 * evolVals[islip] - frel[islip] * _krelax;
+               sdot[islip] = temp1 * evolVals[islip] - frel[islip] * m_krelax;
                dsdot_ds[ECMECH_NN_INDX(islip, islip, SlipGeom::nslip)] = (-k1[islip] * onehalf * temp_hs_a) * evolVals[islip];
             }
          }

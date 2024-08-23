@@ -20,22 +20,22 @@ namespace ecmech {
    class matModelBase
    {
       protected:
-         bool  _complete;
-         double _rho0, _cvav, _v0, _e0, _bulkRef;
-         int _outputLevel;
-         ecmech::ExecutionStrategy _accel;
+         bool  m_complete;
+         double m_rho0, m_cvav, m_v0, m_e0, m_bulkRef;
+         int m_outputLevel;
+         ecmech::ExecutionStrategy m_accel;
 
          // constructor
          __ecmech_host__
          matModelBase() :
-            _complete(false),
-            _rho0(-1.0),
-            _cvav(-1.0),
-            _v0(-1.0),
-            _e0(-1.0),
-            _bulkRef(-1.0),
-            _outputLevel(0),
-            _accel(ECM_EXEC_STRAT_CPU)
+            m_complete(false),
+            m_rho0(-1.0),
+            m_cvav(-1.0),
+            m_v0(-1.0),
+            m_e0(-1.0),
+            m_bulkRef(-1.0),
+            m_outputLevel(0),
+            m_accel(ECM_EXEC_STRAT_CPU)
          {};
 
       public:
@@ -200,7 +200,7 @@ namespace ecmech {
           */
          __ecmech_host__
          virtual void setExecutionStrategy(ecmech::ExecutionStrategy accel)  {
-            _accel = accel;
+            m_accel = accel;
          };
 
          /**
@@ -208,14 +208,14 @@ namespace ecmech {
           */
          __ecmech_host__
          virtual double getRhoRef() const {
-            if (_rho0 < 0.0) { // want to be able to call this before _complete
+            if (m_rho0 < 0.0) { // want to be able to call this before m_complete
                ECMECH_FAIL(__func__, "rho0 does not appear to have been set");
             }
-            return _rho0;
+            return m_rho0;
          };
 
          __ecmech_host__
-         void setOutputLevel(int outputLevel) { _outputLevel = outputLevel; };
+         void setOutputLevel(int outputLevel) { m_outputLevel = outputLevel; };
 
 
          /**
@@ -223,14 +223,14 @@ namespace ecmech {
           * May end up requiring this to be called before the model may be used; and probably want to redefine this
           */
          __ecmech_host__
-         virtual void complete() { _complete = true; };
+         virtual void complete() { m_complete = true; };
 
          /**
           * @brief
           * Return whether or not complete has been called
           */
          __ecmech_host__
-         virtual bool isComplete() { return _complete; };
+         virtual bool isComplete() { return m_complete; };
    }; // class matModelBase
 } // ecmech namespace
 
