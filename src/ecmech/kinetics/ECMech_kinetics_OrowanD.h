@@ -832,7 +832,7 @@ namespace ecmech {
                   hexp[iDD] = exp(h_i[iDD]);
                }
             }
-            const double* const h = (LOGFORM) ? const_cast<const double* const>(&hexp[0]) : h_i;
+            const double* const h = (LOGFORM) ? &hexp[0] : h_i;
             vecsVMa<SlipGeom::nslip>(&forest_dis[0], &m_a_mat[0], &h[nslip]);
 
             for (int iM = 0; iM < nslip; iM++) {

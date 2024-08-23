@@ -400,7 +400,7 @@ namespace ecmech {
                   default: // fall through to CPU if other options are not available
                   {
                      RAJA::ReduceSum<RAJA::seq_reduce, int> status_all(0);
-                     RAJA::forall<RAJA::loop_exec>(default_range, [ = ] (int i) {
+                     RAJA::forall<RAJA::seq_exec>(default_range, [ = ] (int i) {
                         double *mtanSDThis       = ( mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr );
                         const bool status = 
                         getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
@@ -450,7 +450,7 @@ namespace ecmech {
                                  ) const
             {
 #if defined(ECMECH_EXTRA_SOLVERS)
-               if (!_complete) {
+               if (!m_complete) {
                   ECMECH_FAIL(__func__, "not complete");
                }
 
@@ -465,7 +465,7 @@ namespace ecmech {
                const unsigned int temp_k_stride = m_strides[istride_temp_k];
                const unsigned int sdd_stride = m_strides[istride_sdd];
 
-               switch (_accel) {
+               switch (m_accel) {
 #if defined(RAJA_ENABLE_OPENMP)
                   case ECM_EXEC_STRAT_OPENMP:
                   {
@@ -553,7 +553,7 @@ namespace ecmech {
                   default: // fall through to CPU if other options are not available
                   {
                      RAJA::ReduceSum<RAJA::seq_reduce, int> status_all(0);
-                     RAJA::forall<RAJA::loop_exec>(default_range, [ = ] (int i) {
+                     RAJA::forall<RAJA::seq_exec>(default_range, [ = ] (int i) {
                         if (histV[history_stride * i + iHistA_nFEval] < 0) { // skip elements that were successful
                         double *mtanSDThis       = ( mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr );
                         bool status = getResponseNRSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>

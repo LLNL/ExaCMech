@@ -25,7 +25,7 @@ namespace {
       // We're going to use RAJA here to initialize everything all at once
       RAJA::RangeSegment default_range(0, nqpts);
 
-      RAJA::forall<RAJA::loop_exec>(default_range, [ = ](int i) {
+      RAJA::forall<RAJA::seq_exec>(default_range, [ = ](int i) {
          int ind = i * vdim;
          int ind_ori = i * ecmech::qdim;
 
@@ -84,7 +84,7 @@ namespace {
       // All of the below we could setup in one big RAJA loop/kernel
       RAJA::RangeSegment default_range(0, nqpts);
 
-      RAJA::forall<RAJA::loop_exec>(default_range, [ = ](int i_qpts) {
+      RAJA::forall<RAJA::seq_exec>(default_range, [ = ](int i_qpts) {
          // Might want to eventually set these all up using RAJA views. It might simplify
          // things later on.
          // These are our inputs
@@ -443,7 +443,7 @@ void setup_vgrad(double* vgrad, const int nqpts){
 
    RAJA::RangeSegment default_range(0, nqpts);
 
-   RAJA::forall<RAJA::loop_exec>(default_range, [ = ](int i) {
+   RAJA::forall<RAJA::seq_exec>(default_range, [ = ](int i) {
       vgrad_view(0, 0, i) = -0.5;
       vgrad_view(0, 1, i) = 0.0;
       vgrad_view(0, 2, i) = 0.0;

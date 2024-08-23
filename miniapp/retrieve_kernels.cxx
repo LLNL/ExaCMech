@@ -13,7 +13,7 @@ namespace {
 
       RAJA::RangeSegment default_range(0, nqpts);
 
-      RAJA::forall<RAJA::loop_exec>(default_range, [ = ](int i_qpts) {
+      RAJA::forall<RAJA::seq_exec>(default_range, [ = ](int i_qpts) {
          // These are our outputs
          double* state_vars = &(state_vars_array[i_qpts * nstatev]);
          double* stress = &(stress_array[i_qpts * ecmech::nsvec]);
