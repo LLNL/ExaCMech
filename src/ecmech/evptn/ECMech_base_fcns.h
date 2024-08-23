@@ -38,16 +38,16 @@ namespace evptn {
         double abs_resolved_shear_stress[SlipGeom::nslip] = {};
         double gdot[SlipGeom::nslip] = {};
         // resolve stress onto slip systems
-        // CALL resolve_tau_a_n(crys%tmp4_slp, s_meas%T_vecds, crys)
-        //vecsVaTM<ntvec, SlipGeom::nslip>(taua, T_vecds, slipP);
+        // CALL resolve_tau_a_n(crys%tmp4_slp, s_meas%kirchoff, crys)
+        //vecsVaTM<ntvec, SlipGeom::nslip>(taua, kirchoff, slipP);
         slip_geom.evalRSS(abs_resolved_shear_stress, kirchoff, slip_geom.getP());
         //
-        // CALL plaw_eval(pl_vecd, pl_wvec, gss, crys, tK, ierr)
+        // CALL plaw_eval(plastic_def_rate, plastic_spin_vec, gss, crys, temp_k, ierr)
         // chi values are passed within extended taua array
         slip_kinetics.evalGdots(gdot, dgdot_dtau, abs_resolved_shear_stress, kinetic_values);
         
         //
-        // CALL sum_slip_def(pl_vecd, pl_wvec, crys%tmp1_slp, crys) ;
+        // CALL sum_slip_def(plastic_def_rate, plastic_spin_vec, crys%tmp1_slp, crys) ;
         vecsVMa<ntvec, SlipGeom::nslip>(plastic_def_rate, slip_geom.getP(), gdot);
         vecsVMa<nwvec, SlipGeom::nslip>(plastic_spin_vec, slip_geom.getQ(), gdot);
         }
@@ -150,7 +150,7 @@ namespace evptn {
     void get_material_tangent_stiffness(double* const material_tangent,
                                         const double* const jacobian,
                                         const double* const dquat_domega_t, 
-                                        const double* const qr5x5_ls,
+                                        const double* const rmat_5x5_sample2xtal,
                                         const double* const quat,
                                         const double* const rmat,
                                         const double* const cauchy_stress,
@@ -185,7 +185,7 @@ namespace evptn {
             // dstrainomega_ddef_rate_t[0:ind_omega_vec,:] = qr5x5_c2s
             for (int jE = 0; jE < nRHS; ++jE) {
                 for (int iE = 0; iE < ntvec; ++iE) { // ntvec, _not_ nDimSys // iE is same as index 
-                    dstrainomega_ddef_rate_t[ECMECH_NM_INDX(jE, iE, nRHS, JAC_SIZE)] = qr5x5_ls[ECMECH_NN_INDX(jE, iE, ntvec)];
+                    dstrainomega_ddef_rate_t[ECMECH_NM_INDX(jE, iE, nRHS, JAC_SIZE)] = rmat_5x5_sample2xtal[ECMECH_NN_INDX(jE, iE, ntvec)];
                 }
             }
             // If we had hardening terms then we'd add those here as well...
@@ -212,7 +212,7 @@ namespace evptn {
         }
         thermo_elast_n.template multCauchyDif<nRHS, JAC_SIZE>(temp_M6, dstrainomega_ddef_rate_t, inv_det_vol, inv_a_vol);
         // Apply final rotation
-        qr6x6_pre_mul<ecmech::nsvec, false>(material_tangent, temp_M6, qr5x5_ls);
+        qr6x6_pre_mul<ecmech::nsvec, false>(material_tangent, temp_M6, rmat_5x5_sample2xtal);
         }
 
         // Calculate the d(QCauchy) / dDefRate_s term now and add that to

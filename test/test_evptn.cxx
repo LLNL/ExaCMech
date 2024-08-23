@@ -100,8 +100,8 @@ TEST(ecmech, evptn_a)
       prob_state.h_state_u[iH] = h_state[iH];
    }
 
-   prob_state.eNew = 0.0;
-   prob_state.pEOS = 0.0;
+   prob_state.energy_new = 0.0;
+   prob_state.pressure_EOS = 0.0;
 
    Prob prob(slipGeom, kinetics, elastN, prob_state); 
 

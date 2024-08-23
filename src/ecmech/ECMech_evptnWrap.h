@@ -34,7 +34,7 @@ namespace ecmech {
             static constexpr int nParamsEOSHave = 3; // number that get from 'elsewhere' // these are assumed to go in first
             static constexpr int nParamsEOS = EosModel::nParams - nParamsEOSHave;
             static constexpr int nParams =
-               2 + 1 + // rho0, cvav, tolerance
+               2 + 1 + // density0, cvav, tolerance
                SlipGeom::nParams + Kinetics::nParams + ThermoElastN::nParams + nParamsEOS;
 
             // constructor
@@ -50,7 +50,7 @@ namespace ecmech {
                m_strides[istride_int_eng] = ecmech::ne;
                m_strides[istride_stress] = ecmech::nsvp;
                m_strides[istride_history] = NumHist<SlipGeom, Kinetics, ThermoElastN, EosModel>::numHist;
-               m_strides[istride_tkelv] = 1;
+               m_strides[istride_temp_k] = 1;
                m_strides[istride_sdd ] = ecmech::nsdd;
             };
 
@@ -130,10 +130,10 @@ namespace ecmech {
                   ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
 #endif
                }
-               if (strides[istride_tkelv] < 1) {
+               if (strides[istride_temp_k] < 1) {
 #if defined(__ecmech_host_only__)
                   std::ostringstream os;
-                  os << "strides[istride_tkelv] should have at least a length of: " << 1;
+                  os << "strides[istride_temp_k] should have at least a length of: " << 1;
                   ECMECH_FAIL(__func__, os.str().c_str());
 #else
                   ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
@@ -183,7 +183,7 @@ namespace ecmech {
 
                std::vector<double>::const_iterator parsIt = pars.begin();
 
-               m_rho0 = *parsIt; ++parsIt;
+               m_density0 = *parsIt; ++parsIt;
                m_cvav = *parsIt; ++parsIt;
 
                m_tolerance = *parsIt; ++parsIt;
@@ -201,18 +201,18 @@ namespace ecmech {
                   m_kinetics.setParams(paramsThese); parsIt += Kinetics::nParams;
                }
                {
-                  double bulkMod = m_elastN.getBulkMod();
+                  double bulk_modulus = m_elastN.getBulkMod();
                   std::vector<double> paramsThese(EosModel::nParams);
-                  paramsThese[0] = m_rho0;
-                  paramsThese[1] = bulkMod;
+                  paramsThese[0] = m_density0;
+                  paramsThese[1] = bulk_modulus;
                   paramsThese[2] = m_cvav;
                   std::copy(parsIt, parsIt + nParamsEOS, paramsThese.begin() + nParamsEOSHave);
 
                   m_eosModel.setParams(paramsThese); parsIt += nParamsEOS;
 
                   {
-                     double vMin, vMax;
-                     m_eosModel.getInfo(vMin, vMax, m_e0, m_v0);
+                     double rel_vol_min, rel_vol_max;
+                     m_eosModel.getInfo(rel_vol_min, rel_vol_max, m_energy0, m_rel_vol0);
                   }
                }
 
@@ -289,10 +289,10 @@ namespace ecmech {
                                 const double * defRateV,
                                 const double * spinV,
                                 const double * volRatioV,
-                                double * eIntV,
-                                double * stressSvecPV,
+                                double * internal_energyV,
+                                double * cauchy_stress_dev6_pressureV,
                                 double * histV,
-                                double * tkelvV,
+                                double * temp_kV,
                                 double * sddV,
                                 double * mtanSDV,
                                 const int& nPassed) const override final
@@ -309,7 +309,7 @@ namespace ecmech {
                const unsigned int int_eng_stride = m_strides[istride_int_eng];
                const unsigned int stress_stride = m_strides[istride_stress];
                const unsigned int history_stride = m_strides[istride_history];
-               const unsigned int tkelv_stride = m_strides[istride_tkelv];
+               const unsigned int temp_k_stride = m_strides[istride_temp_k];
                const unsigned int sdd_stride = m_strides[istride_sdd];
 
                switch (m_accel) {
@@ -327,10 +327,10 @@ namespace ecmech {
                         &defRateV[def_rate_stride * i],
                         &spinV[spin_v_stride * i],
                         &volRatioV[vol_ratio_stride * i],
-                        &eIntV[int_eng_stride * i],
-                        &stressSvecPV[stress_stride * i],
+                        &internal_energyV[int_eng_stride * i],
+                        &cauchy_stress_dev6_pressureV[stress_stride * i],
                         &histV[history_stride * i],
-                        tkelvV[tkelv_stride * i],
+                        temp_kV[temp_k_stride * i],
                         &sddV[sdd_stride * i],
                         mtanSDThis,
                         m_outputLevel);
@@ -342,8 +342,8 @@ namespace ecmech {
                      });
 
                      if (status_all.get() > 0) {
-                        getResponseRetry(dt, defRateV, spinV, volRatioV, eIntV,
-                                         stressSvecPV, histV, tkelvV, sddV, mtanSDV, nPassed);
+                        getResponseRetry(dt, defRateV, spinV, volRatioV, internal_energyV,
+                                         cauchy_stress_dev6_pressureV, histV, temp_kV, sddV, mtanSDV, nPassed);
                      }
 
                      break;
@@ -374,10 +374,10 @@ namespace ecmech {
                            &defRateV[def_rate_stride * i],
                            &spinV[spin_v_stride * i],
                            &volRatioV[vol_ratio_stride * i],
-                           &eIntV[int_eng_stride * i],
-                           &stressSvecPV[stress_stride * i],
+                           &internal_energyV[int_eng_stride * i],
+                           &cauchy_stress_dev6_pressureV[stress_stride * i],
                            &histV[history_stride * i],
-                           tkelvV[tkelv_stride * i],
+                           temp_kV[temp_k_stride * i],
                            &sddV[sdd_stride * i],
                            mtanSDThis,
                            m_outputLevel);
@@ -389,8 +389,8 @@ namespace ecmech {
                      });
 
                      if (status_all.get() > 0) {
-                        getResponseRetry(dt, defRateV, spinV, volRatioV, eIntV,
-                                         stressSvecPV, histV, tkelvV, sddV, mtanSDV, nPassed);
+                        getResponseRetry(dt, defRateV, spinV, volRatioV, internal_energyV,
+                                         cauchy_stress_dev6_pressureV, histV, temp_kV, sddV, mtanSDV, nPassed);
                      }
 
                      break;
@@ -410,10 +410,10 @@ namespace ecmech {
                               &defRateV[def_rate_stride * i],
                               &spinV[spin_v_stride * i],
                               &volRatioV[vol_ratio_stride * i],
-                              &eIntV[int_eng_stride * i],
-                              &stressSvecPV[stress_stride * i],
+                              &internal_energyV[int_eng_stride * i],
+                              &cauchy_stress_dev6_pressureV[stress_stride * i],
                               &histV[history_stride * i],
-                              tkelvV[tkelv_stride * i],
+                              temp_kV[temp_k_stride * i],
                               &sddV[sdd_stride * i],
                               mtanSDThis,
                               m_outputLevel);
@@ -425,8 +425,8 @@ namespace ecmech {
                      });
 
                      if (status_all.get() > 0) {
-                        getResponseRetry(dt, defRateV, spinV, volRatioV, eIntV,
-                                         stressSvecPV, histV, tkelvV, sddV, mtanSDV, nPassed);
+                        getResponseRetry(dt, defRateV, spinV, volRatioV, internal_energyV,
+                                         cauchy_stress_dev6_pressureV, histV, temp_kV, sddV, mtanSDV, nPassed);
                      }
 
                      break;
@@ -440,10 +440,10 @@ namespace ecmech {
                                    const double * UNUSED_EXTRA(defRateV),
                                    const double * UNUSED_EXTRA(spinV),
                                    const double * UNUSED_EXTRA(volRatioV),
-                                   double * UNUSED_EXTRA(eIntV),
-                                   double * UNUSED_EXTRA(stressSvecPV),
+                                   double * UNUSED_EXTRA(internal_energyV),
+                                   double * UNUSED_EXTRA(cauchy_stress_dev6_pressureV),
                                    double * UNUSED_EXTRA(histV),
-                                   double * UNUSED_EXTRA(tkelvV),
+                                   double * UNUSED_EXTRA(temp_kV),
                                    double * UNUSED_EXTRA(sddV),
                                    double * UNUSED_EXTRA(mtanSDV),
                                    const int& UNUSED_EXTRA(nPassed)
@@ -462,7 +462,7 @@ namespace ecmech {
                const unsigned int int_eng_stride = m_strides[istride_int_eng];
                const unsigned int stress_stride = m_strides[istride_stress];
                const unsigned int history_stride = m_strides[istride_history];
-               const unsigned int tkelv_stride = m_strides[istride_tkelv];
+               const unsigned int temp_k_stride = m_strides[istride_temp_k];
                const unsigned int sdd_stride = m_strides[istride_sdd];
 
                switch (_accel) {
@@ -480,10 +480,10 @@ namespace ecmech {
                            &defRateV[def_rate_stride * i],
                            &spinV[spin_v_stride * i],
                            &volRatioV[vol_ratio_stride * i],
-                           &eIntV[int_eng_stride * i],
-                           &stressSvecPV[stress_stride * i],
+                           &internal_energyV[int_eng_stride * i],
+                           &cauchy_stress_dev6_pressureV[stress_stride * i],
                            &histV[history_stride * i],
-                           tkelvV[tkelv_stride * i],
+                           temp_kV[temp_k_stride * i],
                            &sddV[sdd_stride * i],
                            mtanSDThis,
                            m_outputLevel);
@@ -527,10 +527,10 @@ namespace ecmech {
                            &defRateV[def_rate_stride * i],
                            &spinV[spin_v_stride * i],
                            &volRatioV[vol_ratio_stride * i],
-                           &eIntV[int_eng_stride * i],
-                           &stressSvecPV[stress_stride * i],
+                           &internal_energyV[int_eng_stride * i],
+                           &cauchy_stress_dev6_pressureV[stress_stride * i],
                            &histV[history_stride * i],
-                           tkelvV[tkelv_stride * i],
+                           temp_kV[temp_k_stride * i],
                            &sddV[sdd_stride * i],
                            mtanSDThis,
                            m_outputLevel);
@@ -563,10 +563,10 @@ namespace ecmech {
                            &defRateV[def_rate_stride * i],
                            &spinV[spin_v_stride * i],
                            &volRatioV[vol_ratio_stride * i],
-                           &eIntV[int_eng_stride * i],
-                           &stressSvecPV[stress_stride * i],
+                           &internal_energyV[int_eng_stride * i],
+                           &cauchy_stress_dev6_pressureV[stress_stride * i],
                            &histV[history_stride * i],
-                           tkelvV[tkelv_stride * i],
+                           temp_kV[temp_k_stride * i],
                            &sddV[sdd_stride * i],
                            mtanSDThis,
                            m_outputLevel);
@@ -627,7 +627,7 @@ namespace ecmech {
             // point release.
             const SlipGeom & getSlipGeom() const { return m_slipGeom; }
 
-            const Kinetics & getKinetics() const { return m_kinetics; }
+            const Kinetics & getemp_kinetics() const { return m_kinetics; }
 
             const ThermoElastN & getThermoElastN() const { return m_elastN; }
 

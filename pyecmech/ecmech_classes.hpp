@@ -31,13 +31,13 @@ class pyevptn_base
     /// Should be called each time step and point to set-up problem
     virtual void setup( double    dt,
                         double    tolerance,
-                        const double  * d_svec_kk_sm, // defRate,
-                        const double  * w_veccp_sm, // spin
+                        const double  * def_rate_dev6_vol_sample, // defRate,
+                        const double  * spin_vec_sample, // spin
                         const double  * volRatio,
-                        double  * eInt,
-                        double  * stressSvecP,
+                        double  * internal_energy,
+                        double  * cauchy_stress_dev6_pressure,
                         double  * hist,
-                        double  & tkelv) = 0;
+                        double  & temp_k) = 0;
     /// Should be handed to nonlinear solver for each time step and point
     /// for the Jacobian/gradient and function calculations
     virtual void computeRJ(double * const resid,
@@ -46,10 +46,10 @@ class pyevptn_base
     /// Should be called after a nonlinear solve for each time step and point
     /// to get out the state at end of each time step for a material point
     virtual void getState(const double * const x,
-                          double * const eInt,
-                          double * const stressSvecP,
+                          double * const internal_energy,
+                          double * const cauchy_stress_dev6_pressure,
                           double * const hist,
-                          double& tkelv,
+                          double& temp_k,
                           double * const sdd) = 0;
     protected:
 
@@ -62,25 +62,25 @@ class pyevptn_base
     // Various variables needed in set-up phases
     double m_dt;
     double m_tolerance;
-    double m_d_svec_kk_sm[ecmech::nsvp]; // defRate,
-    double m_w_veccp_sm[ecmech::nwvec]; // spin
+    double m_def_rate_dev6_vol_sample[ecmech::nsvp]; // defRate,
+    double m_spin_vec_sample[ecmech::nwvec]; // spin
     double m_volRatio[ecmech::nvr];
-    double m_eInt[ecmech::ne];
-    double m_stressSvecP[ecmech::nsvp];
+    double m_internal_energy[ecmech::ne];
+    double m_cauchy_stress_dev6_pressure[ecmech::nsvp];
     double m_quat_n[ecmech::qdim];
-    double m_tkelv;
-    double m_vNew;
-    double m_pEOS;
-    double m_d_vecd_sm[ecmech::ntvec];
-    double m_e_vecd_n[ecmech::ntvec];
-    double m_eNew;
-    double m_eDevTot;
+    double m_temp_k;
+    double m_rel_vol_new;
+    double m_pressure_EOS;
+    double m_def_rate_dev_vec_sample[ecmech::ntvec];
+    double m_elast_dev_vec_n[ecmech::ntvec];
+    double m_energy_new;
+    double m_dev_strain_energy_total;
     double m_halfVMidDt;
-    double m_rho0;
-    double m_bulkNew;
+    double m_density0;
+    double m_bulk_modulus_new;
     double m_cvav;
-    double m_e0;
-    double m_v0;
+    double m_energy0;
+    double m_rel_vol0;
 
 };
 
@@ -99,7 +99,7 @@ class pyEvptn_norm : public pyevptn_base
 
         std::vector<double>::const_iterator parsIt = params.begin();
 
-        m_rho0 = *parsIt; ++parsIt;
+        m_density0 = *parsIt; ++parsIt;
         m_cvav = *parsIt; ++parsIt;
 
         m_tolerance = *parsIt; ++parsIt;
@@ -119,7 +119,7 @@ class pyEvptn_norm : public pyevptn_base
         {
             double bulkMod = elastN.getBulkMod();
             std::vector<double> paramsThese(EosModel::nParams);
-            paramsThese[0] = m_rho0;
+            paramsThese[0] = m_density0;
             paramsThese[1] = bulkMod;
             paramsThese[2] = m_cvav;
             std::copy(parsIt, parsIt + nParamsEOS, paramsThese.begin() + nParamsEOSHave);
@@ -127,8 +127,8 @@ class pyEvptn_norm : public pyevptn_base
             eos.setParams(paramsThese); parsIt += nParamsEOS;
 
             {
-                double vMin, vMax;
-                eos.getInfo(vMin, vMax, m_e0, m_v0);
+                double rel_vol_min, rel_vol_max;
+                eos.getInfo(rel_vol_min, rel_vol_max, m_energy0, m_rel_vol0);
             }
         }
 
@@ -189,34 +189,34 @@ class pyEvptn_norm : public pyevptn_base
 
     void setup( double    dt,
                 double    tolerance,
-                const double  * d_svec_kk_sm, // defRate,
-                const double  * w_veccp_sm, // spin
+                const double  * def_rate_dev6_vol_sample, // defRate,
+                const double  * spin_vec_sample, // spin
                 const double  * volRatio,
-                double  * eInt,
-                double  * stressSvecP,
+                double  * internal_energy,
+                double  * cauchy_stress_dev6_pressure,
                 double  * hist,
-                double  & tkelv) override final
+                double  & temp_k) override final
     {
         static const int iHistLbGdot = ecmech::evptn::NumHist<SlipGeom, Kinetics, ThermoElastN, EosModel>::iHistLbGdot;
 
         m_dt = dt;
         m_tolerance = tolerance;
-        m_tkelv = tkelv;
+        m_temp_k = temp_k;
 
         for (int i = 0; i < ecmech::nsvp; i++)
         {
-            m_d_svec_kk_sm[i] = d_svec_kk_sm[i];
-            m_stressSvecP[i] = stressSvecP[i];
+            m_def_rate_dev6_vol_sample[i] = def_rate_dev6_vol_sample[i];
+            m_cauchy_stress_dev6_pressure[i] = cauchy_stress_dev6_pressure[i];
         }
 
         for (int i = 0; i < ecmech::nwvec; i++)
         {
-            m_w_veccp_sm[i] = w_veccp_sm[i];
+            m_spin_vec_sample[i] = spin_vec_sample[i];
         }
 
         for (int i = 0; i < ecmech::ne; i++)
         {
-            m_eInt[i] = eInt[i];
+            m_internal_energy[i] = internal_energy[i];
         }
 
         for (int i = 0; i < ecmech::nvr; i++)
@@ -231,7 +231,7 @@ class pyEvptn_norm : public pyevptn_base
 
         // convert deformation rate convention
         //
-        ecmech::svecToVecd(m_d_vecd_sm, m_d_svec_kk_sm);
+        ecmech::svecToVecd(m_def_rate_dev_vec_sample, m_def_rate_dev6_vol_sample);
 
         // pointers to state
         //
@@ -239,7 +239,7 @@ class pyEvptn_norm : public pyevptn_base
         double* gdot = &(hist[iHistLbGdot]);
 
         for (int i_hist = 0; i_hist < ecmech::ntvec; i_hist++) {
-            m_e_vecd_n[i_hist] = hist[ecmech::evptn::iHistLbE + i_hist];
+            m_elast_dev_vec_n[i_hist] = hist[ecmech::evptn::iHistLbE + i_hist];
         }
 
         for (int i_hist = 0; i_hist < ecmech::qdim; i_hist++) {
@@ -252,23 +252,23 @@ class pyEvptn_norm : public pyevptn_base
 
         // EOS
         //
-        double eOld = eInt[ecmech::i_ne_total];
-        double pOld = m_stressSvecP[6];
+        double energy_old = internal_energy[ecmech::i_ne_total];
+        double pressure_old = m_cauchy_stress_dev6_pressure[6];
         //
-        // get tkelv from beginning-of-step to avoid tangent stiffness contributions
+        // get temp_k from beginning-of-step to avoid tangent stiffness contributions
         {
-            double pBOS;
-            double vOld = m_volRatio[0];
-            eos.evalPT(pBOS, m_tkelv, vOld, eOld);
+            double pressure_BOS;
+            double rel_vol_old = m_volRatio[0];
+            eos.evalPT(pressure_BOS, m_temp_k, rel_vol_old, energy_old);
         }
         //
-        double tkelvNew ;
+        double temp_k_new ;
         {
         double dpde, dpdv, dtde;
-        ecmech::updateSimple<EosModel>(eos, m_pEOS, tkelvNew, m_eNew, m_bulkNew,
+        ecmech::updateSimple<EosModel>(eos, m_pressure_EOS, temp_k_new, m_energy_new, m_bulk_modulus_new,
                                        dpde, dpdv, dtde,
                                        m_volRatio[1], m_volRatio[3],
-                                       eOld, pOld);
+                                       energy_old, pressure_old);
         }
 
         // update hardness state to the end of the step
@@ -279,10 +279,10 @@ class pyEvptn_norm : public pyevptn_base
            // For dynamic slip systems we need the chi angle
            double P[ecmech::ntvec * SlipGeom::nslip];
            double Q[ecmech::nwvec * SlipGeom::nslip];
-           slipGeom.getPQ(hvals, P, Q, m_stressSvecP);
+           slipGeom.getPQ(hvals, P, Q, m_cauchy_stress_dev6_pressure);
         }
-        kinetics.updateH(m_hard_u, h_state, dt, gdot, hvals, m_tkelv);
-        m_vNew = m_volRatio[1];
+        kinetics.updateH(m_hard_u, h_state, dt, gdot, hvals, m_temp_k);
+        m_rel_vol_new = m_volRatio[1];
 
         if (prob != nullptr)
         {
@@ -292,9 +292,9 @@ class pyEvptn_norm : public pyevptn_base
         prob = new ecmech::evptn::EvptnUpdstProblem<SlipGeom, Kinetics, ThermoElastN>
                     (slipGeom, kinetics, elastN,
                     m_dt,
-                    m_vNew, m_eNew, m_pEOS, m_tkelv,
-                    m_hard_u, m_e_vecd_n, m_quat_n,
-                    m_d_vecd_sm, m_w_veccp_sm);
+                    m_rel_vol_new, m_energy_new, m_pressure_EOS, m_temp_k,
+                    m_hard_u, m_elast_dev_vec_n, m_quat_n,
+                    m_def_rate_dev_vec_sample, m_spin_vec_sample);
 
     }
 
@@ -306,10 +306,10 @@ class pyEvptn_norm : public pyevptn_base
     };
 
     void getState(const double * const x,
-                          double * const eInt,
-                          double * const stressSvecP,
+                          double * const internal_energy,
+                          double * const cauchy_stress_dev6_pressure,
                           double * const hist,
-                          double& tkelv,
+                          double& temp_k,
                           double * const sdd) override final 
     {
         double* h_state = &(hist[ecmech::evptn::iHistLbH]);
@@ -334,7 +334,7 @@ class pyEvptn_norm : public pyevptn_base
         hist[ecmech::evptn::iHistA_shrEff] += hist[ecmech::evptn::iHistA_shrateEff] * m_dt;
         //
         {
-            double dEff = ecmech::vecd_Deff(m_d_vecd_sm);
+            double dEff = ecmech::vecd_Deff(m_def_rate_dev_vec_sample);
             double flow_strength = prob->getHdnScale();
             if (dEff > ecmech::idp_tiny_sqrt) {
                 flow_strength = prob->getDisRate() / dEff;
@@ -359,12 +359,12 @@ class pyEvptn_norm : public pyevptn_base
         ecmech::vecsVMa<ecmech::ntvec>(Cstr_vecds_sm, qr5x5_ls, Cstr_vecds_lat);
         Cstr_vecds_sm[ecmech::iSvecS] = Cstr_vecds_lat[ecmech::iSvecS];
         //
-        // put end-of-step stress in stressSvecP
-        ecmech::vecdsToSvecP(stressSvecP, Cstr_vecds_sm);
+        // put end-of-step stress in cauchy_stress_dev6_pressure
+        ecmech::vecdsToSvecP(cauchy_stress_dev6_pressure, Cstr_vecds_sm);
         //
         // and now the second half of the trapezoidal integration
         //
-        m_eDevTot += m_halfVMidDt * ecmech::vecsInnerSvecDev(stressSvecP, m_d_svec_kk_sm);
+        m_dev_strain_energy_total += m_halfVMidDt * ecmech::vecsInnerSvecDev(cauchy_stress_dev6_pressure, m_def_rate_dev6_vol_sample);
 
         // adjust sign on quat so that as close as possible to quat_o;
         // more likely to keep orientations clustered this way;
@@ -377,21 +377,21 @@ class pyEvptn_norm : public pyevptn_base
         }
 
         {
-        double gmod = elastN.getGmod(m_tkelv, m_pEOS, m_eNew);
-        sdd[ecmech::i_sdd_bulk] = m_bulkNew;
+        double gmod = elastN.getGmod(m_temp_k, m_pressure_EOS, m_energy_new);
+        sdd[ecmech::i_sdd_bulk] = m_bulk_modulus_new;
         sdd[ecmech::i_sdd_gmod] = gmod;
-        tkelv = m_tkelv;
+        temp_k = m_temp_k;
 
         }
 #ifdef ECMECH_DEBUG
         assert(ecmech::nsdd == 2);
 #endif
 
-        m_eNew += m_eDevTot;
+        m_energy_new += m_dev_strain_energy_total;
         //
         // could update pressure and temperature again, but do not bother
 
-        eInt[ecmech::i_ne_total] = m_eNew;
+        internal_energy[ecmech::i_ne_total] = m_energy_new;
 #ifdef ECMECH_DEBUG
         assert(ecmech::ne == 1);
 #endif 
@@ -412,7 +412,7 @@ class pyEvptn_norm : public pyevptn_base
 
     static constexpr int nParamsEOSHave = 3; // number that get from 'elsewhere' // these are assumed to go in first
     static constexpr int nParamsEOS = EosModel::nParams - nParamsEOSHave;
-    static constexpr int nParams = 2 + 1 + // rho0, cvav, tolerance
+    static constexpr int nParams = 2 + 1 + // density0, cvav, tolerance
                          Kinetics::nParams + ThermoElastN::nParams + nParamsEOS;
 
     //

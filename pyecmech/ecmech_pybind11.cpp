@@ -79,13 +79,13 @@ PYBIND11_MODULE(pyecmech, m) {
         .def("solve", &pyECMech::solve,
              R"pbdoc(
                  double dt, // delta time
-                 py_darray& d_svec_kk_sm, // deformation rate in sample frame
-                 py_darray& w_veccp_sm, // spin in sample rate
+                 py_darray& def_rate_dev6_vol_sample, // deformation rate in sample frame
+                 py_darray& spin_vec_sample, // spin in sample rate
                  py_darray& volRatio, // volume ratio
-                 py_darray& eInt, // internal energy
-                 py_darray& stressSvecP, // stress deviatoric vector + pressure term
+                 py_darray& internal_energy, // internal energy
+                 py_darray& cauchy_stress_dev6_pressure, // stress deviatoric vector + pressure term
                  py_darray& hist, // history variable
-                 py_darray& tkelv // current temperature in kelvin
+                 py_darray& temp_k // current temperature in kelvin
                  py_darray& sdd // sdd array
              )pbdoc");
 
@@ -122,13 +122,13 @@ PYBIND11_MODULE(pyecmech, m) {
              R"pbdoc(
                  double dt, // delta time
                  double tolerance, // solver tolerance - not used
-                 py_darray d_svec_kk_sm, // deformation rate in sample frame
-                 py_darray w_veccp_sm, // spin in sample rate
+                 py_darray def_rate_dev6_vol_sample, // deformation rate in sample frame
+                 py_darray spin_vec_sample, // spin in sample rate
                  py_darray volRatio, // volume ratio
-                 py_darray eInt, // internal energy
-                 py_darray stressSvecP, // stress deviatoric vector + pressure term
+                 py_darray internal_energy, // internal energy
+                 py_darray cauchy_stress_dev6_pressure, // stress deviatoric vector + pressure term
                  py_darray hist, // history variable
-                 double& tkelv // current temperature in kelvin
+                 double& temp_k // current temperature in kelvin
              )pbdoc")
         .def("computeRJ", &pyECMechDev::computeRJ,
              R"pbdoc(
@@ -139,10 +139,10 @@ PYBIND11_MODULE(pyecmech, m) {
         .def("getState", &pyECMechDev::getState,
              R"pbdoc(
                 const py_darray &x, // input solution vector
-                py_darray &eInt, // internal energy
-                py_darray &stressSvecP, // stress deviatoric vector + pressure term
+                py_darray &internal_energy, // internal energy
+                py_darray &cauchy_stress_dev6_pressure, // stress deviatoric vector + pressure term
                 py_darray &hist, // history variable
-                double& tkelv, // current temperature
+                double& temp_k, // current temperature
                 py_darray &sdd // sdd array
              )pbdoc");
 #endif

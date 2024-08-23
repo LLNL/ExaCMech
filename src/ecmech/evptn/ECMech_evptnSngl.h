@@ -22,11 +22,11 @@ void preprocess(const SlipGeom& slipGeom,
                 const EosModel& eos,
                 const ThermoElastN& thermoElastN,
                 const double* const volRatio,
-                const double* const eInt,
-                const double* const d_svec_kk_sm,
+                const double* const internal_energy,
+                const double* const def_rate_dev6_vol_sample,
                 ProbState& prob_state,
                 double& halfVMidDt,
-                double& eDevTot)
+                double& dev_strain_energy_total)
 {
     // total increment in the deviatoric part of the strain energy using
     // trapezoidal rule integration
@@ -34,26 +34,26 @@ void preprocess(const SlipGeom& slipGeom,
     // just beginning-of-step stress part so far
     //
     halfVMidDt = oneqrtr * (volRatio[0] + volRatio[1]) * prob_state.dt;
-    eDevTot = halfVMidDt * vecsInnerSvecDev(prob_state.stressSvecP, d_svec_kk_sm);
+    dev_strain_energy_total = halfVMidDt * vecsInnerSvecDev(prob_state.cauchy_stress_dev6_pressure, def_rate_dev6_vol_sample);
 
     // EOS
     //
-    const double eOld = eInt[ecmech::i_ne_total];
+    const double energy_old = internal_energy[ecmech::i_ne_total];
     //
-    // get tkelv from beginning-of-step to avoid tangent stiffness contributions
+    // get temp_k from beginning-of-step to avoid tangent stiffness contributions
     {
-        double pBOS;
-        const double vOld = volRatio[0];
-        eos.evalPT(pBOS, prob_state.tkelv, vOld, eOld);
+        double pressure_BOS;
+        const double rel_vol_old = volRatio[0];
+        eos.evalPT(pressure_BOS, prob_state.temp_k, rel_vol_old, energy_old);
     }
 
     {
-        const double pOld = prob_state.stressSvecP[6];
-        double tkelvNew, dpde, dpdv, dtde;
-        updateSimple(eos, prob_state.pEOS, tkelvNew, prob_state.eNew, prob_state.bulkNew,
+        const double pressure_old = prob_state.cauchy_stress_dev6_pressure[6];
+        double temp_k_new, dpde, dpdv, dtde;
+        updateSimple(eos, prob_state.pressure_EOS, temp_k_new, prob_state.energy_new, prob_state.bulk_modulus_new,
                      dpde, dpdv, dtde,
                      volRatio[1], volRatio[3],
-                     eOld, pOld);
+                     energy_old, pressure_old);
     }
 
     // update hardness state to the end of the step
@@ -63,25 +63,25 @@ void preprocess(const SlipGeom& slipGeom,
     double hvals[nslip_dyn] = {}; // additional values needed to update the hardening state
     if constexpr(SlipGeom::dynamic) {
 
-        double T_vecds[ecmech::nsvec] = {};
+        double kirchoff[ecmech::nsvec] = {};
         double elas_dev_vol_vec[ecmech::nsvec] = {};
-        double SvecP[ecmech::nsvec+1] = {};
+        double stress_dev6_press[ecmech::nsvec+1] = {};
 
-       double m_a_vol = pow(prob_state.vNew, onethird);
-       double m_inv_a_vol = 1.0 / prob_state.vNew;
+       double m_a_vol = pow(prob_state.rel_vol_new, onethird);
+       double m_inv_a_vol = 1.0 / prob_state.rel_vol_new;
 
-        vecsVxa<ntvec>(elas_dev_vol_vec, m_inv_a_vol, prob_state.e_vecd_n);
+        vecsVxa<ntvec>(elas_dev_vol_vec, m_inv_a_vol, prob_state.elast_dev_vec_n);
         elas_dev_vol_vec[iSvecS] = sqr3 * log(m_a_vol);
-        thermoElastN.eval(T_vecds, elas_dev_vol_vec, prob_state.tkelv, prob_state.pEOS, prob_state.eNew);
-        vecdsToSvecP(SvecP, T_vecds);
+        thermoElastN.eval(kirchoff, elas_dev_vol_vec, prob_state.temp_k, prob_state.pressure_EOS, prob_state.energy_new);
+        vecdsToSvecP(stress_dev6_press, kirchoff);
 
         // For dynamic slip systems we need the chi angle
         double P[ecmech::ntvec * SlipGeom::nslip];
         double Q[ecmech::nwvec * SlipGeom::nslip];
         // still need to rotate stress state back to original value
-        slipGeom.getPQ(hvals, P, Q, SvecP);
+        slipGeom.getPQ(hvals, P, Q, stress_dev6_press);
     }
-    kinetics.updateH(prob_state.h_state_u, prob_state.h_state, prob_state.dt, prob_state.gdot, hvals, prob_state.tkelv);
+    kinetics.updateH(prob_state.h_state_u, prob_state.h_state, prob_state.dt, prob_state.gdot, hvals, prob_state.temp_k);
 #if defined(ECMECH_EXTRA_SOLVERS)
     if constexpr (RStarSolve) {
         auto prob = RotUpdProblem(slipGeom, thermoElastN, prob_state);
@@ -157,9 +157,9 @@ void computeTangentStiffness(Problem& prob,
 
     // contribution to stiffness from EOS
     // this is a bit crude, but should do the trick for now;
-    // neglects effect of pEOS and vNew on workings of evptn
+    // neglects effect of pressure_EOS and rel_vol_new on workings of evptn
     //
-    mtanSD_vecds[ECMECH_NN_INDX(iSvecS, iSvecS, ecmech::nsvec)] = three * prob_state.bulkNew;
+    mtanSD_vecds[ECMECH_NN_INDX(iSvecS, iSvecS, ecmech::nsvec)] = three * prob_state.bulk_modulus_new;
 
     // convert from vecds notation to svec notation
     //
@@ -171,7 +171,7 @@ template<int kinNH, class Problem, class ProblemState>
 inline
 void postprocess_prob(Problem& prob,
                       ProblemState& prob_state,
-                      double* const Cstr_vecds_lat
+                      double* const cauchy_stress_dev_press_xtal
                      )
 {
     for (int i_hstate = 0; i_hstate < kinNH; i_hstate++) {
@@ -182,13 +182,13 @@ void postprocess_prob(Problem& prob,
     double effective_shear_rate = 0.0;
 
     prob.get_slip_contribution(pl_disipation_rate, effective_shear_rate,
-                               prob_state.gdot, prob_state.e_vecd_u);
+                               prob_state.gdot, prob_state.elast_dev_press_vec_u);
 
     prob_state.eps_dot = effective_shear_rate;
     prob_state.eps += prob_state.eps_dot * prob_state.dt;
     //
     {
-        double dEff = vecd_Deff(prob_state.d_vecd_sm);
+        double dEff = vecd_Deff(prob_state.def_rate_dev_vec_sample);
         double flow_strength = prob.getHdnScale();
         if (dEff > idp_tiny_sqrt) {
             flow_strength = pl_disipation_rate / dEff;
@@ -197,7 +197,7 @@ void postprocess_prob(Problem& prob,
     }
         // get Cauchy stress
         //
-        prob.elastNEtoC(Cstr_vecds_lat, prob_state.e_vecd_u);
+        prob.elastNEtoC(cauchy_stress_dev_press_xtal, prob_state.elast_dev_press_vec_u);
 }
 
 
@@ -206,30 +206,30 @@ template<class ProblemState, class ThermoElastN>
 inline
 void postprocess(ProblemState& prob_state,
                  const ThermoElastN& elastN,
-                 const double* const d_svec_kk_sm,
+                 const double* const def_rate_dev6_vol_sample,
                  double* const sdd,
-                 double* const eInt,
-                 double* const Cstr_vecds_lat,
-                 double eDevTot,
+                 double* const internal_energy,
+                 double* const cauchy_stress_dev_press_xtal,
+                 double dev_strain_energy_total,
                  double halfVMidDt
                 )
 {
-    double C_matx[ecmech::ndim * ecmech::ndim];
-    quat_to_tensor(C_matx, prob_state.quat_u);
+    double xtal_rmat[ecmech::ndim * ecmech::ndim];
+    quat_to_tensor(xtal_rmat, prob_state.quat_u);
     //
-    double qr5x5_ls[ecmech::ntvec * ecmech::ntvec];
-    get_rot_mat_vecd(qr5x5_ls, C_matx);
+    double rmat_5x5_sample2xtal[ecmech::ntvec * ecmech::ntvec];
+    get_rot_mat_vecd(rmat_5x5_sample2xtal, xtal_rmat);
     //
-    double Cstr_vecds_sm[ecmech::nsvec];
-    vecsVMa<ntvec>(Cstr_vecds_sm, qr5x5_ls, Cstr_vecds_lat);
-    Cstr_vecds_sm[iSvecS] = Cstr_vecds_lat[iSvecS];
+    double cauchy_stress_dev_press_sample[ecmech::nsvec];
+    vecsVMa<ntvec>(cauchy_stress_dev_press_sample, rmat_5x5_sample2xtal, cauchy_stress_dev_press_xtal);
+    cauchy_stress_dev_press_sample[iSvecS] = cauchy_stress_dev_press_xtal[iSvecS];
     //
-    // put end-of-step stress in stressSvecP
-    vecdsToSvecP(prob_state.stressSvecP, Cstr_vecds_sm);
+    // put end-of-step stress in cauchy_stress_dev6_pressure
+    vecdsToSvecP(prob_state.cauchy_stress_dev6_pressure, cauchy_stress_dev_press_sample);
     //
     // and now the second half of the trapezoidal integration
     //
-    eDevTot += halfVMidDt * vecsInnerSvecDev(prob_state.stressSvecP, d_svec_kk_sm);
+    dev_strain_energy_total += halfVMidDt * vecsInnerSvecDev(prob_state.cauchy_stress_dev6_pressure, def_rate_dev6_vol_sample);
 
     // adjust sign on quat so that as close as possible to quat_o;
     // more likely to keep orientations clustered this way;
@@ -242,19 +242,19 @@ void postprocess(ProblemState& prob_state,
     }
 
     {
-        double gmod = elastN.getGmod(prob_state.tkelv, prob_state.pEOS, prob_state.eNew);
-        sdd[i_sdd_bulk] = prob_state.bulkNew;
-        sdd[i_sdd_gmod] = gmod;
+        double shear_modulus = elastN.getGmod(prob_state.temp_k, prob_state.pressure_EOS, prob_state.energy_new);
+        sdd[i_sdd_bulk] = prob_state.bulk_modulus_new;
+        sdd[i_sdd_gmod] = shear_modulus;
     }
 #ifdef ECMECH_DEBUG
     assert(ecmech::nsdd == 2);
 #endif
 
-    prob_state.eNew = prob_state.eNew + eDevTot;
+    prob_state.energy_new = prob_state.energy_new + dev_strain_energy_total;
     //
     // could update pressure and temperature again, but do not bother
 
-    eInt[ecmech::i_ne_total] = prob_state.eNew;
+    internal_energy[ecmech::i_ne_total] = prob_state.energy_new;
 #ifdef ECMECH_DEBUG
     assert(ecmech::ne == 1);
 #endif
@@ -263,7 +263,7 @@ void postprocess(ProblemState& prob_state,
 /*
 * for steady-flow capability, might want to check out Dlsmm_getEnabled() stuff in EvpC.c
 *
-* convention for spin coming in should be consistent with w_veccp_sm convention
+* convention for spin coming in should be consistent with spin_vec_sample convention
 */
 template<class SlipGeom, class Kinetics, class ThermoElastN, class EosModel>
 __ecmech_hdev__
@@ -274,23 +274,23 @@ bool getResponseSngl(const SlipGeom& slipGeom,
                      const EosModel& eos,
                      const double dt,
                      const double tolerance,
-                     const double* const d_svec_kk_sm, // defRate,
-                     const double* const w_veccp_sm, // spin
+                     const double* const def_rate_dev6_vol_sample, // defRate,
+                     const double* const spin_vec_sample, // spin
                      const double* const volRatio,
-                     double* const eInt,
-                     double* const stressSvecP,
+                     double* const internal_energy,
+                     double* const cauchy_stress_dev6_pressure,
                      double* const hist,
-                     double& tkelv,
+                     double& temp_k,
                      double* const sdd,
                      double* const mtanSD,
                      int outputLevel = 0)
 {
-    auto prob_state = ProblemState<SlipGeom, Kinetics, ThermoElastN, EosModel>(hist, stressSvecP, tkelv, d_svec_kk_sm, w_veccp_sm, volRatio, dt);
+    auto prob_state = ProblemState<SlipGeom, Kinetics, ThermoElastN, EosModel>(hist, cauchy_stress_dev6_pressure, temp_k, def_rate_dev6_vol_sample, spin_vec_sample, volRatio, dt);
 
-    double halfVMidDt, eDevTot;
-    preprocess(slipGeom, kinetics, eos, elastN, volRatio, eInt, d_svec_kk_sm, prob_state, halfVMidDt, eDevTot);
+    double halfVMidDt, dev_strain_energy_total;
+    preprocess(slipGeom, kinetics, eos, elastN, volRatio, internal_energy, def_rate_dev6_vol_sample, prob_state, halfVMidDt, dev_strain_energy_total);
 
-    double Cstr_vecds_lat[ecmech::nsvec];
+    double cauchy_stress_dev_press_xtal[ecmech::nsvec];
     {
         EvptnUpdstProblem prob(slipGeom, kinetics, elastN, prob_state);
 
@@ -308,13 +308,13 @@ bool getResponseSngl(const SlipGeom& slipGeom,
             }
             // store updated state
             //
-            prob.stateFromX(prob_state.e_vecd_u, prob_state.quat_u, solver._x);
+            prob.stateFromX(prob_state.elast_dev_press_vec_u, prob_state.quat_u, solver._x);
             //
             hist[iHistA_nFEval] = solver.getNFEvals(); // does _not_ include updateH iterations
         }
-        postprocess_prob<Kinetics::nH>(prob, prob_state, Cstr_vecds_lat);
+        postprocess_prob<Kinetics::nH>(prob, prob_state, cauchy_stress_dev_press_xtal);
     }
-    postprocess(prob_state, elastN, d_svec_kk_sm, sdd, eInt, Cstr_vecds_lat, eDevTot, halfVMidDt);
+    postprocess(prob_state, elastN, def_rate_dev6_vol_sample, sdd, internal_energy, cauchy_stress_dev_press_xtal, dev_strain_energy_total, halfVMidDt);
     return true;
 } // getResponseSngl
 
@@ -322,7 +322,7 @@ bool getResponseSngl(const SlipGeom& slipGeom,
 /*
 * for steady-flow capability, might want to check out Dlsmm_getEnabled() stuff in EvpC.c
 *
-* convention for spin coming in should be consistent with w_veccp_sm convention
+* convention for spin coming in should be consistent with spin_vec_sample convention
 */
 template<class SlipGeom, class Kinetics, class ThermoElastN, class EosModel>
 __ecmech_hdev__
@@ -334,23 +334,23 @@ bool getResponseNRSngl(
                      const EosModel& eos,
                      const double dt,
                      const double tolerance,
-                     const double* const d_svec_kk_sm, // defRate,
-                     const double* const w_veccp_sm, // spin
+                     const double* const def_rate_dev6_vol_sample, // defRate,
+                     const double* const spin_vec_sample, // spin
                      const double* const volRatio,
-                     double* const eInt,
-                     double* const stressSvecP,
+                     double* const internal_energy,
+                     double* const cauchy_stress_dev6_pressure,
                      double* const hist,
-                     double& tkelv,
+                     double& temp_k,
                      double* const sdd,
                      double* const mtanSD,
                      int outputLevel = 0)
 {
-    auto prob_state = ProblemState<SlipGeom, Kinetics, ThermoElastN, EosModel>(hist, stressSvecP, tkelv, d_svec_kk_sm, w_veccp_sm, volRatio, dt);
+    auto prob_state = ProblemState<SlipGeom, Kinetics, ThermoElastN, EosModel>(hist, cauchy_stress_dev6_pressure, temp_k, def_rate_dev6_vol_sample, spin_vec_sample, volRatio, dt);
 
-    double halfVMidDt, eDevTot;
-    preprocess<SlipGeom, Kinetics, EosModel, ThermoElastN, decltype(prob_state), true>(slipGeom, kinetics, eos, elastN, volRatio, eInt, d_svec_kk_sm, prob_state, halfVMidDt, eDevTot);
+    double halfVMidDt, dev_strain_energy_total;
+    preprocess<SlipGeom, Kinetics, EosModel, ThermoElastN, decltype(prob_state), true>(slipGeom, kinetics, eos, elastN, volRatio, internal_energy, def_rate_dev6_vol_sample, prob_state, halfVMidDt, dev_strain_energy_total);
 
-    double Cstr_vecds_lat[ecmech::nsvec];
+    double cauchy_stress_dev_press_xtal[ecmech::nsvec];
     {
         EvptnNRUpdstProblem prob(slipGeom, kinetics, elastN, prob_state);
 
@@ -368,13 +368,13 @@ bool getResponseNRSngl(
             }
             // store updated state
             //
-            prob.stateFromX(prob_state.e_vecd_u, solver._x);
+            prob.stateFromX(prob_state.elast_dev_press_vec_u, solver._x);
             //
             hist[iHistA_nFEval] = solver.getNFEvals(); // does _not_ include updateH iterations
         }
-        postprocess_prob<Kinetics::nH>(prob, prob_state, Cstr_vecds_lat);
+        postprocess_prob<Kinetics::nH>(prob, prob_state, cauchy_stress_dev_press_xtal);
     }
-    postprocess(prob_state, elastN, d_svec_kk_sm, sdd, eInt, Cstr_vecds_lat, eDevTot, halfVMidDt);
+    postprocess(prob_state, elastN, def_rate_dev6_vol_sample, sdd, internal_energy, cauchy_stress_dev_press_xtal, dev_strain_energy_total, halfVMidDt);
     return true;
 } // getResponseSngl
 #endif

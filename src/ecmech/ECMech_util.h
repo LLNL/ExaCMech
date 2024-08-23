@@ -977,16 +977,16 @@ namespace ecmech {
     */
    __ecmech_hdev__
    inline
-   void eval_d_dxi_impl_quat(double* const dC_quat_dxi_T, // (WVEC,QDIM_p)
-                             // double* const dC_matx_dxi, // (DIMS,DIMS,WVEC)
+   void eval_d_dxi_impl_quat(double* const dxtal_ori_quat_dxi_T, // (WVEC,QDIM_p)
+                             // double* const dxtal_rmat_dxi, // (DIMS,DIMS,WVEC)
                              double* const dDapp_dxi, // dDapp_dxi(TVEC, WVEC)
                              double* const dWapp_dxi, // dWapp_dxi(WVEC, WVEC)
-                             const double* const d_vecd_sm, // (TVEC), or (SVEC) is fine too
+                             const double* const def_rate_dev_vec_sample, // (TVEC), or (SVEC) is fine too
                              const double* const w_vec_sm, // (WVEC)
                              const double* const xi, // (WVEC)
-                             const double* const Cn_quat, // (QDIM_p)
-                             const double* const C_matx, // (DIMS,DIMS)
-                             const double* const C_quat // (QDIM_p)
+                             const double* const xtal_ori_quat_n, // (QDIM_p)
+                             const double* const xtal_rmat, // (DIMS,DIMS)
+                             const double* const xtal_ori_quat // (QDIM_p)
                              // const double* const A_quat // (QDIM_p) // not used
                              ) {
       // working with quats, so do not call eval_d_cA_dxi(dc_dxi, dA_dxi, xi, c_n)
@@ -997,34 +997,34 @@ namespace ecmech {
 
          // can get away with these three calls as quat_prod is bilinear in the input arguments
          //
-         quat_prod(&(dC_quat_dxi_T[ecmech::qdim * 0]), Cn_quat, &(dA_quat_dxi_T[ecmech::qdim * 0]) );
-         quat_prod(&(dC_quat_dxi_T[ecmech::qdim * 1]), Cn_quat, &(dA_quat_dxi_T[ecmech::qdim * 1]) );
-         quat_prod(&(dC_quat_dxi_T[ecmech::qdim * 2]), Cn_quat, &(dA_quat_dxi_T[ecmech::qdim * 2]) );
+         quat_prod(&(dxtal_ori_quat_dxi_T[ecmech::qdim * 0]), xtal_ori_quat_n, &(dA_quat_dxi_T[ecmech::qdim * 0]) );
+         quat_prod(&(dxtal_ori_quat_dxi_T[ecmech::qdim * 1]), xtal_ori_quat_n, &(dA_quat_dxi_T[ecmech::qdim * 1]) );
+         quat_prod(&(dxtal_ori_quat_dxi_T[ecmech::qdim * 2]), xtal_ori_quat_n, &(dA_quat_dxi_T[ecmech::qdim * 2]) );
       }
-      // now have dC_quat_dxi
+      // now have dxtal_ori_quat_dxi
 
-      double dC_matx_dxi[ (ecmech::ndim * ecmech::ndim) *ecmech::nwvec ]; // (DIMS,DIMS,WVEC)
+      double dxtal_rmat_dxi[ (ecmech::ndim * ecmech::ndim) *ecmech::nwvec ]; // (DIMS,DIMS,WVEC)
       {
          double dCmatx_dq[ (ecmech::ndim * ecmech::ndim) *ecmech::qdim ]; // (DIMS,DIMS,QDIM_p)
-         // get dC_matx_dxi
-         d_quat_to_tensor(dCmatx_dq, C_quat);
-         vecsMABT<ndim*ndim, nwvec, qdim>(dC_matx_dxi, dCmatx_dq, dC_quat_dxi_T); // vecsMABT because _T on dC_quat_dxi_T
+         // get dxtal_rmat_dxi
+         d_quat_to_tensor(dCmatx_dq, xtal_ori_quat);
+         vecsMABT<ndim*ndim, nwvec, qdim>(dxtal_rmat_dxi, dCmatx_dq, dxtal_ori_quat_dxi_T); // vecsMABT because _T on dxtal_ori_quat_dxi_T
       }
 
       {
-         double dD_dC_matx[ ecmech::ntvec * (ecmech::ndim * ecmech::ndim) ];
-         d_rot_mat_vecd_latop(dD_dC_matx, C_matx, d_vecd_sm);
+         double dD_dxtal_rmat[ ecmech::ntvec * (ecmech::ndim * ecmech::ndim) ];
+         d_rot_mat_vecd_latop(dD_dxtal_rmat, xtal_rmat, def_rate_dev_vec_sample);
          //
-         vecsMAB<ntvec, nwvec, ndim*ndim>(dDapp_dxi, dD_dC_matx, dC_matx_dxi);
+         vecsMAB<ntvec, nwvec, ndim*ndim>(dDapp_dxi, dD_dxtal_rmat, dxtal_rmat_dxi);
          // dDapp_dxi(SVEC,:) = zero
       }
 
       {
-         double dW_dC_matx[ ecmech::nwvec * (ecmech::ndim * ecmech::ndim) ]; // (WVEC,DIMS,DIMS)
-         d_rot_mat_wveccp_latop(dW_dC_matx, // C_matx,
+         double dW_dxtal_rmat[ ecmech::nwvec * (ecmech::ndim * ecmech::ndim) ]; // (WVEC,DIMS,DIMS)
+         d_rot_mat_wveccp_latop(dW_dxtal_rmat, // xtal_rmat,
                                 w_vec_sm);
          //
-         vecsMAB<nwvec, nwvec, ndim*ndim>(dWapp_dxi, dW_dC_matx, dC_matx_dxi);
+         vecsMAB<nwvec, nwvec, ndim*ndim>(dWapp_dxi, dW_dxtal_rmat, dxtal_rmat_dxi);
       }
    }
 

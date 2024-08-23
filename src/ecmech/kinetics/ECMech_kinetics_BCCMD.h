@@ -233,7 +233,7 @@ namespace ecmech {
          /// vals are the kinetic values - which can contain things like the
          /// reference slip rates, CRSS values, or a constant term that is divided by
          /// temperature
-         /// p down below is the pressure term and tK is the temperature
+         /// p down below is the pressure term and temp_k is the temperature
          /// h_state is the hardness state (CRSS for voce model and DD content for orowan model)
          /// Also, it returns the average flow strength (CRSS value) across all slip systems
          __ecmech_hdev__
@@ -241,7 +241,7 @@ namespace ecmech {
          double
          getVals(double* const vals,
                  double, // p, not currently used
-                 double tK,
+                 double temp_k,
                  const double* const h_state,
                  double* const val_derivs = nullptr
                  ) const
@@ -263,7 +263,7 @@ namespace ecmech {
             }
             mVals /= m_num_slip;
             
-            vals[2*m_num_slip] = tK;
+            vals[2*m_num_slip] = temp_k;
 
             return mVals;
          }
@@ -281,7 +281,7 @@ namespace ecmech {
                    const double* const vals
                    ) const
          {     
-            double tK = vals[2 * SlipGeom::nslip];
+            double temp_k = vals[2 * SlipGeom::nslip];
 
             for (int iSlip = 0; iSlip < m_num_slip; ++iSlip) {
                bool l_act;
@@ -294,7 +294,7 @@ namespace ecmech {
                // traditionally we have a separate function that will calculate everything
                // for only one slip system
                this->evalGdot(gdot[iSlip], l_act, dgdot_dtau[iSlip],
-                              crss, rhoa, taua, chia, tK);
+                              crss, rhoa, taua, chia, temp_k);
             }
 			//printf("---\n");
          }
@@ -315,7 +315,7 @@ namespace ecmech {
             double   rho,
             double   tau,
             double   chi,
-            double   /*tK*/
+            double   /*temp_k*/
             ) const
          {
             // zero things so that can more easily just return in inactive
@@ -430,7 +430,7 @@ namespace ecmech {
                  double dt,
                  const double* const gdot,
                  const double* const hvals,
-                 double tK,
+                 double temp_k,
                  int outputLevel = 0) const
          {
             double log_hs_u[SlipGeom::nslip];
@@ -444,7 +444,7 @@ namespace ecmech {
 			//printf("updateH\n");
             // If the equation is incredibly  stiff it's possible this won't solve
             int nFEvals = updateHN<KineticsBCCMD>(this,
-                                                  log_hs_u, log_hs_o, dt, gdotabs, hvals, tK,
+                                                  log_hs_u, log_hs_o, dt, gdotabs, hvals, temp_k,
                                               outputLevel);
 
             // We need to check that none of our solutions became negative
@@ -483,7 +483,7 @@ namespace ecmech {
                          log_hs_temp[islip] = fmax(log_hs_u[islip], log(m_hdn_min));
                       }
                       nFEvals += updateHN<KineticsBCCMD>(this,
-                                                         log_hs_u, log_hs_temp, dtnew, gdotabs, hvals, tK,
+                                                         log_hs_u, log_hs_temp, dtnew, gdotabs, hvals, temp_k,
                                                          outputLevel);
                       flag = false;
                       for (int islip = 0; islip < SlipGeom::nslip; islip++) {
@@ -564,7 +564,7 @@ namespace ecmech {
                   const double* const h,
                   const double* const evolVals,
                   const double* const hvals,
-                  double tK
+                  double temp_k
                 ) const
          {
             {
@@ -626,10 +626,10 @@ namespace ecmech {
                 }
             }
             
-            // Define k2 as a function of gdot and tK
+            // Define k2 as a function of gdot and temp_k
             double k2_ref = m_k2; // reference k2 value for 2e8/s at 300K
-            double k2_temp = 0.05756349443979855 * log(tK / 7.309541735840538e-06);
-            //printf("temp = %e, k2_temp = %e\n",tK,k2_temp);
+            double k2_temp = 0.05756349443979855 * log(temp_k / 7.309541735840538e-06);
+            //printf("temp = %e, k2_temp = %e\n",temp_k,k2_temp);
             
             double rate_cut = 1e4; //1e-3;
             double lograte = log(0.5 * gtot * 1e6 + rate_cut);

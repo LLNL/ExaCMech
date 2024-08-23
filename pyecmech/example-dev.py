@@ -25,49 +25,49 @@ class ECMechProbDev:
         self.nwvec = m.constants.nwvec
         self.nsdd = m.constants.nsdd
 
-    def solve(self, dt, tolerance, d_svec_kk_sm, w_veccp_sm, volRatio, eInt, stressSvecP, hist, tkelv):
+    def solve(self, dt, tolerance, def_rate_dev6_vol_sample, spin_vec_sample, volRatio, internal_energy, cauchy_stress_dev6_pressure, hist, temp_k):
         '''
             Solve does a per time step solve of the material update for all points inputted.
             A few things to note:
-            d_svec_kk_sm has dimensions npts x self.nsvp input
-            w_veccp_sm has dimesnions npts x self.nwvec input
+            def_rate_dev6_vol_sample has dimensions npts x self.nsvp input
+            spin_vec_sample has dimesnions npts x self.nwvec input
             volRatio has dimensions npts x self.nvr input
-            eInt has dimensions npts x self.ne input/output
-            stressSvecP has dimensions npts x self.nsvec input/output
+            internal_energy has dimensions npts x self.ne input/output
+            cauchy_stress_dev6_pressure has dimensions npts x self.nsvec input/output
             hist has dimensions npts x self.nhist input/output
-            tkelv has dimensions npts x 1 input/output
+            temp_k has dimensions npts x 1 input/output
             sdd has dimensions npts x self.nsdd output
 
             If you pass in 1D arrays we will promote them to 2D arrays.
         '''
-        d_svec_kk_sm = np.atleast_2d(d_svec_kk_sm)
-        w_veccp_sm = np.atleast_2d(w_veccp_sm)
+        def_rate_dev6_vol_sample = np.atleast_2d(def_rate_dev6_vol_sample)
+        spin_vec_sample = np.atleast_2d(spin_vec_sample)
         volRatio = np.atleast_2d(volRatio)
-        eInt = np.atleast_2d(eInt)
-        stressSvecP = np.atleast_2d(stressSvecP)
+        internal_energy = np.atleast_2d(internal_energy)
+        cauchy_stress_dev6_pressure = np.atleast_2d(cauchy_stress_dev6_pressure)
         hist = np.atleast_2d(hist)
-        tkelv = np.atleast_2d(tkelv)
+        temp_k = np.atleast_2d(temp_k)
 
-        npts = eInt.shape[0]
+        npts = internal_energy.shape[0]
         sdd = np.zeros((npts, self.nsdd))
 
         x = np.zeros(8)
 
         for i in range(npts):
             x[:] = 0.0
-            self.setup(dt, tolerance, np.squeeze(d_svec_kk_sm[i, :]), np.squeeze(w_veccp_sm[i, :]), np.squeeze(volRatio[i, :]), np.squeeze(eInt[i, :]), np.squeeze(stressSvecP[i, :]), np.squeeze(hist[i, :]), np.squeeze(tkelv[i, :]))
+            self.setup(dt, tolerance, np.squeeze(def_rate_dev6_vol_sample[i, :]), np.squeeze(spin_vec_sample[i, :]), np.squeeze(volRatio[i, :]), np.squeeze(internal_energy[i, :]), np.squeeze(cauchy_stress_dev6_pressure[i, :]), np.squeeze(hist[i, :]), np.squeeze(temp_k[i, :]))
             sol = root(self.computeRJ, x, jac=True, method='hybr', tol=tolerance)
             # If you want to check the success of the solver you can find that using
             # sol.success
-            eInt[i, :], stressSvecP[i, :], hist[i, :], tkelv[i, :], sdd[i, :] = prob.getState(sol.x,  np.squeeze(eInt[i, :]), np.squeeze(stressSvecP[i, :]), np.squeeze(hist[i, :]), np.squeeze(tkelv[i, :]), np.squeeze(sdd[i, :]))
+            internal_energy[i, :], cauchy_stress_dev6_pressure[i, :], hist[i, :], temp_k[i, :], sdd[i, :] = prob.getState(sol.x,  np.squeeze(internal_energy[i, :]), np.squeeze(cauchy_stress_dev6_pressure[i, :]), np.squeeze(hist[i, :]), np.squeeze(temp_k[i, :]), np.squeeze(sdd[i, :]))
 
-        return (eInt, stressSvecP, hist, tkelv, sdd)
+        return (internal_energy, cauchy_stress_dev6_pressure, hist, temp_k, sdd)
 
     def getHistInfo(self):
         names, vals, plot, state = self.myecmech.getHistoryInfo()
         return (names, vals, plot, state)
-    def setup(self, dt, tolerance, d_svec_kk_sm, w_veccp_sm, volRatio, eInt, stressSvecP, hist, tkelv):
-        self.myecmech.setup(dt, tolerance, d_svec_kk_sm, w_veccp_sm, volRatio, eInt, stressSvecP, hist, tkelv)
+    def setup(self, dt, tolerance, def_rate_dev6_vol_sample, spin_vec_sample, volRatio, internal_energy, cauchy_stress_dev6_pressure, hist, temp_k):
+        self.myecmech.setup(dt, tolerance, def_rate_dev6_vol_sample, spin_vec_sample, volRatio, internal_energy, cauchy_stress_dev6_pressure, hist, temp_k)
     def computeRJ(self, x):
 
         ndim = x.shape[0]
@@ -77,9 +77,9 @@ class ECMechProbDev:
 
         return (resid, jacob)
 
-    def getState(self, x, eInt, stressSvecP, hist, tkelv, sdd):
-        self.myecmech.getState(x, eInt, stressSvecP, hist, tkelv, sdd)
-        return (eInt, stressSvecP, hist, tkelv, sdd)
+    def getState(self, x, internal_energy, cauchy_stress_dev6_pressure, hist, temp_k, sdd):
+        self.myecmech.getState(x, internal_energy, cauchy_stress_dev6_pressure, hist, temp_k, sdd)
+        return (internal_energy, cauchy_stress_dev6_pressure, hist, temp_k, sdd)
 
 # Prints out function documentation of the module
 # help(m)
@@ -111,27 +111,27 @@ prob = ECMechProbDev("voce_fcc_norm", var)
 # Our various input parameters
 dt = 0.1
 tolerance = 1e-10
-d_svec_kk_sm = np.zeros(7)
+def_rate_dev6_vol_sample = np.zeros(7)
 # Just a simple monotonic tension example in the x direction
 d_tr = 1.0 / 3.0
-d_svec_kk_sm[0] = 1.0 - d_tr
-d_svec_kk_sm[1] = -d_tr
-d_svec_kk_sm[2] = -d_tr
-d_svec_kk_sm[6] = 3.0 * d_tr
-d_svec_kk_sm[:] *= 0.001
+def_rate_dev6_vol_sample[0] = 1.0 - d_tr
+def_rate_dev6_vol_sample[1] = -d_tr
+def_rate_dev6_vol_sample[2] = -d_tr
+def_rate_dev6_vol_sample[6] = 3.0 * d_tr
+def_rate_dev6_vol_sample[:] *= 0.001
 
-stressSvecP = np.zeros(7)
+cauchy_stress_dev6_pressure = np.zeros(7)
 # This would control the spin of the problem if we wanted to 
-w_veccp_sm = np.zeros(3)
-eInt = np.zeros(1)
+spin_vec_sample = np.zeros(3)
+internal_energy = np.zeros(1)
 volRatio = np.asarray([1.0, 1.0, 0.0, 0.0])
 
 volRatio[0] = volRatio[1]
-volRatio[1] = volRatio[0] * np.exp(d_svec_kk_sm[6] * dt)
+volRatio[1] = volRatio[0] * np.exp(def_rate_dev6_vol_sample[6] * dt)
 volRatio[3] = volRatio[1] - volRatio[0]
 volRatio[2] = volRatio[3] / (dt * 0.5 * (volRatio[0] + volRatio[1]))
 
-tkelv = 300.
+temp_k = 300.
 sdd = np.asarray([0, 0])
 mtanSD = np.zeros(36)
 
@@ -146,22 +146,22 @@ hist_old = np.copy(hist)
 # An example of how to manually solve for things if you want to play around with different
 # solver options or if you just don't want to use the ECMechProb.solve() function
 x = np.zeros(8)
-prob.setup(dt, tolerance, d_svec_kk_sm, w_veccp_sm, volRatio, eInt, stressSvecP, hist, tkelv)
+prob.setup(dt, tolerance, def_rate_dev6_vol_sample, spin_vec_sample, volRatio, internal_energy, cauchy_stress_dev6_pressure, hist, temp_k)
 sol = root(prob.computeRJ, x, jac=True, method='hybr', tol=tolerance)
 # If you want to check the success of the solver you can find that using
 # sol.success
-eInt, stressSvecP, hist, tkelv, sdd = prob.getState(sol.x, eInt, stressSvecP, hist, tkelv, sdd)
-print(stressSvecP[0])
+internal_energy, cauchy_stress_dev6_pressure, hist, temp_k, sdd = prob.getState(sol.x, internal_energy, cauchy_stress_dev6_pressure, hist, temp_k, sdd)
+print(cauchy_stress_dev6_pressure[0])
 # print(hist)
 # How to iterate over multiple time steps
 for i in range(40):
     # This is pulled from how the test_px does things
     volRatio[0] = volRatio[1]
-    volRatio[1] = volRatio[0] * np.exp(d_svec_kk_sm[6] * dt)
+    volRatio[1] = volRatio[0] * np.exp(def_rate_dev6_vol_sample[6] * dt)
     volRatio[3] = volRatio[1] - volRatio[0]
     volRatio[2] = volRatio[3] / (dt * 0.5 * (volRatio[0] + volRatio[1]))
     # An example of using the prob.solve() version of things rather than
     # doing it by hand
-    eInt, stressSvecP, hist, tkelv, sdd = prob.solve(dt, tolerance, d_svec_kk_sm, w_veccp_sm, volRatio, eInt, stressSvecP, hist, tkelv)
+    internal_energy, cauchy_stress_dev6_pressure, hist, temp_k, sdd = prob.solve(dt, tolerance, def_rate_dev6_vol_sample, spin_vec_sample, volRatio, internal_energy, cauchy_stress_dev6_pressure, hist, temp_k)
 
-    print(stressSvecP[:,0])
+    print(cauchy_stress_dev6_pressure[:,0])

@@ -31,7 +31,7 @@ namespace ecmech {
     *
     *   ! note: gdot_w, gdot_r are always positive by definition
     *   !
-    *   ! tK should only be used for derivative calculations
+    *   ! temp_k should only be used for derivative calculations
     *
     * templated on p and q being 1 or not;
     * might eventually template on number of slip systems, but to not do so just yet
@@ -77,7 +77,7 @@ namespace ecmech {
             // power-law stuff
 
             m_mu_ref = *parsIt; ++parsIt;
-            m_tK_ref = *parsIt; ++parsIt;
+            m_temp_k_ref = *parsIt; ++parsIt;
             for (int iVal = 0; iVal < nVPer; ++iVal) {
                m_berg_mag[iVal] = *parsIt; ++parsIt;
             }
@@ -121,7 +121,7 @@ namespace ecmech {
             //
             for (int iVal = 0; iVal<nVPer; ++iVal) {
                // pl%xm = getMtsxmEffective(pl, mu_ref, T_ref)
-               double xm = one / (two * ((m_c_1[iVal] / m_tK_ref) * m_mu_ref * m_p * m_q));
+               double xm = one / (two * ((m_c_1[iVal] / m_temp_k_ref) * m_mu_ref * m_p * m_q));
                //
                // CALL fill_power_law(pl)
                // xmm  = xm - one ;
@@ -215,7 +215,7 @@ namespace ecmech {
 #endif
 
             params.push_back(m_mu_ref);
-            params.push_back(m_tK_ref);
+            params.push_back(m_temp_k_ref);
             for (int iVal = 0; iVal < nVPer; ++iVal) {
                params.push_back(m_berg_mag[iVal]);
             }
@@ -297,7 +297,7 @@ namespace ecmech {
          // parameters
          double m_lbar_b; // We might need to make this per SS as well
          double m_mu_ref;
-         double m_tK_ref;
+         double m_temp_k_ref;
          double m_fD;
          double m_berg_mag[nVPer];
          double m_c_1[nVPer];
@@ -352,7 +352,7 @@ namespace ecmech {
          double
          getVals(double* const vals, // [nVals]
                  double, // p, not used
-                 double tK,
+                 double temp_k,
                  const double* const h_state,
                  double* const val_derivs = nullptr
                  ) const
@@ -385,7 +385,7 @@ namespace ecmech {
             vals[0] = maxRefRate;
 
             for (int iVal = 0; iVal < nVPer; ++iVal) {
-               vals[1 + 2 * nslip + iVal] = m_c_1[iVal] / tK; // _c_t
+               vals[1 + 2 * nslip + iVal] = m_c_1[iVal] / temp_k; // _c_t
             }
 
             return hdnScale;
@@ -482,7 +482,7 @@ namespace ecmech {
             double & dgdot_dmu, // wrt shear modulus, not through g
             double & dgdot_dgamo, // wrt reference rate for thermal part
             double & dgdot_dgamr, // wrt reference rate for drag limited part
-            double & dgdot_dtK, // wrt temperature, with other arguments fixed
+            double & dgdot_dtemp_k, // wrt temperature, with other arguments fixed
 #endif
             const double* const vals,
             int      iSlip,
@@ -490,7 +490,7 @@ namespace ecmech {
             double   mu
 #if MORE_DERIVS
             ,
-            double   tK
+            double   temp_k
 #endif
             ) const
          {
@@ -515,7 +515,7 @@ namespace ecmech {
             dgdot_dmu = zero;
             dgdot_dgamo = zero;
             dgdot_dgamr = zero;
-            dgdot_dtK = zero;
+            dgdot_dtemp_k = zero;
 #endif
             l_act = false;
 
@@ -537,7 +537,7 @@ namespace ecmech {
             //
             double gdot_r, dgdot_r_dtau;
 #if MORE_DERIVS
-            double dgdot_r_dtK;
+            double dgdot_r_dtemp_k;
 #endif
             {
                double exp_arg = (fabs(tau) - gAth) / m_wrD;
@@ -557,12 +557,12 @@ namespace ecmech {
                }
                dgdot_r_dtau = gam_r * temp / m_wrD;
 #if MORE_DERIVS
-               double dgdotr_dtK;
+               double dgdotr_dtemp_k;
                if (withGAthermal) {
-                  dgdot_r_dtK = -gam_r * temp * exp_arg * m_wrDT / m_wrD;
+                  dgdot_r_dtemp_k = -gam_r * temp * exp_arg * m_wrDT / m_wrD;
                }
                else {
-                  dgdot_r_dtK = -gam_r * temp * fabs(tau) * m_wrDT / (m_wrD * m_wrD);
+                  dgdot_r_dtemp_k = -gam_r * temp * fabs(tau) * m_wrDT / (m_wrD * m_wrD);
                }
 #endif
             }
@@ -576,7 +576,7 @@ namespace ecmech {
 #if MORE_DERIVS
                dgdot_dmu = zero;
                dgdot_dgamo = zero;
-               dgdot_dtK = copysign(dgdotr_dtK, tau);
+               dgdot_dtemp_k = copysign(dgdotr_dtemp_k, tau);
                dgdot_dgamr = zero;
 #endif
                gdot = copysign(gdot, tau);
@@ -589,7 +589,7 @@ namespace ecmech {
             double dgdot_w_dg; // only used if !withGAthermal
 #if MORE_DERIVS
             double dgdot_w_dmu;
-            double dgdot_w_dtK;
+            double dgdot_w_dtemp_k;
 #endif
             //
             // calculate thermally activated kinetics
@@ -608,7 +608,7 @@ namespace ecmech {
                //
 #if MORE_DERIVS
                dgdot_w_dmu = zero;
-               dgdot_w_dtK = zero;
+               dgdot_w_dtemp_k = zero;
 #endif
                //
                // !IF (exp_arg > ln_gam_ratio_ovf) THEN
@@ -622,7 +622,7 @@ namespace ecmech {
                }
 #if MORE_DERIVS
                dgdot_w_dmu = gdot_w * (-exp_arg / mu);
-               dgdot_w_dtK = gdot_w * (exp_arg / tK); // negatives cancel
+               dgdot_w_dtemp_k = gdot_w * (exp_arg / temp_k); // negatives cancel
 #endif
                //
                double t_frac_m = (-fabs(tau) - gAth) * g_i;
@@ -680,12 +680,12 @@ namespace ecmech {
                // framework then the previous version
                dgdot_dgamo = temp * (gdot_w / gam_w);
                dgdot_dmu = temp * dgdot_w_dmu;
-               dgdot_dtK = temp * dgdot_w_dtK;
+               dgdot_dtemp_k = temp * dgdot_w_dtemp_k;
                //
                temp = gdot * copysign(gdot, tau) * gdrdiv2;
                // There reference value here is just the shear speed...
                dgdot_dgamr = temp * (gdot_r / gam_r);
-               dgdot_dtK = dgdot_dtK + temp * dgdot_r_dtK;
+               dgdot_dtemp_k = dgdot_dtemp_k + temp * dgdot_r_dtemp_k;
 #endif
             }
 
@@ -700,7 +700,7 @@ namespace ecmech {
                  double dt,
                  const double* const gdot,
                  const double* const hvals,
-                 double tK,
+                 double temp_k,
                  int outputLevel = 0) const
          {
 
@@ -719,7 +719,7 @@ namespace ecmech {
             }
 
             int nFEvals = updateHN<KineticsOrowanD>(this,
-                                                   &hs_u[0], &ihs_o[0], dt, nu, hvals, tK,
+                                                   &hs_u[0], &ihs_o[0], dt, nu, hvals, temp_k,
                                                    outputLevel);
             if (LOGFORM) {
                for (int i = 0; i < nslip * 2; i++) {
@@ -767,7 +767,7 @@ namespace ecmech {
                         }
                      }
                      nFEvals += updateHN<KineticsOrowanD>(this,
-                                                         &hs_u[0], hs_temp, dtnew, nu, hvals, tK,
+                                                         &hs_u[0], hs_temp, dtnew, nu, hvals, temp_k,
                                                          outputLevel);
                      flag = false;
                      for (int iSlip = 0; iSlip < 2 * nslip; iSlip++) {
@@ -815,7 +815,7 @@ namespace ecmech {
                    const double* const h_i,
                    const double* const evolVals,
                    const double* const /*hvals*/,
-                   double /*tK*/                   ) const
+                   double /*temp_k*/                   ) const
          {
             // Hopefully, the compiler is pretty smart here and is able to optimize these
             // loops as if we're using the templated values. Since, this is essentially

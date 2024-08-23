@@ -165,7 +165,7 @@ namespace ecmech {
          double
          getVals(double* const vals,
                  double, // p, not currently used
-                 double, // tK, not currently used
+                 double, // temp_k, not currently used
                  const double* const h_state,
                  double* const val_derivs = nullptr
                  ) const
@@ -213,14 +213,14 @@ namespace ecmech {
             double & dgdot_dmu,   // wrt shear modulus, not through g
             double & dgdot_dgamo, // wrt reference rate for thermal part
             double & dgdot_dgamr, // wrt reference rate for drag limited part
-            double & dgdot_dtK,   // wrt temperature, with other arguments fixed
+            double & dgdot_dtemp_k,   // wrt temperature, with other arguments fixed
 #endif
             double   gIn,
             double   tau,
             double // mu not currently used
 #if MORE_DERIVS
             ,
-            double   tK
+            double   temp_k
 #endif
             ) const
          {
@@ -233,7 +233,7 @@ namespace ecmech {
             dgdot_dmu = zero;
             dgdot_dgamo = zero;
             dgdot_dgamr = zero;
-            dgdot_dtK = zero;
+            dgdot_dtemp_k = zero;
 #endif
             l_act = false;
 
@@ -266,15 +266,15 @@ namespace ecmech {
                   // dgdot_dmu   =  zero ; // already done
                   dgdot_dgamo = gdot / m_gam_w;
                   // dgdot_dgamr = zero ; // already done
-                  // dgdot_dtK   = zero ; // already done
+                  // dgdot_dtemp_k   = zero ; // already done
 
                   // IF (pl%tdp%T_dep) THEN
-                  // dgdot_dtK   =  gdot * pl%tdp%qoverr / (tK * tK)
+                  // dgdot_dtemp_k   =  gdot * pl%tdp%qoverr / (temp_k * temp_k)
                   // END IF
                   // IF (pl%tdp%T_dep_m) THEN !  .AND. pl%xm < XM_UB_p
-                  // dxn_dtK = -(pl%xnn*pl%xnn) * pl%tdp%dxm_dtK_current
-                  // dgdot_dtK = dgdot_dtK + &
-                  // & gdot * abslog * dxn_dtK
+                  // dxn_dtemp_k = -(pl%xnn*pl%xnn) * pl%tdp%dxm_dtemp_k_current
+                  // dgdot_dtemp_k = dgdot_dtemp_k + &
+                  // & gdot * abslog * dxn_dtemp_k
                   // END IF
 #endif
                }
@@ -289,12 +289,12 @@ namespace ecmech {
                  double dt,
                  const double* const gdot,
                  const double* const /*hvals*/,
-                 double tK,
+                 double temp_k,
                  int outputLevel = 0) const
          {
             double hs_u_1;
             int nFEvals = updateH1<KineticsVocePL>(this,
-                                                   hs_u_1, hs_o[0], dt, gdot, tK,
+                                                   hs_u_1, hs_o[0], dt, gdot, temp_k,
                                                    outputLevel);
             hs_u[0] = hs_u_1;
 
@@ -326,15 +326,15 @@ namespace ecmech {
                   double &dsdot_ds,
                   double h,
                   const double* const evolVals,
-                  double /*tK*/
+                  double /*temp_k*/
                   ) const
          {
             double shrate_eff = evolVals[0];
             double sv_sat = evolVals[1];
             // When the below ternary op is true then sdot and dsdot_ds remain zero.
             double temp2 = (sv_sat <= m_tausi) ? zero : one / (sv_sat - m_tausi);
-            // IF (PRESENT(dfdtK)) THEN
-            // dfdtK(1) = zero
+            // IF (PRESENT(dfdtemp_k)) THEN
+            // dfdtemp_k(1) = zero
             // END IF
 
             if (nonlinear) {

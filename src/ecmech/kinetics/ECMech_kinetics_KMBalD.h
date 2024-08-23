@@ -29,7 +29,7 @@ namespace ecmech {
     *
     *   ! note: gdot_w, gdot_r are always positive by definition
     *   !
-    *   ! tK should only be used for derivative calculations
+    *   ! temp_k should only be used for derivative calculations
     *
     * templated on p and q being 1 or not;
     * might eventually template on number of slip systems, but do not do so just yet
@@ -70,7 +70,7 @@ namespace ecmech {
             // power-law stuff
 
             m_mu_ref = *parsIt; ++parsIt;
-            m_tK_ref = *parsIt; ++parsIt;
+            m_temp_k_ref = *parsIt; ++parsIt;
             for (int iVal = 0; iVal<nVPer; ++iVal) {
                m_c_1[iVal] = *parsIt; ++parsIt;
             }
@@ -100,7 +100,7 @@ namespace ecmech {
             //
             for (int iVal = 0; iVal<nVPer; ++iVal) {
                // pl%xm = getMtsxmEffective(pl, mu_ref, T_ref)
-               double xm = one / (two * ((m_c_1[iVal] / m_tK_ref) * m_mu_ref * m_p * m_q));
+               double xm = one / (two * ((m_c_1[iVal] / m_temp_k_ref) * m_mu_ref * m_p * m_q));
                //
                // CALL fill_power_law(pl)
                // xmm  = xm - one ;
@@ -145,7 +145,7 @@ namespace ecmech {
             // power-law stuff
 
             params.push_back(m_mu_ref);
-            params.push_back(m_tK_ref);
+            params.push_back(m_temp_k_ref);
             for (int iVal = 0; iVal<nVPer; ++iVal) {
                params.push_back(m_c_1[iVal]);
             }
@@ -203,7 +203,7 @@ namespace ecmech {
 
          // parameters
          double m_mu_ref; // may evetually set for current conditions
-         double m_tK_ref;
+         double m_temp_k_ref;
          double m_tau_a; // if withGAthermal then is Peierls barrier
          double m_p; // only used if pOne is false
          double m_q; // only used if qOne is false
@@ -246,7 +246,7 @@ namespace ecmech {
          double
          getVals(double* const vals, // [nVals]
                  double, // p, not used
-                 double tK,
+                 double temp_k,
                  const double* const h_state,
                  double* const val_derivs = nullptr
                  ) const
@@ -273,7 +273,7 @@ namespace ecmech {
                double hdnI = m_go[iVal] + m_s[iVal] * sqrtDDens; // _gAll
                hdnScale += hdnI;
                vals[2 + iVal] = hdnI;
-               vals[2 + nVPer + iVal] = m_c_1[iVal] / tK; // _c_t
+               vals[2 + nVPer + iVal] = m_c_1[iVal] / temp_k; // _c_t
                if (!withGAthermal) {
                   assert(vals[2 + iVal] > zero);
                }
@@ -378,7 +378,7 @@ namespace ecmech {
             double & dgdot_dmu, // wrt shear modulus, not through g
             double & dgdot_dgamo, // wrt reference rate for thermal part
             double & dgdot_dgamr, // wrt reference rate for drag limited part
-            double & dgdot_dtK, // wrt temperature, with other arguments fixed
+            double & dgdot_dtemp_k, // wrt temperature, with other arguments fixed
 #endif
             const double* const vals,
             int      iSlip,
@@ -386,7 +386,7 @@ namespace ecmech {
             double   mu
 #if MORE_DERIVS
             ,
-            double   tK
+            double   temp_k
 #endif
             ) const
          {
@@ -411,7 +411,7 @@ namespace ecmech {
             dgdot_dmu = zero;
             dgdot_dgamo = zero;
             dgdot_dgamr = zero;
-            dgdot_dtK = zero;
+            dgdot_dtemp_k = zero;
 #endif
             l_act = false;
 
@@ -434,7 +434,7 @@ namespace ecmech {
             //
             double gdot_r, dgdot_r;
 #if MORE_DERIVS
-            double dgdotr_dtK;
+            double dgdotr_dtemp_k;
 #endif
             {
                double exp_arg = (fabs(tau) - gAth) / m_wrD;
@@ -454,12 +454,12 @@ namespace ecmech {
                }
                dgdot_r = gam_r * temp / m_wrD;
 #if MORE_DERIVS
-               double dgdotr_dtK;
+               double dgdotr_dtemp_k;
                if (withGAthermal) {
-                  dgdotr_dtK = -gam_r * temp * exp_arg * m_wrDT / m_wrD;
+                  dgdotr_dtemp_k = -gam_r * temp * exp_arg * m_wrDT / m_wrD;
                }
                else {
-                  dgdotr_dtK = -gam_r * temp * fabs(tau) * m_wrDT / (m_wrD * m_wrD);
+                  dgdotr_dtemp_k = -gam_r * temp * fabs(tau) * m_wrDT / (m_wrD * m_wrD);
                }
 #endif
             }
@@ -473,7 +473,7 @@ namespace ecmech {
 #if MORE_DERIVS
                dgdot_dmu = zero;
                dgdot_dgamo = zero;
-               dgdot_dtK = copysign(dgdotr_dtK, tau);
+               dgdot_dtemp_k = copysign(dgdotr_dtemp_k, tau);
                dgdot_dgamr = copysign(gdot, tau) / gam_r;
 #endif
                gdot = copysign(gdot, tau);
@@ -501,7 +501,7 @@ namespace ecmech {
                //
 #if MORE_DERIVS
                dgdotw_dmu = zero;
-               dgdotw_dtK = zero;
+               dgdotw_dtemp_k = zero;
 #endif
                //
                // !IF (exp_arg > ln_gam_ratio_ovf) THEN
@@ -515,7 +515,7 @@ namespace ecmech {
                }
 #if MORE_DERIVS
                dgdotw_dmu = gdot_w * (-exp_arg / mu);
-               dgdotw_dtK = gdot_w * (exp_arg / tK); // negatives cancel
+               dgdotw_dtemp_k = gdot_w * (exp_arg / temp_k); // negatives cancel
 #endif
                //
                double t_frac_m = (-fabs(tau) - gAth) * g_i;
@@ -568,9 +568,9 @@ namespace ecmech {
                double temp = gdot * copysign(gdot, tau) * gdwdiv2;
                dgdot_dgamo = temp * (gdot_w / gam_w);
                dgdot_dmu = temp * dgdotw_dmu;
-               dgdot_dtK = temp * dgdotw_dtK;
+               dgdot_dtemp_k = temp * dgdotw_dtemp_k;
                dgdot_dgamr = temp * (gdot_r / gam_r);
-               dgdot_dtK = dgdot_dtK + temp * dgdotr_dtK;
+               dgdot_dtemp_k = dgdot_dtemp_k + temp * dgdotr_dtemp_k;
 #endif
             }
 
@@ -585,7 +585,7 @@ namespace ecmech {
                  double dt,
                  const double* const gdot,
                  const double* const /*hvals*/,
-                 double tK,
+                 double temp_k,
                  int outputLevel = 0) const
          {
             // do not yet both with l_overdriven and setting-to-saturation machinery as in Fortran coding
@@ -594,7 +594,7 @@ namespace ecmech {
             double log_hs_u;
             double log_hs_o = log(fmax(hs_o[0], m_hdn_min));
             int nFEvals = updateH1<KineticsKMBalD>(this,
-                                                   log_hs_u, log_hs_o, dt, gdot, tK,
+                                                   log_hs_u, log_hs_o, dt, gdot, temp_k,
                                                    outputLevel);
             hs_u[0] = exp(log_hs_u);
 
@@ -627,13 +627,13 @@ namespace ecmech {
                   double &dsdot_ds,
                   double h,
                   const double* const evolVals,
-                  double /*tK*/
+                  double /*temp_k*/
                   ) const
          {
             double shrate_eff = evolVals[0];
             double k2 = evolVals[1];
-            // IF (PRESENT(dfdtK)) THEN
-            // dfdtK(1) = zero
+            // IF (PRESENT(dfdtemp_k)) THEN
+            // dfdtemp_k(1) = zero
             // END IF
 
             // sdot = 0.0 ;

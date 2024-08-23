@@ -34,7 +34,7 @@
  *
  *  double getVals( double* const vals,
  *                  double p,
- *                  double tK,
+ *                  double temp_k,
  *                  const double* const h_state
  *                  ) const ;
  *
@@ -93,8 +93,8 @@ namespace ecmech {
                             double h_o,
                             double dt,
                             const double* const evolVals,
-                            double tK) :
-            m_kinetics(kinetics), m_h_o(h_o), m_dt(dt), m_evolVals(evolVals), m_tK(tK)
+                            double temp_k) :
+            m_kinetics(kinetics), m_h_o(h_o), m_dt(dt), m_evolVals(evolVals), m_temp_k(temp_k)
          {
             m_x_scale = fmax(m_h_o, 1.0); // TO_DO -- generalize this to not max with 1
             // NOTE : see comment below about changing Jacobian calculation if m_res_scale != one / s_scale
@@ -122,7 +122,7 @@ namespace ecmech {
             double h = m_h_o + h_delta;
 
             double sdot, dsdot_ds;
-            m_kinetics->getSdot1(sdot, dsdot_ds, h, m_evolVals, m_tK);
+            m_kinetics->getSdot1(sdot, dsdot_ds, h, m_evolVals, m_temp_k);
 
             resid[0] = (h_delta - sdot * m_dt) * m_res_scale;
 
@@ -140,7 +140,7 @@ namespace ecmech {
          const Kinetics* m_kinetics;
          const double m_h_o, m_dt;
          const double* const m_evolVals;
-         const double m_tK;
+         const double m_temp_k;
          double m_x_scale, m_res_scale;
    }; // class Kinetics_H1Problem
 
@@ -156,13 +156,13 @@ namespace ecmech {
             double hs_o,
             double dt,
             const double* const gdot,
-            double tK,
+            double temp_k,
             int outputLevel = 0)
    {
       double evolVals[Kinetics::nEvolVals];
       kinetics->getEvolVals(evolVals, gdot);
 
-      Kinetics_H1Problem<Kinetics> prob(kinetics, hs_o, dt, evolVals, tK);
+      Kinetics_H1Problem<Kinetics> prob(kinetics, hs_o, dt, evolVals, temp_k);
       snls::SNLSTrDlDenseG<Kinetics_H1Problem<Kinetics> > solver(prob);
 
       snls::TrDeltaControl deltaControl;
@@ -204,8 +204,8 @@ namespace ecmech {
                             double dt,
                             const double* const evolVals,
                             const double* const hvals,
-                            double tK) :
-            m_kinetics(kinetics), m_h_o(h_o), m_dt(dt), m_evolVals(evolVals), m_hvals(hvals), m_tK(tK)
+                            double temp_k) :
+            m_kinetics(kinetics), m_h_o(h_o), m_dt(dt), m_evolVals(evolVals), m_hvals(hvals), m_temp_k(temp_k)
          {
             for (int i = 0; i < nDimSys; i++) {
                m_x_scale[i] = fmax(m_h_o[i], 1.0); // TO_DO -- generalize this to not max with 1
@@ -238,7 +238,7 @@ namespace ecmech {
 
             double sdot[nDimSys];
             // The dsdot_ds portion of the Jacobian is set in here if it was provided
-            m_kinetics->getSdotN(sdot, Jacobian, h, m_evolVals, m_hvals, m_tK);
+            m_kinetics->getSdotN(sdot, Jacobian, h, m_evolVals, m_hvals, m_temp_k);
 
             for (int i = 0; i < nDimSys; i++) {
                resid[i] = (x[i] * m_x_scale[i] - sdot[i] * m_dt) * m_res_scale[i];
@@ -270,7 +270,7 @@ namespace ecmech {
          const double m_dt;
          const double* const m_evolVals;
          const double* const m_hvals;
-         const double m_tK;
+         const double m_temp_k;
          double m_x_scale[nDimSys], m_res_scale[nDimSys];
    }; // class Kinetics_HNProblem
 
@@ -287,13 +287,13 @@ namespace ecmech {
             double dt,
             const double* const gdot,
             const double* const hvals,
-            double tK,
+            double temp_k,
             int outputLevel = 0)
    {
       double evolVals[Kinetics::nEvolVals];
       kinetics->getEvolVals(evolVals, gdot);
 
-      Kinetics_HNProblem<Kinetics> prob(kinetics, hs_o, dt, evolVals, hvals, tK);
+      Kinetics_HNProblem<Kinetics> prob(kinetics, hs_o, dt, evolVals, hvals, temp_k);
       snls::SNLSTrDlDenseG<Kinetics_HNProblem<Kinetics> > solver(prob);
 
       snls::TrDeltaControl deltaControl;

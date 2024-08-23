@@ -70,11 +70,11 @@ namespace ecmech {
          };
          
          __ecmech_hdev__ inline virtual void evalRSS(double* taua, 
-                                                     const double* const T_vecds, 
+                                                     const double* const kirchoff, 
                                                      const double* P_vec) const
          {
              // resolve stress onto slip systems
-             vecsVaTM<ecmech::ntvec, nslip>(taua, T_vecds, P_vec);
+             vecsVaTM<ecmech::ntvec, nslip>(taua, kirchoff, P_vec);
          }
        
       protected:
@@ -707,7 +707,7 @@ namespace ecmech {
          __ecmech_hdev__ inline void NSprojection(double* taua,
                                                   double* P_vec, 
                                                   double* Q_vec, 
-                                                  const double* const T_vecds,
+                                                  const double* const kirchoff,
                                                   bool fill_PQ) const
          {
              // Resolve stress onto slip systems
@@ -732,7 +732,7 @@ namespace ecmech {
                      fillFromMS(P_tmp, Q_tmp, mVec, sVec, 1);
                      for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
                          P_s[iS * ecmech::ntvec + iTvec] = P_tmp[iTvec];
-                         tau_s[iS] += T_vecds[iTvec] * P_tmp[iTvec];
+                         tau_s[iS] += kirchoff[iTvec] * P_tmp[iTvec];
                      }
                      for (int iWvec = 0; iWvec < ecmech::nwvec; ++iWvec) {
                          Q_s[iS * ecmech::nwvec + iWvec] = Q_tmp[iWvec];
@@ -748,13 +748,13 @@ namespace ecmech {
                      // Omega 1
                      fillFromMS(P_tmp, Q_tmp, mpVec, sVec, 1);
                      for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
-                         tau_s[iS] += m_omegas[0] * T_vecds[iTvec] * P_tmp[iTvec];
+                         tau_s[iS] += m_omegas[0] * kirchoff[iTvec] * P_tmp[iTvec];
                      }
                      
                      // Omega 2
                      fillFromMS(P_tmp, Q_tmp, mVec, smVec, 1);
                      for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
-                         tau_s[iS] -= m_omegas[1] * T_vecds[iTvec] * P_tmp[iTvec];
+                         tau_s[iS] -= m_omegas[1] * kirchoff[iTvec] * P_tmp[iTvec];
                      }
                      
                      // Omega 3
@@ -762,7 +762,7 @@ namespace ecmech {
                      vecCrossProd(mpsVec, mpVec, sVec);
                      fillFromMS(P_tmp, Q_tmp, mpVec, mpsVec, 1);
                      for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
-                         tau_s[iS] += m_omegas[2] * T_vecds[iTvec] * P_tmp[iTvec];
+                         tau_s[iS] += m_omegas[2] * kirchoff[iTvec] * P_tmp[iTvec];
                      }
                  }
                  
@@ -789,23 +789,23 @@ namespace ecmech {
                                            const double* const SvecP) const
          {
              // we need to reverse the stress first...
-             double T_vecds[ecmech::nsvec];
-             T_vecds[iSvecS] = -sqr3 * SvecP[iSvecP];
-             T_vecds[0] = sqr2i * SvecP[0] - sqr2i * SvecP[1];
-             T_vecds[1] = - sqr3b2 * SvecP[0] - sqr3b2 * SvecP[1];
-             T_vecds[4] = sqr2 * SvecP[3]; // 23
-             T_vecds[3] = sqr2 * SvecP[4]; // 31
-             T_vecds[2] = sqr2 * SvecP[5]; // 12
+             double kirchoff[ecmech::nsvec];
+             kirchoff[iSvecS] = -sqr3 * SvecP[iSvecP];
+             kirchoff[0] = sqr2i * SvecP[0] - sqr2i * SvecP[1];
+             kirchoff[1] = - sqr3b2 * SvecP[0] - sqr3b2 * SvecP[1];
+             kirchoff[4] = sqr2 * SvecP[3]; // 23
+             kirchoff[3] = sqr2 * SvecP[4]; // 31
+             kirchoff[2] = sqr2 * SvecP[5]; // 12
              
              double taua[nslip];
-             NSprojection(taua, P_vec, Q_vec, T_vecds, true);
+             NSprojection(taua, P_vec, Q_vec, kirchoff, true);
          }
          
          __ecmech_hdev__ inline void evalRSS(double* taua, 
-                                             const double* const T_vecds, 
+                                             const double* const kirchoff, 
                                              const double* /*P_vec*/) const
          {
-             NSprojection(taua, NULL, NULL, T_vecds, false);
+             NSprojection(taua, NULL, NULL, kirchoff, false);
          }
          
      private:

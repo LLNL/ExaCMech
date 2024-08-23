@@ -24,13 +24,13 @@ class pyECMech
       int getNumberHistory() { return model->getNumHist(); }
 
       void solve(double dt,
-                 py_darray &d_svec_kk_sm,
-                 py_darray &w_veccp_sm,
+                 py_darray &def_rate_dev6_vol_sample,
+                 py_darray &spin_vec_sample,
                  py_darray &volRatio,
-                 py_darray &eInt,
-                 py_darray &stressSvecP,
+                 py_darray &internal_energy,
+                 py_darray &cauchy_stress_dev6_pressure,
                  py_darray &hist,
-                 py_darray &tkelv,
+                 py_darray &temp_k,
                  py_darray &sddv,
                  const int nPassed);
 
@@ -53,22 +53,22 @@ class pyECMechDev
 
       void setup(double dt,
                  double tolerance,
-                 py_darray &d_svec_kk_sm, // defRate,
-                 py_darray &w_veccp_sm, // spin
+                 py_darray &def_rate_dev6_vol_sample, // defRate,
+                 py_darray &spin_vec_sample, // spin
                  py_darray &volRatio,
-                 py_darray &eInt,
-                 py_darray &stressSvecP,
+                 py_darray &internal_energy,
+                 py_darray &cauchy_stress_dev6_pressure,
                  py_darray &hist,
-                 double &tkelv);
+                 double &temp_k);
       void computeRJ(py_darray &resid,
                      py_darray &J,
                      py_darray &x);
       
       void getState(const py_darray &x,
-                    py_darray &eInt,
-                    py_darray &stressSvecP,
+                    py_darray &internal_energy,
+                    py_darray &cauchy_stress_dev6_pressure,
                     py_darray &hist,
-                    double &tkelv,
+                    double &temp_k,
                     py_darray &sdd);
 
       ~pyECMechDev()

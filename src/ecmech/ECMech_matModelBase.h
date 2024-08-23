@@ -21,7 +21,7 @@ namespace ecmech {
    {
       protected:
          bool  m_complete;
-         double m_rho0, m_cvav, m_v0, m_e0, m_bulkRef;
+         double m_density0, m_cvav, m_rel_vol0, m_energy0, m_bulkRef;
          int m_outputLevel;
          ecmech::ExecutionStrategy m_accel;
 
@@ -29,10 +29,10 @@ namespace ecmech {
          __ecmech_host__
          matModelBase() :
             m_complete(false),
-            m_rho0(-1.0),
+            m_density0(-1.0),
             m_cvav(-1.0),
-            m_v0(-1.0),
-            m_e0(-1.0),
+            m_rel_vol0(-1.0),
+            m_energy0(-1.0),
             m_bulkRef(-1.0),
             m_outputLevel(0),
             m_accel(ECM_EXEC_STRAT_CPU)
@@ -124,20 +124,20 @@ namespace ecmech {
           * @param volRatio[in] : information about volume evolution
           * length nvr*nPassed
           * along nvr :
-          *    [vOld, vNew, vdov, delv]
-          * vOld -- relative volume at beginning of time step
-          * vNew -- relative volume at end of time step
-          * vdov = delv / (dt * 0.5*(vNew+vOld)) -- volumetric strain rate
-          * delv = vNew - vOld -- increment in relative volume
+          *    [rel_vol_old, rel_vol_new, vdov, delv]
+          * rel_vol_old -- relative volume at beginning of time step
+          * rel_vol_new -- relative volume at end of time step
+          * vdov = delv / (dt * 0.5*(rel_vol_new+rel_vol_old)) -- volumetric strain rate
+          * delv = rel_vol_new - rel_vol_old -- increment in relative volume
           *
-          * @param eIntV[in,out] : Internal energy per reference volume
+          * @param internal_energyV[in,out] : Internal energy per reference volume
           * length ne*nPassed
           * along ne :
           *    [eTotal, cold, eQ, etherms, ?, ?, deltrh, ?, deltz, eMelt]
           * on input, all but the eTotal (first entry) should be zero, and eTotal is beginning-of-step;
           * on output, eTotal is updated to end-of-step
           *
-          * @param stressSvecPV[in,out] : Cauchy stress components
+          * @param cauchy_stress_dev6_pressureV[in,out] : Cauchy stress components
           * length nsvp*nPassed
           * first six components are the deviatoric part (zero trace)
           * along nsvp :
@@ -149,7 +149,7 @@ namespace ecmech {
           * along numHist : order is as indicated by getHistInfo
           * beginning-of-step on input, end-of-step on output
           *
-          * @param tkelvV[out] : end-of-step temperature
+          * @param temp_kV[out] : end-of-step temperature
           * length nPassed
           *
           * @param sddV[out] : other output quantities
@@ -169,10 +169,10 @@ namespace ecmech {
                                      const double * defRateV,
                                      const double * spinV,
                                      const double * volRatioV,
-                                     double * eIntV,
-                                     double * stressSvecPV,
+                                     double * internal_energyV,
+                                     double * cauchy_stress_dev6_pressureV,
                                      double * histV,
-                                     double * tkelvV,
+                                     double * temp_kV,
                                      double * sddV,
                                      double * mtanSDV,
                                      const int & nPassed) const = 0;
@@ -208,10 +208,10 @@ namespace ecmech {
           */
          __ecmech_host__
          virtual double getRhoRef() const {
-            if (m_rho0 < 0.0) { // want to be able to call this before m_complete
-               ECMECH_FAIL(__func__, "rho0 does not appear to have been set");
+            if (m_density0 < 0.0) { // want to be able to call this before m_complete
+               ECMECH_FAIL(__func__, "density0 does not appear to have been set");
             }
-            return m_rho0;
+            return m_density0;
          };
 
          __ecmech_host__

@@ -18,7 +18,7 @@ namespace evptn {
 
         // constructor and destructor
         __ecmech_hdev__
-        inline ThermoElastNCubic() : m_K_bulkMod(-1.0), m_K_gmod(-1.0) {};
+        inline ThermoElastNCubic() : m_bulk_modulus(-1.0), m_shear_modulus(-1.0) {};
         __ecmech_hdev__
         inline ~ThermoElastNCubic() {};
 
@@ -39,8 +39,8 @@ namespace evptn {
             m_K_diag[3] = two * m_c44;
             m_K_diag[4] = two * m_c44;
             double K_vecds_s = m_c11 + two * m_c12;
-            m_K_bulkMod = onethird * K_vecds_s;
-            m_K_gmod = (two * m_c11 - two * m_c12 + six * m_c44) * 0.2; // average of m_K_diag entries
+            m_bulk_modulus = onethird * K_vecds_s;
+            m_shear_modulus = (two * m_c11 - two * m_c12 + six * m_c44) * 0.2; // average of m_K_diag entries
         }
 
         __ecmech_host__
@@ -62,23 +62,23 @@ namespace evptn {
 
         __ecmech_hdev__
         inline
-        void eval(double* const T_vecds,
-                    const double* const Ee_vecds,
-                    double, // tK
-                    double p_EOS,
-                    double // eVref
+        void eval(double* const kirchoff,
+                    const double* const elast_dev_press_vec,
+                    double, // temp_k
+                    double pressure_EOS,
+                    double // energy_vol_ref
                     ) const {
-            double ln_J = sqr3 * Ee_vecds[iSvecS]; // vecds_s_to_trace
+            double ln_J = sqr3 * elast_dev_press_vec[iSvecS]; // vecds_s_to_trace
             double J = exp(ln_J);
-            double Ts_bulk = -sqr3 * J * p_EOS;
+            double kirchoff_pressure = -sqr3 * J * pressure_EOS;
 
-            vecsVAdiagB<ntvec>(T_vecds, m_K_diag, Ee_vecds);
-            T_vecds[iSvecS] = Ts_bulk; // _K_vecds_s * Ee_vecds(SVEC)
+            vecsVAdiagB<ntvec>(kirchoff, m_K_diag, elast_dev_press_vec);
+            kirchoff[iSvecS] = kirchoff_pressure; // _K_vecds_s * elast_dev_press_vec(SVEC)
         }
 
         /**
             * dT_deps[0:ntvec-1,:]^T * A, for non-square A[ntvec,p] (with p likely being nSlip)
-            * so that even if T_vecds[iSvecS] depends on Ee_vecds, that is not in the result
+            * so that even if kirchoff[iSvecS] depends on elast_dev_press_vec, that is not in the result
             *
             * combines calls to elawn_T_dif and eval_dtaua_deps_n
             *
@@ -88,10 +88,10 @@ namespace evptn {
         inline
         void multDTDepsT(double* const P, // ntvec*p
                             const double* const A, // ntvec*p
-                            double a_V_ri,
+                            double inv_a_vol,
                             int p) const {
             for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
-                double dTdepsThis = m_K_diag[iTvec] * a_V_ri;
+                double dTdepsThis = m_K_diag[iTvec] * inv_a_vol;
                 for (int iP = 0; iP < p; ++iP) {
                     int ii = ECMECH_NM_INDX(iTvec, iP, ecmech::ntvec, p);
                     P[ii] = dTdepsThis * A[ii];
@@ -101,12 +101,12 @@ namespace evptn {
 
         __ecmech_hdev__
         inline
-        void getCauchy(double* const sigC_vecds_lat,
-                        const double* const T_vecds,
-                        double detVi) const
+        void getCauchy(double* const cauchy_xtal,
+                        const double* const kirchoff,
+                        double inv_det_vol) const
         {
             for (int iSvec = 0; iSvec < ecmech::nsvec; ++iSvec) {
-                sigC_vecds_lat[iSvec] = detVi * T_vecds[iSvec];
+                cauchy_xtal[iSvec] = inv_det_vol * kirchoff[iSvec];
             }
         }
 
@@ -127,18 +127,18 @@ namespace evptn {
         inline
         void multCauchyDif(double* const M6,
                             const double* const A,
-                            double detVi,
-                            double a_V_ri
+                            double inv_det_vol,
+                            double inv_a_vol
                             ) const {
-            // CALL vecds_s_to_trace(tr_ln_V, s_meas%Ee_vecds(SVEC))
-            // detV = DEXP(tr_ln_V)
-            // detVi = one / detV
+            // CALL vecds_s_to_trace(tr_ln_V, s_meas%elast_dev_press_vec(SVEC))
+            // det_vol = DEXP(tr_ln_V)
+            // inv_det_vol = one / det_vol
 
-            // dsigC_de(:,:) = detVi * s_meas%dT_deps(:,:)
+            // dsigC_de(:,:) = inv_det_vol * s_meas%dT_deps(:,:)
             // for cubic, dT_deps is diag(K_diag * a_V%ri) (symmetric) ; dT_deps[iSvecS,:] = 0
             // M65_ij = dd_ii A_ij
             for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
-                double vFact = detVi * a_V_ri * m_K_diag[iTvec];
+                double vFact = inv_det_vol * inv_a_vol * m_K_diag[iTvec];
                 for (int jTvec = 0; jTvec < ecmech::ntvec; ++jTvec) {
                     M6[ECMECH_NN_INDX(iTvec, jTvec, ecmech::nsvec)] = vFact * A[ECMECH_NM_INDX(iTvec, jTvec, N, M)];
                 }
@@ -156,28 +156,28 @@ namespace evptn {
         __ecmech_hdev__
         inline
         double getBulkMod( ) const {
-            if (m_K_bulkMod <= 0.0) {
+            if (m_bulk_modulus <= 0.0) {
                 ECMECH_FAIL(__func__, "bulk modulus negative -- not initialized?");
             }
-            return m_K_bulkMod;
+            return m_bulk_modulus;
         }
 
         __ecmech_hdev__
         inline
-        double getGmod(double, // tK
-                        double, // p_EOS
-                        double // eVref
+        double getGmod(double, // temp_k
+                        double, // pressure_EOS
+                        double // energy_vol_ref
                         ) const {
-            if (m_K_gmod <= 0.0) {
+            if (m_shear_modulus <= 0.0) {
                 ECMECH_FAIL(__func__, "effective shear modulus negative -- not initialized?");
             }
-            return m_K_gmod;
+            return m_shear_modulus;
         }
 
         private:
         double m_c11, m_c12, m_c44;
         double m_K_diag[ecmech::ntvec];
-        double m_K_bulkMod, m_K_gmod;
+        double m_bulk_modulus, m_shear_modulus;
     };
 
     /**
@@ -202,7 +202,7 @@ namespace evptn {
 
         // constructor and destructor
         __ecmech_hdev__
-        inline ThermoElastNHexag() : m_K_bulkMod(-1.0), m_K_gmod(-1.0) {};
+        inline ThermoElastNHexag() : m_bulk_modulus(-1.0), m_shear_modulus(-1.0) {};
         __ecmech_hdev__
         inline ~ThermoElastNHexag() {};
 
@@ -228,10 +228,10 @@ namespace evptn {
             m_K_diag[4] = two * m_c44;
             double K_vecds_s = twothird * m_c11 + twothird * m_c12 + fourthirds * m_c13 + m_c33 * onethird;
             m_K_sdax3 = sqr2 * (-m_c11 - m_c12 + m_c13 + m_c33) * onethird;
-            m_K_bulkMod = onethird * K_vecds_s;
+            m_bulk_modulus = onethird * K_vecds_s;
             //
-            // m_K_gmod below ignores the m_K_sdax3 contribution, but it is just meant to be approximate anyway
-            m_K_gmod = 0.5 * 0.2 * vecsssum<ecmech::ntvec>(m_K_diag); // 0.5 * (average of m_K_diag entries)
+            // m_shear_modulus below ignores the m_K_sdax3 contribution, but it is just meant to be approximate anyway
+            m_shear_modulus = 0.5 * 0.2 * vecsssum<ecmech::ntvec>(m_K_diag); // 0.5 * (average of m_K_diag entries)
         }
 
         __ecmech_host__
@@ -257,29 +257,29 @@ namespace evptn {
 
         __ecmech_hdev__
         inline
-        void eval(double* const T_vecds,
-                    const double* const Ee_vecds,
-                    double, // tK
-                    double p_EOS,
-                    double eVref
+        void eval(double* const kirchoff,
+                    const double* const elast_dev_press_vec,
+                    double, // temp_k
+                    double pressure_EOS,
+                    double energy_vol_ref
                     ) const {
-            double ln_J = sqr3 * Ee_vecds[iSvecS]; // vecds_s_to_trace
+            double ln_J = sqr3 * elast_dev_press_vec[iSvecS]; // vecds_s_to_trace
             double J = exp(ln_J);
-            double Ts_bulk = -sqr3 * J * p_EOS;
+            double kirchoff_pressure = -sqr3 * J * pressure_EOS;
 
-            vecsVAdiagB<ntvec>(T_vecds, m_K_diag, Ee_vecds);
-            T_vecds[iSvecS] = Ts_bulk; // _K_vecds_s * Ee_vecds(SVEC)
+            vecsVAdiagB<ntvec>(kirchoff, m_K_diag, elast_dev_press_vec);
+            kirchoff[iSvecS] = kirchoff_pressure; // _K_vecds_s * elast_dev_press_vec(SVEC)
 
-            T_vecds[iTvecHex] += m_K_sdax3 * Ee_vecds[iSvecS];
-            T_vecds[iSvecS] += m_K_sdax3 * Ee_vecds[iTvecHex];
+            kirchoff[iTvecHex] += m_K_sdax3 * elast_dev_press_vec[iSvecS];
+            kirchoff[iSvecS] += m_K_sdax3 * elast_dev_press_vec[iTvecHex];
 
-            // anisotropic Gruneisen contribution; pressure part of Gruneisen tensor contribution should already be in p_EOS
-            // CALL eos_eval_e_Csdev(Cauchy_eos_vecd, eVref, J, &
+            // anisotropic Gruneisen contribution; pressure part of Gruneisen tensor contribution should already be in pressure_EOS
+            // CALL eos_eval_e_Csdev(Cauchy_eos_vecd, energy_vol_ref, J, &
             // & i_eos_model, eos_const)
-            // -(Gamma' + a' * mu) * eVref // but do not do a'*mu part
-            // Cauchy_eos_vecd(:) = -eos_const(4:8) * eVref
-            // T_vecds(1:TVEC) = T_vecds(1:TVEC) + J * Cauchy_eos_vecd(:)
-            T_vecds[iTvecHex] += J * (-m_g_vecd2 * eVref);
+            // -(Gamma' + a' * mu) * energy_vol_ref // but do not do a'*mu part
+            // Cauchy_eos_vecd(:) = -eos_const(4:8) * energy_vol_ref
+            // kirchoff(1:TVEC) = kirchoff(1:TVEC) + J * Cauchy_eos_vecd(:)
+            kirchoff[iTvecHex] += J * (-m_g_vecd2 * energy_vol_ref);
         }
 
         /**
@@ -289,10 +289,10 @@ namespace evptn {
         inline
         void multDTDepsT(double* const P, // ntvec*p
                             const double* const A, // ntvec*p
-                            double a_V_ri,
+                            double inv_a_vol,
                             int p) const {
             for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
-                double dTdepsThis = m_K_diag[iTvec] * a_V_ri;
+                double dTdepsThis = m_K_diag[iTvec] * inv_a_vol;
                 for (int iP = 0; iP < p; ++iP) {
                     int ii = ECMECH_NM_INDX(iTvec, iP, ecmech::ntvec, p);
                     P[ii] = dTdepsThis * A[ii];
@@ -302,12 +302,12 @@ namespace evptn {
 
         __ecmech_hdev__
         inline
-        void getCauchy(double* const sigC_vecds_lat,
-                        const double* const T_vecds,
-                        double detVi) const
+        void getCauchy(double* const cauchy_xtal,
+                        const double* const kirchoff,
+                        double inv_det_vol) const
         {
             for (int iSvec = 0; iSvec < ecmech::nsvec; ++iSvec) {
-                sigC_vecds_lat[iSvec] = detVi * T_vecds[iSvec];
+                cauchy_xtal[iSvec] = inv_det_vol * kirchoff[iSvec];
             }
         }
 
@@ -316,11 +316,11 @@ namespace evptn {
         inline
         void multCauchyDif(double* const M6,
                             const double* const A,
-                            double detVi,
-                            double a_V_ri
+                            double inv_det_vol,
+                            double inv_a_vol
                             ) const {
             for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
-                double vFact = detVi * a_V_ri * m_K_diag[iTvec];
+                double vFact = inv_det_vol * inv_a_vol * m_K_diag[iTvec];
                 for (int jTvec = 0; jTvec < ecmech::ntvec; ++jTvec) {
                     M6[ECMECH_NN_INDX(iTvec, jTvec, ecmech::nsvec)] = vFact * A[ECMECH_NN_INDX(iTvec, jTvec, ecmech::ntvec)];
                 }
@@ -329,7 +329,7 @@ namespace evptn {
             // M6[iSvecS,:] = dsigC_de[iSvecS, iTvecHex] * A[iTvecHex,:] // for hexagonal specifically
             // dsigC_de[iTvecHex, iSvecS] does not end up getting used
             {
-                double vFact = detVi * a_V_ri * m_K_sdax3;
+                double vFact = inv_det_vol * inv_a_vol * m_K_sdax3;
                 for (int jTvec = 0; jTvec < ecmech::ntvec; ++jTvec) {
                     M6[ECMECH_NN_INDX(iSvecS, jTvec, ecmech::nsvec)] = vFact * A[ECMECH_NN_INDX(iTvecHex, jTvec, ecmech::ntvec)];
                 }
@@ -343,22 +343,22 @@ namespace evptn {
         __ecmech_hdev__
         inline
         double getBulkMod( ) const {
-            if (m_K_bulkMod <= 0.0) {
+            if (m_bulk_modulus <= 0.0) {
                 ECMECH_FAIL(__func__, "bulk modulus negative -- not initialized?");
             }
-            return m_K_bulkMod;
+            return m_bulk_modulus;
         }
 
         __ecmech_hdev__
         inline
-        double getGmod(double, // tK
-                        double, // p_EOS
-                        double // eVref
+        double getGmod(double, // temp_k
+                        double, // pressure_EOS
+                        double // energy_vol_ref
                         ) const {
-            if (m_K_gmod <= 0.0) {
+            if (m_shear_modulus <= 0.0) {
                 ECMECH_FAIL(__func__, "effective shear modulus negative -- not initialized?");
             }
-            return m_K_gmod;
+            return m_shear_modulus;
         }
 
         private:
@@ -366,7 +366,7 @@ namespace evptn {
         double m_K_sdax3;
         double m_g_vecd2;
         double m_K_diag[ecmech::ntvec];
-        double m_K_bulkMod, m_K_gmod;
+        double m_bulk_modulus, m_shear_modulus;
         static const int iTvecHex = 1;
     };
 

@@ -92,7 +92,7 @@ namespace ecmech
    const int istride_int_eng = ISTRIDE_INT_ENG;
    const int istride_stress = ISTRIDE_STRESS;
    const int istride_history = ISTRIDE_HISTORY;
-   const int istride_tkelv = ISTRIDE_TKELV;
+   const int istride_temp_k = ISTRIDE_TKELV;
    const int istride_sdd = ISTRIDE_SDD;
    const int nstride = ECMECH_NSTRIDE;
 

@@ -145,34 +145,34 @@ pyECMech::getHistoryInfo()
 }
 
 void pyECMech::solve(double dt,
-                     py_darray &d_svec_kk_sm, // defRate,
-                     py_darray &w_veccp_sm, // spin
+                     py_darray &def_rate_dev6_vol_sample, // defRate,
+                     py_darray &spin_vec_sample, // spin
                      py_darray &volRatio,
-                     py_darray &eInt,
-                     py_darray &stressSvecP,
+                     py_darray &internal_energy,
+                     py_darray &cauchy_stress_dev6_pressure,
                      py_darray &hist,
-                     py_darray &tkelv,
+                     py_darray &temp_k,
                      py_darray &sdd,
                      const int nPassed)
 {
    // Check that the dimensions for everything is correct
-   check2D_dim(d_svec_kk_sm, nPassed, ecmech::nsvp, "d_svec_kk_sm");
-   check2D_dim(w_veccp_sm, nPassed, ecmech::nwvec, "w_veccp_sm");
+   check2D_dim(def_rate_dev6_vol_sample, nPassed, ecmech::nsvp, "def_rate_dev6_vol_sample");
+   check2D_dim(spin_vec_sample, nPassed, ecmech::nwvec, "spin_vec_sample");
    check2D_dim(volRatio, nPassed, ecmech::nvr, "volRatio");
-   check2D_dim(eInt, nPassed, ecmech::ne, "eInt");
-   check2D_dim(stressSvecP, nPassed, ecmech::nsvp, "stressSvecP");
+   check2D_dim(internal_energy, nPassed, ecmech::ne, "internal_energy");
+   check2D_dim(cauchy_stress_dev6_pressure, nPassed, ecmech::nsvp, "cauchy_stress_dev6_pressure");
    check2D_dim(hist, nPassed, model->getNumHist(), "hist");
-   check2D_dim(tkelv, nPassed, 1, "tkelv");
+   check2D_dim(temp_k, nPassed, 1, "temp_k");
    check2D_dim(sdd, nPassed, ecmech::nsdd, "sdd");
    
    model->getResponseECM(dt,
-                         (double*) d_svec_kk_sm.request().ptr,
-                         (double*) w_veccp_sm.request().ptr,
+                         (double*) def_rate_dev6_vol_sample.request().ptr,
+                         (double*) spin_vec_sample.request().ptr,
                          (double*) volRatio.request().ptr,
-                         (double*) eInt.request().ptr,
-                         (double*) stressSvecP.request().ptr,
+                         (double*) internal_energy.request().ptr,
+                         (double*) cauchy_stress_dev6_pressure.request().ptr,
                          (double*) hist.request().ptr,
-                         (double*) tkelv.request().ptr,
+                         (double*) temp_k.request().ptr,
                          (double*) sdd.request().ptr,
                          nullptr,
                          nPassed);
@@ -237,23 +237,23 @@ pyECMechDev::getHistoryInfo()
 
 void pyECMechDev::setup(double dt,
                      double tolerance,
-                     py_darray &d_svec_kk_sm, // defRate,
-                     py_darray &w_veccp_sm, // spin
+                     py_darray &def_rate_dev6_vol_sample, // defRate,
+                     py_darray &spin_vec_sample, // spin
                      py_darray &volRatio,
-                     py_darray &eInt,
-                     py_darray &stressSvecP,
+                     py_darray &internal_energy,
+                     py_darray &cauchy_stress_dev6_pressure,
                      py_darray &hist,
-                     double& tkelv)
+                     double& temp_k)
 {
 
    model->setup(dt, tolerance,
-               (double*) d_svec_kk_sm.request().ptr,
-               (double*) w_veccp_sm.request().ptr,
+               (double*) def_rate_dev6_vol_sample.request().ptr,
+               (double*) spin_vec_sample.request().ptr,
                (double*) volRatio.request().ptr,
-               (double*) eInt.request().ptr,
-               (double*) stressSvecP.request().ptr,
+               (double*) internal_energy.request().ptr,
+               (double*) cauchy_stress_dev6_pressure.request().ptr,
                (double*) hist.request().ptr,
-               tkelv);
+               temp_k);
 }
 
 void pyECMechDev::computeRJ(py_darray &resid,
@@ -266,17 +266,17 @@ void pyECMechDev::computeRJ(py_darray &resid,
 }
 
 void pyECMechDev::getState(const py_darray &x,
-                        py_darray &eInt,
-                        py_darray &stressSvecP,
+                        py_darray &internal_energy,
+                        py_darray &cauchy_stress_dev6_pressure,
                         py_darray &hist,
-                        double& tkelv,
+                        double& temp_k,
                         py_darray &sdd)
 {
    model->getState((double*) x.request().ptr,
-                   (double*) eInt.request().ptr,
-                   (double*) stressSvecP.request().ptr,
+                   (double*) internal_energy.request().ptr,
+                   (double*) cauchy_stress_dev6_pressure.request().ptr,
                    (double*) hist.request().ptr,
-                   tkelv,
+                   temp_k,
                    (double*) sdd.request().ptr);
 }
 

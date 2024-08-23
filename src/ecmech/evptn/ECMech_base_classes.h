@@ -41,53 +41,53 @@ namespace evptn {
 
         double* const h_state;
         double* const gdot;
-        double* const e_vecd_u;
+        double* const elast_dev_press_vec_u;
         double* const quat_u;
         double& eps_dot;
         double& eps;
         double& flow_strength;
-        double* const stressSvecP;
-        const double* const w_veccp_sm;
-        const double vNew;
+        double* const cauchy_stress_dev6_pressure;
+        const double* const spin_vec_sample;
+        const double rel_vol_new;
         const double dt;
-        double& tkelv;
+        double& temp_k;
 
 
-        double d_vecd_sm[ecmech::ntvec];
-        double e_vecd_n[ecmech::ntvec];
+        double def_rate_dev_vec_sample[ecmech::ntvec];
+        double elast_dev_vec_n[ecmech::ntvec];
         double quat_n[ecmech::qdim];
         double h_state_u[Kinetics::nH];
-        double pEOS, eNew, bulkNew;
+        double pressure_EOS, energy_new, bulk_modulus_new;
 
         __ecmech_hdev__
-        ProblemState(double* const hist, double* const stressSvecP,
-                    double& tkelv,
-                    const double* const d_svec_kk_sm,
-                    const double* const w_veccp_sm,
+        ProblemState(double* const hist, double* const cauchy_stress_dev6_pressure,
+                    double& temp_k,
+                    const double* const def_rate_dev6_vol_sample,
+                    const double* const spin_vec_sample,
                     const double* const volRatio,
                     const double dt) :
         h_state(&(hist[iHistLbH])),
         gdot(&(hist[iHistLbGdot])),
-        e_vecd_u(&(hist[iHistLbE])),
+        elast_dev_press_vec_u(&(hist[iHistLbE])),
         quat_u(&(hist[iHistLbQ])),
         eps_dot(hist[iHistA_shrateEff]),
         eps(hist[iHistA_shrEff]),
         flow_strength(hist[iHistA_flowStr]),
-        stressSvecP(stressSvecP),
-        w_veccp_sm(w_veccp_sm),
-        vNew(volRatio[1]),
+        cauchy_stress_dev6_pressure(cauchy_stress_dev6_pressure),
+        spin_vec_sample(spin_vec_sample),
+        rel_vol_new(volRatio[1]),
         dt(dt),
-        tkelv(tkelv)
+        temp_k(temp_k)
         {
             // convert deformation rate convention
             //
-            // double d_vecd_sm[ecmech::ntvec];
-            svecToVecd(d_vecd_sm, d_svec_kk_sm);
+            // double def_rate_dev_vec_sample[ecmech::ntvec];
+            svecToVecd(def_rate_dev_vec_sample, def_rate_dev6_vol_sample);
             //
             // copies, to keep beginning-of-step state safe
             //
             for (int i_hist = 0; i_hist < ecmech::ntvec; i_hist++) {
-                e_vecd_n[i_hist] = hist[iHistLbE + i_hist];
+                elast_dev_vec_n[i_hist] = hist[iHistLbE + i_hist];
             }
 
             for (int i_hist = 0; i_hist < ecmech::qdim; i_hist++) {
@@ -110,15 +110,15 @@ namespace evptn {
         __ecmech_hdev__
         EvptnLatticeStrainProblem(const ThermoElastN& thermoElastN,
                                 const double dt,
-                                const double detV, 
-                                const double eVref, 
-                                const double p_EOS, 
-                                const double tK,
-                                const double* const e_vecd_n)
+                                const double det_vol, 
+                                const double energy_vol_ref, 
+                                const double pressure_EOS, 
+                                const double temp_k,
+                                const double* const elast_dev_vec_n)
         : m_thermo_elast_n(thermoElastN),
-        m_dt(dt), m_det_vol(detV), m_energy_vol_ref(eVref),
-        m_pressure_eos(p_EOS), m_temp_k(tK),
-        m_elast_dev_vec_n(e_vecd_n),
+        m_dt(dt), m_det_vol(det_vol), m_energy_vol_ref(energy_vol_ref),
+        m_pressure_eos(pressure_EOS), m_temp_k(temp_k),
+        m_elast_dev_vec_n(elast_dev_vec_n),
         m_inv_dt(1.0 / dt),
         m_inv_det_vol(1.0 / m_det_vol),
         m_a_vol(pow(m_det_vol, onethird)),
@@ -138,18 +138,18 @@ namespace evptn {
         //// do not need to use elaw_T_BT here as T and BT are the same
         //
         // specialize to cem%l_lin_lnsd
-        // CALL elawn_T(s_meas, e_vecd_f, crys%elas, tK, .TRUE., a_V, &
-        // & p_EOS, eVref, crys%i_eos_model, crys%eos_const &
+        // CALL elawn_T(s_meas, elast_dev_vec_f, crys%elas, temp_k, .TRUE., a_V, &
+        // & pressure_EOS, energy_vol_ref, crys%i_eos_model, crys%eos_const &
         // &)
         double elas_dev_vol_vec[ecmech::nsvec];
         vecsVxa<ntvec>(elas_dev_vol_vec, m_inv_a_vol, elas_dev_vec);
         //// tr_Ee = three * DLOG(a_V%r)
-        //// CALL trace_to_vecds_s(s_meas%Ee_vecds(SVEC), tr_Ee)
+        //// CALL trace_to_vecds_s(s_meas%elast_dev_press_vec(SVEC), tr_Ee)
         elas_dev_vol_vec[iSvecS] = sqr3 * log(m_a_vol); // could go into constructor
         //
         //// Kirchhoff stress from elas_dev_vol_vec
-        // CALL elawn_lin_op(s_meas%T_vecds, s_meas%Ee_vecds, cem, tK, &
-        // & p_EOS, eVref, i_eos_model, eos_const)
+        // CALL elawn_lin_op(s_meas%kirchoff, s_meas%elast_dev_press_vec, cem, temp_k, &
+        // & pressure_EOS, energy_vol_ref, i_eos_model, eos_const)
         m_thermo_elast_n.eval(kirchoff_stress, elas_dev_vol_vec, m_temp_k, m_pressure_eos, m_energy_vol_ref);
         }
 
@@ -157,11 +157,11 @@ namespace evptn {
         __ecmech_hdev__
         inline
         void elas_strain_to_cauchy_stress(double* const cauchy, // nsvec
-                                        const double* const e_vecd_f // ntvec
+                                        const double* const elast_dev_vec_f // ntvec
                                         ) const
         {
         double kirchoff[ecmech::nsvec];
-        this->elas_strain_to_kirchoff_stress(kirchoff, e_vecd_f);
+        this->elas_strain_to_kirchoff_stress(kirchoff, elast_dev_vec_f);
         m_thermo_elast_n.getCauchy(cauchy, kirchoff, m_inv_det_vol);
         }
 
@@ -175,10 +175,10 @@ namespace evptn {
         //////////////////////////////
         // PULL VALUES out of x, with scalings
         //
-        // double edot_vecd[ecmech::ntvec];
-        vecsVxa<ntvec>(elas_dt_dev_vec, ecmech::e_scale, x); // elas_dt_dev_vec is now the delta, _not_ yet edot_vecd
-        // e_vecd_f is end-of-step
-        // double e_vecd_f[ntvec];
+        // double elas_dt_dev_vec[ecmech::ntvec];
+        vecsVxa<ntvec>(elas_dt_dev_vec, ecmech::e_scale, x); // elas_dt_dev_vec is now the delta, _not_ yet elas_dt_dev_vec
+        // elast_dev_vec_f is end-of-step
+        // double elast_dev_vec_f[ntvec];
         vecsVapb<ntvec>(elas_delta_dev_vec, elas_dt_dev_vec, m_elast_dev_vec_n);
         if constexpr(calc_strain_rate) {
             vecsVsa<ntvec>(elas_dt_dev_vec, m_inv_dt); // _now_ elas_dt_dev_vec has dt contributions
@@ -188,7 +188,7 @@ namespace evptn {
         /*
         * NOTES :
         * () should be equivalent to what happens in get_elas_strain_state<false>
-        * () not necessarily safe if e_vecd is the same memory as _e_vecd_n or quat is the same as _Cn_quat
+        * () not necessarily safe if elast_dev_press_vec is the same memory as _elast_dev_vec_n or quat is the same as _xtal_ori_quat_n
         */
         __ecmech_hdev__
         inline
@@ -246,7 +246,7 @@ namespace evptn {
                                             const double* const dWp_hat_delast_strain,
                                             const double* const A_e_M35) const
         {
-        // d(B_xi)/d(e_vecds_f)
+        // d(B_xi)/d(elast_dev_press_vecs_f)
         //
         RAJA::View<double, RAJA::Layout<2>> jacob_re(jacobian, JAC_SIZE, JAC_SIZE);
 
@@ -302,8 +302,8 @@ namespace evptn {
         public:
         __ecmech_hdev__
         EvptnLatticeRotationProblem(const double dt,
-                                const double* const Cn_quat)
-        : m_dt(dt), m_xtal_ori_quat_n(Cn_quat) {};
+                                const double* const xtal_ori_quat_n)
+        : m_dt(dt), m_xtal_ori_quat_n(xtal_ori_quat_n) {};
         
         __ecmech_hdev__
         ~EvptnLatticeRotationProblem() = default;
@@ -333,7 +333,7 @@ namespace evptn {
         /*
         * NOTES :
         * () should be equivalent to what happens in get_elas_strain_state<false>
-        * () not necessarily safe if e_vecd is the same memory as _e_vecd_n or quat is the same as _Cn_quat
+        * () not necessarily safe if elast_dev_press_vec is the same memory as _elast_dev_vec_n or quat is the same as _xtal_ori_quat_n
         */
         // Assume that x has is at the location we need it to be at... 
         __ecmech_hdev__
