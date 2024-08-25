@@ -138,6 +138,8 @@ namespace ecmech
 
    constexpr double idp_tiny_sqrt = 1.0e-90;
    constexpr double idp_eps_sqrt = 1.0e-8;
+   constexpr double idp_eps = 2.0e-16;
+
 
    constexpr double gam_ratio_min = 1.0e-60;
    constexpr double ln_gam_ratio_min = -138.16;

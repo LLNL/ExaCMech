@@ -113,6 +113,7 @@ namespace evptn {
         slip_geom.evalRSS(abs_resolved_shear_stress, kirchoff, slip_geom.getP());
         slip_kinetics.evalGdots(gdot, junk, abs_resolved_shear_stress, kinetic_values);
 #if defined(ECMECH_USE_DPEFF)
+        double plastic_def_rate[ntvec] = {};
         vecsVMa<ntvec, SlipGeom::nslip>(plastic_def_rate, slip_geom.getP(), gdot);
         effective_shear_rate = vecd_Deff(plastic_def_rate);
 #else
@@ -244,7 +245,7 @@ namespace evptn {
         // Now get the dcauchy_lattice_dI terms by doing ->
         // dcauchy_lattice_dI = d_cauchy_lattice_dquat * dRmat_quat_dI
         double dqcauchy_ddefrate[ ecmech::ntvec * nRHS ];
-        vecsMAB<ecmech::ntvec, nRHS, ecmech::qdim>(dcauchy_dquat, dcauchy_dquat, dquat_ddef_rate);
+        vecsMAB<ecmech::ntvec, nRHS, ecmech::qdim>(dqcauchy_ddefrate, dcauchy_dquat, dquat_ddef_rate);
         for (int ii_T = 0; ii_T < ecmech::ntvec; ++ii_T) {
             for (int ii_I = 0; ii_I < nRHS; ++ii_I) {
                 // NOTE : only looping over ntvec, but mtan_sI is nsvec in the first dimension

@@ -131,7 +131,8 @@ namespace ecmech {
    template<int n>
    __ecmech_hdev__
    inline void vecsVNormalize(double* const v){
-      double s = 1.0 / vecNorm<n>(v);
+      const double norm = vecNorm<n>(v);
+      const double s = (fabs(norm) > idp_eps) ? 1.0 / norm : 1.0 / idp_eps;
       vecsVsa<n>(v, s);
    }
 
