@@ -12,44 +12,23 @@ foreach(_tpl ${_tpls})
 endforeach()
 
 ################################
-# CUB (required for CUDA build)
-################################
-if (ENABLE_CUDA AND CUB_DIR)
-   include(cmake/thirdpartylibraries/FindCUB.cmake)
-endif ()
-
-################################
 # RAJA
 ################################
 
 if (RAJA_DIR)
-    include(cmake/thirdpartylibraries/FindRAJA.cmake)
-    if (RAJA_FOUND)
-        blt_register_library( NAME       raja
-                              TREAT_INCLUDES_AS_SYSTEM ON
-                              INCLUDES   ${RAJA_INCLUDE_DIRS}
-			      DEPENDS_ON camp
-                              LIBRARIES  ${RAJA_LIBRARY})
-    else()
-        message(FATAL_ERROR "Unable to find RAJA with given path ${RAJA_DIR}")
-    endif()
+   find_package(RAJA REQUIRED CONFIG PATHS ${RAJA_DIR})
+else()
+   message(FATAL_ERROR "RAJA_DIR was not provided. It is needed to find RAJA.")
 endif()
+
 
 ################################
 # SNLS
 ################################
 
 if (SNLS_DIR)
-    include(cmake/thirdpartylibraries/FindSNLS.cmake)
-    if (SNLS_FOUND)
-        blt_register_library( NAME       snls
-                              TREAT_INCLUDES_AS_SYSTEM ON
-                              INCLUDES   ${SNLS_INCLUDE_DIRS}
-                              LIBRARIES  ${SNLS_LIBRARIES}
-                              DEPENDS_ON ${SNLS_DEPENDS})
-    else()
-        message(FATAL_ERROR "Unable to find SNLS with given path ${SNLS_DIR}")
-    endif()
+    find_package(snls REQUIRED CONFIG PATHS ${SNLS_DIR})
+    set_target_properties(snls PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${SNLS_INCLUDE_DIRS}")
 endif()
 
 

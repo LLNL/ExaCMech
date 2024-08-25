@@ -2,9 +2,12 @@
 # see README.md for copyright and license information
 # 
 
-cmake_minimum_required(VERSION 3.1)
-if("${CMAKE_VERSION}" VERSION_GREATER 3.3)
-    cmake_policy(SET CMP0057 NEW)
+cmake_minimum_required(VERSION 3.20)
+cmake_policy(SET CMP0042 NEW)
+cmake_policy(SET CMP0048 NEW)
+
+if (APPLE)
+ cmake_policy(SET CMP0025 NEW)
 endif()
 
 message(STATUS "Using cmake version ${CMAKE_VERSION}")

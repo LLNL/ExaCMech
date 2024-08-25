@@ -45,7 +45,27 @@ set(ECMECH_SOURCES
 set(ECMECH_DEPENDS)
 
 ecmech_fill_depends_list(LIST_NAME  ECMECH_DEPENDS
-                        DEPENDS_ON raja snls cub cuda openmp blt::hip blt::hip_runtime)
+                        DEPENDS_ON RAJA snls)
+
+if (${BLT_VERSION} VERSION_GREATER_EQUAL 0.6.0)
+    if(ENABLE_CUDA)
+        list(APPEND ECMECH_DEPENDS blt::cuda_runtime blt::cuda) 
+    endif()
+    if(ENABLE_OPENMP)
+        list(APPEND ECMECH_DEPENDS blt::openmp) 
+    endif()
+else()
+    if(ENABLE_CUDA)
+        list(APPEND ECMECH_DEPENDS cuda cuda_runtime) 
+    endif()
+    if(ENABLE_OPENMP)
+        list(APPEND ECMECH_DEPENDS openmp) 
+    endif()
+endif()
+
+if(ENABLE_HIP)
+    list(APPEND ECMECH_DEPENDS blt::hip blt::hip_runtime)
+endif()
 
 if(NOT USE_BUILT_SNLS)
     list(APPEND ECMECH_DEPENDS snls)
