@@ -8,7 +8,7 @@ cmake_policy(SET CMP0048 NEW)
 cmake_policy(SET CMP0057 NEW)
 
 if (APPLE)
- cmake_policy(SET CMP0025 NEW)
+    cmake_policy(SET CMP0025 NEW)
 endif()
 
 message(STATUS "Using cmake version ${CMAKE_VERSION}")
@@ -58,13 +58,9 @@ include(cmake/CMakeBasics.cmake)
 
 if(ENABLE_CUDA)
   set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -restrict --expt-extended-lambda --expt-relaxed-constexpr")
-  if (NOT "${CMAKE_CUDA_FLAGS}" MATCHES "-arch")
-     set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -arch ${CUDA_ARCH}")
-  endif()
 endif()
 if(ENABLE_HIP)
-  
-set (HIP_HIPCC_FLAGS ${RAJA_HIPCC_FLAGS})
+    set(HIP_HIPCC_FLAGS ${RAJA_HIPCC_FLAGS})
 endif()
 
 ################################
@@ -79,6 +75,11 @@ if (DEFINED SNLS_DIR)
 else()
     # Use internal SNLS submodule if no SNLS_DIR is given
     set(SNLS_SOURCE_DIR "${PROJECT_SOURCE_DIR}/snls" CACHE PATH "")
+    if(ENABLE_CUDA OR ENABLE_HIP)
+        set(USE_BATCH_SOLVERS "ON" CACHE BOOL "")
+    else()
+        set(USE_RAJA_ONLY "ON" CACHE BOOL "")
+    endif()
     message(STATUS "Using submodule SNLS: ${SNLS_SOURCE_DIR}")
     if (NOT EXISTS ${SNLS_SOURCE_DIR}/CMakeLists.txt)
         message(FATAL_ERROR

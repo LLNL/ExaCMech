@@ -4,6 +4,7 @@
 #define ecmech_evptnWrap_include
 
 #include "ECMech_core.h"
+#include "SNLS_device_forall.h"
 #include "RAJA/RAJA.hpp"
 
 #if defined(__ecmech_host_only__)
@@ -301,7 +302,6 @@ namespace ecmech {
                   ECMECH_FAIL(__func__, "not complete");
                }
 
-               RAJA::RangeSegment default_range(0, nPassed);
                // All of the stride lengths are constant within this function
                const unsigned int def_rate_stride = m_strides[istride_def_rate];
                const unsigned int spin_v_stride = m_strides[istride_spin_v];
@@ -312,127 +312,38 @@ namespace ecmech {
                const unsigned int temp_k_stride = m_strides[istride_temp_k];
                const unsigned int sdd_stride = m_strides[istride_sdd];
 
-               switch (m_accel) {
-#if defined(RAJA_ENABLE_OPENMP)
-                  case ECM_EXEC_STRAT_OPENMP:
-                  {
-                     RAJA::ReduceSum<RAJA::omp_reduce_ordered, int> status_all(0);
-                     RAJA::forall<RAJA::omp_parallel_for_exec>(default_range, [ = ] (int i) {
-                        double *mtanSDThis       = ( mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr );
-                        const bool status = 
-                        getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
-                        (m_slipGeom, m_kinetics, m_elastN, m_eosModel,
-                        dt,
-                        m_tolerance,
-                        &defRateV[def_rate_stride * i],
-                        &spinV[spin_v_stride * i],
-                        &volRatioV[vol_ratio_stride * i],
-                        &internal_energyV[int_eng_stride * i],
-                        &cauchy_stress_dev6_pressureV[stress_stride * i],
-                        &histV[history_stride * i],
-                        temp_kV[temp_k_stride * i],
-                        &sddV[sdd_stride * i],
-                        mtanSDThis,
-                        m_outputLevel);
-
-                        status_all += (int) (!status);
-                        if (!status) {
-                         histV[history_stride * i + iHistA_nFEval] *= -1;
-                        }
-                     });
-
-                     if (status_all.get() > 0) {
-                        getResponseRetry(dt, defRateV, spinV, volRatioV, internal_energyV,
-                                         cauchy_stress_dev6_pressureV, histV, temp_kV, sddV, mtanSDV, nPassed);
-                     }
-
-                     break;
+               snls::forall(0, nPassed, [=,
+                  m_slipGeom=this->m_slipGeom, m_kinetics=this->m_kinetics,
+                  m_elastN=this->m_elastN, m_eosModel=this->m_eosModel,
+                  m_tolerance=this->m_tolerance, m_outputLevel=this->m_outputLevel]
+                  (int i)
+               {
+                  double *mtanSDThis = (mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr);
+                  const bool status =
+                  getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
+                  (m_slipGeom, m_kinetics, m_elastN, m_eosModel,
+                     dt,
+                     m_tolerance,
+                     &defRateV[def_rate_stride * i],
+                     &spinV[spin_v_stride * i],
+                     &volRatioV[vol_ratio_stride * i],
+                     &internal_energyV[int_eng_stride * i],
+                     &cauchy_stress_dev6_pressureV[stress_stride * i],
+                     &histV[history_stride * i],
+                     temp_kV[temp_k_stride * i],
+                     &sddV[sdd_stride * i],
+                     mtanSDThis,
+                     m_outputLevel);
+                  if (!status) {
+                     histV[history_stride * i + iHistA_nFEval] *= -1;
                   }
-#endif
-#if defined(RAJA_ENABLE_CUDA) || defined(RAJA_ENABLE_HIP)
-                  case ECM_EXEC_STRAT_GPU:
-                  {
-#if defined(RAJA_ENABLE_CUDA)
-                     using gpu_reduce = RAJA::cuda_reduce;
-                     using gpu_policy = RAJA::cuda_exec<RAJA_CUDA_THREADS>;
-#else
-                     using gpu_reduce = RAJA::hip_reduce;
-                     using gpu_policy = RAJA::hip_exec<RAJA_HIP_THREADS>;
-#endif
-                     RAJA::ReduceSum<gpu_reduce, int> status_all(0);
-                     RAJA::forall<gpu_policy>(default_range, [ =
-#if defined(ECMECH_NON_CORAL1_MACHINE)|| defined(RAJA_ENABLE_HIP)
-                      , m_slipGeom=this->m_slipGeom, m_kinetics=this->m_kinetics, m_elastN=this->m_elastN, m_eosModel=this->m_eosModel, m_tolerance=this->m_tolerance, m_outputLevel=this->m_outputLevel
-#endif
-                      ] RAJA_DEVICE(int i) {
-                        double *mtanSDThis = (mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr);
-                        const bool status =
-		                  getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
-                        (m_slipGeom, m_kinetics, m_elastN, m_eosModel,
-                           dt,
-                           m_tolerance,
-                           &defRateV[def_rate_stride * i],
-                           &spinV[spin_v_stride * i],
-                           &volRatioV[vol_ratio_stride * i],
-                           &internal_energyV[int_eng_stride * i],
-                           &cauchy_stress_dev6_pressureV[stress_stride * i],
-                           &histV[history_stride * i],
-                           temp_kV[temp_k_stride * i],
-                           &sddV[sdd_stride * i],
-                           mtanSDThis,
-                           m_outputLevel);
+               });
 
-                        status_all += (int) (!status);
-                        if (!status) {
-                           histV[history_stride * i + iHistA_nFEval] *= -1;
-                        }
-                     });
-
-                     if (status_all.get() > 0) {
-                        getResponseRetry(dt, defRateV, spinV, volRatioV, internal_energyV,
-                                         cauchy_stress_dev6_pressureV, histV, temp_kV, sddV, mtanSDV, nPassed);
-                     }
-
-                     break;
-                  }
-#endif
-                  case ECM_EXEC_STRAT_CPU:
-                  default: // fall through to CPU if other options are not available
-                  {
-                     RAJA::ReduceSum<RAJA::seq_reduce, int> status_all(0);
-                     RAJA::forall<RAJA::seq_exec>(default_range, [ = ] (int i) {
-                        double *mtanSDThis       = ( mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr );
-                        const bool status = 
-                        getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
-                           (m_slipGeom, m_kinetics, m_elastN, m_eosModel,
-                              dt,
-                              m_tolerance,
-                              &defRateV[def_rate_stride * i],
-                              &spinV[spin_v_stride * i],
-                              &volRatioV[vol_ratio_stride * i],
-                              &internal_energyV[int_eng_stride * i],
-                              &cauchy_stress_dev6_pressureV[stress_stride * i],
-                              &histV[history_stride * i],
-                              temp_kV[temp_k_stride * i],
-                              &sddV[sdd_stride * i],
-                              mtanSDThis,
-                              m_outputLevel);
-
-                        status_all += (int) (!status);
-                        if (!status) {
-                           histV[history_stride * i + iHistA_nFEval] *= -1;
-                        }
-                     });
-
-                     if (status_all.get() > 0) {
-                        getResponseRetry(dt, defRateV, spinV, volRatioV, internal_energyV,
-                                         cauchy_stress_dev6_pressureV, histV, temp_kV, sddV, mtanSDV, nPassed);
-                     }
-
-                     break;
-                  }
-               } // switch _accel
-            }; // End of getResponse
+               if (this->reduceStatus(histV, nPassed)) {
+                  getResponseRetry(dt, defRateV, spinV, volRatioV, internal_energyV,
+                                   cauchy_stress_dev6_pressureV, histV, temp_kV, sddV, mtanSDV, nPassed);
+               }
+            }// End of getResponse
 
             __ecmech_host__
             inline
@@ -454,7 +365,6 @@ namespace ecmech {
                   ECMECH_FAIL(__func__, "not complete");
                }
 
-               RAJA::RangeSegment default_range(0, nPassed);
                // All of the stride lengths are constant within this function
                const unsigned int def_rate_stride = m_strides[istride_def_rate];
                const unsigned int spin_v_stride = m_strides[istride_spin_v];
@@ -465,40 +375,57 @@ namespace ecmech {
                const unsigned int temp_k_stride = m_strides[istride_temp_k];
                const unsigned int sdd_stride = m_strides[istride_sdd];
 
+               snls::forall(0, nPassed, [=,
+                  m_slipGeom=this->m_slipGeom, m_kinetics=this->m_kinetics, m_elastN=this->m_elastN, m_eosModel=this->m_eosModel, m_tolerance=this->m_tolerance, m_outputLevel=this->m_outputLevel]
+                  (int i)
+               {
+                  // skip elements that were successful
+                  if (histV[history_stride * i + iHistA_nFEval] >= 0) return;
+
+                  double *mtanSDThis = (mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr);
+                  const bool status =
+                  getResponseNRSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
+                  (m_slipGeom, m_kinetics, m_elastN, m_eosModel,
+                     dt,
+                     m_tolerance,
+                     &defRateV[def_rate_stride * i],
+                     &spinV[spin_v_stride * i],
+                     &volRatioV[vol_ratio_stride * i],
+                     &internal_energyV[int_eng_stride * i],
+                     &cauchy_stress_dev6_pressureV[stress_stride * i],
+                     &histV[history_stride * i],
+                     temp_kV[temp_k_stride * i],
+                     &sddV[sdd_stride * i],
+                     mtanSDThis,
+                     m_outputLevel);
+                  if (!status) {
+                     histV[history_stride * i + iHistA_nFEval] *= -1;
+                  }
+               });
+
+               if (this->reduceStatus(histV, nPassed)) {
+                  ECMECH_FAIL(__func__, "Back-up solvers failed to converge for at least one point!");
+               }
+#else
+               ECMECH_FAIL(__func__, "Solver failed to converge for at least one point!");
+#endif
+            } // End of getResponseRetry
+
+            __ecmech_host__
+            bool reduceStatus(const double* const histV,
+                              const int& nPassed) const
+            {
+               RAJA::RangeSegment default_range(0, nPassed);
+               const unsigned int history_stride = m_strides[istride_history];
                switch (m_accel) {
 #if defined(RAJA_ENABLE_OPENMP)
                   case ECM_EXEC_STRAT_OPENMP:
                   {
-                     RAJA::ReduceSum<RAJA::omp_reduce_ordered, int> status_all(0);
+                     RAJA::ReduceBitOr<RAJA::omp_reduce_ordered, bool> status_all(false);
                      RAJA::forall<RAJA::omp_parallel_for_exec>(default_range, [ = ] (int i) {
-                        if (histV[history_stride * i + iHistA_nFEval] < 0) { // skip elements that were successful
-                        double *mtanSDThis       = ( mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr );
-                        bool status = getResponseNRSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
-                           (m_slipGeom, m_kinetics, m_elastN, m_eosModel,
-                           dt,
-                           m_tolerance,
-                           &defRateV[def_rate_stride * i],
-                           &spinV[spin_v_stride * i],
-                           &volRatioV[vol_ratio_stride * i],
-                           &internal_energyV[int_eng_stride * i],
-                           &cauchy_stress_dev6_pressureV[stress_stride * i],
-                           &histV[history_stride * i],
-                           temp_kV[temp_k_stride * i],
-                           &sddV[sdd_stride * i],
-                           mtanSDThis,
-                           m_outputLevel);
-
-                        status_all += (int) (!status);
-                        if (!status) {
-                           histV[history_stride * i + iHistA_nFEval] *= -1;
-                        }
-                        }
+                        status_all |= (histV[history_stride * i + iHistA_nFEval] < 0);
                      });
-
-                     if (status_all.get() > 0) {
-                         ECMECH_FAIL(__func__, "Back-up solvers failed to converge for at least one point!");
-                     }
-
+                     return status_all.get();
                      break;
                   }
 #endif
@@ -512,84 +439,26 @@ namespace ecmech {
                      using gpu_reduce = RAJA::hip_reduce;
                      using gpu_policy = RAJA::hip_exec<RAJA_HIP_THREADS>;
 #endif
-                     RAJA::ReduceSum<gpu_reduce, int> status_all(0);
-                     RAJA::forall<gpu_policy>(default_range, [ =
-#if defined(ECMECH_NON_CORAL1_MACHINE)|| defined(RAJA_ENABLE_HIP)
-                      , m_slipGeom=this->m_slipGeom, m_kinetics=this->m_kinetics, m_elastN=this->m_elastN, m_eosModel=this->m_eosModel, m_tolerance=this->m_tolerance, m_outputLevel=this->m_outputLevel
-#endif
-                      ] RAJA_DEVICE(int i) {
-                        if (histV[history_stride * i + iHistA_nFEval] < 0) { // skip elements that were successful
-                        double *mtanSDThis = (mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr);
-                        bool status = getResponseNRSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
-                           (m_slipGeom, m_kinetics, m_elastN, m_eosModel,
-                           dt,
-                           m_tolerance,
-                           &defRateV[def_rate_stride * i],
-                           &spinV[spin_v_stride * i],
-                           &volRatioV[vol_ratio_stride * i],
-                           &internal_energyV[int_eng_stride * i],
-                           &cauchy_stress_dev6_pressureV[stress_stride * i],
-                           &histV[history_stride * i],
-                           temp_kV[temp_k_stride * i],
-                           &sddV[sdd_stride * i],
-                           mtanSDThis,
-                           m_outputLevel);
-
-                        status_all += (int) (!status);
-                        if (!status) {
-                           histV[history_stride * i + iHistA_nFEval] *= -1;
-                        }
-                        }
+                     RAJA::ReduceBitOr<gpu_reduce, bool> status_all(bool);
+                     RAJA::forall<gpu_policy>(default_range, [=] RAJA_DEVICE(int i) {
+                        status_all |= (histV[history_stride * i + iHistA_nFEval] < 0);
                      });
-
-                     if (status_all.get() > 0) {
-                         ECMECH_FAIL(__func__, "Back-up solvers failed to converge for at least one point!");
-                     }
-
+                     return status_all.get();
                      break;
                   }
 #endif
                   case ECM_EXEC_STRAT_CPU:
                   default: // fall through to CPU if other options are not available
                   {
-                     RAJA::ReduceSum<RAJA::seq_reduce, int> status_all(0);
+                     RAJA::ReduceBitOr<RAJA::seq_reduce, bool> status_all(0);
                      RAJA::forall<RAJA::seq_exec>(default_range, [ = ] (int i) {
-                        if (histV[history_stride * i + iHistA_nFEval] < 0) { // skip elements that were successful
-                        double *mtanSDThis       = ( mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr );
-                        bool status = getResponseNRSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
-                           (m_slipGeom, m_kinetics, m_elastN, m_eosModel,
-                           dt,
-                           m_tolerance,
-                           &defRateV[def_rate_stride * i],
-                           &spinV[spin_v_stride * i],
-                           &volRatioV[vol_ratio_stride * i],
-                           &internal_energyV[int_eng_stride * i],
-                           &cauchy_stress_dev6_pressureV[stress_stride * i],
-                           &histV[history_stride * i],
-                           temp_kV[temp_k_stride * i],
-                           &sddV[sdd_stride * i],
-                           mtanSDThis,
-                           m_outputLevel);
-
-                        status_all += (int) (!status);
-                        if (!status) {
-                           histV[history_stride * i + iHistA_nFEval] *= -1;
-                        }
-
-                        }
+                        status_all |= (histV[history_stride * i + iHistA_nFEval] < 0);
                      });
-
-                     if (status_all.get() > 0) {
-                         ECMECH_FAIL(__func__, "Back-up solvers failed to converge for at least one point!");
-                     }
-
+                     return status_all.get();
                      break;
                   }
                } // switch _accel
-#else
-               ECMECH_FAIL(__func__, "Solver failed to converge for at least one point!");
-#endif
-            } // End of getResponseRetry
+            }
 
             using matModelBase::getHistInfo;
             __ecmech_host__
@@ -617,6 +486,59 @@ namespace ecmech {
                m_bulkRef = m_eosModel.getBulkRef();
                m_complete = true;
             };
+
+            /**
+             *  @brief
+             *  Set the accelerator to be used for getResponse.
+             */
+            __ecmech_host__
+            void setExecutionStrategy(ecmech::ExecutionStrategy accel) override final  {
+               switch (accel) {
+#ifdef __ecmech_gpu_active__
+                  case (ecmech::ExecutionStrategy::GPU): {
+                     m_accel = ecmech::ExecutionStrategy::GPU;
+                     break;
+                  }
+#endif
+#if defined(RAJA_ENABLE_OPENMP) && defined(OPENMP_ENABLE)
+                  case (mslib::ExecutionStrategy::OPENMP): {
+                     m_accel = ecmech::ExecutionStrategy::OPENMP;
+                     break;
+                  }
+#endif
+                  case (ecmech::ExecutionStrategy::CPU):
+                  default: {
+                     m_accel = ecmech::ExecutionStrategy::CPU;
+                     break;
+                  }
+               }
+               this->setSNLSExecutionStrategy(m_accel);
+            }
+
+            __ecmech_host__
+            void setSNLSExecutionStrategy(ecmech::ExecutionStrategy accel) const
+            {
+               snls::Device &device = snls::Device::GetInstance();
+               switch (accel) {
+#ifdef __ecmech_gpu_active__
+                  case (ecmech::ExecutionStrategy::GPU): {
+                     device.SetBackend(snls::ExecutionStrategy::GPU);
+                     break;
+                  }
+#endif
+#if defined(RAJA_ENABLE_OPENMP) && defined(OPENMP_ENABLE)
+                  case (ecmech::ExecutionStrategy::OPENMP): {
+                     device.SetBackend(snls::ExecutionStrategy::OPENMP);
+                     break;
+                  }
+#endif
+                  case (ecmech::ExecutionStrategy::CPU):
+                  default: {
+                     device.SetBackend(snls::ExecutionStrategy::CPU);
+                     break;
+                  }
+               }
+            }
 
             // Constant getter functions to return the underlying templated classes.
             // Uses for these could be for example to compute the sample D^p tensor
