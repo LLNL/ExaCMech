@@ -254,6 +254,12 @@ namespace ecmech {
                   ECMECH_FAIL(__func__, "wrong number of strs");
                }
 
+               // Want to make sure we free up any old memory before setting parameters just in-case we had a model around already...
+               m_slipGeom.free();
+               m_kinetics.free();
+               m_eosModel.free();
+               m_elastN.free();
+
                std::vector<double>::const_iterator parsIt = pars.begin();
 
                m_density0 = *parsIt; ++parsIt;
