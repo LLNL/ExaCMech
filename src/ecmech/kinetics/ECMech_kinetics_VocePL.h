@@ -22,7 +22,7 @@ namespace ecmech {
          static constexpr int nEvolVals = 2;
          // constructor
          __ecmech_hdev__
-         KineticsVocePL(int _nslip) : nslip(_nslip) {};
+         KineticsVocePL(int _nslip) : nslip(_nslip) {}
 
          // constructor
          __ecmech_hdev__
@@ -30,7 +30,7 @@ namespace ecmech {
          nslip(_nslip)
          {
             setParams(params);
-         };
+         }
 
 
          // deconstructor

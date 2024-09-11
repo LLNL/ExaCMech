@@ -123,7 +123,7 @@ namespace evptn {
         m_inv_det_vol(1.0 / m_det_vol),
         m_a_vol(pow(m_det_vol, onethird)),
         m_inv_a_vol(1.0 / m_a_vol)
-        {};
+        {}
 
         ~EvptnLatticeStrainProblem() = default;
 
@@ -302,7 +302,7 @@ namespace evptn {
         __ecmech_hdev__
         EvptnLatticeRotationProblem(const double dt,
                                 const double* const xtal_ori_quat_n)
-        : m_dt(dt), m_xtal_ori_quat_n(xtal_ori_quat_n) {};
+        : m_dt(dt), m_xtal_ori_quat_n(xtal_ori_quat_n) {}
         
         ~EvptnLatticeRotationProblem() = default;
 

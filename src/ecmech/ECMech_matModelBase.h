@@ -36,12 +36,12 @@ namespace ecmech {
             m_bulkRef(-1.0),
             m_outputLevel(0),
             m_accel(ECM_EXEC_STRAT_CPU)
-         {};
+         {}
 
       public:
          // deconstructor
          __ecmech_host__
-         virtual ~matModelBase() {};
+         virtual ~matModelBase() {}
 
          __ecmech_host__
          virtual void initFromParams(const std::vector<int>& opts,
@@ -67,7 +67,7 @@ namespace ecmech {
             DUMPVECOSS("  opts", opts);
             DUMPVECOSS("  pars", pars);
             DUMPVECOSS("  strs", strs);
-         };
+         }
 
          /**
           * @brief Request response information for a group of host-code
@@ -201,7 +201,7 @@ namespace ecmech {
          __ecmech_host__
          virtual void setExecutionStrategy(ecmech::ExecutionStrategy accel)  {
             m_accel = accel;
-         };
+         }
 
          /**
           * @brief Get the reference density
@@ -212,10 +212,10 @@ namespace ecmech {
                ECMECH_FAIL(__func__, "density0 does not appear to have been set");
             }
             return m_density0;
-         };
+         }
 
          __ecmech_host__
-         void setOutputLevel(int outputLevel) { m_outputLevel = outputLevel; };
+         void setOutputLevel(int outputLevel) { m_outputLevel = outputLevel; }
 
 
          /**
@@ -223,14 +223,14 @@ namespace ecmech {
           * May end up requiring this to be called before the model may be used; and probably want to redefine this
           */
          __ecmech_host__
-         virtual void complete() { m_complete = true; };
+         virtual void complete() { m_complete = true; }
 
          /**
           * @brief
           * Return whether or not complete has been called
           */
          __ecmech_host__
-         virtual bool isComplete() { return m_complete; };
+         virtual bool isComplete() { return m_complete; }
    }; // class matModelBase
 } // ecmech namespace
 

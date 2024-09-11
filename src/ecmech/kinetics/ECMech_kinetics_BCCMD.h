@@ -52,7 +52,7 @@ namespace ecmech {
 
          // Generally  don't using anything other than the default here
          __ecmech_hdev__
-         KineticsBCCMD(int) {};
+         KineticsBCCMD(int) {}
          // deconstructor
          ~KineticsBCCMD() = default;
 
@@ -60,7 +60,7 @@ namespace ecmech {
          KineticsBCCMD(const double* const params, int)
          {
             setParams(params);
-         };
+         }
 
          /// In ExaCMech each class will be handed the parameters that they said they needed
          /// It is up to the modeller to iterate through this vector and  pull out the parameters

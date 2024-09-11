@@ -52,10 +52,10 @@ namespace ecmech {
          static constexpr int nslip = Nslip;
          virtual ~SlipGeom(){}
           
-         __ecmech_hdev__ inline const double* getP() const { return m_P_ref_vec; };
-         __ecmech_hdev__ inline const double* getQ() const { return m_Q_ref_vec; };
-         __ecmech_hdev__ inline const double* getM() const { return m_m_ref_vec; };
-         __ecmech_hdev__ inline const double* getS() const { return m_s_ref_vec; };
+         __ecmech_hdev__ inline const double* getP() const { return m_P_ref_vec; }
+         __ecmech_hdev__ inline const double* getQ() const { return m_Q_ref_vec; }
+         __ecmech_hdev__ inline const double* getM() const { return m_m_ref_vec; }
+         __ecmech_hdev__ inline const double* getS() const { return m_s_ref_vec; }
          
          __ecmech_hdev__ inline virtual void getPQ(double* /* chia */, 
                                                    double* P_vec, 
@@ -68,7 +68,7 @@ namespace ecmech {
              for (int iWvec = 0; iWvec < ecmech::nwvec * nslip; ++iWvec) {
                  Q_vec[iWvec] = m_Q_ref_vec[iWvec];
              }
-         };
+         }
          
          __ecmech_hdev__ inline virtual void evalRSS(double* taua, 
                                                      const double* const kirchoff, 
@@ -95,7 +95,7 @@ namespace ecmech {
          // constructor and destructor
          SlipGeomFCC() = default;
          __ecmech_hdev__
-         ~SlipGeomFCC() {};
+         ~SlipGeomFCC() {}
 
          __ecmech_hdev__
          SlipGeomFCC(const double* const params) {
@@ -190,9 +190,9 @@ namespace ecmech {
          __ecmech_hdev__
          SlipGeomBCC() {
             assert(nslip == nslipBase || nslip == nslipPGa || nslip == nslipPGb);
-         };
+         }
          __ecmech_hdev__
-         ~SlipGeomBCC() {};
+         ~SlipGeomBCC() {}
 
          __ecmech_hdev__
          SlipGeomBCC(const double* const params) {
@@ -400,7 +400,7 @@ namespace ecmech {
          // constructor and destructor
          SlipGeomHCPaBRYcaY1() = default;
          __ecmech_hdev__
-         ~SlipGeomHCPaBRYcaY1() {};
+         ~SlipGeomHCPaBRYcaY1() {}
 
          __ecmech_hdev__
          SlipGeomHCPaBRYcaY1(const double* const params) {
@@ -520,7 +520,7 @@ namespace ecmech {
                ECMECH_FAIL(__func__, "iParam != nParams");
             }
 #endif
-         };
+         }
 
          __ecmech_host__
          void getParams(std::vector<double> & params
@@ -551,7 +551,7 @@ namespace ecmech {
          // constructor and destructor
          SlipGeomBCCPencil() = default;
          __ecmech_hdev__
-         ~SlipGeomBCCPencil() {};
+         ~SlipGeomBCCPencil() {}
 
          __ecmech_hdev__
          SlipGeomBCCPencil(const double* const params) {
@@ -665,7 +665,7 @@ namespace ecmech {
              }
              
              fillFromMS(P_vec, Q_vec, mVecs, m_s_ref_vec, nslip);
-         };
+         }
 
    }; // SlipGeomBCCPencil
    
@@ -679,7 +679,7 @@ namespace ecmech {
          // constructor and destructor
          SlipGeomBCCNonSchmid() = default;
          __ecmech_hdev__
-         ~SlipGeomBCCNonSchmid() {};
+         ~SlipGeomBCCNonSchmid() {}
 
          __ecmech_hdev__
          SlipGeomBCCNonSchmid(const double* const params) {

@@ -62,7 +62,7 @@ namespace ecmech {
             else {
                assert(nVPer == 1);
             }
-         };
+         }
          // deconstructor
          ~KineticsOrowanD() = default;
 
@@ -79,7 +79,7 @@ namespace ecmech {
                assert(nVPer == 1);
             }
             setParams(params);
-         };
+         }
 
          __ecmech_host__
          inline void setParams(const std::vector<double> & params)
@@ -226,7 +226,7 @@ namespace ecmech {
                ECMECH_FAIL(__func__, "iParam != nParams");
             }
 #endif
-         };
+         }
 
          __ecmech_host__
          void getParams(std::vector<double> & params
@@ -285,7 +285,7 @@ namespace ecmech {
 #ifdef ECMECH_DEBUG
             assert((params.size() - paramsStart) == nParams);
 #endif
-         };
+         }
 
          __ecmech_host__
          void getHistInfo(std::vector<std::string> & names,

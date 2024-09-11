@@ -30,7 +30,7 @@ namespace ecmech {
          inline
          void setParams(const std::vector<double>& params) {
             setParams(params.data());
-         };
+         }
 
          __ecmech_hdev__
          inline
@@ -53,7 +53,7 @@ namespace ecmech {
                ECMECH_FAIL(__func__, "iParam != nParams");
             }
 #endif
-         };
+         }
 
          __ecmech_host__
          inline
@@ -76,7 +76,7 @@ namespace ecmech {
             if (iParam != nParams) {
                ECMECH_FAIL(__func__, "iParam != nParams");
             }
-         };
+         }
 
          __ecmech_hdev__
          inline void evalPT(double &pressure,

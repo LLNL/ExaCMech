@@ -18,7 +18,7 @@ namespace evptn {
 
         // constructor and destructor
         __ecmech_hdev__
-        inline ThermoElastNCubic() : m_bulk_modulus(-1.0), m_shear_modulus(-1.0) {};
+        inline ThermoElastNCubic() : m_bulk_modulus(-1.0), m_shear_modulus(-1.0) {}
 
         ~ThermoElastNCubic() = default;
 
@@ -217,7 +217,7 @@ namespace evptn {
 
         // constructor and destructor
         __ecmech_hdev__
-        inline ThermoElastNHexag() : m_bulk_modulus(-1.0), m_shear_modulus(-1.0) {};
+        inline ThermoElastNHexag() : m_bulk_modulus(-1.0), m_shear_modulus(-1.0) {}
 
         ~ThermoElastNHexag() = default;
 

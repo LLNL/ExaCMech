@@ -120,7 +120,7 @@ namespace ecmech {
                m_strides[istride_history] = NumHist<SlipGeom, Kinetics, ThermoElastN, EosModel>::numHist;
                m_strides[istride_temp_k] = 1;
                m_strides[istride_sdd ] = ecmech::nsdd;
-            };
+            }
 
             // constructor
             __ecmech_host__
@@ -218,7 +218,7 @@ namespace ecmech {
                for (unsigned int i = 0; i < stride_len; i++) {
                   m_strides[i] = strides[i];
                }
-            };
+            }
 
             // deconstructor
             __ecmech_host__
@@ -357,7 +357,7 @@ namespace ecmech {
                   ECMECH_FAIL(__func__, "mismatch in numHist");
                }
 #endif
-            };
+            }
 
             using matModelBase::getParams;
             __ecmech_host__
@@ -368,7 +368,7 @@ namespace ecmech {
                opts = m_opts;
                pars = m_pars;
                strs = m_strs;
-            };
+            }
 
             using matModelBase::getResponseECM;
             __ecmech_host__
@@ -567,19 +567,19 @@ namespace ecmech {
                vals.resize(numHist); std::copy(m_rhvVals.begin(), m_rhvVals.end(), vals.begin() );
                plot.resize(numHist); std::copy(m_rhvPlot.begin(), m_rhvPlot.end(), plot.begin() );
                state.resize(numHist); std::copy(m_rhvState.begin(), m_rhvState.end(), state.begin() );
-            };
+            }
 
             __ecmech_host__
             int getNumHist( ) const override final {
                return numHist;
-            };
+            }
 
             __ecmech_host__
             void complete( ) override final
             {
                m_bulkRef = (*m_eosModel).getBulkRef();
                m_complete = true;
-            };
+            }
 
             /**
              *  @brief
