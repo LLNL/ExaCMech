@@ -19,20 +19,35 @@ namespace evptn {
         // constructor and destructor
         __ecmech_hdev__
         inline ThermoElastNCubic() : m_bulk_modulus(-1.0), m_shear_modulus(-1.0) {};
-        __ecmech_hdev__
-        inline ~ThermoElastNCubic() {};
+
+        ~ThermoElastNCubic() = default;
+
+         __ecmech_hdev__
+         ThermoElastNCubic(const double* const params) {
+            setParams(params);
+         }
 
         __ecmech_host__
-        inline void setParams(const std::vector<double> & params // const double* const params
-                                ) {
-            std::vector<double>::const_iterator parsIt = params.begin();
+        inline void setParams(const std::vector<double> & params) {
+            setParams(params.data());
+        }
+
+
+         __ecmech_hdev__
+         inline
+         void setParams(const double* const params) {
+            const double* parsIt = params;
 
             m_c11 = *parsIt; ++parsIt;
             m_c12 = *parsIt; ++parsIt;
             m_c44 = *parsIt; ++parsIt;
             //
-            assert((parsIt - params.begin()) == nParams);
-
+#if defined(ECMECH_DEBUG)
+            int iParam = parsIt - params;
+            if (iParam != nParams) {
+               ECMECH_FAIL(__func__, "iParam != nParams");
+            }
+#endif
             m_K_diag[0] = m_c11 - m_c12;
             m_K_diag[1] = m_c11 - m_c12;
             m_K_diag[2] = two * m_c44;
@@ -203,13 +218,24 @@ namespace evptn {
         // constructor and destructor
         __ecmech_hdev__
         inline ThermoElastNHexag() : m_bulk_modulus(-1.0), m_shear_modulus(-1.0) {};
-        __ecmech_hdev__
-        inline ~ThermoElastNHexag() {};
+
+        ~ThermoElastNHexag() = default;
+
+         __ecmech_hdev__
+         ThermoElastNHexag(const double* const params) {
+            setParams(params);
+         }
 
         __ecmech_host__
-        inline void setParams(const std::vector<double> & params // const double* const params
-                                ) {
-            std::vector<double>::const_iterator parsIt = params.begin();
+        inline void setParams(const std::vector<double> & params) {
+            setParams(params.data());
+        }
+
+
+         __ecmech_hdev__
+         inline
+         void setParams(const double* const params) {
+            const double* parsIt = params;
 
             m_c11 = *parsIt; ++parsIt;
             m_c12 = *parsIt; ++parsIt;
@@ -219,8 +245,12 @@ namespace evptn {
             //
             m_g_vecd2 = *parsIt; ++parsIt;
             //
-            assert((parsIt - params.begin()) == nParams);
-
+#if defined(ECMECH_DEBUG)
+            int iParam = parsIt - params;
+            if (iParam != nParams) {
+               ECMECH_FAIL(__func__, "iParam != nParams");
+            }
+#endif
             m_K_diag[0] = m_c11 - m_c12;
             m_K_diag[1] = m_c11 * onethird + m_c12 * onethird - fourthirds * m_c13 + twothird * m_c33;
             m_K_diag[2] = m_c11 - m_c12;

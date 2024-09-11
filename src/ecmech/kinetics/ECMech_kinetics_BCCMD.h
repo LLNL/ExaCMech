@@ -54,8 +54,13 @@ namespace ecmech {
          __ecmech_hdev__
          KineticsBCCMD(int) {};
          // deconstructor
+         ~KineticsBCCMD() = default;
+
          __ecmech_hdev__
-         ~KineticsBCCMD() {}
+         KineticsBCCMD(const double* const params, int)
+         {
+            setParams(params);
+         };
 
          /// In ExaCMech each class will be handed the parameters that they said they needed
          /// It is up to the modeller to iterate through this vector and  pull out the parameters
@@ -63,9 +68,15 @@ namespace ecmech {
          /// Additionally, modellers could also generate other parameters based on the inputted ones
          /// that the model will use later on.
          __ecmech_host__
-         inline void setParams(const std::vector<double> & params // const double* const params
-                               ) {
-            std::vector<double>::const_iterator parsIt = params.begin();
+         inline void setParams(const std::vector<double> & params)
+         {
+            setParams(params.data());
+         }
+
+         __ecmech_hdev__
+         inline
+         void setParams(const double* const params) {
+            const double* parsIt = params;
 
             //////////////////////////////
             // power-law stuff
@@ -123,7 +134,12 @@ namespace ecmech {
 
             //////////////////////////////
 
-            assert((parsIt - params.begin()) == nParams);
+#if defined(ECMECH_DEBUG)
+            int iParam = parsIt - params;
+            if (iParam != nParams) {
+               ECMECH_FAIL(__func__, "iParam != nParams");
+            }
+#endif
          }
 
          /// Here you'll just return all the parameters that were provided to you

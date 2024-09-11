@@ -57,13 +57,32 @@ namespace ecmech {
             }
          };
          // deconstructor
+         ~KineticsKMBalD() = default;
+
+         // constructor
          __ecmech_hdev__
-         ~KineticsKMBalD() {}
+         KineticsKMBalD(const double* const params, int _nslip) :
+         nslip(_nslip)
+         {
+            if (perSS) {
+               assert(nslip == nVPer);
+            }
+            else {
+               assert(nVPer == 1);
+            }
+            setParams(params);
+         };
 
          __ecmech_host__
-         void setParams(const std::vector<double> & params // const double* const params
-                        ) {
-            std::vector<double>::const_iterator parsIt = params.begin();
+         inline void setParams(const std::vector<double> & params)
+         {
+            setParams(params.data());
+         }
+
+         __ecmech_hdev__
+         inline
+         void setParams(const double* const params) {
+            const double* parsIt = params;
 
             //////////////////////////////
             // power-law stuff
@@ -129,7 +148,12 @@ namespace ecmech {
 
             //////////////////////////////
 
-            assert((parsIt - params.begin()) == nParams);
+#if defined(ECMECH_DEBUG)
+            int iParam = parsIt - params;
+            if (iParam != nParams) {
+               ECMECH_FAIL(__func__, "iParam != nParams");
+            }
+#endif
          };
 
          __ecmech_host__

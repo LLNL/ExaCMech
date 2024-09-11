@@ -50,6 +50,7 @@ namespace ecmech {
    class SlipGeom {
       public:
          static constexpr int nslip = Nslip;
+         virtual ~SlipGeom(){}
           
          __ecmech_hdev__ inline const double* getP() const { return m_P_ref_vec; };
          __ecmech_hdev__ inline const double* getQ() const { return m_Q_ref_vec; };
@@ -92,23 +93,34 @@ namespace ecmech {
          static constexpr int nParams = 0;
 
          // constructor and destructor
-         __ecmech_hdev__  SlipGeomFCC() {};
-         __ecmech_hdev__ ~SlipGeomFCC() {};
+         SlipGeomFCC() = default;
+         __ecmech_hdev__
+         ~SlipGeomFCC() {};
+
+         __ecmech_hdev__
+         SlipGeomFCC(const double* const params) {
+            setParams(params);
+         }
 
          __ecmech_host__
-         void setParams(const std::vector<double> & /* params */
+         void setParams(const std::vector<double> & params
                         )
          {
+            setParams(params.data());
+         }
 
+         __ecmech_hdev__
+         void setParams(const double* const)
+         {
             // m = (/ sqr3i, sqr3i, sqr3i /)
             // s = (/ zero, sqr2i, -sqr2i /)
             //
             // do not yet bother with making slip systems from symmetry group -- just write them out
-         const double P3 = sqr3i, M3 = -sqr3i;
-         const double P2 = sqr2i, M2 = -sqr2i;
-         const double Z = zero;
-         //#Slip plane normal CUB111
-         const double mVecs[ nslip * ecmech::ndim ] = {
+            const double P3 = sqr3i, M3 = -sqr3i;
+            const double P2 = sqr2i, M2 = -sqr2i;
+            const double Z = zero;
+            //#Slip plane normal CUB111
+            const double mVecs[ nslip * ecmech::ndim ] = {
                P3, P3, P3,
                P3, P3, P3,
                P3, P3, P3,
@@ -122,7 +134,7 @@ namespace ecmech {
                P3, M3, M3,
                P3, M3, M3};
             //#Slip direction CUB110
-         const double sVecs[ nslip * ecmech::ndim ] = {
+            const double sVecs[ nslip * ecmech::ndim ] = {
                Z,  P2, M2,
                P2, Z,  M2,
                P2, M2, Z,
@@ -137,15 +149,13 @@ namespace ecmech {
                P2, P2, Z};
 
             fillFromMS(this->m_P_ref_vec, this->m_Q_ref_vec,
-                       mVecs, sVecs, this->nslip);
+                        mVecs, sVecs, this->nslip);
 
             for (int i = 0; i < nslip * ecmech::ndim; i++) {
                m_s_ref_vec[i] = sVecs[i];
                m_m_ref_vec[i] = mVecs[i];
             }
-
-            // assert((parsIt - params.begin()) == nParams);
-         };
+         }
 
          __ecmech_host__
          void getParams(std::vector<double> & /* params */
@@ -177,18 +187,36 @@ namespace ecmech {
          static constexpr int nslipPGb = nslipAddBase + nslipAddPGa + nslipAddPGb;
 
          // constructor and destructor
-         __ecmech_hdev__  SlipGeomBCC() {
+         __ecmech_hdev__
+         SlipGeomBCC() {
             assert(nslip == nslipBase || nslip == nslipPGa || nslip == nslipPGb);
          };
-         __ecmech_hdev__ ~SlipGeomBCC() {};
+         __ecmech_hdev__
+         ~SlipGeomBCC() {};
+
+         __ecmech_hdev__
+         SlipGeomBCC(const double* const params) {
+            setParams(params);
+         }
 
          __ecmech_host__
-         void setParams(const std::vector<double> & /* params */
-                        )
+         void setParams(const std::vector<double> & params)
          {
+            setParams(params.data());
+         }
 
-            std::vector<double> mVecs;
-            std::vector<double> sVecs;
+         __ecmech_hdev__
+         void setParams(const double* const)
+         {
+            double mVecs[nslipPGb * ecmech::ndim] = {};
+            double sVecs[nslipPGb * ecmech::ndim] = {};
+
+            auto add_vec_data = [=] (const double* const array_src, double* const array_dst, const size_t length) {
+               for(size_t ivec = 0; ivec < length; ivec++)
+               {
+                  array_dst[ivec] = array_src[ivec];
+               }
+            };
 
             {
                // m = (/ zero, sqr2i, -sqr2i /)
@@ -228,8 +256,8 @@ namespace ecmech {
                      P2, Z,  P2,
                      P2, P2, Z};
 
-               mVecs.insert(mVecs.end(), &(mVecsThese[0]), &(mVecsThese[nslipThese * ecmech::ndim]));
-               sVecs.insert(sVecs.end(), &(sVecsThese[0]), &(sVecsThese[nslipThese * ecmech::ndim]));
+               add_vec_data(mVecsThese, mVecs, nslipThese * ecmech::ndim);
+               add_vec_data(sVecsThese, sVecs, nslipThese * ecmech::ndim);
             }
 
             if (nslip >= nslipPGa) {
@@ -266,8 +294,8 @@ namespace ecmech {
                   sqr3i, -sqr3i, sqr3i,
                   sqr3i, -sqr3i, sqr3i,
                };
-               mVecs.insert(mVecs.end(), &(mVecsThese[0]), &(mVecsThese[nslipThese * ecmech::ndim]));
-               sVecs.insert(sVecs.end(), &(sVecsThese[0]), &(sVecsThese[nslipThese * ecmech::ndim]));
+               add_vec_data(mVecsThese, &mVecs[nslipAddBase], nslipThese * ecmech::ndim);
+               add_vec_data(sVecsThese, &sVecs[nslipAddBase], nslipThese * ecmech::ndim);
             }
 
             if (nslip >= nslipPGb) {
@@ -330,20 +358,17 @@ namespace ecmech {
                   sqr3i, -sqr3i, -sqr3i,
                   sqr3i, -sqr3i, -sqr3i,
                };
-               mVecs.insert(mVecs.end(), &(mVecsThese[0]), &(mVecsThese[nslipThese * ecmech::ndim]));
-               sVecs.insert(sVecs.end(), &(sVecsThese[0]), &(sVecsThese[nslipThese * ecmech::ndim]));
+               add_vec_data(mVecsThese, &mVecs[nslipAddPGa], nslipThese * ecmech::ndim);
+               add_vec_data(sVecsThese, &sVecs[nslipAddPGa], nslipThese * ecmech::ndim);
             }
 
-            fillFromMS(this->m_P_ref_vec, this->m_Q_ref_vec,
-                       &(mVecs[0]), &(sVecs[0]), this->nslip);
+            fillFromMS(this->m_P_ref_vec, this->m_Q_ref_vec, mVecs, sVecs, this->nslip);
 
             for (int i = 0; i < nslip * ecmech::ndim; i++) {
-               this->m_s_ref_vec[i] = sVecs.at(i);
-               this->m_m_ref_vec[i] = mVecs.at(i);
+               this->m_s_ref_vec[i] = sVecs[i];
+               this->m_m_ref_vec[i] = mVecs[i];
             }
-
-            // assert((parsIt - params.begin()) == nParams);
-         };
+         }
 
          __ecmech_host__
          void getParams(std::vector<double> & /* params */
@@ -373,14 +398,25 @@ namespace ecmech {
          static constexpr int nParams = 1;
 
          // constructor and destructor
-         __ecmech_hdev__  SlipGeomHCPaBRYcaY1() {};
-         __ecmech_hdev__ ~SlipGeomHCPaBRYcaY1() {};
+         SlipGeomHCPaBRYcaY1() = default;
+         __ecmech_hdev__
+         ~SlipGeomHCPaBRYcaY1() {};
+
+         __ecmech_hdev__
+         SlipGeomHCPaBRYcaY1(const double* const params) {
+            setParams(params);
+         }
 
          __ecmech_host__
-         void setParams(const std::vector<double> & params
-                        )
+         void setParams(const std::vector<double> & params)
          {
-            std::vector<double>::const_iterator parsIt = params.begin();
+            setParams(params.data());
+         }
+
+         __ecmech_hdev__
+         void setParams(const double* const params)
+         {
+            const double* parsIt = params;
 
             m_cOverA = *parsIt; ++parsIt;
 
@@ -478,7 +514,12 @@ namespace ecmech {
                m_m_ref_vec[i] = mVecs[i];
             }
 
-            assert((parsIt - params.begin()) == nParams);
+#if defined(ECMECH_DEBUG)
+            int iParam = parsIt - params;
+            if (iParam != nParams) {
+               ECMECH_FAIL(__func__, "iParam != nParams");
+            }
+#endif
          };
 
          __ecmech_host__
@@ -488,9 +529,7 @@ namespace ecmech {
             // do not clear params in case adding to an existing set
             int paramsStart = params.size();
 #endif
-
             params.push_back(m_cOverA);
-
 #ifdef ECMECH_DEBUG
             assert((params.size() - paramsStart) == nParams);
 #endif
@@ -510,26 +549,37 @@ namespace ecmech {
          static constexpr int nParams = 0;
 
          // constructor and destructor
-         __ecmech_hdev__  SlipGeomBCCPencil() {};
-         __ecmech_hdev__ ~SlipGeomBCCPencil() {};
+         SlipGeomBCCPencil() = default;
+         __ecmech_hdev__
+         ~SlipGeomBCCPencil() {};
+
+         __ecmech_hdev__
+         SlipGeomBCCPencil(const double* const params) {
+            setParams(params);
+         }
 
          __ecmech_host__
-         void setParams(const std::vector<double> & /* params */
-                        )
+         void setParams(const std::vector<double> & params)
+         {
+            setParams(params.data());
+         }
+
+         __ecmech_hdev__
+         void setParams(const double* const)
          {
             // s = (/ sqr3i, sqr3i, sqr3i /)
             //
-         const double P3 = sqr3i, M3 = -sqr3i;
-         const double P2 = sqr2i, M2 = -sqr2i;
-         const double Z = zero;
+            const double P3 = sqr3i, M3 = -sqr3i;
+            const double P2 = sqr2i, M2 = -sqr2i;
+            const double Z = zero;
          
-         const double sVecs[ nslip * ecmech::ndim ] = {
+            const double sVecs[ nslip * ecmech::ndim ] = {
                P3, P3, P3,
                M3, P3, P3,
                P3, M3, P3,
                P3, P3, M3};
                
-         const double mVecs[ nslip * ecmech::ndim ] = {
+            const double mVecs[ nslip * ecmech::ndim ] = {
                Z, M2, P2,
                Z, M2, P2,
                Z, P2, P2,
@@ -542,9 +592,7 @@ namespace ecmech {
                m_s_ref_vec[i] = sVecs[i];
                m_m_ref_vec[i] = mVecs[i];
             }
-
-            // assert((parsIt - params.begin()) == nParams);
-         };
+         }
 
          __ecmech_host__
          void getParams(std::vector<double> & /* params */
@@ -629,15 +677,26 @@ namespace ecmech {
          static constexpr int nParams = 3;
 
          // constructor and destructor
-         __ecmech_hdev__  SlipGeomBCCNonSchmid() {};
-         __ecmech_hdev__ ~SlipGeomBCCNonSchmid() {};
+         SlipGeomBCCNonSchmid() = default;
+         __ecmech_hdev__
+         ~SlipGeomBCCNonSchmid() {};
+
+         __ecmech_hdev__
+         SlipGeomBCCNonSchmid(const double* const params) {
+            setParams(params);
+         }
 
          __ecmech_host__
-         void setParams(const std::vector<double> & params
-                        )
+         void setParams(const std::vector<double> & params)
          {
-            std::vector<double>::const_iterator parsIt = params.begin();
-            
+            setParams(params.data());
+         }
+
+         __ecmech_hdev__
+         void setParams(const double* const params)
+         {
+            const double* parsIt = params;
+
             m_omegas[0] = *parsIt; ++parsIt;
             m_omegas[1] = *parsIt; ++parsIt;
             m_omegas[2] = *parsIt; ++parsIt;
@@ -685,8 +744,13 @@ namespace ecmech {
                m_m_ref_vec[i] = mVecs[i];
             }
 
-            assert((parsIt - params.begin()) == nParams);
-         };
+#if defined(ECMECH_DEBUG)
+            int iParam = parsIt - params;
+            if (iParam != nParams) {
+               ECMECH_FAIL(__func__, "iParam != nParams");
+            }
+#endif
+         }
 
          __ecmech_host__
          void getParams(std::vector<double> & params

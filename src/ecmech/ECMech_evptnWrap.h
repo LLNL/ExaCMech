@@ -7,6 +7,10 @@
 #include "SNLS_device_forall.h"
 #include "RAJA/RAJA.hpp"
 
+#if defined(SNLS_USE_RAJA_PORT)
+#include "SNLS_memory_manager.h"
+#endif
+
 #if defined(__ecmech_host_only__)
 #include <sstream>
 #endif
@@ -15,6 +19,70 @@
 #include "evptn/ECMech_evptnSngl.h"
 
 #include "ECMech_unused.h"
+
+namespace ecmech {
+namespace internal {
+   template<class T, typename ...Args>
+   __ecmech_host__
+   auto make_class_factory(const std::vector<double>& params, Args... args) {
+#if defined(SNLS_USE_RAJA_PORT)
+      auto mm = snls::MemoryManager::getInstance();
+      auto mvec = mm.allocManagedArray<double>(params.size());
+
+      snls::forall_strat(0, params.size(), snls::ExecutionStrategy::CPU, [=] __ecmech_host__ (int i) {
+         mvec[i] = params[i];
+      });
+
+      return chai::make_managed<T>(chai::unpack(mvec), std::forward<Args...>(args...));
+#else
+      return new T(params.data(), std::forward<Args...>(args...));
+#endif
+   }
+
+   template<class T>
+   __ecmech_host__
+   auto make_class_factory(const std::vector<double>& params) {
+#if defined(SNLS_USE_RAJA_PORT)
+      auto mm = snls::MemoryManager::getInstance();
+      auto mvec = mm.allocManagedArray<double>(params.size());
+
+      snls::forall_strat(0, params.size(), snls::ExecutionStrategy::CPU, [=] __ecmech_host__ (int i) {
+         mvec[i] = params[i];
+      });
+
+      return chai::make_managed<T>(chai::unpack(mvec));
+#else
+      return new T(params.data());
+#endif
+   }
+
+#if !defined(SNLS_USE_RAJA_PORT)
+   // Creating a pseudo-chai::managed_ptr<T> class that implements the same set of functions we need from Chai
+   template<class T>
+   class PseudoChaiManagedPtr {
+      public:
+         PseudoChaiManagedPtr() = default;
+         template<typename ...Args>
+         PseudoChaiManagedPtr(const std::vector<double>& params, Args... args) : m_val(make_class_factory<T>(params, std::forward<Args...>(args...))) {}
+         PseudoChaiManagedPtr(const std::vector<double>& params) : m_val(make_class_factory<T>(params)) {}
+         PseudoChaiManagedPtr(const PseudoChaiManagedPtr&) = default;
+         ~PseudoChaiManagedPtr() = default;
+
+         __ecmech_hdev__
+         inline T& operator*() const { return *m_val; }
+         __ecmech_hdev__
+         inline void free() const { if (m_val) { delete m_val; } }
+
+      public:
+         T* m_val = nullptr;
+   };
+
+   template<class T>
+   using pcmptr = PseudoChaiManagedPtr<T>;
+#endif
+
+}
+}
 
 namespace ecmech {
    namespace evptn {
@@ -41,8 +109,7 @@ namespace ecmech {
             // constructor
             __ecmech_host__
             matModel()
-               : matModelBase(),
-               m_kinetics(SlipGeom::nslip)
+               : matModelBase()
             {
                // Should the tangent stiff matrix be included in these stride calculations?
                m_strides[istride_def_rate] = ecmech::nsvp;
@@ -58,8 +125,7 @@ namespace ecmech {
             // constructor
             __ecmech_host__
             matModel(const unsigned int* strides, const unsigned int stride_len)
-               : matModelBase(),
-               m_kinetics(SlipGeom::nslip)
+               : matModelBase()
             {
                unsigned int nhist = NumHist<SlipGeom, Kinetics, ThermoElastN, EosModel>::numHist;
 
@@ -156,7 +222,13 @@ namespace ecmech {
 
             // deconstructor
             __ecmech_host__
-            ~matModel(){}
+            ~matModel()
+            {
+               m_slipGeom.free();
+               m_kinetics.free();
+               m_eosModel.free();
+               m_elastN.free();
+            }
 
             using matModelBase::initFromParams;
             __ecmech_host__
@@ -191,29 +263,37 @@ namespace ecmech {
 
                {
                   const std::vector<double> paramsThese(parsIt, parsIt + SlipGeom::nParams);
-                  m_slipGeom.setParams(paramsThese); parsIt += SlipGeom::nParams;
+                  m_slipGeom = internal::pcmptr<SlipGeom>(paramsThese);
+                  parsIt += SlipGeom::nParams;
+                  // m_slipGeom.setParams(paramsThese); parsIt += SlipGeom::nParams;
                }
                {
                   const std::vector<double> paramsThese(parsIt, parsIt + ThermoElastN::nParams);
-                  m_elastN.setParams(paramsThese); parsIt += ThermoElastN::nParams;
+                  m_elastN = internal::pcmptr<ThermoElastN>(paramsThese);
+                  parsIt += ThermoElastN::nParams;
+                  // m_elastN.setParams(paramsThese); parsIt += ThermoElastN::nParams;
                }
                {
                   const std::vector<double> paramsThese(parsIt, parsIt + Kinetics::nParams);
-                  m_kinetics.setParams(paramsThese); parsIt += Kinetics::nParams;
+                  m_kinetics = internal::pcmptr<Kinetics>(paramsThese, SlipGeom::nslip);
+                  parsIt += Kinetics::nParams;
+                  // m_kinetics.setParams(paramsThese); parsIt += Kinetics::nParams;
                }
                {
-                  double bulk_modulus = m_elastN.getBulkMod();
+                  double bulk_modulus = (*m_elastN).getBulkMod();
                   std::vector<double> paramsThese(EosModel::nParams);
                   paramsThese[0] = m_density0;
                   paramsThese[1] = bulk_modulus;
                   paramsThese[2] = m_cvav;
                   std::copy(parsIt, parsIt + nParamsEOS, paramsThese.begin() + nParamsEOSHave);
 
-                  m_eosModel.setParams(paramsThese); parsIt += nParamsEOS;
+                  m_eosModel = internal::pcmptr<EosModel>(paramsThese);
+                  parsIt += nParamsEOS;
+                  // m_eosModel.setParams(paramsThese); parsIt += nParamsEOS;
 
                   {
                      double rel_vol_min, rel_vol_max;
-                     m_eosModel.getInfo(rel_vol_min, rel_vol_max, m_energy0, m_rel_vol0);
+                     (*m_eosModel).getInfo(rel_vol_min, rel_vol_max, m_energy0, m_rel_vol0);
                   }
                }
 
@@ -258,7 +338,7 @@ namespace ecmech {
                   }
                }
                //
-               m_kinetics.getHistInfo(m_rhvNames, m_rhvVals, m_rhvPlot, m_rhvState);
+               (*m_kinetics).getHistInfo(m_rhvNames, m_rhvVals, m_rhvPlot, m_rhvState);
                //
                for (int iSlip = 0; iSlip < SlipGeom::nslip; ++iSlip) {
                   std::ostringstream os;
@@ -312,18 +392,21 @@ namespace ecmech {
                const unsigned int temp_k_stride = m_strides[istride_temp_k];
                const unsigned int sdd_stride = m_strides[istride_sdd];
 
+               const auto slipGeom = m_slipGeom;
+               const auto kinetics = m_kinetics;
+               const auto elastN = m_elastN;
+               const auto eosModel = m_eosModel;
+
                snls::forall(0, nPassed, [=,
-                  m_slipGeom=this->m_slipGeom, m_kinetics=this->m_kinetics,
-                  m_elastN=this->m_elastN, m_eosModel=this->m_eosModel,
-                  m_tolerance=this->m_tolerance, m_outputLevel=this->m_outputLevel]
+                  tolerance=this->m_tolerance, outputLevel=this->m_outputLevel]
                   (int i)
                {
                   double *mtanSDThis = (mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr);
                   const bool status =
                   getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
-                  (m_slipGeom, m_kinetics, m_elastN, m_eosModel,
+                  (*slipGeom, *kinetics, *elastN, *eosModel,
                      dt,
-                     m_tolerance,
+                     tolerance,
                      &defRateV[def_rate_stride * i],
                      &spinV[spin_v_stride * i],
                      &volRatioV[vol_ratio_stride * i],
@@ -333,7 +416,7 @@ namespace ecmech {
                      temp_kV[temp_k_stride * i],
                      &sddV[sdd_stride * i],
                      mtanSDThis,
-                     m_outputLevel);
+                     outputLevel);
                   if (!status) {
                      histV[history_stride * i + iHistA_nFEval] *= -1;
                   }
@@ -375,8 +458,13 @@ namespace ecmech {
                const unsigned int temp_k_stride = m_strides[istride_temp_k];
                const unsigned int sdd_stride = m_strides[istride_sdd];
 
+               const auto slipGeom = m_slipGeom;
+               const auto kinetics = m_kinetics;
+               const auto elastN = m_elastN;
+               const auto eosModel = m_eosModel;
+
                snls::forall(0, nPassed, [=,
-                  m_slipGeom=this->m_slipGeom, m_kinetics=this->m_kinetics, m_elastN=this->m_elastN, m_eosModel=this->m_eosModel, m_tolerance=this->m_tolerance, m_outputLevel=this->m_outputLevel]
+                  tolerance=this->m_tolerance, outputLevel=this->m_outputLevel]
                   (int i)
                {
                   // skip elements that were successful
@@ -385,9 +473,9 @@ namespace ecmech {
                   double *mtanSDThis = (mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr);
                   const bool status =
                   getResponseNRSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
-                  (m_slipGeom, m_kinetics, m_elastN, m_eosModel,
+                  (*slipGeom, *kinetics, *elastN, *eosModel,
                      dt,
-                     m_tolerance,
+                     tolerance,
                      &defRateV[def_rate_stride * i],
                      &spinV[spin_v_stride * i],
                      &volRatioV[vol_ratio_stride * i],
@@ -397,7 +485,7 @@ namespace ecmech {
                      temp_kV[temp_k_stride * i],
                      &sddV[sdd_stride * i],
                      mtanSDThis,
-                     m_outputLevel);
+                     outputLevel);
                   if (!status) {
                      histV[history_stride * i + iHistA_nFEval] *= -1;
                   }
@@ -483,7 +571,7 @@ namespace ecmech {
             __ecmech_host__
             void complete( ) override final
             {
-               m_bulkRef = m_eosModel.getBulkRef();
+               m_bulkRef = (*m_eosModel).getBulkRef();
                m_complete = true;
             };
 
@@ -547,20 +635,27 @@ namespace ecmech {
             // Note: Stability of the underlying templated class API's is not
             // guaranteed, so breaking changes can occur from point release to
             // point release.
-            const SlipGeom & getSlipGeom() const { return m_slipGeom; }
+            const SlipGeom & getSlipGeom() const { return *m_slipGeom; }
 
-            const Kinetics & getemp_kinetics() const { return m_kinetics; }
+            const Kinetics & getemp_kinetics() const { return *m_kinetics; }
 
-            const ThermoElastN & getThermoElastN() const { return m_elastN; }
+            const ThermoElastN & getThermoElastN() const { return *m_elastN; }
 
-            const EosModel & getEosModel() const { return m_eosModel; }
+            const EosModel & getEosModel() const { return *m_eosModel; }
 
          private:
 
-            SlipGeom m_slipGeom;
-            Kinetics m_kinetics;
-            ThermoElastN m_elastN;
-            EosModel m_eosModel;
+#if defined(SNLS_USE_RAJA_PORT)
+            chai::managed_ptr<SlipGeom> m_slipGeom;
+            chai::managed_ptr<Kinetics> m_kinetics;
+            chai::managed_ptr<ThermoElastN> m_elastN;
+            chai::managed_ptr<EosModel> m_eosModel;
+#else
+            internal::pcmptr<SlipGeom> m_slipGeom;
+            internal::pcmptr<Kinetics> m_kinetics;
+            internal::pcmptr<ThermoElastN> m_elastN;
+            internal::pcmptr<EosModel> m_eosModel;
+#endif
 
             double m_tolerance;
             unsigned int m_strides[ecmech::nstride];
