@@ -22,6 +22,31 @@
 
 namespace ecmech {
 namespace internal {
+#if !defined(SNLS_USE_RAJA_PORT)
+   // Creating a pseudo-chai::managed_ptr<T> class that implements the same set of functions we need from Chai
+   template<class T>
+   class PseudoChaiManagedPtr {
+      public:
+         PseudoChaiManagedPtr() = default;
+         template<typename ...Args>
+         PseudoChaiManagedPtr(const double* const params, Args... args) : m_val(new T(params, std::forward<Args...>(args...))) {}
+         PseudoChaiManagedPtr(const double* const params) : m_val(new T(params)) {}
+         PseudoChaiManagedPtr(const PseudoChaiManagedPtr&) = default;
+         ~PseudoChaiManagedPtr() = default;
+
+         __ecmech_hdev__
+         inline T& operator*() const { return *m_val; }
+         __ecmech_hdev__
+         inline void free() const { if (m_val) { delete m_val; } }
+
+      public:
+         T* m_val = nullptr;
+   };
+
+   template<class T>
+   using pcmptr = PseudoChaiManagedPtr<T>;
+#endif
+
    template<class T, typename ...Args>
    __ecmech_host__
    auto make_class_factory(const std::vector<double>& params, Args... args) {
@@ -35,7 +60,7 @@ namespace internal {
 
       return chai::make_managed<T>(chai::unpack(mvec), std::forward<Args...>(args...));
 #else
-      return new T(params.data(), std::forward<Args...>(args...));
+      return pcmptr<T>(params.data(), std::forward<Args...>(args...));
 #endif
    }
 
@@ -52,34 +77,9 @@ namespace internal {
 
       return chai::make_managed<T>(chai::unpack(mvec));
 #else
-      return new T(params.data());
+      return pcmptr<T>(params.data());
 #endif
    }
-
-#if !defined(SNLS_USE_RAJA_PORT)
-   // Creating a pseudo-chai::managed_ptr<T> class that implements the same set of functions we need from Chai
-   template<class T>
-   class PseudoChaiManagedPtr {
-      public:
-         PseudoChaiManagedPtr() = default;
-         template<typename ...Args>
-         PseudoChaiManagedPtr(const std::vector<double>& params, Args... args) : m_val(make_class_factory<T>(params, std::forward<Args...>(args...))) {}
-         PseudoChaiManagedPtr(const std::vector<double>& params) : m_val(make_class_factory<T>(params)) {}
-         PseudoChaiManagedPtr(const PseudoChaiManagedPtr&) = default;
-         ~PseudoChaiManagedPtr() = default;
-
-         __ecmech_hdev__
-         inline T& operator*() const { return *m_val; }
-         __ecmech_hdev__
-         inline void free() const { if (m_val) { delete m_val; } }
-
-      public:
-         T* m_val = nullptr;
-   };
-
-   template<class T>
-   using pcmptr = PseudoChaiManagedPtr<T>;
-#endif
 
 }
 }
@@ -263,19 +263,19 @@ namespace ecmech {
 
                {
                   const std::vector<double> paramsThese(parsIt, parsIt + SlipGeom::nParams);
-                  m_slipGeom = internal::pcmptr<SlipGeom>(paramsThese);
+                  m_slipGeom = internal::make_class_factory<SlipGeom>(paramsThese);
                   parsIt += SlipGeom::nParams;
                   // m_slipGeom.setParams(paramsThese); parsIt += SlipGeom::nParams;
                }
                {
                   const std::vector<double> paramsThese(parsIt, parsIt + ThermoElastN::nParams);
-                  m_elastN = internal::pcmptr<ThermoElastN>(paramsThese);
+                  m_elastN = internal::make_class_factory<ThermoElastN>(paramsThese);
                   parsIt += ThermoElastN::nParams;
                   // m_elastN.setParams(paramsThese); parsIt += ThermoElastN::nParams;
                }
                {
                   const std::vector<double> paramsThese(parsIt, parsIt + Kinetics::nParams);
-                  m_kinetics = internal::pcmptr<Kinetics>(paramsThese, SlipGeom::nslip);
+                  m_kinetics = internal::make_class_factory<Kinetics>(paramsThese, SlipGeom::nslip);
                   parsIt += Kinetics::nParams;
                   // m_kinetics.setParams(paramsThese); parsIt += Kinetics::nParams;
                }
@@ -287,7 +287,7 @@ namespace ecmech {
                   paramsThese[2] = m_cvav;
                   std::copy(parsIt, parsIt + nParamsEOS, paramsThese.begin() + nParamsEOSHave);
 
-                  m_eosModel = internal::pcmptr<EosModel>(paramsThese);
+                  m_eosModel = internal::make_class_factory<EosModel>(paramsThese);
                   parsIt += nParamsEOS;
                   // m_eosModel.setParams(paramsThese); parsIt += nParamsEOS;
 
