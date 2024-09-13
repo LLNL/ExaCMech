@@ -4,11 +4,13 @@
 #define ecmech_evptnWrap_include
 
 #include "ECMech_core.h"
+#include "SNLS_config.h"
 #include "SNLS_device_forall.h"
 #include "RAJA/RAJA.hpp"
 
-#if defined(SNLS_USE_RAJA_PORT)
+#if defined(SNLS_RAJA_PORT_SUITE)
 #include "SNLS_memory_manager.h"
+#include <chai/managed_ptr.hpp>
 #endif
 
 #if defined(__ecmech_host_only__)
@@ -22,7 +24,7 @@
 
 namespace ecmech {
 namespace internal {
-#if !defined(SNLS_USE_RAJA_PORT)
+#if !defined(SNLS_RAJA_PORT_SUITE)
    // Creating a pseudo-chai::managed_ptr<T> class that implements the same set of functions we need from Chai
    template<class T>
    class PseudoChaiManagedPtr {
@@ -50,13 +52,14 @@ namespace internal {
    template<class T, typename ...Args>
    __ecmech_host__
    auto make_class_factory(const std::vector<double>& params, Args... args) {
-#if defined(SNLS_USE_RAJA_PORT)
-      auto mm = snls::MemoryManager::getInstance();
+#if defined(SNLS_RAJA_PORT_SUITE)
+      auto mm = snls::memoryManager::getInstance();
       auto mvec = mm.allocManagedArray<double>(params.size());
 
-      snls::forall_strat(0, params.size(), snls::ExecutionStrategy::CPU, [=] __ecmech_host__ (int i) {
-         mvec[i] = params[i];
-      });
+      auto mvec_data = mvec.data(chai::ExecutionSpace::CPU);
+      for (size_t i = 0; i < params.size(); i++ ) {
+         mvec_data[i] = params[i];
+      }
 
       return chai::make_managed<T>(chai::unpack(mvec), std::forward<Args...>(args...));
 #else
@@ -67,13 +70,14 @@ namespace internal {
    template<class T>
    __ecmech_host__
    auto make_class_factory(const std::vector<double>& params) {
-#if defined(SNLS_USE_RAJA_PORT)
-      auto mm = snls::MemoryManager::getInstance();
+#if defined(SNLS_RAJA_PORT_SUITE)
+      auto mm = snls::memoryManager::getInstance();
       auto mvec = mm.allocManagedArray<double>(params.size());
 
-      snls::forall_strat(0, params.size(), snls::ExecutionStrategy::CPU, [=] __ecmech_host__ (int i) {
-         mvec[i] = params[i];
-      });
+      auto mvec_data = mvec.data(chai::ExecutionSpace::CPU);
+      for (size_t i = 0; i < params.size(); i++ ) {
+         mvec_data[i] = params[i];
+      }
 
       return chai::make_managed<T>(chai::unpack(mvec));
 #else
@@ -403,8 +407,8 @@ namespace ecmech {
                const auto elastN = m_elastN;
                const auto eosModel = m_eosModel;
 
-               snls::forall(0, nPassed, [=,
-                  tolerance=this->m_tolerance, outputLevel=this->m_outputLevel]
+               snls::forall<ECMECH_GPU_THREADS>(0, nPassed, [=]
+                  __ecmech_hdev__
                   (int i)
                {
                   double *mtanSDThis = (mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr);
@@ -412,7 +416,7 @@ namespace ecmech {
                   getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
                   (*slipGeom, *kinetics, *elastN, *eosModel,
                      dt,
-                     tolerance,
+                     m_tolerance,
                      &defRateV[def_rate_stride * i],
                      &spinV[spin_v_stride * i],
                      &volRatioV[vol_ratio_stride * i],
@@ -422,7 +426,7 @@ namespace ecmech {
                      temp_kV[temp_k_stride * i],
                      &sddV[sdd_stride * i],
                      mtanSDThis,
-                     outputLevel);
+                     m_outputLevel);
                   if (!status) {
                      histV[history_stride * i + iHistA_nFEval] *= -1;
                   }
@@ -469,8 +473,8 @@ namespace ecmech {
                const auto elastN = m_elastN;
                const auto eosModel = m_eosModel;
 
-               snls::forall(0, nPassed, [=,
-                  tolerance=this->m_tolerance, outputLevel=this->m_outputLevel]
+               snls::forall(0, nPassed, [=]
+                  __ecmech_hdev__
                   (int i)
                {
                   // skip elements that were successful
@@ -481,7 +485,7 @@ namespace ecmech {
                   getResponseNRSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
                   (*slipGeom, *kinetics, *elastN, *eosModel,
                      dt,
-                     tolerance,
+                     m_tolerance,
                      &defRateV[def_rate_stride * i],
                      &spinV[spin_v_stride * i],
                      &volRatioV[vol_ratio_stride * i],
@@ -491,7 +495,7 @@ namespace ecmech {
                      temp_kV[temp_k_stride * i],
                      &sddV[sdd_stride * i],
                      mtanSDThis,
-                     outputLevel);
+                     m_outputLevel);
                   if (!status) {
                      histV[history_stride * i + iHistA_nFEval] *= -1;
                   }
@@ -515,11 +519,11 @@ namespace ecmech {
 #if defined(RAJA_ENABLE_OPENMP)
                   case ECM_EXEC_STRAT_OPENMP:
                   {
-                     RAJA::ReduceBitOr<RAJA::omp_reduce_ordered, bool> status_all(false);
+                     RAJA::ReduceSum<RAJA::omp_reduce_ordered, int> status_all(0);
                      RAJA::forall<RAJA::omp_parallel_for_exec>(default_range, [ = ] (int i) {
-                        status_all |= (histV[history_stride * i + iHistA_nFEval] < 0);
+                        status_all += (histV[history_stride * i + iHistA_nFEval] < 0);
                      });
-                     return status_all.get();
+                     return status_all.get() > 0;
                      break;
                   }
 #endif
@@ -528,12 +532,12 @@ namespace ecmech {
                   {
 #if defined(RAJA_ENABLE_CUDA)
                      using gpu_reduce = RAJA::cuda_reduce;
-                     using gpu_policy = RAJA::cuda_exec<RAJA_CUDA_THREADS>;
+                     using gpu_policy = RAJA::cuda_exec<ECMECH_GPU_THREADS>;
 #else
                      using gpu_reduce = RAJA::hip_reduce;
-                     using gpu_policy = RAJA::hip_exec<RAJA_HIP_THREADS>;
+                     using gpu_policy = RAJA::hip_exec<ECMECH_GPU_THREADS>;
 #endif
-                     RAJA::ReduceBitOr<gpu_reduce, bool> status_all(bool);
+                     RAJA::ReduceBitOr<gpu_reduce, bool> status_all(false);
                      RAJA::forall<gpu_policy>(default_range, [=] RAJA_DEVICE(int i) {
                         status_all |= (histV[history_stride * i + iHistA_nFEval] < 0);
                      });
@@ -544,7 +548,7 @@ namespace ecmech {
                   case ECM_EXEC_STRAT_CPU:
                   default: // fall through to CPU if other options are not available
                   {
-                     RAJA::ReduceBitOr<RAJA::seq_reduce, bool> status_all(0);
+                     RAJA::ReduceBitOr<RAJA::seq_reduce, bool> status_all(false);
                      RAJA::forall<RAJA::seq_exec>(default_range, [ = ] (int i) {
                         status_all |= (histV[history_stride * i + iHistA_nFEval] < 0);
                      });
@@ -651,7 +655,7 @@ namespace ecmech {
 
          private:
 
-#if defined(SNLS_USE_RAJA_PORT)
+#if defined(SNLS_RAJA_PORT_SUITE)
             chai::managed_ptr<SlipGeom> m_slipGeom;
             chai::managed_ptr<Kinetics> m_kinetics;
             chai::managed_ptr<ThermoElastN> m_elastN;

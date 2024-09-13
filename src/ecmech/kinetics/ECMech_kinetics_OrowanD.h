@@ -189,9 +189,8 @@ namespace ecmech {
             {
                // Unfortunately, it looks like the simplest way to have this work for various
                // slip systems is by passing in the SlipGeom's params in twice...
-               SlipGeom slipgeom;
-               const std::vector<double> paramsThese(parsIt, parsIt + SlipGeom::nParams);
-               slipgeom.setParams(paramsThese); parsIt += SlipGeom::nParams;
+               SlipGeom slipgeom(parsIt);
+               parsIt += SlipGeom::nParams;
                const double* mref = slipgeom.getM();
                const double* sref = slipgeom.getS();
                // our forest interaction matrix has the following calculation:

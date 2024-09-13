@@ -50,6 +50,7 @@ namespace ecmech {
    class SlipGeom {
       public:
          static constexpr int nslip = Nslip;
+         __ecmech_hdev__
          virtual ~SlipGeom(){}
           
          __ecmech_hdev__ inline const double* getP() const { return m_P_ref_vec; }

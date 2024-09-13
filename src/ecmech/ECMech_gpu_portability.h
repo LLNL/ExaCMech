@@ -33,19 +33,8 @@
 #define __ecmech_hdev__
 #endif
 
-// RAJA_CUDA_THREADS defines the number of cuda threads that we want to run for our material
-// model.
-// ----------------------------------------------------------------------------------------
-// A 160 threads seems to work alright when used on a V100 Nvidia card. It provides a slight
-// improvement over 128 threads for a Voce type material model.
-
-#ifndef RAJA_CUDA_THREADS
-#define RAJA_CUDA_THREADS 160
-#endif
-
-#ifndef RAJA_HIP_THREADS
-#define RAJA_HIP_THREADS 256
-#endif
+// Modify our number of threads as needed if we need to set it to something non-standard
+#define ECMECH_GPU_THREADS 256
 
 // __CUDA_ARCH__ is defined when compiling for the device, the macro below is used
 // to filter code that cannot be compiled for the device.
