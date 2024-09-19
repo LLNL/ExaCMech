@@ -34,13 +34,6 @@ int main(int argc, char *argv[]){
    const double dt = 0.00025;
    const int nsteps = 60;
 
-   // All of the varibles that we'll be using in our simulations
-   double* state_vars = nullptr;
-   double* vgrad = nullptr;
-
-   double* d_state_vars = nullptr;
-   double* d_vgrad = nullptr;
-
    int nqpts = 0;
    int num_props = 0;
    int num_hardness = 0;
@@ -114,30 +107,6 @@ int main(int argc, char *argv[]){
    ecmech::matModelEvptn_FCC_B mat_modelb(strides.data(), strides.size());
 
    ecmech::ExecutionStrategy class_device;
-
-   // Data structures needed for each time step
-   // We really don't need to allocate these constantly, so we should just do it
-   // once and be done with it.
-   double* stress_array = nullptr;
-   double* stress_svec_p_array = nullptr;
-   double* d_svec_p_array = nullptr;
-   double* w_vec_array = nullptr;
-   double* ddsdde_array = nullptr;
-   double* vol_ratio_array = nullptr;
-   double* eng_int_array = nullptr;
-   double* temp_array = nullptr;
-   double* sdd_array = nullptr;
-
-   double* d_stress_array = nullptr;
-   double* d_stress_svec_p_array = nullptr;
-   double* d_d_svec_p_array = nullptr;
-   double* d_w_vec_array = nullptr;
-   double* d_ddsdde_array = nullptr;
-   double* d_vol_ratio_array = nullptr;
-   double* d_eng_int_array = nullptr;
-   double* d_temp_array = nullptr;
-   double* d_sdd_array = nullptr;
-
    std::string mat_model_str;
 
    // The below scope of work sets up everything that we're going to be doing initially.
@@ -146,7 +115,8 @@ int main(int argc, char *argv[]){
    // in scope without running into memory issues.
    //
    int num_state_vars;
-   bool host = true;
+   // Quaternion and the number of quaternions total.
+   std::vector<double> quats;
    //
    {
       // All the input arguments
@@ -175,8 +145,6 @@ int main(int argc, char *argv[]){
          }
       }
 
-      // Quaternion and the number of quaternions total.
-      std::vector<double> quats;
       // This next chunk reads in all of the quaternions and pushes them to a vector.
       // It will exit if 4 values are not read on a line.
       bool quat_random = false;
@@ -318,9 +286,9 @@ int main(int argc, char *argv[]){
          }
 
          // We really shouldn't see this change over time at least for our applications.
+         mat_modela.setExecutionStrategy(class_device);
          mat_modela.initFromParams(opts, params, strs);
          mat_modela.complete();
-         mat_modela.setExecutionStrategy(class_device);
          mat_model_base = dynamic_cast<matModelBase*>(&mat_modela);
       }
       else if (mat_model_str.compare("mts") == 0) {
@@ -340,9 +308,9 @@ int main(int argc, char *argv[]){
          }
 
          // We really shouldn't see this change over time at least for our applications.
+         mat_modelb.setExecutionStrategy(class_device);
          mat_modelb.initFromParams(opts, params, strs);
          mat_modelb.complete();
-         mat_modela.setExecutionStrategy(class_device);
          mat_model_base = dynamic_cast<matModelBase*>(&mat_modelb);
       }
       else {
@@ -351,77 +319,41 @@ int main(int argc, char *argv[]){
       }
 
       std::cout << "Class has been completely initialized" << std::endl;
-
+   }
       // We're now initializing our state variables and vgrad to be used in other parts
       // of the simulations.
-      state_vars = memoryManager::allocate<double>(num_state_vars * nqpts, host);
-      vgrad = memoryManager::allocate<double>(nqpts * ecmech::ndim * ecmech::ndim, host);
+      constexpr size_t num_var_variables = (1 + ecmech::nsdd + + ecmech::ne + ecmech::nwvec + ecmech::nvr + ecmech::nsvec + 2 * ecmech::nsvp + ecmech::nsvec * ecmech::nsvec + ecmech::ndim * ecmech::ndim);
+      const size_t num_items = nqpts * (num_state_vars + num_var_variables);
+      auto mm = memoryManager<double>(num_items);
+      auto state_vars = mm.getNew(nqpts * num_state_vars, class_device);
+      auto vgrad = mm.getNew(nqpts * ecmech::ndim * ecmech::ndim, class_device);
 
-      double* quats_array = quats.data();
-
-      init_data(class_device, quats_array, mat_model_base, nqpts, num_hardness,
+      init_data(quats, mat_model_base, nqpts, num_hardness,
                 num_gdot, iHistLbGdot, num_state_vars, state_vars);
       std::cout << "Data is now initialized" << std::endl;
       setup_vgrad(vgrad, nqpts);
-   }
 
    // The stress array is the only one of the below variables that needs to be
    // initialized to 0.
-   stress_array = memoryManager::allocate<double>(nqpts * ecmech::nsvec, host);
-   for (int i = 0; i < nqpts * ecmech::nsvec; i++) {
-      stress_array[i] = 0.0;
-   }
+   auto stress_array = mm.getNew(nqpts * ecmech::nsvec, class_device);
+   snls::forall(0, nqpts * ecmech::nsvec,
+      [=]
+      __ecmech_hdev__
+      (int i) {
+         stress_array[i] = 0.0;
+   });
 
    // We'll leave these uninitialized for now, since they're set in the
    // setup_data function.
-   ddsdde_array = memoryManager::allocate<double>(nqpts * ecmech::nsvec * ecmech::nsvec, host);
-   eng_int_array = memoryManager::allocate<double>(nqpts * ecmech::ne, host);
-   w_vec_array = memoryManager::allocate<double>(nqpts * ecmech::nwvec, host);
-   vol_ratio_array = memoryManager::allocate<double>(nqpts * ecmech::nvr, host);
-   stress_svec_p_array = memoryManager::allocate<double>(nqpts * ecmech::nsvp, host);
-   d_svec_p_array = memoryManager::allocate<double>(nqpts * ecmech::nsvp, host);
-   temp_array = memoryManager::allocate<double>(nqpts, host);
-   sdd_array = memoryManager::allocate<double>(nqpts * ecmech::nsdd, host);
-
-#if defined(RAJA_ENABLE_HIP)
-   if (class_device == ECM_EXEC_STRAT_GPU) {
-      // We'll leave these uninitialized for now, since they're set in the
-      // setup_data function.
-      d_state_vars = memoryManager::allocate_gpu<double>(num_state_vars * nqpts);
-      d_vgrad = memoryManager::allocate_gpu<double>(nqpts * ecmech::ndim * ecmech::ndim);
-      d_stress_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nsvec);
-
-      hipErrchk(hipMemcpy( d_state_vars, state_vars, num_state_vars * nqpts * sizeof(double), hipMemcpyHostToDevice ));
-      hipErrchk(hipMemcpy( d_vgrad, vgrad, nqpts * ecmech::ndim * ecmech::ndim * sizeof(double), hipMemcpyHostToDevice ));
-      hipErrchk(hipMemcpy( d_stress_array, stress_array, nqpts * ecmech::nsvec * sizeof(double), hipMemcpyHostToDevice ));
-
-      d_ddsdde_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nsvec * ecmech::nsvec);
-      d_eng_int_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::ne);
-      d_w_vec_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nwvec);
-      d_vol_ratio_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nvr);
-      d_stress_svec_p_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nsvp);
-      d_d_svec_p_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nsvp);
-      d_temp_array = memoryManager::allocate_gpu<double>(nqpts);
-      d_sdd_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nsdd);
-   }
-   else
-#endif 
-   {
-      // We'll leave these uninitialized for now, since they're set in the
-      // setup_data function.
-      d_state_vars = state_vars;
-      d_vgrad = vgrad;
-      d_stress_array = stress_array;
-      d_ddsdde_array = ddsdde_array;
-      d_eng_int_array = eng_int_array;
-      d_w_vec_array = w_vec_array;
-      d_vol_ratio_array = vol_ratio_array;
-      d_stress_svec_p_array = stress_svec_p_array;
-      d_d_svec_p_array = d_svec_p_array;
-      d_temp_array = temp_array;
-      d_sdd_array = sdd_array;
-   }
    
+   auto ddsdde_array = mm.getNew(nqpts * ecmech::nsvec * ecmech::nsvec, class_device);
+   auto eng_int_array = mm.getNew(nqpts * ecmech::ne, class_device);
+   auto w_vec_array = mm.getNew(nqpts * ecmech::nwvec, class_device);
+   auto vol_ratio_array = mm.getNew(nqpts * ecmech::nvr, class_device);
+   auto stress_svec_p_array = mm.getNew(nqpts * ecmech::nsvp, class_device);
+   auto d_svec_p_array = mm.getNew(nqpts * ecmech::nsvp, class_device);
+   auto temp_array = mm.getNew(nqpts, class_device);
+   auto sdd_array = mm.getNew(nqpts * ecmech::nsdd, class_device);
 
    double stress_avg[6];
    double wts = 1.0 / nqpts;
@@ -434,18 +366,18 @@ int main(int argc, char *argv[]){
 
    for (int i = 0; i < nsteps; i++) {
       // set up our data in the correct format that the material model kernel expects
-      setup_data(class_device, nqpts, num_state_vars, dt, d_vgrad, d_stress_array, d_state_vars,
-                 d_stress_svec_p_array, d_d_svec_p_array, d_w_vec_array, d_ddsdde_array,
-                 d_vol_ratio_array, d_eng_int_array, d_temp_array);
+      setup_data(nqpts, num_state_vars, dt, vgrad, stress_array, state_vars,
+                 stress_svec_p_array, d_svec_p_array, w_vec_array, ddsdde_array,
+                 vol_ratio_array, eng_int_array, temp_array);
       // run our material model
       mat_model_kernel(mat_model_base, nqpts, dt,
-                       d_state_vars, d_stress_svec_p_array,
-                       d_d_svec_p_array, d_w_vec_array, d_ddsdde_array,
-                       d_vol_ratio_array, d_eng_int_array, d_temp_array, d_sdd_array);
+                       state_vars, stress_svec_p_array,
+                       d_svec_p_array, w_vec_array, ddsdde_array,
+                       vol_ratio_array, eng_int_array, temp_array, sdd_array);
       // retrieve all of the data and put it back in the global arrays
-      retrieve_data(class_device, nqpts, num_state_vars,
-                    d_stress_svec_p_array, d_vol_ratio_array,
-                    d_eng_int_array, d_state_vars, d_stress_array);
+      retrieve_data(nqpts, num_state_vars,
+                    stress_svec_p_array, vol_ratio_array,
+                    eng_int_array, state_vars, stress_array);
 
       switch ( class_device ) {
          default :
@@ -456,7 +388,7 @@ int main(int argc, char *argv[]){
                RAJA::ReduceMin<RAJA::seq_reduce, double> seq_min(100.0); // We know this shouldn't ever be more than 100
                RAJA::ReduceMax<RAJA::seq_reduce, double> seq_max(0.0); // We know this will always be at least 1.0
                RAJA::forall<RAJA::seq_exec>(default_range, [ = ] (int i_qpts){
-                  double* nfunceval = &(d_state_vars[i_qpts * num_state_vars + 2]);
+                  double* nfunceval = &(state_vars[i_qpts * num_state_vars + 2]);
                   seq_sum += wts * nfunceval[0];
                   seq_max.max(nfunceval[0]);
                   seq_min.min(nfunceval[0]);
@@ -467,7 +399,7 @@ int main(int argc, char *argv[]){
             for (int j = 0; j < ecmech::nsvec; j++) {
                RAJA::ReduceSum<RAJA::seq_reduce, double> seq_sum(0.0);
                RAJA::forall<RAJA::seq_exec>(default_range, [ = ] (int i_qpts){
-                  const double* stress = &(d_stress_array[i_qpts * ecmech::nsvec]);
+                  const double* stress = &(stress_array[i_qpts * ecmech::nsvec]);
                   seq_sum += wts * stress[j];
                });
                stress_avg[j] = seq_sum.get();
@@ -482,7 +414,7 @@ int main(int argc, char *argv[]){
                RAJA::ReduceMin<RAJA::omp_reduce_ordered, double> omp_min(100.0); // We know this shouldn't ever be more than 100
                RAJA::ReduceMax<RAJA::omp_reduce_ordered, double> omp_max(0.0); // We know this will always be at least 1.0
                RAJA::forall<RAJA::omp_parallel_for_exec>(default_range, [ = ] (int i_qpts){
-                  double* nfunceval = &(d_state_vars[i_qpts * num_state_vars + 2]);
+                  double* nfunceval = &(state_vars[i_qpts * num_state_vars + 2]);
                   omp_sum += wts * nfunceval[0];
                   omp_max.max(nfunceval[0]);
                   omp_min.min(nfunceval[0]);
@@ -493,7 +425,7 @@ int main(int argc, char *argv[]){
             for (int j = 0; j < ecmech::nsvec; j++) {
                RAJA::ReduceSum<RAJA::omp_reduce_ordered, double> omp_sum(0.0);
                RAJA::forall<RAJA::omp_parallel_for_exec>(default_range, [ = ] (int i_qpts){
-                  const double* stress = &(d_stress_array[i_qpts * ecmech::nsvec]);
+                  const double* stress = &(stress_array[i_qpts * ecmech::nsvec]);
                   omp_sum += wts * stress[j];
                });
                stress_avg[j] = omp_sum.get();
@@ -516,7 +448,7 @@ int main(int argc, char *argv[]){
                RAJA::ReduceMin<gpu_reduce, double> gpu_min(100.0); // We know this shouldn't ever be more than 100
                RAJA::ReduceMax<gpu_reduce, double> gpu_max(0.0); // We know this will always be at least 1.0
                RAJA::forall<gpu_policy>(default_range, [ = ] RAJA_DEVICE(int i_qpts){
-                  double* nfunceval = &(d_state_vars[i_qpts * num_state_vars + 2]);
+                  double* nfunceval = &(state_vars[i_qpts * num_state_vars + 2]);
                   gpu_sum += wts * nfunceval[0];
                   gpu_max.max(nfunceval[0]);
                   gpu_min.min(nfunceval[0]);
@@ -527,7 +459,7 @@ int main(int argc, char *argv[]){
             for (int j = 0; j < ecmech::nsvec; j++) {
                RAJA::ReduceSum<gpu_reduce, double> gpu_sum(0.0);
                RAJA::forall<gpu_policy>(default_range, [ = ] RAJA_DEVICE(int i_qpts){
-                  const double* stress = &(d_stress_array[i_qpts * ecmech::nsvec]);
+                  const double* stress = &(stress_array[i_qpts * ecmech::nsvec]);
                   gpu_sum += wts * stress[j];
                });
                stress_avg[j] = gpu_sum.get();
@@ -555,36 +487,8 @@ int main(int argc, char *argv[]){
 
    std::cout << "Run time of set-up, material, and retrieve kernels over " <<
       nsteps << " time steps is: " << time << "(s)" << std::endl;
-
-   // Delete all variables declared using the memory allocator now.
-
-   memoryManager::deallocate(state_vars, host);
-   memoryManager::deallocate(vgrad, host);
-   memoryManager::deallocate(stress_array, host);
-   memoryManager::deallocate(stress_svec_p_array, host);
-   memoryManager::deallocate(d_svec_p_array, host);
-   memoryManager::deallocate(w_vec_array, host);
-   memoryManager::deallocate(ddsdde_array, host);
-   memoryManager::deallocate(vol_ratio_array, host);
-   memoryManager::deallocate(eng_int_array, host);
-   memoryManager::deallocate(temp_array, host);
-   memoryManager::deallocate(sdd_array, host);
-
-#if defined(RAJA_ENABLE_HIP)
-   if (class_device == ECM_EXEC_STRAT_GPU) {
-      memoryManager::deallocate_gpu(d_state_vars);
-      memoryManager::deallocate_gpu(d_vgrad);
-      memoryManager::deallocate_gpu(d_stress_array);
-      memoryManager::deallocate_gpu(d_stress_svec_p_array);
-      memoryManager::deallocate_gpu(d_d_svec_p_array);
-      memoryManager::deallocate_gpu(d_w_vec_array);
-      memoryManager::deallocate_gpu(d_ddsdde_array);
-      memoryManager::deallocate_gpu(d_vol_ratio_array);
-      memoryManager::deallocate_gpu(d_eng_int_array);
-      memoryManager::deallocate_gpu(d_temp_array);
-      memoryManager::deallocate_gpu(d_sdd_array);
-   }
-#endif
+   // All the variables share the same memory buffer so once the mm object goes out of scope
+   // it's deconstructor will free all of the memory used
 
    return 0;
 }

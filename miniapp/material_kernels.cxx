@@ -1,6 +1,6 @@
 #include "material_kernels.h"
 
-using namespace ecmech;
+#include "ECMech_evptnWrap.h"
 
 // All of the parallelization operations are within the getResponseECM function of the material class.
 void mat_model_kernel(const ecmech::matModelBase* mat_model_base,
