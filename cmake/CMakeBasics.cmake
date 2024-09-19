@@ -32,10 +32,6 @@ if(ENABLE_PYTHON)
     set(ECMECH_PY "1" CACHE STRING "")
 endif()
 
-if(ENABLE_PYTHON_DEV)
-    set(ECMECH_PYDEV "1" CACHE STRING "")
-endif()
-
 if(ENABLE_EXTRA_SOLVERS)
     set(ECMECH_EXTRA_SOLVERS "1" CACHE STRING "1")
 endif()

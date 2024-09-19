@@ -37,7 +37,7 @@ blt_add_library(NAME        pyecmech_lib_static
                 OUTPUT_NAME pyecmech_lib
                 DEFINES     ${ECMECH_DEFINES}
                 DEPENDS_ON  ${PYECMECH_DEPENDS}
-                HEADERS     ecmechpy.hpp  ecmech_classes.hpp 
+                HEADERS     ecmechpy.hpp
                 SOURCES     ecmechpy.cpp
                 SHARED      FALSE)
 

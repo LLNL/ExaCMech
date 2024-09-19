@@ -16,7 +16,6 @@ option(ENABLE_EXTRA_SOLVERS "Enable extra solvers to be used if original solve f
 
 option(ENABLE_MINIAPPS "Enable miniapps" OFF)
 option(ENABLE_PYTHON "Enable building of python bindings" OFF)
-option(ENABLE_PYTHON_DEV "Enable building of python dev bindings" OFF)
 
 # Force atleast static if user turns off both
 if(NOT BUILD_STATIC_LIBS AND NOT BUILD_SHARED_LIBS)

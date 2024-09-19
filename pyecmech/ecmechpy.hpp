@@ -2,7 +2,6 @@
 
 #include "ECMech_core.h"
 #include "ECMech_matModelBase.h"
-#include "ecmech_classes.hpp"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -39,42 +38,3 @@ class pyECMech
          delete model;
       }
 };
-
-#if defined(ECMECH_PYDEV)
-class pyECMechDev
-{
-   private:
-      pyevptn_base* model = nullptr;
-   public:
-      pyECMechDev(std::string model_name, py_darray &params);
-
-      std::tuple<std::vector<std::string>, py_darray, std::vector<bool>, std::vector<bool>>
-      getHistoryInfo();
-
-      void setup(double dt,
-                 double tolerance,
-                 py_darray &def_rate_dev6_vol_sample, // defRate,
-                 py_darray &spin_vec_sample, // spin
-                 py_darray &volRatio,
-                 py_darray &internal_energy,
-                 py_darray &cauchy_stress_dev6_pressure,
-                 py_darray &hist,
-                 double &temp_k);
-      void computeRJ(py_darray &resid,
-                     py_darray &J,
-                     py_darray &x);
-      
-      void getState(const py_darray &x,
-                    py_darray &internal_energy,
-                    py_darray &cauchy_stress_dev6_pressure,
-                    py_darray &hist,
-                    double &temp_k,
-                    py_darray &sdd);
-
-      ~pyECMechDev()
-      {
-         delete model;
-      }
-};
-
-#endif
