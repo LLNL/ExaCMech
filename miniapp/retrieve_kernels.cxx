@@ -36,7 +36,9 @@ void retrieve_data(const int nqpts, const int nstatev,
       // Here we're converting back from our deviatoric + pressure representation of our
       // Cauchy stress back to the Voigt notation of stress.
       double stress_mean = -stress_svec_p[ecmech::iSvecP];
-      std::copy(stress_svec_p, stress_svec_p + ecmech::nsvec, stress);
+      for (int i = 0; i < ecmech::nsvec; i++) {
+         stress[i] = stress_svec_p[i];
+      }
       stress[0] += stress_mean;
       stress[1] += stress_mean;
       stress[2] += stress_mean;

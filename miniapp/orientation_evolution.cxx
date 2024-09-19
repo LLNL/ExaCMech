@@ -248,7 +248,6 @@ int main(int argc, char *argv[]){
 #endif
 #if defined(RAJA_ENABLE_CUDA) || defined(RAJA_ENABLE_HIP)
       else if (device_type.compare("GPU") == 0) {
-         host = false;
          class_device = ECM_EXEC_STRAT_GPU;
       }
 #endif

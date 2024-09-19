@@ -1,4 +1,3 @@
-#include "ECMech_cases.h"
 #include "ECMech_cases_bcc_defs.h"
 
 namespace ecmech {

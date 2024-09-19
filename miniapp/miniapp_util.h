@@ -44,7 +44,7 @@ public:
         offset += num_items;
 #if defined(SNLS_RAJA_PORT_SUITE)
         chai::ExecutionSpace ses;
-        switch strat {
+        switch (strat) {
             case ecmech::ExecutionStrategy::GPU: {
                 ses = chai::ExecutionSpace::GPU;
                 break;
@@ -64,7 +64,7 @@ public:
 
 private:
 #if defined(SNLS_RAJA_PORT_SUITE)
-    chai::managedArray<T> buffer;
+    chai::ManagedArray<T> buffer;
 #else
     T* buffer = nullptr;
 #endif
