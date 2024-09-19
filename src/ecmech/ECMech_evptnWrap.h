@@ -106,9 +106,12 @@ namespace ecmech {
 
             static constexpr int nParamsEOSHave = 3; // number that get from 'elsewhere' // these are assumed to go in first
             static constexpr int nParamsEOS = EosModel::nParams - nParamsEOSHave;
+            static constexpr int nParamsSlipGeom = SlipGeom::nParams;
+            static constexpr int nParamsKinetics = Kinetics::nParams;
+            static constexpr int nParamsThermoElastN = ThermoElastN::nParams;
             static constexpr int nParams =
                2 + 1 + // density0, cvav, tolerance
-               SlipGeom::nParams + Kinetics::nParams + ThermoElastN::nParams + nParamsEOS;
+               nParamsSlipGeom + nParamsKinetics + nParamsThermoElastN + nParamsEOS;
 
             // constructor
             __ecmech_host__
@@ -128,100 +131,10 @@ namespace ecmech {
 
             // constructor
             __ecmech_host__
-            matModel(const unsigned int* strides, const unsigned int stride_len)
+            matModel(std::vector<size_t> strides)
                : matModelBase()
             {
-               unsigned int nhist = NumHist<SlipGeom, Kinetics, ThermoElastN, EosModel>::numHist;
-
-               if (stride_len != ecmech::nstride) {
-#if defined(__ecmech_host_only__)
-                  // the order here needs to be consistent with ISTRIDE_* macros in ECMECH_const.h
-                  std::ostringstream os;
-                  os << "Stride vector needs to have a size of " << ecmech::nstride << " with strides of at least: " <<
-                     ecmech::nsvp << ", " << ecmech::ndim << ", " << ecmech::nvr << ", " <<
-                     ecmech::ne << ", " << ecmech::nsvp << ", " << nhist << ", 1, " << ecmech::nsdd
-                  ;
-                  ECMECH_FAIL(__func__, os.str().c_str());
-#else
-                  ECMECH_FAIL(__func__, "Stride vector is the wrong size");
-#endif
-               }
-               // Need to make sure all of the strides provided at least make sense
-               if (strides[istride_def_rate] < ecmech::nsvp) {
-#if defined(__ecmech_host_only__)
-                  std::ostringstream os;
-                  os << "strides[istride_def_rate] should have at least a length of: " << ecmech::nsvp;
-                  ECMECH_FAIL(__func__, os.str().c_str());
-#else
-                  ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
-#endif
-               }
-               if (strides[istride_spin_v] < ecmech::ndim) {
-#if defined(__ecmech_host_only__)
-                  std::ostringstream os;
-                  os << "strides[istride_spin_v] should have at least a length of: " << ecmech::ndim;
-                  ECMECH_FAIL(__func__, os.str().c_str());
-#else
-                  ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
-#endif
-               }
-               if (strides[istride_vol_ratio] < ecmech::nvr) {
-#if defined(__ecmech_host_only__)
-                  std::ostringstream os;
-                  os << "strides[istride_int_eng] should have at least a length of: " << ecmech::nvr;
-                  ECMECH_FAIL(__func__, os.str().c_str());
-#else
-                  ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
-#endif
-               }
-               if (strides[istride_int_eng] < ecmech::ne) {
-#if defined(__ecmech_host_only__)
-                  std::ostringstream os;
-                  os << "strides[istride_int_eng] should have at least a length of: " << ecmech::ne;
-                  ECMECH_FAIL(__func__, os.str().c_str());
-#else
-                  ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
-#endif
-               }
-               if (strides[istride_stress] < ecmech::nsvp) {
-#if defined(__ecmech_host_only__)
-                  std::ostringstream os;
-                  os << "strides[istride_stress] should have at least a length of: " << ecmech::nsvp;
-                  ECMECH_FAIL(__func__, os.str().c_str());
-#else
-                  ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
-#endif
-               }
-               if (strides[istride_history] < nhist) {
-#if defined(__ecmech_host_only__)
-                  std::ostringstream os;
-                  os << "strides[istride_history] should have at least a length of: " << nhist;
-                  ECMECH_FAIL(__func__, os.str().c_str());
-#else
-                  ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
-#endif
-               }
-               if (strides[istride_temp_k] < 1) {
-#if defined(__ecmech_host_only__)
-                  std::ostringstream os;
-                  os << "strides[istride_temp_k] should have at least a length of: " << 1;
-                  ECMECH_FAIL(__func__, os.str().c_str());
-#else
-                  ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
-#endif
-               }
-               if (strides[istride_sdd] < ecmech::nsdd) {
-#if defined(__ecmech_host_only__)
-                  std::ostringstream os;
-                  os << "strides[istride_sdd] should have at least a length of: " << ecmech::nsdd;
-                  ECMECH_FAIL(__func__, os.str().c_str());
-#else
-                  ECMECH_FAIL(__func__, "One of the stride lengths was not long enough");
-#endif
-               }
-               for (unsigned int i = 0; i < stride_len; i++) {
-                  m_strides[i] = strides[i];
-               }
+               updateStrides(strides);
             }
 
             // deconstructor
@@ -232,6 +145,67 @@ namespace ecmech {
                m_kinetics.free();
                m_eosModel.free();
                m_elastN.free();
+            }
+
+            __ecmech_host__
+            virtual void
+            updateStrides(std::vector<size_t> strides) override final {
+               if (m_complete) {
+                  ECMECH_FAIL(__func__, "updateStrides should only be called before object is completed");
+               }
+               if (strides.size() != ecmech::nstride) {
+                  // the order here needs to be consistent with ISTRIDE_* macros in ECMECH_const.h
+                  std::ostringstream os;
+                  os << "Stride vector needs to have a size of " << ecmech::nstride << " with strides of at least: " <<
+                     ecmech::nsvp << ", " << ecmech::ndim << ", " << ecmech::nvr << ", " <<
+                     ecmech::ne << ", " << ecmech::nsvp << ", " << numHist << ", 1, " << ecmech::nsdd
+                  ;
+                  ECMECH_FAIL(__func__, os.str().c_str());
+               }
+               // Need to make sure all of the strides provided at least make sense
+               if (strides[istride_def_rate] < ecmech::nsvp) {
+                  std::ostringstream os;
+                  os << "strides[istride_def_rate] should have at least a length of: " << ecmech::nsvp;
+                  ECMECH_FAIL(__func__, os.str().c_str());
+               }
+               if (strides[istride_spin_v] < ecmech::ndim) {
+                  std::ostringstream os;
+                  os << "strides[istride_spin_v] should have at least a length of: " << ecmech::ndim;
+                  ECMECH_FAIL(__func__, os.str().c_str());
+               }
+               if (strides[istride_vol_ratio] < ecmech::nvr) {
+                  std::ostringstream os;
+                  os << "strides[istride_int_eng] should have at least a length of: " << ecmech::nvr;
+                  ECMECH_FAIL(__func__, os.str().c_str());
+               }
+               if (strides[istride_int_eng] < ecmech::ne) {
+                  std::ostringstream os;
+                  os << "strides[istride_int_eng] should have at least a length of: " << ecmech::ne;
+                  ECMECH_FAIL(__func__, os.str().c_str());
+               }
+               if (strides[istride_stress] < ecmech::nsvp) {
+                  std::ostringstream os;
+                  os << "strides[istride_stress] should have at least a length of: " << ecmech::nsvp;
+                  ECMECH_FAIL(__func__, os.str().c_str());
+               }
+               if (strides[istride_history] < numHist) {
+                  std::ostringstream os;
+                  os << "strides[istride_history] should have at least a length of: " << numHist;
+                  ECMECH_FAIL(__func__, os.str().c_str());
+               }
+               if (strides[istride_temp_k] < 1) {
+                  std::ostringstream os;
+                  os << "strides[istride_temp_k] should have at least a length of: " << 1;
+                  ECMECH_FAIL(__func__, os.str().c_str());
+               }
+               if (strides[istride_sdd] < ecmech::nsdd) {
+                  std::ostringstream os;
+                  os << "strides[istride_sdd] should have at least a length of: " << ecmech::nsdd;
+                  ECMECH_FAIL(__func__, os.str().c_str());
+               }
+               for (unsigned int i = 0; i < strides.size(); i++) {
+                  m_strides[i] = strides[i];
+               }
             }
 
             using matModelBase::initFromParams;
@@ -311,8 +285,6 @@ namespace ecmech {
                if (iParam != nParams) {
                   ECMECH_FAIL(__func__, "wrong number of params");
                }
-
-#if defined(__ecmech_host_only__)
                //////////////////////////////
 
                m_rhvNames.clear();
@@ -360,7 +332,6 @@ namespace ecmech {
                if (m_rhvNames.size() != numHist) {
                   ECMECH_FAIL(__func__, "mismatch in numHist");
                }
-#endif
             }
 
             using matModelBase::getParams;

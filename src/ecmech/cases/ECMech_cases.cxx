@@ -27,21 +27,21 @@ matModelBase* makeMatModel(const std::string &modelName) {
 }
 
 __ecmech_host__
-std::tuple<size_t, size_t>
-modelNumParamsHist(const std::string_view &modelName) {
+std::map<std::string, size_t>
+modelParamIndexMap(const std::string_view &modelName) {
    if (modelName.find("FCC") != std::string_view::npos) {
-      return modelNumParamsHistFCC(modelName);
+      return modelParamIndexMapFCC(modelName);
    }
    else if (modelName.find("BCC") != std::string_view::npos) {
-      return modelNumParamsHistBCC(modelName);
+      return modelParamIndexMapBCC(modelName);
    }
    else if (modelName.find("HCP") != std::string_view::npos) {
-      return modelNumParamsHistHCP(modelName);
+      return modelParamIndexMapHCP(modelName);
    }
    else {
       std::string msg = std::string("model name not recognized : ") + std::string(modelName);
       ECMECH_FAIL(__func__, msg.c_str());
    }
-   return std::tuple(0, 0);
+   return {};
 }
 } // namespace ecmech

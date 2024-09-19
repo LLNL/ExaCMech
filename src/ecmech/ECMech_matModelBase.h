@@ -194,6 +194,10 @@ namespace ecmech {
          __ecmech_host__
          virtual int getNumHist( ) const = 0;
 
+
+         __ecmech_host__
+         virtual void updateStrides(std::vector<size_t> strides) = 0;
+
          /**
           *  @brief
           *  Set the accelerator to be used for getResponse.

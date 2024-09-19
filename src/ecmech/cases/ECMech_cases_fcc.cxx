@@ -1,5 +1,6 @@
-#include "ECMech_cases.h"
 #include "ECMech_cases_fcc_defs.h"
+#include "ECMech_cases_util.h"
+
 
 namespace ecmech {
 
@@ -30,22 +31,21 @@ matModelBase* makeMatModelFCC(const std::string &modelName) {
 * @brief These are not the only possible cases -- they are here as a convenience
 */
 __ecmech_host__
-std::tuple<size_t, size_t>
-modelNumParamsHistFCC(const std::string_view &modelName) {
-
+std::map<std::string, size_t>
+modelParamIndexMapFCC(const std::string_view &modelName) {
     if (modelName == "evptn_FCC_A") {
-        return std::tuple(ecmech::matModelEvptn_FCC_A::nParams, ecmech::matModelEvptn_FCC_A::numHist);
+        return NumParamIndexInfo<ecmech::matModelEvptn_FCC_A>().m_maps;
     }
     else if (modelName == "evptn_FCC_AH") {
-        return std::tuple(ecmech::matModelEvptn_FCC_AH::nParams, ecmech::matModelEvptn_FCC_AH::numHist);
+        return NumParamIndexInfo<ecmech::matModelEvptn_FCC_AH>().m_maps;
     }
     else if (modelName == "evptn_FCC_B") {
-        return std::tuple(ecmech::matModelEvptn_FCC_B::nParams, ecmech::matModelEvptn_FCC_B::numHist);
+        return NumParamIndexInfo<ecmech::matModelEvptn_FCC_B>().m_maps;
     } else if (modelName == "evptn_FCC_C") {
-        return std::tuple(ecmech::matModelEvptn_FCC_C::nParams, ecmech::matModelEvptn_FCC_C::numHist);
+        return NumParamIndexInfo<ecmech::matModelEvptn_FCC_C>().m_maps;
     }
 
-    return std::tuple(0, 0);
+    return {};
 }
 
 }

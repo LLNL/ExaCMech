@@ -7,6 +7,7 @@ set(ECMECH_HEADERS
     cases/ECMech_cases_bcc_defs.h
     cases/ECMech_cases_fcc_defs.h
     cases/ECMech_cases_hcp_defs.h
+    cases/ECMech_cases_util.h
     evptn/ECMech_base_classes.h
     evptn/ECMech_base_fcns.h
     evptn/ECMech_evptnSngl.h

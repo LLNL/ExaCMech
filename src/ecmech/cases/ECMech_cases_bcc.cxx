@@ -1,4 +1,5 @@
 #include "ECMech_cases_bcc_defs.h"
+#include "ECMech_cases_util.h"
 
 namespace ecmech {
 
@@ -61,35 +62,35 @@ matModelBase* makeMatModelBCCNorm(const std::string &modelName) {
 * @brief These are not the only possible cases -- they are here as a convenience
 */
 __ecmech_host__
-std::tuple<size_t, size_t>
-modelNumParamsHistBCC(const std::string_view &modelName) {
+std::map<std::string, size_t>
+modelParamIndexMapBCC(const std::string_view &modelName) {
 
     if (modelName == "evptn_BCC_A") {
-        return std::tuple(ecmech::matModelEvptn_BCC_A::nParams, ecmech::matModelEvptn_BCC_A::numHist);
+        return NumParamIndexInfo<ecmech::matModelEvptn_BCC_A>().m_maps;
     }
     else if (modelName == "evptn_BCC_AH") {
-        return std::tuple(ecmech::matModelEvptn_BCC_AH::nParams, ecmech::matModelEvptn_BCC_AH::numHist);
+        return NumParamIndexInfo<ecmech::matModelEvptn_BCC_AH>().m_maps;
     }
     else if (modelName == "evptn_BCC_B") {
-        return std::tuple(ecmech::matModelEvptn_BCC_B::nParams, ecmech::matModelEvptn_BCC_B::numHist);
+        return NumParamIndexInfo<ecmech::matModelEvptn_BCC_B>().m_maps;
     } else if (modelName == "evptn_BCC_C") {
-        return std::tuple(ecmech::matModelEvptn_BCC_C::nParams, ecmech::matModelEvptn_BCC_C::numHist);
+        return NumParamIndexInfo<ecmech::matModelEvptn_BCC_C>().m_maps;
     }
     else if (modelName == "evptn_BCC_D") {
-        return std::tuple(ecmech::matModelEvptn_BCC_D::nParams, ecmech::matModelEvptn_BCC_D::numHist);
+        return NumParamIndexInfo<ecmech::matModelEvptn_BCC_D>().m_maps;
     } else if (modelName == "evptn_BCC_E") {
-        return std::tuple(ecmech::matModelEvptn_BCC_E::nParams, ecmech::matModelEvptn_BCC_E::numHist);
+        return NumParamIndexInfo<ecmech::matModelEvptn_BCC_E>().m_maps;
     }
     else if (modelName == "evptn_BCC_C_24") {
-        return std::tuple(ecmech::matModelEvptn_BCC_C_24::nParams, ecmech::matModelEvptn_BCC_C_24::numHist);
+       return NumParamIndexInfo<ecmech::matModelEvptn_BCC_C_24>().m_maps;
     }
     else if (modelName == "evptn_BCC_D_24") {
-        return std::tuple(ecmech::matModelEvptn_BCC_D_24::nParams, ecmech::matModelEvptn_BCC_D_24::numHist);
+        return NumParamIndexInfo<ecmech::matModelEvptn_BCC_D_24>().m_maps;
     }
     else if (modelName == "evptn_BCC_MD") {
-        return std::tuple(ecmech::matModelEvptn_BCC_MD::nParams, ecmech::matModelEvptn_BCC_MD::numHist);
+        return NumParamIndexInfo<ecmech::matModelEvptn_BCC_MD>().m_maps;
     }
-    return std::tuple(0, 0);
+    return {};
 }
 
 }

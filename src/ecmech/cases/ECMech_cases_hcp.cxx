@@ -1,5 +1,6 @@
-#include "ECMech_cases.h"
 #include "ECMech_cases_hcp_defs.h"
+#include "ECMech_cases_util.h"
+
 
 namespace ecmech {
 
@@ -15,12 +16,12 @@ matModelBase* makeMatModelHCP(const std::string &modelName) {
 }
 
 __ecmech_host__
-std::tuple<size_t, size_t>
-modelNumParamsHistHCP(const std::string_view &modelName) {
+std::map<std::string, size_t>
+modelParamIndexMapHCP(const std::string_view &modelName) {
     if (modelName == "evptn_HCP_A") {
-        return std::tuple(ecmech::matModelEvptn_HCP_A::nParams, ecmech::matModelEvptn_HCP_A::numHist);
+        return NumParamIndexInfo<ecmech::matModelEvptn_HCP_A>().m_maps;
     }
-    return std::tuple(0, 0);
+    return {};
 }
 
 }
