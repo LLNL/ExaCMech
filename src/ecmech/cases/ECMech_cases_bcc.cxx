@@ -49,4 +49,40 @@ matModelBase* makeMatModelBCC(const std::string &modelName) {
 
     return matModel;
 }
+
+/**
+* @brief These are not the only possible cases -- they are here as a convenience
+*/
+__ecmech_host__
+std::tuple<size_t, size_t>
+modelNumParamsHistBCC(const std::string_view &modelName) {
+
+    if (modelName == "evptn_BCC_A") {
+        return std::tuple(ecmech::matModelEvptn_BCC_A::nParams, ecmech::matModelEvptn_BCC_A::numHist);
+    }
+    else if (modelName == "evptn_BCC_AH") {
+        return std::tuple(ecmech::matModelEvptn_BCC_AH::nParams, ecmech::matModelEvptn_BCC_AH::numHist);
+    }
+    else if (modelName == "evptn_BCC_B") {
+        return std::tuple(ecmech::matModelEvptn_BCC_B::nParams, ecmech::matModelEvptn_BCC_B::numHist);
+    } else if (modelName == "evptn_BCC_C") {
+        return std::tuple(ecmech::matModelEvptn_BCC_C::nParams, ecmech::matModelEvptn_BCC_C::numHist);
+    }
+    else if (modelName == "evptn_BCC_D") {
+        return std::tuple(ecmech::matModelEvptn_BCC_D::nParams, ecmech::matModelEvptn_BCC_D::numHist);
+    } else if (modelName == "evptn_BCC_E") {
+        return std::tuple(ecmech::matModelEvptn_BCC_E::nParams, ecmech::matModelEvptn_BCC_E::numHist);
+    }
+    else if (modelName == "evptn_BCC_C_24") {
+        return std::tuple(ecmech::matModelEvptn_BCC_C_24::nParams, ecmech::matModelEvptn_BCC_C_24::numHist);
+    }
+    else if (modelName == "evptn_BCC_D_24") {
+        return std::tuple(ecmech::matModelEvptn_BCC_D_24::nParams, ecmech::matModelEvptn_BCC_D_24::numHist);
+    }
+    else if (modelName == "evptn_BCC_MD") {
+        return std::tuple(ecmech::matModelEvptn_BCC_MD::nParams, ecmech::matModelEvptn_BCC_MD::numHist);
+    }
+    return std::tuple(0, 0);
+}
+
 }

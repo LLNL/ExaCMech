@@ -13,4 +13,14 @@ matModelBase* makeMatModelHCP(const std::string &modelName) {
 
     return matModel;
 }
+
+__ecmech_host__
+std::tuple<size_t, size_t>
+modelNumParamsHistHCP(const std::string_view &modelName) {
+    if (modelName == "evptn_HCP_A") {
+        return std::tuple(ecmech::matModelEvptn_HCP_A::nParams, ecmech::matModelEvptn_HCP_A::numHist);
+    }
+    return std::tuple(0, 0);
+}
+
 }

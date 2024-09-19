@@ -21,6 +21,7 @@ namespace ecmech {
    using EVPTN_hex   = evptn::ThermoElastNHexag;
 
    // keeping only the most basic stuff here as all the typedefs have been moved elsewhere...
+
    __ecmech_host__
    matModelBase* makeMatModel(const std::string &modelName);
    __ecmech_host__
@@ -29,5 +30,18 @@ namespace ecmech {
    matModelBase* makeMatModelBCC(const std::string &modelName);
    __ecmech_host__
    matModelBase* makeMatModelHCP(const std::string &modelName);   
+
+   __ecmech_host__
+   std::tuple<size_t, size_t>
+   modelNumParamsHist(const std::string_view &modelName);
+   __ecmech_host__
+   std::tuple<size_t, size_t>
+   modelNumParamsHistFCC(const std::string_view &modelName);
+   __ecmech_host__
+   std::tuple<size_t, size_t>
+   modelNumParamsHistBCC(const std::string_view &modelName);
+   __ecmech_host__
+   std::tuple<size_t, size_t>
+   modelNumParamsHistHCP(const std::string_view &modelName);
 
 }

@@ -25,4 +25,27 @@ matModelBase* makeMatModelFCC(const std::string &modelName) {
 
     return matModel;
 }
+
+/**
+* @brief These are not the only possible cases -- they are here as a convenience
+*/
+__ecmech_host__
+std::tuple<size_t, size_t>
+modelNumParamsHistFCC(const std::string_view &modelName) {
+
+    if (modelName == "evptn_FCC_A") {
+        return std::tuple(ecmech::matModelEvptn_FCC_A::nParams, ecmech::matModelEvptn_FCC_A::numHist);
+    }
+    else if (modelName == "evptn_FCC_AH") {
+        return std::tuple(ecmech::matModelEvptn_FCC_AH::nParams, ecmech::matModelEvptn_FCC_AH::numHist);
+    }
+    else if (modelName == "evptn_FCC_B") {
+        return std::tuple(ecmech::matModelEvptn_FCC_B::nParams, ecmech::matModelEvptn_FCC_B::numHist);
+    } else if (modelName == "evptn_FCC_C") {
+        return std::tuple(ecmech::matModelEvptn_FCC_C::nParams, ecmech::matModelEvptn_FCC_C::numHist);
+    }
+
+    return std::tuple(0, 0);
+}
+
 }
