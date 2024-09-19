@@ -1,7 +1,5 @@
 #pragma once
 
-#include <stdlib.h>
-
 #ifdef __CUDACC__
 #include <cuda_runtime_api.h>
 #endif
