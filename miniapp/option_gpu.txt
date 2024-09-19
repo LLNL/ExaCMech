@@ -1,5 +1,5 @@
 ./rand_quats_gpu.txt
-voce
+evptn_FCC_A
 ./props.txt
 GPU
 

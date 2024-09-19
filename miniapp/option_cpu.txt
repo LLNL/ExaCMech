@@ -1,5 +1,5 @@
 ./rand_quats_cpu.txt
-voce
+evptn_FCC_A
 ./props.txt
 CPU
 

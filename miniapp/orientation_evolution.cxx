@@ -39,73 +39,8 @@ int main(int argc, char *argv[]){
    int num_hardness = 0;
    int num_gdot = 0;
    int iHistLbGdot = 0;
-   // For FCC material models we have the following state variables
-   // and their number of components
-   // effective shear rate(1), effective shear(1), flow strength(1), n_evals(1), deviatoric elastic strain(5),
-   // quaternions(4), h(Kinetics::nH), gdot(SlipGeom::nslip), relative volume(1),
-   // internal energy(ecmech::ne)
-   int num_state_vars_voce = ecmech::matModelEvptn_FCC_A::numHist + ecmech::ne + 1;
-   int num_state_vars_mts = ecmech::matModelEvptn_FCC_B::numHist + ecmech::ne + 1;
 
    ecmech::matModelBase* mat_model_base;
-   // Could probably do this in a smarter way where we don't create two class objects for
-   // our different use cases...
-
-   std::vector<unsigned int> strides;
-   // Deformation rate stride
-   strides.push_back(ecmech::nsvp);
-   // Spin rate stride
-   strides.push_back(ecmech::ndim);
-   // Volume ratio stride
-   strides.push_back(ecmech::nvr);
-   // Internal energy stride
-   strides.push_back(ecmech::ne);
-   // Stress vector stride
-   strides.push_back(ecmech::nsvp);
-   // History variable stride
-   strides.push_back(num_state_vars_voce);
-   // Temperature stride
-   strides.push_back(1);
-   // SDD stride
-   strides.push_back(ecmech::nsdd);
-
-   // The  Voce model (matModelEvptn_FCC_A) requires the properties file to have the following parameters
-   // in this order:
-   // Property file start off with:
-   // initial density, heat capacity at constant volume, and a tolerance param
-   // Property file then includes elastic constants:
-   // c11, c12, c44 for cubic crystals
-   // Property file then includes the following:
-   // shear modulus, m parameter seen in slip kinetics, gdot_0 term found in slip kinetic eqn,
-   // hardening coeff. defined for g_crss evolution eqn, initial CRSS value,
-   // initial CRSS saturation strength, CRSS saturation strength scaling exponent,
-   // CRSS saturation strength rate scaling coeff, and initial CRSS value
-   // Property file then includes the following:
-   // the Gruneisen parameter and reference internal energy
-
-   ecmech::matModelEvptn_FCC_A mat_modela(strides.data(), strides.size());
-
-   // The MTS model (matModelEvptn_FCC_B) requires the properties file to have the following parameters
-   // in this order:
-   // Property file start off with:
-   // initial density, heat capacity at constant volume, and a tolerance param
-   // Property file then include elastic constants:
-   // c11, c12, c44 for cubic crystals
-   // Property file then includes the following:
-   // reference shear modulus, reference temperature, g_0 * b^3 / \kappa where b is the
-   // magnitude of the burger's vector and \kappa is Boltzmann's constant, Peierls barrier,
-   // MTS curve shape parameter (p), MTS curve shape parameter (q), reference thermally activated
-   // slip rate, reference drag limited slip rate, drag reference stress, slip resistance const (g_0),
-   // slip resistance const (s), dislocation density production constant (k_1),
-   // dislocation density production constant (k_{2_0}), dislocation density exponential constant,
-   // reference net slip rate constant, and reference relative dislocation density
-   // Property file then includes the following:
-   // the Gruneisen parameter and reference internal energy
-
-   strides.at(5) = num_state_vars_mts;
-
-   ecmech::matModelEvptn_FCC_B mat_modelb(strides.data(), strides.size());
-
    ecmech::ExecutionStrategy class_device;
    std::string mat_model_str;
 
@@ -267,55 +202,49 @@ int main(int argc, char *argv[]){
       }
 
       std::cout << "\nAbout to initialize class" << std::endl;
-      // Initialize our base class using the appropriate model
-      if (mat_model_str.compare("voce") == 0) {
-         num_state_vars = num_state_vars_voce;
-         num_props = ecmech::matModelEvptn_FCC_A::nParams;
-         num_hardness = mat_modela.nH;
-         num_gdot = mat_modela.nslip;
-         iHistLbGdot = mat_modela.iHistLbGdot;
+      mat_model_base = ecmech::makeMatModel(mat_model_str);
+      auto index_map = ecmech::modelParamIndexMap(mat_model_str);
+      num_props = index_map["num_params"];
+      num_state_vars = index_map["num_hist"];
+      num_state_vars += ecmech::ne + 1;
 
-         // This check used to be in the loop used to read in the material properties
-         // However, things were re-arranged, so it's now during the class initialization
-         if (mp_nlines != num_props) {
-            std::cerr << "Material prop file should have " << num_props
-                      << " properties (each on their own line). A total of " << mp_nlines
-                      << " properties were provided instead." << std::endl;
-            return 1;
-         }
+      num_hardness = index_map["num_hardening"];
+      num_gdot = index_map["num_slip_system"];
+      iHistLbGdot = index_map["index_slip_rates"];
 
-         // We really shouldn't see this change over time at least for our applications.
-         mat_modela.setExecutionStrategy(class_device);
-         mat_modela.initFromParams(opts, params, strs);
-         mat_modela.complete();
-         mat_model_base = dynamic_cast<matModelBase*>(&mat_modela);
-      }
-      else if (mat_model_str.compare("mts") == 0) {
-         num_state_vars = num_state_vars_mts;
-         num_props = ecmech::matModelEvptn_FCC_B::nParams;
-         num_hardness = mat_modelb.nH;
-         num_gdot = mat_modelb.nslip;
-         iHistLbGdot = mat_modelb.iHistLbGdot;
-
-         // This check used to be in the loop used to read in the material properties
-         // However, things were re-arranged, so it's now during the class initialization
-         if (mp_nlines != num_props) {
-            std::cerr << "Material prop file should have " << num_props
-                      << " properties (each on their own line). A total of " << mp_nlines
-                      << " properties were provided instead." << std::endl;
-            return 1;
-         }
-
-         // We really shouldn't see this change over time at least for our applications.
-         mat_modelb.setExecutionStrategy(class_device);
-         mat_modelb.initFromParams(opts, params, strs);
-         mat_modelb.complete();
-         mat_model_base = dynamic_cast<matModelBase*>(&mat_modelb);
-      }
-      else {
-         std::cerr << "material model must be either voce or mts " << std::endl;
+      // This check used to be in the loop used to read in the material properties
+      // However, things were re-arranged, so it's now during the class initialization
+      if (mp_nlines != num_props) {
+         std::cerr << "Material prop file should have " << num_props
+                     << " properties (each on their own line). A total of " << mp_nlines
+                     << " properties were provided instead." << std::endl;
          return 1;
       }
+
+      std::vector<size_t> strides;
+      // Deformation rate stride
+      strides.push_back(ecmech::nsvp);
+      // Spin rate stride
+      strides.push_back(ecmech::ndim);
+      // Volume ratio stride
+      strides.push_back(ecmech::nvr);
+      // Internal energy stride
+      strides.push_back(ecmech::ne);
+      // Stress vector stride
+      strides.push_back(ecmech::nsvp);
+      // History variable stride
+      strides.push_back(num_state_vars);
+      // Temperature stride
+      strides.push_back(1);
+      // SDD stride
+      strides.push_back(ecmech::nsdd);
+
+      mat_model_base->updateStrides(strides);
+
+      // We really shouldn't see this change over time at least for our applications.
+      mat_model_base->setExecutionStrategy(class_device);
+      mat_model_base->initFromParams(opts, params, strs);
+      mat_model_base->complete();
 
       std::cout << "Class has been completely initialized" << std::endl;
    }
