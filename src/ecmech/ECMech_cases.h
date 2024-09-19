@@ -29,19 +29,19 @@ namespace ecmech {
    __ecmech_host__
    matModelBase* makeMatModelBCC(const std::string &modelName);
    __ecmech_host__
-   matModelBase* makeMatModelHCP(const std::string &modelName);   
+   matModelBase* makeMatModelHCP(const std::string &modelName);
 
    __ecmech_host__
-   std::tuple<size_t, size_t>
-   modelNumParamsHist(const std::string_view &modelName);
+   std::map<std::string, size_t>
+   modelParamIndexMap(const std::string_view &modelName);
    __ecmech_host__
-   std::tuple<size_t, size_t>
-   modelNumParamsHistFCC(const std::string_view &modelName);
+   std::map<std::string, size_t>
+   modelParamIndexMapFCC(const std::string_view &modelName);
    __ecmech_host__
-   std::tuple<size_t, size_t>
-   modelNumParamsHistBCC(const std::string_view &modelName);
+   std::map<std::string, size_t>
+   modelParamIndexMapBCC(const std::string_view &modelName);
    __ecmech_host__
-   std::tuple<size_t, size_t>
-   modelNumParamsHistHCP(const std::string_view &modelName);
+   std::map<std::string, size_t>
+   modelParamIndexMapHCP(const std::string_view &modelName);
 
 }
