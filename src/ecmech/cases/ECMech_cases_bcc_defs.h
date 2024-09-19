@@ -25,5 +25,12 @@ namespace ecmech {
     using matModelEvptn_BCC_E = evptn::matModel<SlipGeomBCCNonSchmid, Kin_OroD_Aniso_BCC_NS, EVPTN_cubic, EOS_const_model>;
     using matModelEvptn_BCC_MD = evptn::matModel<SlipGeomBCCPencil, Kin_BCC_MD, EVPTN_cubic, EOS_const_model>;
 
+    __ecmech_host__
+    matModelBase* makeMatModelBCCNorm(const std::string &modelName);
+    __ecmech_host__
+    matModelBase* makeMatModelBCCOro(const std::string &modelName);
+    __ecmech_host__
+    matModelBase* makeMatModelBCCOroBig(const std::string &modelName);
+
 }
 

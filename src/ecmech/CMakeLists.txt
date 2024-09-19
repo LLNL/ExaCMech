@@ -37,6 +37,8 @@ set(ECMECH_SOURCES
     cases/ECMech_cases.cxx
     cases/ECMech_cases_fcc.cxx
     cases/ECMech_cases_bcc.cxx
+    cases/ECMech_cases_bcc_oro.cxx
+    cases/ECMech_cases_bcc_oro_big.cxx
     cases/ECMech_cases_hcp.cxx)
 
 #------------------------------------------------------------------------------
