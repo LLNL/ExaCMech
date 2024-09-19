@@ -8,11 +8,12 @@ namespace ecmech {
     using SlipGeom_BCC_A = SlipGeomBCC<12>;
     using SlipGeom_BCC_B = SlipGeomBCC<24>;
 
-    using Kin_OroD_Iso_BCC = KineticsOrowanD<true, false, false, true, false, 1, SlipGeom_BCC_A>;
-    using Kin_OroD_Aniso_BCC = KineticsOrowanD<true, false, false, false, false, 1, SlipGeom_BCC_A>;
-    using Kin_OroD_Iso_BCC_24 = KineticsOrowanD<true, false, false, true, false, 1, SlipGeom_BCC_B>;
-    using Kin_OroD_Aniso_BCC_24 = KineticsOrowanD<true, false, false, false, false, 1, SlipGeom_BCC_B>;
-    using Kin_OroD_Aniso_BCC_NS = KineticsOrowanD<true, false, false, false, false, 1, SlipGeomBCCNonSchmid>;
+    // Make all of our Orowan models use the logrithmic formulation for better stability.
+    using Kin_OroD_Iso_BCC = KineticsOrowanD<true, false, false, true, false, 1, SlipGeom_BCC_A, true>;
+    using Kin_OroD_Aniso_BCC = KineticsOrowanD<true, false, false, false, false, 1, SlipGeom_BCC_A, true>;
+    using Kin_OroD_Iso_BCC_24 = KineticsOrowanD<true, false, false, true, false, 1, SlipGeom_BCC_B, true>;
+    using Kin_OroD_Aniso_BCC_24 = KineticsOrowanD<true, false, false, false, false, 1, SlipGeom_BCC_B, true>;
+    using Kin_OroD_Aniso_BCC_NS = KineticsOrowanD<true, false, false, false, false, 1, SlipGeomBCCNonSchmid, true>;
     using Kin_BCC_MD = KineticsBCCMD<SlipGeomBCCPencil>;
 
     using matModelEvptn_BCC_A = evptn::matModel<SlipGeom_BCC_A, Kin_Voce, EVPTN_cubic, EOS_const_model>;
