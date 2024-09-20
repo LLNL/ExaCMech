@@ -135,6 +135,7 @@ namespace ecmech {
       const double s = (fabs(norm) > idp_eps) ? 1.0 / norm : 1.0 / idp_eps;
       vecsVsa<n>(v, s);
    }
+   // -fsanitize=address -fsanitize=undefined -fno-sanitize-recover=all -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fno-omit-frame-pointer -fno-optimize-sibling-calls 
 
    /**
     * @brief matrix transposed times vector for square matrix
@@ -603,7 +604,7 @@ namespace ecmech {
                                 ) {
       // include "mc_vars.f90"
       // include "set_mc.f90"
-#include "mc_vars_set.h"
+#include "util/mc_vars_set.h"
 
 
       // IF ((UBOUND(c,DIM=1) /= DIMS) .OR. (UBOUND(c,DIM=2) /= DIMS)) &
@@ -660,7 +661,7 @@ namespace ecmech {
    inline void M35_d_AAoB_dA(double* const M35, // nwvec * ntvec
                              const double* const cmv6b // nsvec or ntvec -- cmv6b[iSvecS] not accessed
                              ) {
-#include "vb_d_vars_set.h"
+#include "util/vb_d_vars_set.h"
       // include "M36_d_AAoB_dA.f90"
 
       M35[ECMECH_NM_INDX(0, 0, nwvec, ntvec)] = vb5 * onehalf;
@@ -867,8 +868,8 @@ namespace ecmech {
                                     const double* const vec_sm // (TVEC)
                                     )
    {
-#include "mc_vars_set.h"
-#include "vad_vars_set.h"
+#include "util/mc_vars_set.h"
+#include "util/vad_vars_set.h"
 
       // include "d_Alat_dC.f90"
       RAJA::View<double, RAJA::Layout<3> > dvdc(dvdc_raw, ecmech::ntvec, ecmech::ndim, ecmech::ndim);
@@ -935,7 +936,7 @@ namespace ecmech {
                                       const double* const cmv3w // (WVEC) // vec_sm(WVEC)
                                       )
    {
-#include "vw_vars_set.h"
+#include "util/vw_vars_set.h"
 
       // include "d_Wlat_dC.f90"
       RAJA::View<double, RAJA::Layout<3> > dvdc(dvdc_raw, ecmech::nwvec, ecmech::ndim, ecmech::ndim);
@@ -1043,8 +1044,8 @@ namespace ecmech {
       // dvdc is d({vec_sm})/d{C}
       //
 
-#include "mc_vars_set.h"
-#include "vadl_vars_set.h"
+#include "util/mc_vars_set.h"
+#include "util/vadl_vars_set.h"
 
       // include "d_Asm_dC.f90"
       RAJA::View<double, RAJA::Layout<3> > dvdc(dvdc_raw, ecmech::ntvec, ecmech::ndim, ecmech::ndim);

@@ -3,7 +3,6 @@
 #------------------------------------------------------------------------------
 set(ECMECH_HEADERS
     ${ECMECH_HEADER_INCLUDE_DIR}/ECMech_config.h
-    ECMech_cases.h
     cases/ECMech_cases_bcc_defs.h
     cases/ECMech_cases_fcc_defs.h
     cases/ECMech_cases_hcp_defs.h
@@ -17,6 +16,16 @@ set(ECMECH_HEADERS
     kinetics/ECMech_kinetics_OrowanD.h
     kinetics/ECMech_kinetics_VocePL.h
     kinetics/ECMech_kinetics_BCCMD.h
+    slipgeom/ECMech_slipgeom_base.h
+    slipgeom/ECMech_slipgeom_fcc.h
+    slipgeom/ECMech_slipgeom_bcc.h
+    slipgeom/ECMech_slipgeom_hcp.h
+    util/mc_vars_set.h
+    util/vad_vars_set.h
+    util/vadl_vars_set.h
+    util/vb_d_vars_set.h
+    util/vw_vars_set.h
+    ECMech_cases.h
     ECMech_const.h
     ECMech_core.h
     ECMech_gpu_portability.h
@@ -27,12 +36,7 @@ set(ECMECH_HEADERS
     ECMech_util.h
     ECMech_unused.h
     ECMech_matModelBase.h
-    ECMech_evptnWrap.h
-    mc_vars_set.h
-    vad_vars_set.h
-    vadl_vars_set.h
-    vb_d_vars_set.h
-    vw_vars_set.h)
+    ECMech_evptnWrap.h)
 
 set(ECMECH_SOURCES
     cases/ECMech_cases.cxx
