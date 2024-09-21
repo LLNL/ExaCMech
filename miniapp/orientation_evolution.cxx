@@ -31,8 +31,8 @@ int main(int argc, char *argv[]){
       return 1;
    }
 
-   const double dt = 0.00025;
-   const int nsteps = 60;
+   double dt = 0.00025;
+   int nsteps = 60;
 
    int nqpts = 0;
    int num_props = 0;
@@ -52,6 +52,7 @@ int main(int argc, char *argv[]){
    int num_state_vars;
    // Quaternion and the number of quaternions total.
    std::vector<double> quats;
+   std::vector<double> vgrad_init;
    //
    {
       // All the input arguments
@@ -60,8 +61,22 @@ int main(int argc, char *argv[]){
       std::string ori_file;
       std::string mat_prop_file;
       std::string device_type;
+      std::string dt_vals = "0.00025";
+      std::string nsteps_vals = "60";
+      std::string vgrad_vals = "[[-0.5 0.0 0.0], [0.0 -0.5 0.0], [0.0 0.0 1.0]]";
 
       {
+         std::ostringstream fail_str;
+         fail_str << "Option file could not be correctly parsed." << std::endl
+                  << "Option file contains: quat file path, material model, " << std::endl
+                  << "material param file path, and device type each on their own line." << std::endl
+                  << "Optionally, the option file past those required values can also contain:" << std::endl
+                  << "dt value" << std::endl
+                  << "number of steps value" << std::endl
+                  << "velocity gradient as defined using the following notation [[# # #], [# # #], [# # #]]" << std::endl
+                  << "Note each line in these optional values requires that the previous optional value also be defined"
+                  << std::endl;
+
          std::ifstream ofile(option_file);
          ofile.clear();
          std::string line;
@@ -72,11 +87,72 @@ int main(int argc, char *argv[]){
          std::getline(ofile, device_type);
 
          if (ofile.fail()) {
-            std::cerr << "Option file could not be correctly parsed.\n"
-                      << "Option file contains: quat file path, material model, "
-                      << "material param file path, and device type each on their own line."
-                      << std::endl;
+            std::cerr << fail_str.str();
             return 1;
+         }
+
+         if (ofile.peek() != std::ifstream::traits_type::eof()) {
+            std::getline(ofile, dt_vals);
+         }
+         if (ofile.peek() != std::ifstream::traits_type::eof()) {
+            std::getline(ofile, nsteps_vals);
+         }
+         if (ofile.peek() != std::ifstream::traits_type::eof()) {
+            std::getline(ofile, vgrad_vals);
+         }
+
+         if (dt_vals.size() == 0 || nsteps_vals.size() == 0 || vgrad_vals.size() == 0) {
+            std::cerr << fail_str.str();
+            std::cerr << "Check for an empty string for one of the optional variables" << std::endl;
+            std::cerr << "dt_val.size()" << dt_vals.size()
+                      << " nsteps_vals.size() " << nsteps_vals.size()
+                      << " vgrad_vals.size() " << vgrad_vals.size() << std::endl;
+            return 1;
+         }
+      }
+
+      {
+         std::istringstream iss(dt_vals);
+         iss >> dt;
+      }
+
+      {
+         std::istringstream iss(nsteps_vals);
+         iss >> nsteps;
+      }
+
+      {
+         std::istringstream iss(vgrad_vals);
+         auto parse_data_row = [=] (auto& data, std::istringstream& stream) {
+            constexpr auto max_size = std::numeric_limits<std::streamsize>::max();
+            stream.ignore(max_size, '[');
+            double vrow[3] = {};
+            stream >> vrow[0] >> vrow[1] >> vrow[2];
+            data.push_back(vrow[0]);
+            data.push_back(vrow[1]);
+            data.push_back(vrow[2]);
+         };
+         iss.ignore(1, '[');
+
+         for (int i = 0; i < 3; i++) {
+            parse_data_row(vgrad_init, iss);
+         }
+      }
+
+      std::cout << "Orientation File: " << ori_file << std::endl;
+      std::cout << "Material Property File: " << mat_prop_file << std::endl;
+      std::cout << "Material Model: " << mat_model_str << std::endl;
+      std::cout << "Execution Strategy: " << device_type << std::endl;
+      std::cout << "Delta Time Step: " << dt << std::endl;
+      std::cout << "Number of steps: " << nsteps << std::endl;
+      std::cout << "Velocity Gradient: " << std::endl;
+      {
+         auto it = vgrad_init.begin();
+         for (int irow = 0; irow < 3; irow++) {
+            for (int icol = 0; icol < 3; icol++) {
+               std::cout << *it++ << " ";
+            }
+            std::cout << std::endl;
          }
       }
 
@@ -259,7 +335,7 @@ int main(int argc, char *argv[]){
       init_data(quats, mat_model_base, nqpts, num_hardness,
                 num_gdot, iHistLbGdot, num_state_vars, state_vars);
       std::cout << "Data is now initialized" << std::endl;
-      setup_vgrad(vgrad, nqpts);
+      setup_vgrad(vgrad_init, vgrad, nqpts);
 
    // The stress array is the only one of the below variables that needs to be
    // initialized to 0.
@@ -403,8 +479,20 @@ int main(int argc, char *argv[]){
       for (int i = 0; i < ecmech::nsvec; i++) {
          std::cout << stress_avg[i] << " ";
       }
-
       std::cout << std::endl;
+      // If we want to later output the deviatoric stress then we can add that in as
+      // an option here with the following set of code...
+      /*
+      const double stress_mean = (stress_avg[0] + stress_avg[1] + stress_avg[2]) / 3.0;
+      std::cout << "Deviatoric Stress: ";
+      for (int i = 0; i < ecmech::ndim; i++) {
+         std::cout << stress_avg[i] - stress_mean << " ";
+      }
+      for (int i = ecmech::ndim; i < ecmech::nsvec; i++) {
+         std::cout << stress_avg[i] << " ";
+      }
+      std::cout << " " << stress_mean << std::endl;
+      */
    }
 
    run_time.stop();

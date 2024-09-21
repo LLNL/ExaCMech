@@ -18,7 +18,7 @@ void init_data(const std::vector<double>& ori_vec, const ecmech::matModelBase* m
 // This sets the macroscopic vgrad to be purely deviatoric and behaving as a tension test in the
 // z direction. More interesting vgrads could be created just as easily as well where we also have some
 // spin terms as well. We could also create a case where there is some sort of spin term as well.
-void setup_vgrad(double* vgrad, const int nqpts);
+void setup_vgrad(const std::vector<double>& vgrad_input, double* const vgrad, const int nqpts);
 
 // This function/kernel is used to set-up the problem at each time step
 void setup_data(const int nqpts, const int nstatev,

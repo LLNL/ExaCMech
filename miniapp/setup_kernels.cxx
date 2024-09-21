@@ -102,11 +102,24 @@ void init_data(const std::vector<double>& ori_vec, const ecmech::matModelBase* m
 // This sets the macroscopic vgrad to be purely deviatoric and behaving as a tension test in the
 // z direction. More interesting vgrads could be created just as easily as well where we also have some
 // spin terms as well. We could also create a case where there is some sort of spin term as well.
-void setup_vgrad(double* vgrad, const int nqpts){
+void setup_vgrad(const std::vector<double>& vgrad_input, double* const vgrad, const int nqpts){
    // vgrad is kinda a pain to deal with as a raw 1d array, so we're
    // going to just use a RAJA view here. The data is taken to be in col. major format.
    // It might be nice to eventually create a type alias for the below or
    // maybe something like it.
+
+#if !defined(SNLS_RAJA_PORT_SUITE)
+   const auto vgrad_data = vgrad_input.data();
+#else
+   auto mm = snls::memoryManager::getInstance();
+   auto mvec = mm.allocManagedArray<double>(vgrad_input.size());
+   auto mvec_data = mvec.data(chai::ExecutionSpace::CPU);
+   for (size_t i = 0; i < vgrad_input.size(); i++ ) {
+      mvec_data[i] = vgrad_input[i];
+   }
+   const auto vgrad_data = mvec.data(snls::Device::GetInstance().GetCHAIES());
+#endif
+
    const int DIM = 3;
    std::array<RAJA::idx_t, DIM> perm { { 2, 1, 0 } };
    RAJA::Layout<DIM> layout = RAJA::make_permuted_layout({ { ecmech::ndim, ecmech::ndim, nqpts } }, perm);
@@ -118,17 +131,17 @@ void setup_vgrad(double* vgrad, const int nqpts){
       __ecmech_hdev__
       (int i)
    {
-      vgrad_view(0, 0, i) = -0.5;
-      vgrad_view(0, 1, i) = 0.0;
-      vgrad_view(0, 2, i) = 0.0;
+      vgrad_view(0, 0, i) = vgrad_data[0];
+      vgrad_view(0, 1, i) = vgrad_data[1];
+      vgrad_view(0, 2, i) = vgrad_data[2];
 
-      vgrad_view(1, 0, i) = 0.0;
-      vgrad_view(1, 1, i) = -0.5;
-      vgrad_view(1, 2, i) = 0.0;
+      vgrad_view(1, 0, i) = vgrad_data[3];
+      vgrad_view(1, 1, i) = vgrad_data[4];
+      vgrad_view(1, 2, i) = vgrad_data[5];
 
-      vgrad_view(2, 0, i) = 0.0;
-      vgrad_view(2, 1, i) = 0.0;
-      vgrad_view(2, 2, i) = 1.0;
+      vgrad_view(2, 0, i) = vgrad_data[6];
+      vgrad_view(2, 1, i) = vgrad_data[7];
+      vgrad_view(2, 2, i) = vgrad_data[8];
    }); // end of qpt loop
 } // end of setup_vgrad
 
