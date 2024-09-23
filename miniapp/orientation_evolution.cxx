@@ -1,4 +1,4 @@
-#include "cases/ECMech_cases_fcc_defs.h"
+#include "ECMech_cases.h"
 #include "RAJA/RAJA.hpp"
 #include "RAJA/util/Timer.hpp"
 #include "miniapp_util.h"
@@ -13,9 +13,6 @@
 #include <string>
 
 #define NEVALS_COUNTS false
-
-
-using namespace ecmech;
 
 int main(int argc, char *argv[]){
    // TODO:
