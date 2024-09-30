@@ -92,6 +92,14 @@ blt_add_executable(NAME       test_orowan_px_0
 blt_add_test(NAME    test_orowan_px_0
              COMMAND test_orowan_px_0)
 
+blt_add_executable(NAME       test_orowan_px_0_ns
+                   SOURCES    test_orowan_px.cxx
+                   DEFINES    KIN_BCC_NS
+                   OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
+                   DEPENDS_ON ${ECMECH_TEST_DEPENDS} gtest)
+blt_add_test(NAME    test_orowan_px_0_ns
+             COMMAND test_orowan_px_0_ns)
+
 blt_add_executable(NAME       test_orowan_px_1
                    SOURCES    test_orowan_px.cxx
                    DEFINES    KIN_FCC

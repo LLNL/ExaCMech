@@ -28,6 +28,9 @@ TEST(ecmech, px_orowan)
 #ifdef KIN_BCC
    auto* mmodel = new matModelEvptn_BCC_C();
    const double exp_val = 0.0026069553901007;
+#elif defined(KIN_BCC_NS)
+   auto* mmodel = new matModelEvptn_BCC_E();
+   const double exp_val = 0.0026069553901007;
 #else
    auto* mmodel = new matModelEvptn_FCC_C();
    const double exp_val = 0.0081239712045751;
@@ -39,8 +42,18 @@ TEST(ecmech, px_orowan)
    std::vector<std::string>   strs; // none
    std::vector<double>         params { rho0, cvav, tolerance };
 
+#if defined(KIN_BCC_NS)
+std::vector<double> slip_geom_ns(3, 0.0);
+params.insert(params.end(), slip_geom_ns.begin(), slip_geom_ns.end());
+#endif
+
 #include "setup_elastn.h"
+#if defined(KIN_BCC_NS)
+#include "setup_kin_OroD_Iso_FCC_ns.h"
+params.insert(params.end(), slip_geom_ns.begin(), slip_geom_ns.end());
+#else
 #include "setup_kin_OroD_Iso_FCC.h"
+#endif
 #include "setup_eos.h"
 
    //

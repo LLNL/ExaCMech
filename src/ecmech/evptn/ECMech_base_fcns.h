@@ -34,13 +34,17 @@ namespace evptn {
                             )
     {        
         if constexpr (SlipGeom::nslip > 0) {
-        // default initialize everything to 0.0 
-        double abs_resolved_shear_stress[SlipGeom::nslip] = {};
+        // default initialize everything to 0.0
+        constexpr size_t nslip_dyn = (SlipGeom::dynamic) ? (SlipGeom::nslip + SlipGeom::nSlipExtra) : SlipGeom::nslip;
+        double abs_resolved_shear_stress[nslip_dyn] = {};
         double gdot[SlipGeom::nslip] = {};
         // resolve stress onto slip systems
         // CALL resolve_tau_a_n(crys%tmp4_slp, s_meas%kirchoff, crys)
         //vecsVaTM<ntvec, SlipGeom::nslip>(taua, kirchoff, slipP);
         slip_geom.evalRSS(abs_resolved_shear_stress, kirchoff, slip_geom.getP());
+        if constexpr (SlipGeom::dynamic) {
+            slip_geom.getExtras(&abs_resolved_shear_stress[SlipGeom::nslip]);
+        }
         //
         // CALL plaw_eval(plastic_def_rate, plastic_spin_vec, gss, crys, temp_k, ierr)
         // chi values are passed within extended taua array

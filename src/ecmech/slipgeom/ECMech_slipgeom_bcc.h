@@ -217,7 +217,7 @@ namespace ecmech {
 
    }; // SlipGeomBCC
 
-   class SlipGeomBCCPencil : public SlipGeom<4>
+   class SlipGeomBCCPencil : public SlipGeom<4, 4>
    {
       public:
 
@@ -279,7 +279,7 @@ namespace ecmech {
          __ecmech_hdev__ inline void getPQ(double* chia, 
                                            double* P_vec, 
                                            double* Q_vec, 
-                                           const double* const SvecP) const
+                                           const double* const SvecP) const override final
          {
              double eps = 1e-10;
              double mVecs[nslip * ecmech::ndim];
@@ -338,10 +338,26 @@ namespace ecmech {
                      chi = -M_PI/3.0-chi;
                  }
                  chia[iSlip] = chi;
+                 m_chia[iSlip] = chia[iSlip];
              }
              
              fillFromMS(P_vec, Q_vec, mVecs, m_s_ref_vec, nslip);
+             fillFromMS(m_P_vec, m_Q_vec, mVecs, m_s_ref_vec, nslip);
          }
+         __ecmech_hdev__ inline virtual const double* getP() const override final { return m_P_vec; }
+         __ecmech_hdev__ inline virtual const double* getQ() const override final { return m_Q_vec; }
+         __ecmech_hdev__
+         inline
+         void getExtras(double* const chia) const
+         {
+            for (size_t islip = 0; islip < nslip; islip++) {
+               chia[islip] = m_chia[islip];
+            }
+         }
+      private:
+         mutable double m_P_vec[ ecmech::ntvec * nslip ];
+         mutable double m_Q_vec[ ecmech::nwvec * nslip ];
+         mutable double m_chia[ nslip ];
 
    }; // SlipGeomBCCPencil
    
@@ -351,6 +367,7 @@ namespace ecmech {
       public:
          static const bool dynamic = true;
          static constexpr int nParams = 3;
+         static constexpr size_t nSlipExtra = 0;
 
          // constructor and destructor
          SlipGeomBCCNonSchmid() = default;
@@ -515,9 +532,11 @@ namespace ecmech {
                  if (fill_PQ) {
                      for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
                          P_vec[ECMECH_NM_INDX(iTvec, iSlip, ecmech::ntvec, nslip)] = P_s[iS * ecmech::ntvec + iTvec];
+                         m_P_vec[ECMECH_NM_INDX(iTvec, iSlip, ecmech::ntvec, nslip)] = P_s[iS * ecmech::ntvec + iTvec];
                      }
                      for (int iWvec = 0; iWvec < ecmech::nwvec; ++iWvec) {
                          Q_vec[ECMECH_NM_INDX(iWvec, iSlip, ecmech::nwvec, nslip)] = Q_s[iS * ecmech::nwvec + iWvec];
+                         m_Q_vec[ECMECH_NM_INDX(iWvec, iSlip, ecmech::nwvec, nslip)] = Q_s[iS * ecmech::nwvec + iWvec];
                      }
                  }
              }
@@ -526,7 +545,7 @@ namespace ecmech {
          __ecmech_hdev__ inline void getPQ(double* /*chia*/,
                                            double* P_vec, 
                                            double* Q_vec, 
-                                           const double* const SvecP) const
+                                           const double* const SvecP) const override final
          {
              // we need to reverse the stress first...
              double kirchoff[ecmech::nsvec];
@@ -543,12 +562,19 @@ namespace ecmech {
          
          __ecmech_hdev__ inline void evalRSS(double* taua, 
                                              const double* const kirchoff, 
-                                             const double* /*P_vec*/) const
+                                             const double* /*P_vec*/) const override final
          {
              NSprojection(taua, NULL, NULL, kirchoff, false);
          }
-         
-     private:
+
+         __ecmech_hdev__ inline virtual const double* getP() const override final { return m_P_vec; }
+         __ecmech_hdev__ inline virtual const double* getQ() const override final { return m_Q_vec; }
+         __ecmech_hdev__
+         inline
+         void getExtras(double* const) const {}
+      private:
+         mutable double m_P_vec[ ecmech::ntvec * nslip ];
+         mutable double m_Q_vec[ ecmech::nwvec * nslip ];
          double m_omegas[3];
 
    }; // SlipGeomBCCNonSchmid

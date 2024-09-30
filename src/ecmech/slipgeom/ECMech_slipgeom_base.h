@@ -43,18 +43,20 @@ namespace ecmech {
       }
    }
    
-   template<int Nslip>
+   template<size_t num_slip, size_t num_extra = 0>
    class SlipGeom {
       public:
-         static constexpr int nslip = Nslip;
+         static constexpr int nslip = num_slip;
+         static constexpr int nSlipExtra = num_extra;
+
          __ecmech_hdev__
          virtual ~SlipGeom(){}
           
-         __ecmech_hdev__ inline const double* getP() const { return m_P_ref_vec; }
-         __ecmech_hdev__ inline const double* getQ() const { return m_Q_ref_vec; }
+         __ecmech_hdev__ inline virtual const double* getP() const { return m_P_ref_vec; }
+         __ecmech_hdev__ inline virtual const double* getQ() const { return m_Q_ref_vec; }
          __ecmech_hdev__ inline const double* getM() const { return m_m_ref_vec; }
          __ecmech_hdev__ inline const double* getS() const { return m_s_ref_vec; }
-         
+
          __ecmech_hdev__ inline virtual void getPQ(double* /* chia */, 
                                                    double* P_vec, 
                                                    double* Q_vec, 
