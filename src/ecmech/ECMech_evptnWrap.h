@@ -383,21 +383,32 @@ namespace ecmech {
                   (int i)
                {
                   double *mtanSDThis = (mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr);
-                  const bool status =
-                  getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
-                  (*slipGeom, *kinetics, *elastN, *eosModel,
-                     dt,
-                     m_tolerance,
-                     &defRateV[def_rate_stride * i],
-                     &spinV[spin_v_stride * i],
-                     &volRatioV[vol_ratio_stride * i],
-                     &internal_energyV[int_eng_stride * i],
-                     &cauchy_stress_dev6_pressureV[stress_stride * i],
-                     &histV[history_stride * i],
-                     temp_kV[temp_k_stride * i],
-                     &sddV[sdd_stride * i],
-                     mtanSDThis,
-                     m_outputLevel);
+                  auto get_response = [=] (SlipGeom& slip_geom) -> bool {
+                     return getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
+                     (slip_geom, *kinetics, *elastN, *eosModel,
+                        dt,
+                        m_tolerance,
+                        &defRateV[def_rate_stride * i],
+                        &spinV[spin_v_stride * i],
+                        &volRatioV[vol_ratio_stride * i],
+                        &internal_energyV[int_eng_stride * i],
+                        &cauchy_stress_dev6_pressureV[stress_stride * i],
+                        &histV[history_stride * i],
+                        temp_kV[temp_k_stride * i],
+                        &sddV[sdd_stride * i],
+                        mtanSDThis,
+                        m_outputLevel);
+                  };
+                  bool status;
+                  // If we have dynamic slip systems then we need to create
+                  // a thread local slip geometery class or else we might run into
+                  // race condition issues...
+                  if constexpr (SlipGeom::dynamic) {
+                     SlipGeom slip_geom = *slipGeom;
+                     status = get_response(slip_geom);
+                  } else {
+                     status = get_response(*slipGeom);
+                  }
                   if (!status) {
                      histV[history_stride * i + iHistA_nFEval] *= -1;
                   }
@@ -452,21 +463,32 @@ namespace ecmech {
                   if (histV[history_stride * i + iHistA_nFEval] >= 0) return;
 
                   double *mtanSDThis = (mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr);
-                  const bool status =
-                  getResponseNRSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
-                  (*slipGeom, *kinetics, *elastN, *eosModel,
-                     dt,
-                     m_tolerance,
-                     &defRateV[def_rate_stride * i],
-                     &spinV[spin_v_stride * i],
-                     &volRatioV[vol_ratio_stride * i],
-                     &internal_energyV[int_eng_stride * i],
-                     &cauchy_stress_dev6_pressureV[stress_stride * i],
-                     &histV[history_stride * i],
-                     temp_kV[temp_k_stride * i],
-                     &sddV[sdd_stride * i],
-                     mtanSDThis,
-                     m_outputLevel);
+                  auto get_response = [=] (SlipGeom& slip_geom) -> bool {
+                     return getResponseNRSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
+                     (slip_geom, *kinetics, *elastN, *eosModel,
+                        dt,
+                        m_tolerance,
+                        &defRateV[def_rate_stride * i],
+                        &spinV[spin_v_stride * i],
+                        &volRatioV[vol_ratio_stride * i],
+                        &internal_energyV[int_eng_stride * i],
+                        &cauchy_stress_dev6_pressureV[stress_stride * i],
+                        &histV[history_stride * i],
+                        temp_kV[temp_k_stride * i],
+                        &sddV[sdd_stride * i],
+                        mtanSDThis,
+                        m_outputLevel);
+                  };
+                  bool status;
+                  // If we have dynamic slip systems then we need to create
+                  // a thread local slip geometery class or else we might run into
+                  // race condition issues...
+                  if constexpr (SlipGeom::dynamic) {
+                     SlipGeom slip_geom = *slipGeom;
+                     status = get_response(slip_geom);
+                  } else {
+                     status = get_response(*slipGeom);
+                  }
                   if (!status) {
                      histV[history_stride * i + iHistA_nFEval] *= -1;
                   }
