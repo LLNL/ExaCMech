@@ -383,7 +383,7 @@ namespace ecmech {
                   (int i)
                {
                   double *mtanSDThis = (mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr);
-                  auto get_response = [=] (SlipGeom& slip_geom) -> bool {
+                  auto get_response = [=] (const SlipGeom& slip_geom) -> bool {
                      return getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
                      (slip_geom, *kinetics, *elastN, *eosModel,
                         dt,
@@ -400,14 +400,17 @@ namespace ecmech {
                         m_outputLevel);
                   };
                   bool status;
+                  // Thanks to NVCC being difficult we have to create an unnecessary temp variable just so we can use our
+                  // lambda expression in an if constexpr...
+                  auto slipGeom_tmp = slipGeom;
                   // If we have dynamic slip systems then we need to create
                   // a thread local slip geometery class or else we might run into
                   // race condition issues...
                   if constexpr (SlipGeom::dynamic) {
-                     SlipGeom slip_geom = *slipGeom;
+                     SlipGeom slip_geom = *slipGeom_tmp;
                      status = get_response(slip_geom);
                   } else {
-                     status = get_response(*slipGeom);
+                     status = get_response(*slipGeom_tmp);
                   }
                   if (!status) {
                      histV[history_stride * i + iHistA_nFEval] *= -1;
@@ -463,7 +466,7 @@ namespace ecmech {
                   if (histV[history_stride * i + iHistA_nFEval] >= 0) return;
 
                   double *mtanSDThis = (mtanSDV ? &mtanSDV[ecmech::nsvec2 * i] : nullptr);
-                  auto get_response = [=] (SlipGeom& slip_geom) -> bool {
+                  auto get_response = [=] (const SlipGeom& slip_geom) -> bool {
                      return getResponseNRSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
                      (slip_geom, *kinetics, *elastN, *eosModel,
                         dt,
@@ -480,14 +483,17 @@ namespace ecmech {
                         m_outputLevel);
                   };
                   bool status;
+                  // Thanks to NVCC being difficult we have to create an unnecessary temp variable just so we can use our
+                  // lambda expression in an if constexpr...
+                  auto slipGeom_tmp = slipGeom;
                   // If we have dynamic slip systems then we need to create
                   // a thread local slip geometery class or else we might run into
                   // race condition issues...
                   if constexpr (SlipGeom::dynamic) {
-                     SlipGeom slip_geom = *slipGeom;
+                     SlipGeom slip_geom = *slipGeom_tmp;
                      status = get_response(slip_geom);
                   } else {
-                     status = get_response(*slipGeom);
+                     status = get_response(*slipGeom_tmp);
                   }
                   if (!status) {
                      histV[history_stride * i + iHistA_nFEval] *= -1;
