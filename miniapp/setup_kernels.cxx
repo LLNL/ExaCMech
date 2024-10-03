@@ -21,6 +21,12 @@ void init_data(const std::vector<double>& ori_vec, const ecmech::matModelBase* m
       mat_model_base->getHistInfo(names, histInit_vec, plot, state);
    }
 
+   std::cout << " hist_init values: " << std::endl;
+   for (size_t i = 0; i < histInit_vec.size(); i++) {
+      std::cout << histInit_vec[i] << " ";
+   }
+   std::cout << std::endl;
+
 #if !defined(SNLS_RAJA_PORT_SUITE)
    const auto histInit_data = histInit_vec.data();
    const auto ori = ori_vec.data();
@@ -44,6 +50,7 @@ void init_data(const std::vector<double>& ori_vec, const ecmech::matModelBase* m
 
    const int ind_dp_eff = ecmech::evptn::iHistA_shrateEff;
    const int ind_eql_pl_strain = ecmech::evptn::iHistA_shrEff;
+   const int ind_flow_stress = ecmech::evptn::iHistA_flowStr;
    const int ind_num_evals = ecmech::evptn::iHistA_nFEval;
    const int ind_dev_elas_strain = ecmech::evptn::iHistLbE;
    const int ind_quats = ecmech::evptn::iHistLbQ;
@@ -69,6 +76,7 @@ void init_data(const std::vector<double>& ori_vec, const ecmech::matModelBase* m
 
       state_vars[ind + ind_dp_eff] = histInit_data[ind_dp_eff];
       state_vars[ind + ind_eql_pl_strain] = histInit_data[ind_eql_pl_strain];
+      state_vars[ind + ind_flow_stress] = histInit_data[ind_flow_stress];
       state_vars[ind + ind_num_evals] = histInit_data[ind_num_evals];
       // Normally, we might have this assigned as 0 but that may not always
       // be the case.
@@ -88,7 +96,7 @@ void init_data(const std::vector<double>& ori_vec, const ecmech::matModelBase* m
       }
 
       for (int j = 0; j < num_hardness; j++) {
-         state_vars[ind + ind_hardness] = histInit_data[ind_hardness + j];
+         state_vars[ind + ind_hardness + j] = histInit_data[ind_hardness + j];
       }
 
       // Normally, we might have this assigned as 0 but that may not always

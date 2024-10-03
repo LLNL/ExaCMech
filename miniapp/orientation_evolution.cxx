@@ -136,27 +136,10 @@ int main(int argc, char *argv[]){
          }
       }
 
-      std::cout << "Orientation File: " << ori_file << std::endl;
-      std::cout << "Material Property File: " << mat_prop_file << std::endl;
-      std::cout << "Material Model: " << mat_model_str << std::endl;
-      std::cout << "Execution Strategy: " << device_type << std::endl;
-      std::cout << "Delta Time Step: " << dt << std::endl;
-      std::cout << "Number of steps: " << nsteps << std::endl;
-      std::cout << "Velocity Gradient: " << std::endl;
-      {
-         auto it = vgrad_init.begin();
-         for (int irow = 0; irow < 3; irow++) {
-            for (int icol = 0; icol < 3; icol++) {
-               std::cout << *it++ << " ";
-            }
-            std::cout << std::endl;
-         }
-      }
-
       // This next chunk reads in all of the quaternions and pushes them to a vector.
       // It will exit if 4 values are not read on a line.
       bool quat_random = false;
-      unsigned int quat_nrand = 0;
+      unsigned int quat_nrand = 1;
       {
          std::ifstream qfile(ori_file);
          std::string line;
@@ -180,8 +163,10 @@ int main(int argc, char *argv[]){
          }
          if (quat_random) {
             // provide a seed so things are reproducible
-            std::default_random_engine gen(42);
+            // std::default_random_engine gen(42);
             // std::normal_distribution<double> distrib(0.0, 1.0); // An alternative way to initialize the quats
+            // std::uniform_real_distribution<double> udistrib(-1.0, 1.0);
+            std::minstd_rand0 gen(42);
             std::uniform_real_distribution<double> udistrib(-1.0, 1.0);
             std::vector<double> q_state = { 1., 0., 0., 0. };
 
@@ -216,6 +201,23 @@ int main(int argc, char *argv[]){
          }
       }
 
+      std::cout << "Orientation File: " << ori_file << std::endl;
+      std::cout << "Material Property File: " << mat_prop_file << std::endl;
+      std::cout << "Material Model: " << mat_model_str << std::endl;
+      std::cout << "Execution Strategy: " << device_type << std::endl;
+      std::cout << "Delta Time Step: " << dt << std::endl;
+      std::cout << "Number of steps: " << nsteps << std::endl;
+      std::cout << "Number of qpts: " << nqpts << std::endl;
+      std::cout << "Velocity Gradient: " << std::endl;
+      {
+         auto it = vgrad_init.begin();
+         for (int irow = 0; irow < 3; irow++) {
+            for (int icol = 0; icol < 3; icol++) {
+               std::cout << *it++ << " ";
+            }
+            std::cout << std::endl;
+         }
+      }
 
       // Read and store our material property data
       // We're going to check that the number of properties are what we expect
@@ -284,6 +286,9 @@ int main(int argc, char *argv[]){
       num_hardness = index_map["num_hardening"];
       num_gdot = index_map["num_slip_system"];
       iHistLbGdot = index_map["index_slip_rates"];
+
+      std::cout << "num_props: " << num_props << " num_state_vars " << num_state_vars << std::endl;
+      std::cout << "num_hardness: " << num_hardness << " num_gdot " << num_gdot << " iHistLbGdot " << iHistLbGdot << std::endl;
 
       // This check used to be in the loop used to read in the material properties
       // However, things were re-arranged, so it's now during the class initialization
