@@ -109,11 +109,15 @@ namespace evptn {
         effective_shear_rate = 0.0;
         if constexpr (SlipGeom::nslip > 0) {
         // default initialize everything to 0.0 
-        double abs_resolved_shear_stress[SlipGeom::nslip] = {};
+        constexpr size_t nslip_dyn = (SlipGeom::dynamic) ? (SlipGeom::nslip + SlipGeom::nSlipExtra) : SlipGeom::nslip;
+        double abs_resolved_shear_stress[nslip_dyn] = {};
         double junk[SlipGeom::nslip] = {};
         double kirchoff[ecmech::nsvec] = {};
         elasticity.elas_strain_to_kirchoff_stress(kirchoff, elas_strain);
         // resolve stress onto slip systems
+        if constexpr (SlipGeom::dynamic) {
+            slip_geom.getExtras(&abs_resolved_shear_stress[SlipGeom::nslip]);
+        }
         slip_geom.evalRSS(abs_resolved_shear_stress, kirchoff, slip_geom.getP());
         slip_kinetics.evalGdots(gdot, junk, abs_resolved_shear_stress, kinetic_values);
 #if defined(ECMECH_USE_DPEFF)
