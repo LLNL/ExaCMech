@@ -361,7 +361,9 @@ namespace ecmech {
 
    }; // SlipGeomBCCPencil
    
-   
+   // Note the slip systems within this model have slight variations of the slip planes compared
+   // to the slip planes in the normal SlipGeomBCC<12> model...
+   // Due to this some models could end up with slightly different answers when comparing the two cases.
    class SlipGeomBCCNonSchmid : public SlipGeom<12>
    {
       public:
@@ -393,8 +395,9 @@ namespace ecmech {
             m_omegas[0] = *parsIt; ++parsIt;
             m_omegas[1] = *parsIt; ++parsIt;
             m_omegas[2] = *parsIt; ++parsIt;
-            
-             
+            const double sum_omegas = fabs(m_omegas[0]) + fabs(m_omegas[1]) + fabs(m_omegas[2]);
+            m_isotropic = sum_omegas < ecmech::idp_eps_sqrt;
+
             const double P3 = sqr3i, M3 = -sqr3i;
             const double P2 = sqr2i, M2 = -sqr2i;
             const double Z = zero;
@@ -547,24 +550,39 @@ namespace ecmech {
                                            double* Q_vec, 
                                            const double* const SvecP) const override final
          {
-             // we need to reverse the stress first...
-             double kirchoff[ecmech::nsvec];
-             kirchoff[iSvecS] = -sqr3 * SvecP[iSvecP];
-             kirchoff[0] = sqr2i * SvecP[0] - sqr2i * SvecP[1];
-             kirchoff[1] = - sqr3b2 * SvecP[0] - sqr3b2 * SvecP[1];
-             kirchoff[4] = sqr2 * SvecP[3]; // 23
-             kirchoff[3] = sqr2 * SvecP[4]; // 31
-             kirchoff[2] = sqr2 * SvecP[5]; // 12
-             
-             double taua[nslip];
-             NSprojection(taua, P_vec, Q_vec, kirchoff, true);
+            if (m_isotropic) {
+                  for (int iTvec = 0; iTvec < ecmech::ntvec * nslip; ++iTvec) {
+                        P_vec[iTvec] = m_P_ref_vec[iTvec];
+                        m_P_vec[iTvec] = m_P_ref_vec[iTvec];
+                  }
+                  for (int iWvec = 0; iWvec < ecmech::nwvec * nslip; ++iWvec) {
+                        Q_vec[iWvec] = m_Q_ref_vec[iWvec];
+                        m_Q_vec[iWvec] = m_Q_ref_vec[iWvec];
+                  }
+            } else {
+               // we need to reverse the stress first...
+               double kirchoff[ecmech::nsvec];
+               kirchoff[iSvecS] = -sqr3 * SvecP[iSvecP];
+               kirchoff[0] = sqr2i * SvecP[0] - sqr2i * SvecP[1];
+               kirchoff[1] = - sqr3b2 * SvecP[0] - sqr3b2 * SvecP[1];
+               kirchoff[4] = sqr2 * SvecP[3]; // 23
+               kirchoff[3] = sqr2 * SvecP[4]; // 31
+               kirchoff[2] = sqr2 * SvecP[5]; // 12
+               
+               double taua[nslip];
+               NSprojection(taua, P_vec, Q_vec, kirchoff, true);
+            }
          }
          
          __ecmech_hdev__ inline void evalRSS(double* taua, 
                                              const double* const kirchoff, 
                                              const double* /*P_vec*/) const override final
          {
-             NSprojection(taua, NULL, NULL, kirchoff, false);
+            if (m_isotropic) {
+               SlipGeom::evalRSS(taua, kirchoff, m_P_ref_vec);
+            } else {
+               NSprojection(taua, NULL, NULL, kirchoff, false);
+            }
          }
 
          __ecmech_hdev__ inline virtual const double* getP() const override final { return m_P_vec; }
@@ -576,6 +594,7 @@ namespace ecmech {
          mutable double m_P_vec[ ecmech::ntvec * nslip ];
          mutable double m_Q_vec[ ecmech::nwvec * nslip ];
          double m_omegas[3];
+         bool m_isotropic = false;
 
    }; // SlipGeomBCCNonSchmid
 
