@@ -17,6 +17,14 @@ from jax import lax
 from jax.numpy.linalg import solve
 jax.config.update("jax_enable_x64", True)
 
+from enzyme_ad.jax import (
+    enzyme_jax_ir,
+    NewXLAPipeline,
+    OldXLAPipeline,
+    JaXPipeline,
+    export,
+)
+
 import jax_ecmech_util as jeu
 import jax_ecmech_const as jec
 
@@ -25,6 +33,20 @@ import jax_slip_geom as jslgeo
 import jax_slip_kinetics as jslkin
 import jax_thermo_elastn as jtelas
 import jax_evptn as jevptn
+
+argv = []
+devices = []
+CurBackends = [jax.default_backend()]
+
+if jax.default_backend() != "cpu":
+    devices = CurBackends
+
+AllBackends = ["cpu"] + devices
+AllPipelines = [
+    ("JaX  ", None, AllBackends),
+    ("JaXPipe", JaXPipeline(), ["cpu"]),
+    ("OldXLA", OldXLAPipeline(), ["cpu"]),
+]
 
 class evptnWrapClass:
     def __init__(
@@ -79,8 +101,22 @@ class evptnWrapClass:
         self.hist_class = jec.HistClass(self.slip_geom_class, self.slip_kinetics_class, self.thermo_elas_class, self.eos_class)
         self.num_hist = self.hist_class.num_hist
 
-        self.get_response_jit = jax.jit(jevptn.get_response, static_argnums=(0, 1, 2, 3, 5))
+        jevptn_ir = enzyme_jax_ir(pipeline_options=JaXPipeline())(self.get_response_partial)
+        # self.get_response_jit = jax.jit(jevptn.get_response, static_argnums=(0, 1, 2, 3, 5))
+        self.get_response_jit = jax.jit(jevptn_ir)
         self.mtan_jit = jax.jit(jax.jacrev(self.get_response_jit, argnums=6, has_aux=True), static_argnums=(0, 1, 2, 3, 5))
+        # Still a WIP to get all the necessary things ported to JAX idioms so that
+        # we can have vectorized calls
+        # So this does at least appear to work as the code doesn't crash...
+        # No idea if it actually works though...
+        # self.batch_solve = jax.vmap(self.solve)
+
+    def get_response_partial(self, delta_time, def_rate_samp, spin_vec_samp,
+                 vol_ratio_vec, internal_energy, stress_vec_pressure, history_vec,
+                 temp_k):
+            return jevptn.get_response(self.slip_geom_class, self.slip_kinetics_class, self.thermo_elas_class, self.eos_class, delta_time, self.solver_tolerance, def_rate_samp, spin_vec_samp,
+                 vol_ratio_vec, internal_energy, stress_vec_pressure, history_vec,
+                 temp_k)
 
     def init_history_vec(self, elas_dev=None, quats=None, hard_state=None, slip_rate=None, shear_rate_eff=None, shear_eff=None, flow_strength=None):
         if elas_dev is None:
@@ -193,12 +229,15 @@ class evptnWrapClass:
         #             vol_ratio_vec, internal_energy, stress_vec_pressure, history_vec,
         #             temp_k
         #         )
-
         stress_vec, others = self.get_response_jit(
-                        self.slip_geom_class, self.slip_kinetics_class, self.thermo_elas_class, self.eos_class,
-                        delta_time, self.solver_tolerance, def_rate_samp, spin_vec_samp,
+                        delta_time, def_rate_samp, spin_vec_samp,
                         vol_ratio_vec, internal_energy, stress_vec_pressure, history_vec,
                         temp_k
+                    )
+        export("./get_response_jit.ir", self.get_response_jit, 
+                        jnp.float64(delta_time), def_rate_samp, spin_vec_samp,
+                        vol_ratio_vec, internal_energy, stress_vec_pressure, history_vec,
+                        jnp.float64(temp_k)
                     )
 
         pressure = -jnp.sum(stress_vec[0:3]) / 3.0
