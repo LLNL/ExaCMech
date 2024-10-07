@@ -15,6 +15,14 @@ message(STATUS "Using cmake version ${CMAKE_VERSION}")
 
 project(ECMECH LANGUAGES CXX)
 
+# GTest requires a C compiler when running with HIP...
+# On other systems this isn't necessarily an issue as CMake will
+# just pick-up a valid system C compiler but on our AMD GPU machines
+# that doesn't always happen.
+if (ENABLE_HIP AND ENABLE_TESTS)
+    enable_language(C)
+endif()
+
 set(CMAKE_CXX_STANDARD 17)
 
 ################################
