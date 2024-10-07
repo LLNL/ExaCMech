@@ -337,40 +337,18 @@ namespace ecmech {
             dgdot_dtau = zero;            
             l_act = false;
 
-            //double u = cos(chi + M_PI/6.0); // 1 for T, 0.5 for AT
-            //double tau_p = m_tau_p + 1.0*(1.0-u) * m_tau_p;
-
             double tau_p = m_tau_p / cos(chi-m_alpha_p);
 
             double t_eff = fmax(fabs(tau) - tau_p, 0.0);
-            
-            //double u = cos(chi + M_PI/6.0); // 1 for T, 0.5 for AT
-            //double t_eff = fmax(fabs(u * tau) - tau_p, 0.0);
-            
-            
+
             double xnn = m_xnn;
             double xn = m_xn;
             double gam_w0 = m_gam_w0;
-            /*
-            // NEW //
-            
-            double k = 10.0;
-            
-            double n_exp_T = 5.0;
-            double n_exp_AT = 20.0;
-            //xnn = n_exp_T + (M_PI/6.0+chi)*3.0/M_PI * (n_exp_AT-n_exp_T);
-            
-            xnn = n_exp_T + 1.0/(1.0+exp(-k*chi)) * (n_exp_AT-n_exp_T);
-            xn = xnn - one;
-            
-            double v0_T = 26.17;
-            double v0_AT = 0.094;
-            //gam_w0 = v0_T + (M_PI/6.0+chi)*3.0/M_PI * (v0_AT-v0_T);
-            gam_w0 = v0_T + 1.0/(1.0+exp(-k*chi)) * (v0_AT-v0_T);
-            */
+
             double v0_T = m_gam_w0;
             double v0_AT = v0_T * 0.1;
             gam_w0 = v0_T + (M_PI/6.0 + chi) * 3.0/M_PI * (v0_AT - v0_T);
+
             double g_i = one / crss; // assume have checked gIn>0 elsewhere
             double t_frac = t_eff * g_i;
             t_frac = copysign(t_frac, tau); // has sign of tau
@@ -562,25 +540,19 @@ namespace ecmech {
             double amat_rho[SlipGeom::nslip] = {};
             vecsVMa<SlipGeom::nslip>(&amat_rho[0], &m_a_mat[0], &h[0]);
 
-            // std::cout << "sdot: " << "k1: " << "k2: " << "fval: " << "amat_rho: " << "h: " << std::endl;
             for (int islip = 0; islip < SlipGeom::nslip; islip++) {
                const double k1   = k1_func(hvals[islip]) * evolVals[islip];
                const double k2   = k2_func() * evolVals[islip];
                const double fval = f_func(evolVals[islip]) * m_krelax;
                amat_rho[islip] = sqrt(amat_rho[islip]);
                sdot[islip] = (k1 * amat_rho[islip] - k2 * h[islip]) - fval * h[islip];
-               // std::cout << sdot[islip] << " " << k1 << " " << k2 << " " << fval << " " << amat_rho[islip] << " " << h[islip] << " " << std::endl;
             }
-            // std::cout << std::endl;
 
 
             if (LOGFORM) {
-               // std::cout << "sdot[iDD]: " << std::endl;
                for (int iDD = 0; iDD < SlipGeom::nslip; iDD++) {
                   sdot[iDD] *= (1.0 / h[iDD]);
-                  // std::cout << " " << sdot[iDD] << std::endl;
                }
-               // std::cout << std::endl;
             }
             if (dsdot_ds)
             {
@@ -611,117 +583,6 @@ namespace ecmech {
                   }
                }
             }
-/*
-            double gtot = 0.0;
-            double gdotmax = 0.0;
-            double kfact[SlipGeom::nslip];
-            for (int islip = 0; islip < SlipGeom::nslip; islip++) {
-                gtot += evolVals[islip];
-                gdotmax = fmax(evolVals[islip], gdotmax);
-                kfact[islip] = 1.0;
-            }
-            
-            double frel[SlipGeom::nslip] = { 0.0 };
-            if (gdotmax > 1e-10) {
-                for (int islip = 0; islip < SlipGeom::nslip; islip++) {
-                    double ratio = evolVals[islip] / gdotmax;
-                    double ratiothres = 0.01;
-                    frel[islip] = 1.0-1.0/(1.0+exp(-100.0*(ratio-ratiothres)));
-                    
-                    //if (h[islip] < log(1e2*m_hdn_min)) frel[islip] = 0.0;
-                    //if (h[islip] < log(2*m_hdn_init)) frel[islip] = 0.0;
-                    
-                    frel[islip] = frel[islip] * kfact[islip];
-                }
-            }
-            
-            // Define k1 as a function of the orientation
-            double k1[SlipGeom::nslip];
-            //printf("getSdotN:\n");
-            for (int islip = 0; islip < SlipGeom::nslip; islip++) {
-                k1[islip] = m_k1;
-                if (SlipGeom::dynamic) {
-                    double chia = hvals[islip];
-                    // If we are in the AT zone, then we need to increase k1
-                    // to account for the fact that dislocations do take
-                    // a longer path and thus are likely to multiply more
-                    
-                    double amin = 0.95;
-					
-                    //double a = fmin(1.0 + (amin - 1.0) * chia * 6.0 / M_PI, 1.0);
-                    //a = 1.0 / a;
-					
-                    double a = 1.0/(1.0/cos(M_PI/6.0 - m_alpha_p)-1.0) * (1.0/amin - 1.0);
-                    a = 1.0 + a * (1.0 / cos(chia - m_alpha_p) - 1.0);
-					
-                    k1[islip] = m_k1 * a;
-                    //printf("sys[%d] chi = %e, rho = %e, gdot = %e\n",islip,chia*180.0/M_PI,exp(h[islip]),evolVals[islip]);
-                }
-            }
-            
-            // Define k2 as a function of gdot and temp_k
-            double k2_ref = m_k2; // reference k2 value for 2e8/s at 300K
-            double k2_temp = 0.05756349443979855 * log(temp_k / 7.309541735840538e-06);
-            //printf("temp = %e, k2_temp = %e\n",temp_k,k2_temp);
-            
-            double rate_cut = 1e4; //1e-3;
-            double lograte = log(0.5 * gtot * 1e6 + rate_cut);
-            double k2_rate = -0.3433061910379516 * lograte + 7.586381434140954;
-            //double k2_rate = 6.75092510e-03 * lograte * lograte - 5.72927375e-01 * lograte + 9.50718982e+00;
-            
-            
-            double k2[SlipGeom::nslip];
-            for (int islip = 0; islip < SlipGeom::nslip; islip++) {
-                k2[islip] = k2_ref * k2_rate * k2_temp * kfact[islip];
-                if (gtot < 1e-10) k2[islip] = 0.0;
-                //if (h[islip] < log(1e2*m_hdn_min)) k2[islip] = 0.0;
-                //printf("sys[%d] k1 = %e, k2 = %e, frel = %e\n",islip,k1[islip],k2[islip],frel[islip]);
-            }
-            //printf("gtot = %e, k2 = %e\n",gtot,k2);
-            
-            
-            // TEST: adjust values while keeping the same saturation ratio k1/k2
-            
-            for (int islip = 0; islip < SlipGeom::nslip; islip++) {
-                //double r = 0.2;
-                //k1[islip] *= r;
-                //k2[islip] *= r;
-				//printf("sys %d: chi = %e, k1 = %e, k2 = %e, rho = %e\n",islip,hvals[islip]*180.0/M_PI,k1[islip],k2[islip],exp(h[islip])*1e4);
-            }
-			//printf("---\n");
-            
-            // Define krelax as a function of gdot
-            double krelax_ref = m_krelax; // reference krelax value for 2e8/s
-            double krelax = krelax_ref * (0.5 * gtot * 1e6) / 2e8;
-            
-            // h = log(DD)
-            // dDD / dt = DD * dh / dt
-            // dh / dt = dDD / dt * 1 / DD
-            // d DD_i / dt = (k1 * sqrt(A_{ij} DD_j) - k2 * DD_i) * gammadot_i
-            // dh / dt = (k1 * sqrt(A_{ij} DD_j) / DD_i - k2) * gammadot_i
-            // specialized here for the A_{ij} = I
-            // dh / dt = (k1 / sqrt(DD_i) - k2) * gammadot_i
-            // specialized case
-            // d\dot{h} / dh = -1/2 * k_1 * (DD)^{-1/2}
-            // more general case I believe if I did the derivs correctly...
-            // \dot{h^i} / dh_j = \dot{h^i} / d DD_j * d DD^j / d h_k
-            // d DD^j / d h_k = DD_j when j == k and 0 for j neq k
-            // for i neq j
-            // 1/2 *  \frac{k_1 * A_{ij}}{DD_i * \sqrt(A_{ij}DD_j)} * gammadot_i * DD_j
-            // for i == j
-            // (1/2 *  \frac{k_1 * A_{ij}}{DD_i * \sqrt(A_{ij}DD_j)} - \frac{k1 * \sqrt(A_{ij}DD_j)}{DD_i^2} ) * gammadot_i * DD_j
-            // = (\frac{k1 A_{ij} DD_i - 2 k1 * A_ij DD_j}{2 * DD^2_i * sqrt(A_{ij} * DD_j)}) gammadot_i * DD_j
-            // when A_ij = I this reduces down to
-            // -k1 / 2 * (DD_i)^{-1/2} * gammadot_i 
-            // which is what we get out in the regular MTS KM model so that's a good sign
-            // I did something right and the off diagonal terms are zero
-            for (int islip = 0; islip < SlipGeom::nslip; islip++) {
-               double temp_hs_a = exp(-onehalf * h[islip]);
-               double temp1 = k1[islip] * temp_hs_a - k2[islip];
-               sdot[islip] = temp1 * evolVals[islip] - frel[islip] * krelax;
-               dsdot_ds[ECMECH_NN_INDX(islip, islip, SlipGeom::nslip)] = (-k1[islip] * onehalf * temp_hs_a) * evolVals[islip];
-            }
-            */
          }
    }; // class KineticsBCCMD
 } // namespace ecmech
