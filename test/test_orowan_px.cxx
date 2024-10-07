@@ -61,6 +61,7 @@ params.insert(params.end(), slip_geom_ns.begin(), slip_geom_ns.end());
    DUMPVEC("params",params);
    DUMPVEC("strs",strs);
    //
+   mmb->setExecutionStrategy(ecmech::ExecutionStrategy::CPU);
    mmb->initFromParams(opts, params, strs);
    //
    mmb->complete();
@@ -79,7 +80,7 @@ params.insert(params.end(), slip_geom_ns.begin(), slip_geom_ns.end());
    // set up hist and other state information
    //
    const int numHist = mmb->getNumHist();
-   double V_hist[numHist * nPassed];
+   std::vector<double> V_hist(numHist * nPassed, 0.0);
    {
       // std::default_random_engine gen;
       // Turns out with this is implementation dependent and on newer macos arm systems it doesn't follow our old rand distribution implementations :(
@@ -150,7 +151,7 @@ params.insert(params.end(), slip_geom_ns.begin(), slip_geom_ns.end());
 
       mmb->getResponseECM(dt,
                           V_d_svec_kk_sm, V_w_veccp_sm, V_volRatio,
-                          V_eInt, V_stressSvecP, V_hist, V_tkelv, V_sdd, nullptr,
+                          V_eInt, V_stressSvecP, V_hist.data(), V_tkelv, V_sdd, nullptr,
                           nPassed);
 
       sAvg = 0.0;

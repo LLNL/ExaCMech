@@ -270,8 +270,7 @@ namespace ecmech {
          getVals(double* const vals, // [nVals]
                  double, // p, not used
                  double temp_k,
-                 const double* const h_state,
-                 double* const val_derivs = nullptr
+                 const double* const h_state
                  ) const
          {
             double const nVPerInv = 1.0 / nVPer;
@@ -281,15 +280,6 @@ namespace ecmech {
 
             vals[0] = m_gam_wo / sqrtDDens; // _gam_w
             vals[1] = m_gam_ro * sqrtDDens * sqrtDDens; // _gam_r
-            if (val_derivs != nullptr) {
-               val_derivs[0] = -m_gam_wo * onehalf / (sqrtDDens * sqrtDDens * sqrtDDens); // d (_gam_w) / dh;
-               // d(_gam_r) / dh is just m_gam_ro so we can save ourselves a memory allocation
-               // d(g)/dh deriv where g(h) = g0 + s * sqrtDDens
-               const double isqrtDDens = ecmech::onehalf / sqrtDDens;
-               for (int iVal = 0; iVal < nVPer; iVal++) {
-                  val_derivs[1 + iVal] = m_s[iVal] * isqrtDDens;
-               }
-            }
 
             double hdnScale = 0.;
             for (int iVal = 0; iVal<nVPer; ++iVal) {

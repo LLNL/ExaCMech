@@ -185,15 +185,10 @@ namespace ecmech {
          getVals(double* const vals,
                  double, // p, not currently used
                  double, // temp_k, not currently used
-                 const double* const h_state,
-                 double* const val_derivs = nullptr
+                 const double* const h_state
                  ) const
          {
             vals[0] = h_state[0]; // _gAll
-            if ( val_derivs != nullptr)
-            {
-               val_derivs[0] = 1.0;
-            }
             assert(vals[0] > zero);
             return vals[0];
          }

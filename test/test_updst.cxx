@@ -64,6 +64,7 @@ TEST(ecmech, updst_a)
    DUMPVEC("params", params);
    DUMPVEC("strs", strs);
    //
+   mmb->setExecutionStrategy(ecmech::ExecutionStrategy::CPU);
    mmb->initFromParams(opts, params, strs);
    //
    mmb->complete();
@@ -169,6 +170,7 @@ TEST(ecmech, driver_a)
    DUMPVEC("params", params);
    DUMPVEC("strs", strs);
    //
+   mmb->setExecutionStrategy(ecmech::ExecutionStrategy::CPU);
    mmb->initFromParams(opts, params, strs);
    //
    mmb->complete();

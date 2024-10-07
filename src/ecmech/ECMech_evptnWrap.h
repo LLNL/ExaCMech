@@ -377,6 +377,8 @@ namespace ecmech {
                const auto kinetics = m_kinetics;
                const auto elastN = m_elastN;
                const auto eosModel = m_eosModel;
+               const auto tolerance = m_tolerance;
+               const auto outputLevel = m_outputLevel;
 
                snls::forall<ECMECH_GPU_THREADS>(0, nPassed, [=]
                   __ecmech_hdev__
@@ -387,7 +389,7 @@ namespace ecmech {
                      return getResponseSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
                      (slip_geom, *kinetics, *elastN, *eosModel,
                         dt,
-                        m_tolerance,
+                        tolerance,
                         &defRateV[def_rate_stride * i],
                         &spinV[spin_v_stride * i],
                         &volRatioV[vol_ratio_stride * i],
@@ -397,7 +399,7 @@ namespace ecmech {
                         temp_kV[temp_k_stride * i],
                         &sddV[sdd_stride * i],
                         mtanSDThis,
-                        m_outputLevel);
+                        outputLevel);
                   };
                   bool status;
                   // Thanks to NVCC being difficult we have to create an unnecessary temp variable just so we can use our
@@ -457,6 +459,8 @@ namespace ecmech {
                const auto kinetics = m_kinetics;
                const auto elastN = m_elastN;
                const auto eosModel = m_eosModel;
+               const auto tolerance = m_tolerance;
+               const auto outputLevel = m_outputLevel;
 
                snls::forall(0, nPassed, [=]
                   __ecmech_hdev__
@@ -470,7 +474,7 @@ namespace ecmech {
                      return getResponseNRSngl<SlipGeom, Kinetics, ThermoElastN, EosModel>
                      (slip_geom, *kinetics, *elastN, *eosModel,
                         dt,
-                        m_tolerance,
+                        tolerance,
                         &defRateV[def_rate_stride * i],
                         &spinV[spin_v_stride * i],
                         &volRatioV[vol_ratio_stride * i],
@@ -480,7 +484,7 @@ namespace ecmech {
                         temp_kV[temp_k_stride * i],
                         &sddV[sdd_stride * i],
                         mtanSDThis,
-                        m_outputLevel);
+                        outputLevel);
                   };
                   bool status;
                   // Thanks to NVCC being difficult we have to create an unnecessary temp variable just so we can use our

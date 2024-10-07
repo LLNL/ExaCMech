@@ -372,8 +372,7 @@ namespace ecmech {
          getVals(double* const vals, // [nVals]
                  double, // p, not used
                  double temp_k,
-                 const double* const h_state,
-                 double* const val_derivs = nullptr
+                 const double* const h_state
                  ) const
          {
             double const nVPerInv = 1.0 / nslip;
@@ -384,10 +383,6 @@ namespace ecmech {
                const double int_q = isotropic ? sqrt(m_inter_mat[0] * vecsssumabs<SlipGeom::nslip>(&h_state[nslip])) :
                                                 sqrt(vecsyadotb<SlipGeom::nslip>(&m_inter_mat[iVal * nslip], &h_state[nslip]));
                const double hdnI = perSS ? (m_c_2[iVal] * int_q) : (m_c_2[0] * int_q);
-               if (val_derivs != nullptr) {
-                  val_derivs[iVal] = perSS ? m_c_2[iVal] : m_c_2[0];
-                  val_derivs[iVal] *= ecmech::onehalf / int_q;
-               }
                hdnScale += hdnI;
                vals[1 + iVal] = hdnI;
                vals[1 + nslip + iVal] = h_state[iVal];

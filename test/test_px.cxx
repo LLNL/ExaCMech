@@ -57,6 +57,7 @@ TEST(ecmech, px_a)
    DUMPVEC("params", params);
    DUMPVEC("strs", strs);
    //
+   mmb->setExecutionStrategy(ecmech::ExecutionStrategy::CPU);
    mmb->initFromParams(opts, params, strs);
    //
    mmb->complete();
@@ -75,7 +76,7 @@ TEST(ecmech, px_a)
    // set up hist and other state information
    //
    const int numHist = mmb->getNumHist();
-   double V_hist[numHist * nPassed];
+   std::vector<double> V_hist(numHist * nPassed, 0.0);
    {
       // Turns out with this is implementation dependent and on newer macos arm systems it doesn't follow our old rand distribution implementations :(
       // std::default_random_engine gen(1);
@@ -145,7 +146,7 @@ TEST(ecmech, px_a)
 
       mmb->getResponseECM(dt,
                           V_d_svec_kk_sm, V_w_veccp_sm, V_volRatio,
-                          V_eInt, V_stressSvecP, V_hist, V_tkelv, V_sdd, nullptr,
+                          V_eInt, V_stressSvecP, V_hist.data(), V_tkelv, V_sdd, nullptr,
                           nPassed);
 
       sAvg = 0.0;

@@ -257,11 +257,9 @@ namespace ecmech {
          getVals(double* const vals,
                  double, // p, not currently used
                  double temp_k,
-                 const double* const h_state,
-                 double* const val_derivs = nullptr
+                 const double* const h_state
                  ) const
          {
-            assert(val_derivs == nullptr);
             double crss = ecmech::zero;
             for (int iSlip = 0; iSlip < m_num_slip; ++iSlip) {
                crss += h_state[iSlip];
