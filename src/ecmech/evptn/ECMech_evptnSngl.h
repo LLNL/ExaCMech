@@ -17,7 +17,7 @@ namespace evptn {
 template<class SlipGeom, class Kinetics, class EosModel, class ThermoElastN, class ProbState, bool RStarSolve=false>
 __ecmech_hdev__
 inline
-void preprocess(const SlipGeom& slipGeom,
+bool preprocess(const SlipGeom& slipGeom,
                 const Kinetics& kinetics,
                 const EosModel& eos,
                 const ThermoElastN& thermoElastN,
@@ -81,7 +81,11 @@ void preprocess(const SlipGeom& slipGeom,
         // still need to rotate stress state back to original value
         slipGeom.getPQ(hvals, P, Q, stress_dev6_press);
     }
-    kinetics.updateH(prob_state.h_state_u, prob_state.h_state, prob_state.dt, prob_state.gdot, hvals, prob_state.temp_k);
+    const int nfevals = kinetics.updateH(prob_state.h_state_u, prob_state.h_state, prob_state.dt, prob_state.gdot, hvals, prob_state.temp_k);
+    if (nfevals < 0) {
+        ECMECH_WARN(__func__, "Hardening failed to converge");
+        return false;
+    }
 #if defined(ECMECH_EXTRA_SOLVERS)
     if constexpr (RStarSolve) {
         auto prob = RotUpdProblem(slipGeom, thermoElastN, prob_state);
@@ -90,13 +94,13 @@ void preprocess(const SlipGeom& slipGeom,
         snls::SNLSTrDlDenseG<decltype(prob)> solver(prob);
         const bool status = main_problem(1e-8, solver, 0);
         if (!status) {
-            return;
+            ECMECH_WARN(__func__, "RStar solver failed to converge");
+            return false;
         }
-
         prob.stateFromX(prob_state.quat_u, solver._x);
     }
-
 #endif
+    return true;
 }
 
 template<class SNLS_Solver>
@@ -288,7 +292,9 @@ bool getResponseSngl(const SlipGeom& slipGeom,
     auto prob_state = ProblemState<SlipGeom, Kinetics, ThermoElastN, EosModel>(hist, cauchy_stress_dev6_pressure, temp_k, def_rate_dev6_vol_sample, spin_vec_sample, volRatio, dt);
 
     double halfVMidDt, dev_strain_energy_total;
-    preprocess(slipGeom, kinetics, eos, elastN, volRatio, internal_energy, def_rate_dev6_vol_sample, prob_state, halfVMidDt, dev_strain_energy_total);
+    const bool pre_status = preprocess(slipGeom, kinetics, eos, elastN, volRatio, internal_energy, def_rate_dev6_vol_sample, prob_state, halfVMidDt, dev_strain_energy_total);
+
+    if (!pre_status) { return false; }
 
     double cauchy_stress_dev_press_xtal[ecmech::nsvec];
     {
