@@ -277,7 +277,7 @@ namespace ecmech {
    /*
     * Helper function to run the state update solver for cases in which there are multiple hardness state variables.
     */
-   template<class Kinetics>
+   template<class Kinetics, bool relaxed_solver = false>
    __ecmech_hdev__
    inline
    int
@@ -309,14 +309,24 @@ namespace ecmech {
       }
 
       snls::SNLSStatus_t status = solver.solve( );
-      /*
-      if (status != snls::converged) {
-         ECMECH_FAIL(__func__, "Solver failed to converge!");
-      }
-      */
+
       int nFevals = solver.getNFEvals();
       if (status != snls::converged) {
-          nFevals = -1;
+         snls::SNLSStatus_t status2 = status;
+         if constexpr(relaxed_solver) {
+            {
+               int maxIter = 100;
+               double tolerance = 1e-9;
+               solver.setupSolver(maxIter, tolerance, &deltaControl, outputLevel);
+            }
+            for (int iX = 0; iX < prob.nDimSys; ++iX) {
+               solver._x[iX] = 0e0;
+            }
+               status2= solver.solve();
+         }
+         if (status2 != snls::converged) {
+            nFevals = -1;
+         }
       }
 
       prob.getHn(hs_n, solver._x);

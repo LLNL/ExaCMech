@@ -33,7 +33,7 @@ namespace ecmech {
          /// Number of slip systems we're dealing with if it that is something useful
          static constexpr int m_num_slip = SlipGeom::nslip;
          /// Number of parameters the model needs to be instantiated
-         static constexpr int nParams = 8+4+1;
+         static constexpr int nParams = 8+4+1+3;
          /// Number of slip kinetic related-variables outputted
          /// Think of this as things like the CRSS values, evolving reference
          /// slip rates for both thermal and phonon drag contributions, and potentially
@@ -120,7 +120,9 @@ namespace ecmech {
             m_k1 = *parsIt; ++parsIt;
             m_k2 = *parsIt; ++parsIt;
             m_krelax = *parsIt; ++parsIt;
-            
+            m_gdot_0 = *parsIt; ++parsIt;
+            m_temp_k0 = *parsIt; ++parsIt;
+            m_ak = *parsIt; ++parsIt;
             //////////////////////////////
             // nH
             // All the terms related to our hardening state
@@ -170,7 +172,9 @@ namespace ecmech {
             params.push_back(m_k1);
             params.push_back(m_k2);
             params.push_back(m_krelax);
-
+            params.push_back(m_gdot_0);
+            params.push_back(m_temp_k0);
+            params.push_back(m_ak);
             //////////////////////////////
             // nH
 
@@ -218,7 +222,7 @@ namespace ecmech {
          // Hardening
          double m_alpha;
          double m_k1, m_k2, m_krelax;
-
+         double m_gdot_0, m_temp_k0, m_ak;
          //////////////////////////////
          // nH
          double m_hdn_init;
@@ -420,14 +424,13 @@ namespace ecmech {
             }
             getEvolVals(evolVals, gdot);
             // If the equation is incredibly  stiff it's possible this won't solve
-            int nFEvals = updateHN<KineticsBCCMD>(this,
+            int nFEvals = updateHN<KineticsBCCMD, true>(this,
                                                   log_hs_u, log_hs_o, dt, evolVals, hvals, temp_k,
                                                   outputLevel);
 
             for(int islip = 0; islip < SlipGeom::nslip; islip++) {
-               hs_u[islip] = fmax(exp(log_hs_u[islip]), m_hdn_min);
+               hs_u[islip] = exp(log_hs_u[islip]);
             }
-
             return nFEvals;
          }
 
@@ -478,15 +481,11 @@ namespace ecmech {
             constexpr size_t nDimSys = SlipGeom::nslip;
             constexpr size_t h_content = (LOGFORM) ? nslip : 1;
 
-            // Currently paper values but will eventually make into real model params...
-            constexpr double m_gdot_0 = 7.91e9;
-            constexpr double m_temp_k0 = 7.31e-6;
-            constexpr double m_ak = 0.1;
-
             double hexp[h_content];
             if (LOGFORM) {
                for (size_t iDD = 0; iDD < nslip; iDD++) {
-                  hexp[iDD] = exp(h_i[iDD]);
+                  // Prevent divide by 0 errors...
+                  hexp[iDD] = fmax(exp(h_i[iDD]), ecmech::idp_eps);
                }
             }
             const double* const h = (LOGFORM) ? &hexp[0] : h_i;
@@ -499,16 +498,15 @@ namespace ecmech {
                // If we are in the AT zone, then we need to increase k1
                // to account for the fact that dislocations do take
                // a longer path and thus are likely to multiply more
-               
                double amin = 0.95;
          
-               //double a = fmin(1.0 + (amin - 1.0) * chia * 6.0 / M_PI, 1.0);
+               //double a = fmin(1.0 + (amin - 1.0) * xi * 6.0 / M_PI, 1.0);
                //a = 1.0 / a;
          
                double a = 1.0/(1.0/cos(M_PI/6.0 - m_alpha_p)-1.0) * (1.0/amin - 1.0);
-               a = 1.0 + a * (1.0 / cos(chia - m_alpha_p) - 1.0);
+               a = 1.0 + a * (1.0 / cos(xi - m_alpha_p) - 1.0);
          
-               k1[islip] = m_k1 * a;
+               return m_k1 * a;
                */
                // Pure paper implementation of things
                return m_k1 * (1.0 + m_ak) / (cos(xi - m_alpha_p));
@@ -527,6 +525,11 @@ namespace ecmech {
                return 1.0 - (1.0 / ( 1.0 + exp(exp_inner)));
             };
 
+            auto k_relax_func = [=] (const double h) -> double {
+               const double relax_term = 1.0 - exp(-(h - m_hdn_min) / m_hdn_min);
+               return relax_term;
+            };
+
             // From the paper if sqrt(a_ij * rho_j) does not correspond to
             // sqrt(I_ij * rho_j) where I is the identity matrix
             // then we'd something like the below
@@ -543,11 +546,10 @@ namespace ecmech {
             for (int islip = 0; islip < SlipGeom::nslip; islip++) {
                const double k1   = k1_func(hvals[islip]) * evolVals[islip];
                const double k2   = k2_func() * evolVals[islip];
-               const double fval = f_func(evolVals[islip]) * m_krelax;
+               const double fval = f_func(evolVals[islip]) * m_krelax * k_relax_func(h[islip]);
                amat_rho[islip] = sqrt(amat_rho[islip]);
                sdot[islip] = (k1 * amat_rho[islip] - k2 * h[islip]) - fval * h[islip];
             }
-
 
             if (LOGFORM) {
                for (int iDD = 0; iDD < SlipGeom::nslip; iDD++) {
@@ -566,7 +568,12 @@ namespace ecmech {
                   const double k1   = k1_func(hvals[islip]) * evolVals[islip];
                   const double k2   = k2_func() * evolVals[islip];
                   const double fval = f_func(evolVals[islip]) * m_krelax;
-                  dsdot_ds_view(islip, islip) -= (k2 - fval);
+                  const double ratio = h[islip] / m_hdn_min;
+                  // Don't want this getting too big or else we get an infinity error later on...
+                  const double ratio_max = fmin(ratio, 80.0);
+                  // Copied this from Wolfram alpha for the f_func() * k_relax * k_relax_func() * h
+                  const double fval_der = fval - (fval * exp(1 - ratio_max) * (m_hdn_min - h[islip]))/m_hdn_min;
+                  dsdot_ds_view(islip, islip) += -k2 - fval_der;
                   for (size_t jslip = 0; jslip < nslip; jslip++) {
                      dsdot_ds_view(islip, jslip) += k1 * amat(islip, jslip) * 0.5 / amat_rho[jslip];
                   }
