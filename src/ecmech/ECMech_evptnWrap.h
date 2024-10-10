@@ -588,28 +588,30 @@ namespace ecmech {
                m_complete = true;
             }
 
+            using ExecStrat = ecmech::ExecutionStrategy;
+
             /**
              *  @brief
              *  Set the accelerator to be used for getResponse.
              */
             __ecmech_host__
-            void setExecutionStrategy(ecmech::ExecutionStrategy accel) override final  {
+            void setExecutionStrategy(ExecStrat accel) override final  {
                switch (accel) {
 #ifdef __ecmech_gpu_active__
-                  case (ecmech::ExecutionStrategy::GPU): {
-                     m_accel = ecmech::ExecutionStrategy::GPU;
+                  case (ECM_EXEC_STRAT_GPU): {
+                     m_accel = ECM_EXEC_STRAT_GPU;
                      break;
                   }
 #endif
 #if defined(RAJA_ENABLE_OPENMP) && defined(OPENMP_ENABLE)
-                  case (mslib::ExecutionStrategy::OPENMP): {
-                     m_accel = ecmech::ExecutionStrategy::OPENMP;
+                  case (ECM_EXEC_STRAT_OPENMP): {
+                     m_accel = ECM_EXEC_STRAT_OPENMP;
                      break;
                   }
 #endif
-                  case (ecmech::ExecutionStrategy::CPU):
+                  case (ECM_EXEC_STRAT_CPU):
                   default: {
-                     m_accel = ecmech::ExecutionStrategy::CPU;
+                     m_accel = ECM_EXEC_STRAT_CPU;
                      break;
                   }
                }
@@ -617,23 +619,23 @@ namespace ecmech {
             }
 
             __ecmech_host__
-            void setSNLSExecutionStrategy(ecmech::ExecutionStrategy accel) const
+            void setSNLSExecutionStrategy(ExecStrat accel) const
             {
                snls::Device &device = snls::Device::GetInstance();
                switch (accel) {
 #ifdef __ecmech_gpu_active__
-                  case (ecmech::ExecutionStrategy::GPU): {
+                  case (ECM_EXEC_STRAT_GPU): {
                      device.SetBackend(snls::ExecutionStrategy::GPU);
                      break;
                   }
 #endif
 #if defined(RAJA_ENABLE_OPENMP) && defined(OPENMP_ENABLE)
-                  case (ecmech::ExecutionStrategy::OPENMP): {
+                  case (ECM_EXEC_STRAT_OPENMP): {
                      device.SetBackend(snls::ExecutionStrategy::OPENMP);
                      break;
                   }
 #endif
-                  case (ecmech::ExecutionStrategy::CPU):
+                  case (ECM_EXEC_STRAT_CPU):
                   default: {
                      device.SetBackend(snls::ExecutionStrategy::CPU);
                      break;

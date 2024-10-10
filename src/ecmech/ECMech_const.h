@@ -71,9 +71,6 @@ namespace ecmech
    // We're going to use this to determine what RAJA code to run for our
    // kernels.
    enum class ExecutionStrategy { CPU, GPU, OPENMP };
-#define ECM_EXEC_STRAT_CPU    ecmech::ExecutionStrategy::CPU
-#define ECM_EXEC_STRAT_GPU    ecmech::ExecutionStrategy::GPU
-#define ECM_EXEC_STRAT_OPENMP ecmech::ExecutionStrategy::OPENMP
 
    constexpr int nsvp = 7;
    constexpr int ndim = 3;
@@ -155,5 +152,9 @@ namespace ecmech
    constexpr double r_scale = 0.01;
    constexpr int st_max_iter = 200;
 } // (namespace ecmech)
+
+#define ECM_EXEC_STRAT_CPU    ecmech::ExecutionStrategy::CPU
+#define ECM_EXEC_STRAT_GPU    ecmech::ExecutionStrategy::GPU
+#define ECM_EXEC_STRAT_OPENMP ecmech::ExecutionStrategy::OPENMP
 
 #endif // __ECMECH_CONST_H__
