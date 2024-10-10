@@ -1,7 +1,4 @@
-./rand_quats_gpu.txt
+./cases/rand_quats_gpu.txt
 evptn_FCC_A
-./props.txt
+./cases/props.txt
 GPU
-
-
-
