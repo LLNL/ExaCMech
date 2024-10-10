@@ -8,18 +8,10 @@
 
 #define ECMECH_NN_INDX(p, q, nDim) (p) * (nDim) + (q)
 
-// I've left out some of the additional functions in this class which are related to
-// extra derivatives that are needed for fully implicit solve of the updated state (elastic strain, lattice rotation, and hardening state)
-// as calculating those extra derivatives usually aren't worth the hassle if we are just playing
-// around with models.
-// Next for the slip geometry class I will need to make some changes over there
-// so the new slip geometries can just plug and play with the existing solvers.
-
 namespace ecmech {
    /**
     * slip and hardening kinetics
     *
-    * power-law slip kinetics with some hardening law -- used as a template
     * Template on the slip geometry class
     */
    template<class SlipGeom>
@@ -35,19 +27,9 @@ namespace ecmech {
          /// Number of parameters the model needs to be instantiated
          static constexpr int nParams = 8+4+1+3;
          /// Number of slip kinetic related-variables outputted
-         /// Think of this as things like the CRSS values, evolving reference
-         /// slip rates for both thermal and phonon drag contributions, and potentially
-         /// other evolving variables that we can calculate at the beginning of time
-         /// step and not have to recalculate every iterations of our coupled solve
-         /// of the elastic strain and lattice rotation
          static constexpr int nVals = 2 * SlipGeom::nslip + 1;
          /// These are variables that the hardening equation would need to solve for
          /// its update but the variables are not constant themselves.
-         /// A common set would be for example in a voce model, the updated
-         /// saturation strength (g^{sat}_0 (\frac{\sum_{i = 0}^{number of slip systems} |\dot{\gamma}_i| }{constant})^m')
-         /// as the saturation strength evolves based on the sum of the absolute value of the gammadots.
-         /// In the orowan model as another example, we need the signed mobile dislocation scalar velocity
-         /// as an input.
          static constexpr int nEvolVals = nH + 1;
 
          // Generally  don't using anything other than the default here
@@ -62,11 +44,6 @@ namespace ecmech {
             setParams(params);
          }
 
-         /// In ExaCMech each class will be handed the parameters that they said they needed
-         /// It is up to the modeller to iterate through this vector and  pull out the parameters
-         /// and put them where they need to go.
-         /// Additionally, modellers could also generate other parameters based on the inputted ones
-         /// that the model will use later on.
          __ecmech_host__
          inline void setParams(const std::vector<double> & params)
          {
@@ -97,14 +74,11 @@ namespace ecmech {
             // Drag stress
             m_tau_drag = *parsIt; ++parsIt;
 
-            // CALL fill_power_law(pl)
-            // xmm  = xm - one ;
             // These are terms that are constant during the simulation and we don't
             // really need to calculate them every time we call slip kinetics portion
             // of the class
             m_xnn = one / m_xm;
             m_xn = m_xnn - one;
-            // xMp1 = xnn + one
             //
             // CALL set_t_min_max(pl)
             // For numerics, we define a minimum and maximum (rss / crss) value
@@ -196,7 +170,6 @@ namespace ecmech {
             
             for (int iSlip = 0; iSlip < SlipGeom::nslip; iSlip++) {
                names.push_back("rho_" + std::to_string(iSlip));
-               //init.push_back(h_state[iSlip]);
                init.push_back(m_hdn_init);
                plot.push_back(true);
                state.push_back(true);
@@ -205,7 +178,6 @@ namespace ecmech {
 
       private:
 
-         // static const _nXnDim = nH*nH ; // do not bother
          //////////////////////////////
          // Power-law stuff
 
@@ -288,8 +260,7 @@ namespace ecmech {
 
          /// Evaluates our slip rate and its derivatives when provided the RSS value across all slip systems
          /// and the kinetic values calculated in getVals
-         /// The derivatives we need are the derivative of the slip rate wrt the RSS and
-         /// the derivative of the slip rate wrt the CRSS 
+         /// The derivative we need is the derivative of the slip rate wrt the RSS         
          __ecmech_hdev__
          inline
          void
@@ -316,10 +287,6 @@ namespace ecmech {
          }
 
          /// Calculates the slip rate and derivatives for a given slip system
-         /// The MORE_DERIVS portion of things isn't used at this point by ECMech
-         /// so we can probably just set them to 0 within another ifdef down below
-         /// or just ignore them completely.
-         /// l_act can just be ignored we don't actually use it.
          __ecmech_hdev__
          inline
          void
@@ -395,7 +362,7 @@ namespace ecmech {
             }
          } // evalGdot
 
-         /// This is called externally  by the portion of code that does the
+         /// This is called externally by the portion of code that does the
          /// elastic strain and lattice rotation update. However, it's only
          /// called at the beginning of time step and is not called iteratively
          /// so the inputs are all begining of time step values
@@ -441,8 +408,6 @@ namespace ecmech {
          /// A common set would be for example in a voce model, the updated
          /// saturation strength (g^{sat}_0 (\frac{\sum_{i = 0}^{number of slip systems} |\dot{\gamma}_i| }{constant})^m')
          /// as the saturation strength evolves based on the sum of the absolute value of the gammadots.
-         /// In the orowan model as another example, we need the signed mobile dislocation scalar velocity
-         /// as an input. 
          __ecmech_hdev__
          inline
          void
@@ -456,8 +421,7 @@ namespace ecmech {
             }
          }
 
-         /// This function does not have a great name.
-         /// It calculates time rate of change of the hardening state (sdot) 
+         /// This function calculates time rate of change of the hardening state (sdot) 
          /// and its derivatives dsdot_ds which is the derivative of the
          /// time rate of change of the hardening state wrt the hardening state
          /// Input values are h - hardening state
@@ -573,7 +537,7 @@ namespace ecmech {
                   const double ratio_max = fmin(ratio, 80.0);
                   // Copied this from Wolfram alpha for the f_func() * k_relax * k_relax_func() * h
                   const double fval_der = fval - (fval * exp(1 - ratio_max) * (m_hdn_min - h[islip]))/m_hdn_min;
-                  dsdot_ds_view(islip, islip) += -k2 - fval_der;
+                  dsdot_ds_view(islip, islip) += -(k2 + fval_der);
                   for (size_t jslip = 0; jslip < nslip; jslip++) {
                      dsdot_ds_view(islip, jslip) += k1 * amat(islip, jslip) * 0.5 / amat_rho[jslip];
                   }
