@@ -51,7 +51,7 @@
  *           double dt,
  *           const double* const gdot,
  *           int outputLevel = 0 ) const ;
- *           // returns number of function evaluations
+ *           // returns number of function evaluations with negative value signaling failed solve
  *
  *  void
  *  getEvolVals( double* const evolVals,
@@ -65,7 +65,8 @@
  *  getSdot1( double &sdot,
  *            double &dsdot_ds,
  *            double h,
- *            const double* const evolVals) const ;
+ *            const double* const evolVals,
+ *            double temp_k) const const;
  *
  * The incoming dsdot_ds ptr should be checked to make sure its not a nullptr,
  * and if so the calculations relevant to dsdot_ds should be skipped.
@@ -74,7 +75,9 @@
  * getSdotN( double* sdot,
  *           double* dsdot_ds,
  *           const double* const h,
- *           const double* const evolVals) const;
+ *           const double* const evolVals,
+ *           const double* const hvals,
+ *           double temp_k) const;
  */
 
 namespace ecmech {
