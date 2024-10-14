@@ -652,7 +652,7 @@ namespace ecmech {
             // point release.
             const SlipGeom & getSlipGeom() const { return *m_slipGeom; }
 
-            const Kinetics & getemp_kinetics() const { return *m_kinetics; }
+            const Kinetics & getKinetics() const { return *m_kinetics; }
 
             const ThermoElastN & getThermoElastN() const { return *m_elastN; }
 

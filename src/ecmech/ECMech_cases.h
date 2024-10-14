@@ -16,11 +16,8 @@ namespace ecmech {
    using Kin_KMBalD_TFF = KineticsKMBalD<true, false, false, false, 1>;
    using Kin_KMBalD_FFF = KineticsKMBalD<false, false, false, false, 1>;
 
-   // shortening this as the type is a bit long
    using EVPTN_cubic = evptn::ThermoElastNCubic;
    using EVPTN_hex   = evptn::ThermoElastNHexag;
-
-   // keeping only the most basic stuff here as all the typedefs have been moved elsewhere...
 
    __ecmech_host__
    matModelBase* makeMatModel(const std::string &modelName);
