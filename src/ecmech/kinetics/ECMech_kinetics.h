@@ -146,8 +146,12 @@ namespace ecmech {
 
    /*
     * Helper function to run the state update solver for cases in which there is a single hardness state variable.
+    If the solve did not fail then it returns the number of function evaluations
+    the solver required. However, if it did fail then it returns a -1 value
+    to signal failure rather than throwing failures. This is done as we
+    throw exceptions on GPUs so we need a way to handle failures.
     */
-   template<class Kinetics>
+   template<class Kinetics, bool relaxed_solver = false>
    __ecmech_hdev__
    inline
    int
@@ -178,10 +182,26 @@ namespace ecmech {
       }
 
       snls::SNLSStatus_t status = solver.solve( );
-      if (status != snls::converged) {
-         ECMECH_FAIL(__func__, "Solver failed to converge!");
-      }
+
       int nFevals = solver.getNFEvals();
+      if (status != snls::converged) {
+         snls::SNLSStatus_t status2 = status;
+         if constexpr(relaxed_solver) {
+            {
+               int maxIter = 100;
+               double tolerance = 1e-9;
+               solver.setupSolver(maxIter, tolerance, &deltaControl, outputLevel);
+            }
+            for (int iX = 0; iX < prob.nDimSys; ++iX) {
+               solver._x[iX] = 0e0;
+            }
+            status2= solver.solve();
+            nFevals = solver.getNFEvals();
+         }
+         if (status2 != snls::converged) {
+            nFevals = -1;
+         }
+      }
 
       hs_n = prob.getHn(solver._x);
 
@@ -276,6 +296,10 @@ namespace ecmech {
 
    /*
     * Helper function to run the state update solver for cases in which there are multiple hardness state variables.
+    If the solve did not fail then it returns the number of function evaluations
+    the solver required. However, if it did fail then it returns a -1 value
+    to signal failure rather than throwing failures. This is done as we
+    throw exceptions on GPUs so we need a way to handle failures.
     */
    template<class Kinetics, bool relaxed_solver = false>
    __ecmech_hdev__
@@ -322,7 +346,8 @@ namespace ecmech {
             for (int iX = 0; iX < prob.nDimSys; ++iX) {
                solver._x[iX] = 0e0;
             }
-               status2= solver.solve();
+            status2= solver.solve();
+            nFevals = solver.getNFEvals();
          }
          if (status2 != snls::converged) {
             nFevals = -1;
