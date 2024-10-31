@@ -352,7 +352,7 @@ namespace ecmech {
                                 const double * spinV,
                                 const double * volRatioV,
                                 double * internal_energyV,
-                                double * cauchy_stress_dev6_pressureV,
+                                double * cauchy_stress_d6pV,
                                 double * histV,
                                 double * tkelvV,
                                 double * sddV,
@@ -394,7 +394,7 @@ namespace ecmech {
                         &spinV[spin_v_stride * i],
                         &volRatioV[vol_ratio_stride * i],
                         &internal_energyV[int_eng_stride * i],
-                        &cauchy_stress_dev6_pressureV[stress_stride * i],
+                        &cauchy_stress_d6pV[stress_stride * i],
                         &histV[history_stride * i],
                         tkelvV[tkelv_stride * i],
                         &sddV[sdd_stride * i],
@@ -421,7 +421,7 @@ namespace ecmech {
 
                if (this->reduceStatus(histV, nPassed)) {
                   getResponseRetry(dt, defRateV, spinV, volRatioV, internal_energyV,
-                                   cauchy_stress_dev6_pressureV, histV, tkelvV, sddV, mtanSDV, nPassed);
+                                   cauchy_stress_d6pV, histV, tkelvV, sddV, mtanSDV, nPassed);
                }
             }// End of getResponse
 
@@ -432,7 +432,7 @@ namespace ecmech {
                                    const double * UNUSED_EXTRA(spinV),
                                    const double * UNUSED_EXTRA(volRatioV),
                                    double * UNUSED_EXTRA(internal_energyV),
-                                   double * UNUSED_EXTRA(cauchy_stress_dev6_pressureV),
+                                   double * UNUSED_EXTRA(cauchy_stress_d6pV),
                                    double * UNUSED_EXTRA(histV),
                                    double * UNUSED_EXTRA(tkelvV),
                                    double * UNUSED_EXTRA(sddV),
@@ -479,7 +479,7 @@ namespace ecmech {
                         &spinV[spin_v_stride * i],
                         &volRatioV[vol_ratio_stride * i],
                         &internal_energyV[int_eng_stride * i],
-                        &cauchy_stress_dev6_pressureV[stress_stride * i],
+                        &cauchy_stress_d6pV[stress_stride * i],
                         &histV[history_stride * i],
                         tkelvV[tkelv_stride * i],
                         &sddV[sdd_stride * i],

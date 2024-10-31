@@ -137,7 +137,7 @@ namespace ecmech {
           * on input, all but the eTotal (first entry) should be zero, and eTotal is beginning-of-step;
           * on output, eTotal is updated to end-of-step
           *
-          * @param cauchy_stress_dev6_pressureV[in,out] : Cauchy stress components
+          * @param cauchy_stress_d6pV[in,out] : Cauchy stress components
           * length nsvp*nPassed
           * first six components are the deviatoric part (zero trace)
           * along nsvp :
@@ -170,7 +170,7 @@ namespace ecmech {
                                      const double * spinV,
                                      const double * volRatioV,
                                      double * internal_energyV,
-                                     double * cauchy_stress_dev6_pressureV,
+                                     double * cauchy_stress_d6pV,
                                      double * histV,
                                      double * tkelvV,
                                      double * sddV,

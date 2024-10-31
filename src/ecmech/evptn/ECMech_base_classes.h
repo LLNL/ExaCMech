@@ -46,7 +46,7 @@ namespace evptn {
         double& eps_dot;
         double& eps;
         double& flow_strength;
-        double* const cauchy_stress_dev6_pressure;
+        double* const cauchy_stress_d6p;
         const double* const spin_vec_sample;
         const double rel_vol_new;
         const double dt;
@@ -60,7 +60,7 @@ namespace evptn {
         double pressure_EOS, energy_new, bulk_modulus_new;
 
         __ecmech_hdev__
-        ProblemState(double* const hist, double* const cauchy_stress_dev6_pressure,
+        ProblemState(double* const hist, double* const cauchy_stress_d6p,
                     double& tkelv,
                     const double* const def_rate_dev6_vol_sample,
                     const double* const spin_vec_sample,
@@ -73,7 +73,7 @@ namespace evptn {
         eps_dot(hist[iHistA_shrateEff]),
         eps(hist[iHistA_shrEff]),
         flow_strength(hist[iHistA_flowStr]),
-        cauchy_stress_dev6_pressure(cauchy_stress_dev6_pressure),
+        cauchy_stress_d6p(cauchy_stress_d6p),
         spin_vec_sample(spin_vec_sample),
         rel_vol_new(volRatio[1]),
         dt(dt),
