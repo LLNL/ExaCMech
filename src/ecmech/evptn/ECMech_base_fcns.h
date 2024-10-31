@@ -58,8 +58,8 @@ namespace evptn {
     }
 
     // This function performs the necessary chain rules to go from the:
-    // dgammadot_dRSS -> dDp_hat_dElas_strain
-    // dgammadot_dRSS -> dWp_hat_dElas_strain
+    // dgammadot_dRSS -> dDp_hat_delast_strain
+    // dgammadot_dRSS -> dWp_hat_delast_strain
     // terms used typically in either the Jacobian or material tangent stiffness matrix
     template<class SlipGeom, class ThermoElastN>
     __ecmech_hdev__
@@ -98,7 +98,7 @@ namespace evptn {
                                 double& effective_shear_rate,
                                 double* const gdot,
                                 const double inv_det_vol,
-                                const double* const elas_strain,
+                                const double* const elast_strain,
                                 const double* const kinetic_values,
                                 const SlipGeom& slip_geom,
                                 const SlipKinetics& slip_kinetics,
@@ -113,7 +113,7 @@ namespace evptn {
         double abs_resolved_shear_stress[nslip_dyn] = {};
         double junk[SlipGeom::nslip] = {};
         double kirchoff[ecmech::nsvec] = {};
-        elasticity.elas_strain_to_kirchoff_stress(kirchoff, elas_strain);
+        elasticity.elast_strain_to_kirchoff_stress(kirchoff, elast_strain);
         // resolve stress onto slip systems
         if constexpr (SlipGeom::dynamic) {
             slip_geom.getExtras(&abs_resolved_shear_stress[SlipGeom::nslip]);
@@ -178,8 +178,8 @@ namespace evptn {
         // alpha is necessary scaling from Kirchoff to Cauchy
         // C_{elas} is the elasticity tensor (deviatoric contributions)
         // = d/dDefRate_s (Cauchy) = d(Q Cauchy) / dOmega_c * dOmega / dDefRate_s 
-        //   + Q * d(Cauchy)/delas_strain * delas_strain / dDefRate_s
-        // From our Jacobian we can calculate the dOmega / dDefRate_s and delas_strain / dDefRate_s terms
+        //   + Q * d(Cauchy)/delast_strain * delast_strain / dDefRate_s
+        // From our Jacobian we can calculate the dOmega / dDefRate_s and delast_strain / dDefRate_s terms
         // The other ones are either simple to calculate or require some math...
         //
         // dstrainomega_ddef_rate_t => [dlat_strain_ddef_rate_sample; domega_ddef_rate_sample];

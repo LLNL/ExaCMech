@@ -88,7 +88,7 @@ namespace ecmech {
             void elastNEtoC(double* const cauchy_xtal, // nsvec
                             const double* const elast_d5_f // ntvec
                             ) const {
-               m_lattice_strain_prob.elas_strain_to_cauchy_stress(cauchy_xtal, elast_d5_f);
+               m_lattice_strain_prob.elast_strain_to_cauchy_stress(cauchy_xtal, elast_d5_f);
             }
 
             __ecmech_hdev__
@@ -145,7 +145,7 @@ namespace ecmech {
                // CALCULATIONS
 
                double kirchoff[ecmech::nsvec];
-               m_lattice_strain_prob.elas_strain_to_kirchoff_stress(kirchoff, elast_d5_f);
+               m_lattice_strain_prob.elast_strain_to_kirchoff_stress(kirchoff, elast_d5_f);
 
                double dgdot_dtau[SlipGeom::nslip] = { 0.0 }; // crys%tmp2_slp
                double plastic_def_rate_d5[ecmech::ntvec] = { 0.0 };
@@ -160,7 +160,7 @@ namespace ecmech {
                elasticity_higher_order_terms(A_e_M35, ee_wvec, ee_fac, m_lattice_strain_prob.m_inv_a_vol, elast_d5_f, elast_dt_d5);
 
                // Residual Calculations
-               m_lattice_strain_prob.get_elas_strain_residual(resid, m_epsdot_scale_inv, elast_dt_d5, plastic_def_rate_d5, def_rate_d5_xtal);
+               m_lattice_strain_prob.get_elast_strain_residual(resid, m_epsdot_scale_inv, elast_dt_d5, plastic_def_rate_d5, def_rate_d5_xtal);
                m_lattice_rot_prob.get_omega_residual(resid, m_rotincr_scale_inv, ee_fac, xi_f, spin_vec_xtal, plastic_spin_vec, ee_wvec);
 
                //////////////////////////////////////////////////////////////////////
@@ -258,11 +258,11 @@ namespace ecmech {
             void get_slip_contribution(double& pl_disipation_rate,
                                        double& effective_shear_rate,
                                        double* const gdot,
-                                       const double* const elas_strain
+                                       const double* const elast_strain
                                       )
             {
                get_slip_contributions(pl_disipation_rate, effective_shear_rate, gdot,
-                                      m_lattice_strain_prob.m_inv_det_vol, elas_strain, m_kin_vals,
+                                      m_lattice_strain_prob.m_inv_det_vol, elast_strain, m_kin_vals,
                                       m_slipGeom, m_kinetics, m_lattice_strain_prob);
             }
                               
@@ -520,7 +520,7 @@ namespace ecmech {
             void elastNEtoC(double* const cauchy_xtal, // nsvec
                             const double* const elast_d5_f // ntvec
                             ) const {
-               m_lattice_strain_prob.elas_strain_to_cauchy_stress(cauchy_xtal, elast_d5_f);
+               m_lattice_strain_prob.elast_strain_to_cauchy_stress(cauchy_xtal, elast_d5_f);
             }
 
             __ecmech_hdev__
@@ -567,7 +567,7 @@ namespace ecmech {
                // CALCULATIONS
 
                double kirchoff[ecmech::nsvec];
-               m_lattice_strain_prob.elas_strain_to_kirchoff_stress(kirchoff, elast_d5_f);
+               m_lattice_strain_prob.elast_strain_to_kirchoff_stress(kirchoff, elast_d5_f);
 
                double dgdot_dtau[SlipGeom::nslip] = { 0.0 }; // crys%tmp2_slp
                double plastic_def_rate_d5[ecmech::ntvec] = { 0.0 };
@@ -576,7 +576,7 @@ namespace ecmech {
                get_slip_rate_terms(dgdot_dtau, plastic_def_rate_d5, plastic_spin_vec, kirchoff, m_kin_vals, m_slipGeom, m_kinetics);
 
                // Residual Calculations
-               m_lattice_strain_prob.get_elas_strain_residual(resid, m_epsdot_scale_inv, elast_dt_d5, plastic_def_rate_d5, def_rate_d5_xtal);
+               m_lattice_strain_prob.get_elast_strain_residual(resid, m_epsdot_scale_inv, elast_dt_d5, plastic_def_rate_d5, def_rate_d5_xtal);
 
                //////////////////////////////////////////////////////////////////////
                // JACOBIAN, fixed hardness and temperature
@@ -671,11 +671,11 @@ namespace ecmech {
             void get_slip_contribution(double& pl_disipation_rate,
                                        double& effective_shear_rate,
                                        double* const gdot,
-                                       const double* const elas_strain
+                                       const double* const elast_strain
                                       )
             {
                get_slip_contributions(pl_disipation_rate, effective_shear_rate, gdot,
-                                      m_lattice_strain_prob.m_inv_det_vol, elas_strain, m_kin_vals,
+                                      m_lattice_strain_prob.m_inv_det_vol, elast_strain, m_kin_vals,
                                       m_slipGeom, m_kinetics, m_lattice_strain_prob);
             }
 

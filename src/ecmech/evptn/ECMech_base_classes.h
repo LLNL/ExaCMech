@@ -130,7 +130,7 @@ namespace evptn {
         // used to be elastNEtoT
         __ecmech_hdev__
         inline
-        void elas_strain_to_kirchoff_stress(double* const kirchoff_stress, // nsvec
+        void elast_strain_to_kirchoff_stress(double* const kirchoff_stress, // nsvec
                                             const double* const elast_d5 // ntvec
                                         ) const
         {
@@ -155,19 +155,19 @@ namespace evptn {
         // used to be elastNEtoC
         __ecmech_hdev__
         inline
-        void elas_strain_to_cauchy_stress(double* const cauchy, // nsvec
+        void elast_strain_to_cauchy_stress(double* const cauchy, // nsvec
                                         const double* const elast_d5_f // ntvec
                                         ) const
         {
         double kirchoff[ecmech::nsvec];
-        this->elas_strain_to_kirchoff_stress(kirchoff, elast_d5_f);
+        this->elast_strain_to_kirchoff_stress(kirchoff, elast_d5_f);
         m_thermo_elast_n.getCauchy(cauchy, kirchoff, m_inv_det_vol);
         }
 
         template<bool calc_strain_rate = false>
         __ecmech_hdev__
         inline
-        void get_elas_strain_state(double* const elast_delta_d5,
+        void get_elast_strain_state(double* const elast_delta_d5,
                                 double* const elast_dt_d5,
                                 const double* const x) const
         {
@@ -186,7 +186,7 @@ namespace evptn {
 
         /*
         * NOTES :
-        * () should be equivalent to what happens in get_elas_strain_state<false>
+        * () should be equivalent to what happens in get_elast_strain_state<false>
         * () not necessarily safe if elast_dev_press_vec is the same memory as _elast_d5_n or quat is the same as _xtal_ori_quat_n
         */
         __ecmech_hdev__
@@ -195,12 +195,12 @@ namespace evptn {
                     const double* const x) const
         {
         double elast_d5_delta[ecmech::ntvec] = {};
-        this->get_elas_strain_state(elast_d5, elast_d5_delta, x);
+        this->get_elast_strain_state(elast_d5, elast_d5_delta, x);
         }
 
         __ecmech_hdev__
         inline
-        void get_elas_strain_residual(double* const residual,
+        void get_elast_strain_residual(double* const residual,
                                     const double epsdot_scale_inv,
                                     const double* const elast_dt_d5,
                                     const double* const plastic_def_rate_d5,
@@ -273,13 +273,13 @@ namespace evptn {
         // d(B_h) / d(e)
         // jacob_he = dt * (dhdot/dgdot)(dgdot/de)
         // nh x ntvec matrix
-        double dhdot_delas_strain[num_hard * ecmech::ntvec];
-        vecsMABT<num_hard, ecmech::ntvec, num_slip>(dhdot_delas_strain, dhard_dgdot, dgdot_delast_strain);
+        double dhdot_delast_strain[num_hard * ecmech::ntvec];
+        vecsMABT<num_hard, ecmech::ntvec, num_slip>(dhdot_delast_strain, dhard_dgdot, dgdot_delast_strain);
         RAJA::View<double, RAJA::Layout<2>> jacob_he(jacobian, JAC_SIZE, JAC_SIZE);
         for (size_t iH = 0; iH < num_hard; ++iH) {
             for (size_t jE = 0; jE < ecmech::ntvec; ++jE) {
-                // could also make dhdot_delas_strain into a RAJA view, but not really needed
-                jacob_he(iH + ind_sub_h, jE) = -m_dt * dhdot_delas_strain[ECMECH_NM_INDX(iH, jE, num_hard, ecmech::ntvec) ];
+                // could also make dhdot_delast_strain into a RAJA view, but not really needed
+                jacob_he(iH + ind_sub_h, jE) = -m_dt * dhdot_delast_strain[ECMECH_NM_INDX(iH, jE, num_hard, ecmech::ntvec) ];
             }
         }       
         }
@@ -330,7 +330,7 @@ namespace evptn {
 
         /*
         * NOTES :
-        * () should be equivalent to what happens in get_elas_strain_state<false>
+        * () should be equivalent to what happens in get_elast_strain_state<false>
         * () not necessarily safe if elast_dev_press_vec is the same memory as _elast_d5_n or quat is the same as _xtal_ori_quat_n
         */
         // Assume that x has is at the location we need it to be at... 
