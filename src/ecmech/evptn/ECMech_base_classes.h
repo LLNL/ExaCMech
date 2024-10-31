@@ -168,19 +168,19 @@ namespace evptn {
         __ecmech_hdev__
         inline
         void get_elas_strain_state(double* const elas_delta_dev_vec,
-                                double* const elas_dt_dev_vec,
+                                double* const elast_dt_d5,
                                 const double* const x) const
         {
         //////////////////////////////
         // PULL VALUES out of x, with scalings
         //
-        // double elas_dt_dev_vec[ecmech::ntvec];
-        vecsVxa<ntvec>(elas_dt_dev_vec, ecmech::e_scale, x); // elas_dt_dev_vec is now the delta, _not_ yet elas_dt_dev_vec
+        // double elast_dt_d5[ecmech::ntvec];
+        vecsVxa<ntvec>(elast_dt_d5, ecmech::e_scale, x); // elast_dt_d5 is now the delta, _not_ yet elast_dt_d5
         // elast_d5_f is end-of-step
         // double elast_d5_f[ntvec];
-        vecsVapb<ntvec>(elas_delta_dev_vec, elas_dt_dev_vec, m_elast_d5_n);
+        vecsVapb<ntvec>(elas_delta_dev_vec, elast_dt_d5, m_elast_d5_n);
         if constexpr(calc_strain_rate) {
-            vecsVsa<ntvec>(elas_dt_dev_vec, m_inv_dt); // _now_ elas_dt_dev_vec has dt contributions
+            vecsVsa<ntvec>(elast_dt_d5, m_inv_dt); // _now_ elast_dt_d5 has dt contributions
         }
         }
 
@@ -202,13 +202,13 @@ namespace evptn {
         inline
         void get_elas_strain_residual(double* const residual,
                                     const double epsdot_scale_inv,
-                                    const double* const elas_dt_dev_vec,
+                                    const double* const elast_dt_d5,
                                     const double* const plastic_def_rate_dev_vec,
                                     const double* const def_rate_dev_vec_lattice) const
         {
         for (size_t iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
             residual[m_ind_sub_elas + iTvec] = epsdot_scale_inv * ( // SCALING
-                m_inv_a_vol * elas_dt_dev_vec[iTvec] + plastic_def_rate_dev_vec[iTvec] - def_rate_dev_vec_lattice[iTvec]);
+                m_inv_a_vol * elast_dt_d5[iTvec] + plastic_def_rate_dev_vec[iTvec] - def_rate_dev_vec_lattice[iTvec]);
         }
         }
 
@@ -240,7 +240,7 @@ namespace evptn {
         __ecmech_hdev__
         inline
         void get_deriv_omega_wrt_elast_strain(double* const jacobian,
-                                            const double* const elas_dt_dev_vec,
+                                            const double* const elast_dt_d5,
                                             const double elast_elast_factor,
                                             const double* const dWp_hat_delast_strain,
                                             const double* const A_e_M35) const
@@ -250,7 +250,7 @@ namespace evptn {
         RAJA::View<double, RAJA::Layout<2>> jacob_re(jacobian, JAC_SIZE, JAC_SIZE);
 
         double A_edot_M35[ecmech::nwvec * ecmech::ntvec];
-        M35_d_AAoB_dA(A_edot_M35, elas_dt_dev_vec);
+        M35_d_AAoB_dA(A_edot_M35, elast_dt_d5);
 
         double dt_ee_fac = m_dt * elast_elast_factor;
 

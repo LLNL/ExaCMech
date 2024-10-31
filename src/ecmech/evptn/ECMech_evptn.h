@@ -114,12 +114,12 @@ namespace ecmech {
                //////////////////////////////
                // PULL VALUES out of x, with scalings
                //
-               double elas_dt_dev_vec[ecmech::ntvec];
-               vecsVxa<ntvec>(elas_dt_dev_vec, ecmech::e_scale, &(x[m_i_sub_e]) ); // elas_dt_dev_vec is now the delta, _not_ yet elas_dt_dev_vec
+               double elast_dt_d5[ecmech::ntvec];
+               vecsVxa<ntvec>(elast_dt_d5, ecmech::e_scale, &(x[m_i_sub_e]) ); // elast_dt_d5 is now the delta, _not_ yet elast_dt_d5
                // elast_d5_f is end-of-step
                double elast_d5_f[ntvec];
-               vecsVapb<ntvec>(elast_d5_f, elas_dt_dev_vec, m_lattice_strain_prob.m_elast_d5_n);
-               vecsVsa<ntvec>(elas_dt_dev_vec, m_lattice_strain_prob.m_inv_dt); // _now_ elas_dt_dev_vec has elas_dt_dev_vec
+               vecsVapb<ntvec>(elast_d5_f, elast_dt_d5, m_lattice_strain_prob.m_elast_d5_n);
+               vecsVsa<ntvec>(elast_dt_d5, m_lattice_strain_prob.m_inv_dt); // _now_ elast_dt_d5 has elast_dt_d5
                //
                double xi_f[nwvec];
                vecsVxa<nwvec>(xi_f, ecmech::r_scale, &(x[m_i_sub_r]) );
@@ -157,10 +157,10 @@ namespace ecmech {
                double A_e_M35[ecmech::nwvec * ecmech::ntvec];
                double ee_wvec[ecmech::nwvec];
                double ee_fac;
-               elasticity_higher_order_terms(A_e_M35, ee_wvec, ee_fac, m_lattice_strain_prob.m_inv_a_vol, elast_d5_f, elas_dt_dev_vec);
+               elasticity_higher_order_terms(A_e_M35, ee_wvec, ee_fac, m_lattice_strain_prob.m_inv_a_vol, elast_d5_f, elast_dt_d5);
 
                // Residual Calculations
-               m_lattice_strain_prob.get_elas_strain_residual(resid, m_epsdot_scale_inv, elas_dt_dev_vec, plastic_def_rate, def_rate_dev_vec_xtal);
+               m_lattice_strain_prob.get_elas_strain_residual(resid, m_epsdot_scale_inv, elast_dt_d5, plastic_def_rate, def_rate_dev_vec_xtal);
                m_lattice_rot_prob.get_omega_residual(resid, m_rotincr_scale_inv, ee_fac, xi_f, spin_vec_xtal, plastic_spin_vec, ee_wvec);
 
                //////////////////////////////////////////////////////////////////////
@@ -196,7 +196,7 @@ namespace ecmech {
                   m_lattice_rot_prob.template get_deriv_elast_strain_wrt_omega<nDimSys>(Jacobian, dDsm_dxi);
                   // d(B_xi)/d(elast_dev_press_vecs_f)
                   //
-                  m_lattice_strain_prob.template get_deriv_omega_wrt_elast_strain<nDimSys, m_i_sub_r>(Jacobian, elas_dt_dev_vec, ee_fac, dpl_deps_skew, A_e_M35);
+                  m_lattice_strain_prob.template get_deriv_omega_wrt_elast_strain<nDimSys, m_i_sub_r>(Jacobian, elast_dt_d5, ee_fac, dpl_deps_skew, A_e_M35);
                   // d(B_xi)/d(xi_f)
                   //
                   m_lattice_rot_prob.template get_deriv_omega_wrt_omega<nDimSys>(Jacobian, dWsm_dxi);
@@ -376,19 +376,19 @@ namespace ecmech {
             double spin_vec_xtal[ecmech::nwvec]; // assumes nwvec = ndim
             get_xtal_frame_vel_grad_terms(def_rate_dev_vec_xtal, spin_vec_xtal, m_def_rate_d5_sample,  m_spin_vec_sample, xtal_rmat, rmat_5x5_sample2xtal);
 
-            double elas_dt_dev_vec[ecmech::ntvec];
-            // Calculate what this elas_dt_dev_vec term should be given the current
+            double elast_dt_d5[ecmech::ntvec];
+            // Calculate what this elast_dt_d5 term should be given the current
             // state information.
             for (int i = 0; i < ecmech::ntvec; i++)
             {
-                  elas_dt_dev_vec[i] = m_lattice_strain_prob.m_inv_a_vol * (def_rate_dev_vec_xtal[i] - m_plastic_def_rate[i]);
+                  elast_dt_d5[i] = m_lattice_strain_prob.m_inv_a_vol * (def_rate_dev_vec_xtal[i] - m_plastic_def_rate[i]);
             }
 
             // Higher-order terms related to the elasticity stuff that's used in the residuals and jacobian calculation
             double A_e_M35[ecmech::nwvec * ecmech::ntvec];
             double ee_wvec[ecmech::nwvec];
             double ee_fac;
-            elasticity_higher_order_terms(A_e_M35, ee_wvec, ee_fac, m_lattice_strain_prob.m_inv_a_vol, m_lattice_strain_prob.m_elast_d5_n, elas_dt_dev_vec);
+            elasticity_higher_order_terms(A_e_M35, ee_wvec, ee_fac, m_lattice_strain_prob.m_inv_a_vol, m_lattice_strain_prob.m_elast_d5_n, elast_dt_d5);
 
             // Residual Calculations
             m_lattice_rot_prob.get_omega_residual(resid, m_rotincr_scale_inv, ee_fac, xi_f, spin_vec_xtal, m_plastic_spin_vec, ee_wvec);
@@ -546,12 +546,12 @@ namespace ecmech {
                //////////////////////////////
                // PULL VALUES out of x, with scalings
                //
-               double elas_dt_dev_vec[ecmech::ntvec];
-               vecsVxa<ntvec>(elas_dt_dev_vec, ecmech::e_scale, &(x[m_i_sub_e]) ); // elas_dt_dev_vec is now the delta, _not_ yet elas_dt_dev_vec
+               double elast_dt_d5[ecmech::ntvec];
+               vecsVxa<ntvec>(elast_dt_d5, ecmech::e_scale, &(x[m_i_sub_e]) ); // elast_dt_d5 is now the delta, _not_ yet elast_dt_d5
                // elast_d5_f is end-of-step
                double elast_d5_f[ntvec];
-               vecsVapb<ntvec>(elast_d5_f, elas_dt_dev_vec, m_lattice_strain_prob.m_elast_d5_n);
-               vecsVsa<ntvec>(elas_dt_dev_vec, m_lattice_strain_prob.m_inv_dt); // _now_ elas_dt_dev_vec has elas_dt_dev_vec
+               vecsVapb<ntvec>(elast_d5_f, elast_dt_d5, m_lattice_strain_prob.m_elast_d5_n);
+               vecsVsa<ntvec>(elast_dt_d5, m_lattice_strain_prob.m_inv_dt); // _now_ elast_dt_d5 has elast_dt_d5
                //
                double xtal_rmat[ecmech::ndim * ecmech::ndim];
                quat_to_tensor(xtal_rmat, m_xtal_ori_quat);
@@ -576,7 +576,7 @@ namespace ecmech {
                get_slip_rate_terms(dgdot_dtau, plastic_def_rate, plastic_spin_vec, kirchoff, m_kin_vals, m_slipGeom, m_kinetics);
 
                // Residual Calculations
-               m_lattice_strain_prob.get_elas_strain_residual(resid, m_epsdot_scale_inv, elas_dt_dev_vec, plastic_def_rate, def_rate_dev_vec_xtal);
+               m_lattice_strain_prob.get_elas_strain_residual(resid, m_epsdot_scale_inv, elast_dt_d5, plastic_def_rate, def_rate_dev_vec_xtal);
 
                //////////////////////////////////////////////////////////////////////
                // JACOBIAN, fixed hardness and temperature
@@ -603,7 +603,7 @@ namespace ecmech {
 
                      m_lattice_rot_prob.deltaOmegaFromState(xi_f, m_xtal_ori_quat, m_lattice_rot_prob.m_xtal_ori_quat_n);
 
-                     elasticity_higher_order_terms(A_e_M35, ee_wvec, ee_fac, m_lattice_strain_prob.m_inv_a_vol, elast_d5_f, elas_dt_dev_vec);
+                     elasticity_higher_order_terms(A_e_M35, ee_wvec, ee_fac, m_lattice_strain_prob.m_inv_a_vol, elast_d5_f, elast_dt_d5);
 
                      // derivatives with respect to lattice orientation changes
                      double dxtal_ori_quat_dxi_T[ ecmech::nwvec * ecmech::qdim ];
@@ -633,7 +633,7 @@ namespace ecmech {
                      m_lattice_rot_prob.template get_deriv_elast_strain_wrt_omega<nDimSolve>(Jacobian2, dDsm_dxi);
                      // d(B_xi)/d(elast_dev_press_vecs_f)
                      //
-                     m_lattice_strain_prob.template get_deriv_omega_wrt_elast_strain<nDimSolve, m_i_sub_r>(Jacobian2, elas_dt_dev_vec, ee_fac, dpl_deps_skew, A_e_M35);
+                     m_lattice_strain_prob.template get_deriv_omega_wrt_elast_strain<nDimSolve, m_i_sub_r>(Jacobian2, elast_dt_d5, ee_fac, dpl_deps_skew, A_e_M35);
                      // d(B_xi)/d(xi_f)
                      //
                      m_lattice_rot_prob.template get_deriv_omega_wrt_omega<nDimSolve>(Jacobian2, dWsm_dxi);
