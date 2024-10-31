@@ -203,12 +203,12 @@ namespace evptn {
         void get_elas_strain_residual(double* const residual,
                                     const double epsdot_scale_inv,
                                     const double* const elast_dt_d5,
-                                    const double* const plastic_def_rate_dev_vec,
+                                    const double* const plastic_def_rate_d5,
                                     const double* const def_rate_dev_vec_lattice) const
         {
         for (size_t iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
             residual[m_ind_sub_elas + iTvec] = epsdot_scale_inv * ( // SCALING
-                m_inv_a_vol * elast_dt_d5[iTvec] + plastic_def_rate_dev_vec[iTvec] - def_rate_dev_vec_lattice[iTvec]);
+                m_inv_a_vol * elast_dt_d5[iTvec] + plastic_def_rate_d5[iTvec] - def_rate_dev_vec_lattice[iTvec]);
         }
         }
 
