@@ -136,10 +136,10 @@ namespace ecmech {
                double rmat_5x5_sample2xtal[ecmech::ntvec * ecmech::ntvec];
                get_rot_mat_vecd(rmat_5x5_sample2xtal, xtal_rmat);
 
-               double def_rate_dev_vec_xtal[ecmech::ntvec];
+               double def_rate_d5_xtal[ecmech::ntvec];
                double spin_vec_xtal[ecmech::nwvec]; // assumes nwvec = ndim
 
-               get_xtal_frame_vel_grad_terms(def_rate_dev_vec_xtal, spin_vec_xtal, m_def_rate_d5_sample,  m_spin_vec_sample, xtal_rmat, rmat_5x5_sample2xtal);
+               get_xtal_frame_vel_grad_terms(def_rate_d5_xtal, spin_vec_xtal, m_def_rate_d5_sample,  m_spin_vec_sample, xtal_rmat, rmat_5x5_sample2xtal);
 
                //////////////////////////////
                // CALCULATIONS
@@ -160,7 +160,7 @@ namespace ecmech {
                elasticity_higher_order_terms(A_e_M35, ee_wvec, ee_fac, m_lattice_strain_prob.m_inv_a_vol, elast_d5_f, elast_dt_d5);
 
                // Residual Calculations
-               m_lattice_strain_prob.get_elas_strain_residual(resid, m_epsdot_scale_inv, elast_dt_d5, plastic_def_rate, def_rate_dev_vec_xtal);
+               m_lattice_strain_prob.get_elas_strain_residual(resid, m_epsdot_scale_inv, elast_dt_d5, plastic_def_rate, def_rate_d5_xtal);
                m_lattice_rot_prob.get_omega_residual(resid, m_rotincr_scale_inv, ee_fac, xi_f, spin_vec_xtal, plastic_spin_vec, ee_wvec);
 
                //////////////////////////////////////////////////////////////////////
@@ -372,16 +372,16 @@ namespace ecmech {
             double rmat_5x5_sample2xtal[ecmech::ntvec * ecmech::ntvec];
             get_rot_mat_vecd(rmat_5x5_sample2xtal, xtal_rmat);
 
-            double def_rate_dev_vec_xtal[ecmech::ntvec];
+            double def_rate_d5_xtal[ecmech::ntvec];
             double spin_vec_xtal[ecmech::nwvec]; // assumes nwvec = ndim
-            get_xtal_frame_vel_grad_terms(def_rate_dev_vec_xtal, spin_vec_xtal, m_def_rate_d5_sample,  m_spin_vec_sample, xtal_rmat, rmat_5x5_sample2xtal);
+            get_xtal_frame_vel_grad_terms(def_rate_d5_xtal, spin_vec_xtal, m_def_rate_d5_sample,  m_spin_vec_sample, xtal_rmat, rmat_5x5_sample2xtal);
 
             double elast_dt_d5[ecmech::ntvec];
             // Calculate what this elast_dt_d5 term should be given the current
             // state information.
             for (int i = 0; i < ecmech::ntvec; i++)
             {
-                  elast_dt_d5[i] = m_lattice_strain_prob.m_inv_a_vol * (def_rate_dev_vec_xtal[i] - m_plastic_def_rate[i]);
+                  elast_dt_d5[i] = m_lattice_strain_prob.m_inv_a_vol * (def_rate_d5_xtal[i] - m_plastic_def_rate[i]);
             }
 
             // Higher-order terms related to the elasticity stuff that's used in the residuals and jacobian calculation
@@ -558,10 +558,10 @@ namespace ecmech {
                //
                double rmat_5x5_sample2xtal[ecmech::ntvec * ecmech::ntvec];
                get_rot_mat_vecd(rmat_5x5_sample2xtal, xtal_rmat);
-               double def_rate_dev_vec_xtal[ecmech::ntvec];
+               double def_rate_d5_xtal[ecmech::ntvec];
                double spin_vec_xtal[ecmech::nwvec]; // assumes nwvec = ndim
 
-               get_xtal_frame_vel_grad_terms(def_rate_dev_vec_xtal, spin_vec_xtal, m_def_rate_d5_sample,  m_spin_vec_sample, xtal_rmat, rmat_5x5_sample2xtal);
+               get_xtal_frame_vel_grad_terms(def_rate_d5_xtal, spin_vec_xtal, m_def_rate_d5_sample,  m_spin_vec_sample, xtal_rmat, rmat_5x5_sample2xtal);
 
                //////////////////////////////
                // CALCULATIONS
@@ -576,7 +576,7 @@ namespace ecmech {
                get_slip_rate_terms(dgdot_dtau, plastic_def_rate, plastic_spin_vec, kirchoff, m_kin_vals, m_slipGeom, m_kinetics);
 
                // Residual Calculations
-               m_lattice_strain_prob.get_elas_strain_residual(resid, m_epsdot_scale_inv, elast_dt_d5, plastic_def_rate, def_rate_dev_vec_xtal);
+               m_lattice_strain_prob.get_elas_strain_residual(resid, m_epsdot_scale_inv, elast_dt_d5, plastic_def_rate, def_rate_d5_xtal);
 
                //////////////////////////////////////////////////////////////////////
                // JACOBIAN, fixed hardness and temperature
