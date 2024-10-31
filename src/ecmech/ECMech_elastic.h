@@ -81,7 +81,7 @@ namespace evptn {
                     const double* const elast_dev_press_vec,
                     double, // tkelv
                     double pressure_EOS,
-                    double // det_v_e
+                    double // energy_vol_ref
                     ) const {
             double ln_J = sqr3 * elast_dev_press_vec[iSvecS]; // vecds_s_to_trace
             double J = exp(ln_J);
@@ -181,7 +181,7 @@ namespace evptn {
         inline
         double getGmod(double, // tkelv
                         double, // pressure_EOS
-                        double // det_v_e
+                        double // energy_vol_ref
                         ) const {
             if (m_shear_modulus <= 0.0) {
                 ECMECH_FAIL(__func__, "effective shear modulus negative -- not initialized?");
@@ -291,7 +291,7 @@ namespace evptn {
                     const double* const elast_dev_press_vec,
                     double, // tkelv
                     double pressure_EOS,
-                    double det_v_e
+                    double energy_vol_ref
                     ) const {
             double ln_J = sqr3 * elast_dev_press_vec[iSvecS]; // vecds_s_to_trace
             double J = exp(ln_J);
@@ -304,12 +304,12 @@ namespace evptn {
             kirchoff[iSvecS] += m_K_sdax3 * elast_dev_press_vec[iTvecHex];
 
             // anisotropic Gruneisen contribution; pressure part of Gruneisen tensor contribution should already be in pressure_EOS
-            // CALL eos_eval_e_Csdev(Cauchy_eos_vecd, det_v_e, J, &
+            // CALL eos_eval_e_Csdev(Cauchy_eos_vecd, energy_vol_ref, J, &
             // & i_eos_model, eos_const)
-            // -(Gamma' + a' * mu) * det_v_e // but do not do a'*mu part
-            // Cauchy_eos_vecd(:) = -eos_const(4:8) * det_v_e
+            // -(Gamma' + a' * mu) * energy_vol_ref // but do not do a'*mu part
+            // Cauchy_eos_vecd(:) = -eos_const(4:8) * energy_vol_ref
             // kirchoff(1:TVEC) = kirchoff(1:TVEC) + J * Cauchy_eos_vecd(:)
-            kirchoff[iTvecHex] += J * (-m_g_vecd2 * det_v_e);
+            kirchoff[iTvecHex] += J * (-m_g_vecd2 * energy_vol_ref);
         }
 
         /**
@@ -383,7 +383,7 @@ namespace evptn {
         inline
         double getGmod(double, // tkelv
                         double, // pressure_EOS
-                        double // det_v_e
+                        double // energy_vol_ref
                         ) const {
             if (m_shear_modulus <= 0.0) {
                 ECMECH_FAIL(__func__, "effective shear modulus negative -- not initialized?");
