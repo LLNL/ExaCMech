@@ -149,7 +149,7 @@ namespace ecmech {
           * along numHist : order is as indicated by getHistInfo
           * beginning-of-step on input, end-of-step on output
           *
-          * @param temp_kV[out] : end-of-step temperature
+          * @param tkelvV[out] : end-of-step temperature
           * length nPassed
           *
           * @param sddV[out] : other output quantities
@@ -172,7 +172,7 @@ namespace ecmech {
                                      double * internal_energyV,
                                      double * cauchy_stress_dev6_pressureV,
                                      double * histV,
-                                     double * temp_kV,
+                                     double * tkelvV,
                                      double * sddV,
                                      double * mtanSDV,
                                      const int & nPassed) const = 0;

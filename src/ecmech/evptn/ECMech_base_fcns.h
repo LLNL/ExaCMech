@@ -46,7 +46,7 @@ namespace evptn {
             slip_geom.getExtras(&abs_resolved_shear_stress[SlipGeom::nslip]);
         }
         //
-        // CALL plaw_eval(plastic_def_rate, plastic_spin_vec, gss, crys, temp_k, ierr)
+        // CALL plaw_eval(plastic_def_rate, plastic_spin_vec, gss, crys, tkelv, ierr)
         // chi values are passed within extended taua array
         slip_kinetics.evalGdots(gdot, dgdot_dtau, abs_resolved_shear_stress, kinetic_values);
         

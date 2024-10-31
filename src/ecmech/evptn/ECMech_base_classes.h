@@ -50,7 +50,7 @@ namespace evptn {
         const double* const spin_vec_sample;
         const double rel_vol_new;
         const double dt;
-        double& temp_k;
+        double& tkelv;
 
 
         double def_rate_dev_vec_sample[ecmech::ntvec];
@@ -61,7 +61,7 @@ namespace evptn {
 
         __ecmech_hdev__
         ProblemState(double* const hist, double* const cauchy_stress_dev6_pressure,
-                    double& temp_k,
+                    double& tkelv,
                     const double* const def_rate_dev6_vol_sample,
                     const double* const spin_vec_sample,
                     const double* const volRatio,
@@ -77,7 +77,7 @@ namespace evptn {
         spin_vec_sample(spin_vec_sample),
         rel_vol_new(volRatio[1]),
         dt(dt),
-        temp_k(temp_k)
+        tkelv(tkelv)
         {
             // convert deformation rate convention
             //
@@ -113,11 +113,11 @@ namespace evptn {
                                 const double det_vol, 
                                 const double energy_vol_ref, 
                                 const double pressure_EOS, 
-                                const double temp_k,
+                                const double tkelv,
                                 const double* const elast_dev_vec_n)
         : m_thermo_elast_n(thermoElastN),
         m_dt(dt), m_det_vol(det_vol), m_energy_vol_ref(energy_vol_ref),
-        m_pressure_eos(pressure_EOS), m_temp_k(temp_k),
+        m_pressure_eos(pressure_EOS), m_tkelv(tkelv),
         m_elast_dev_vec_n(elast_dev_vec_n),
         m_inv_dt(1.0 / dt),
         m_inv_det_vol(1.0 / m_det_vol),
@@ -137,7 +137,7 @@ namespace evptn {
         //// do not need to use elaw_T_BT here as T and BT are the same
         //
         // specialize to cem%l_lin_lnsd
-        // CALL elawn_T(s_meas, elast_dev_vec_f, crys%elas, temp_k, .TRUE., a_V, &
+        // CALL elawn_T(s_meas, elast_dev_vec_f, crys%elas, tkelv, .TRUE., a_V, &
         // & pressure_EOS, energy_vol_ref, crys%i_eos_model, crys%eos_const &
         // &)
         double elas_dev_vol_vec[ecmech::nsvec];
@@ -147,9 +147,9 @@ namespace evptn {
         elas_dev_vol_vec[iSvecS] = sqr3 * log(m_a_vol); // could go into constructor
         //
         //// Kirchhoff stress from elas_dev_vol_vec
-        // CALL elawn_lin_op(s_meas%kirchoff, s_meas%elast_dev_press_vec, cem, temp_k, &
+        // CALL elawn_lin_op(s_meas%kirchoff, s_meas%elast_dev_press_vec, cem, tkelv, &
         // & pressure_EOS, energy_vol_ref, i_eos_model, eos_const)
-        m_thermo_elast_n.eval(kirchoff_stress, elas_dev_vol_vec, m_temp_k, m_pressure_eos, m_energy_vol_ref);
+        m_thermo_elast_n.eval(kirchoff_stress, elas_dev_vol_vec, m_tkelv, m_pressure_eos, m_energy_vol_ref);
         }
 
         // used to be elastNEtoC
@@ -288,7 +288,7 @@ namespace evptn {
         static constexpr size_t m_ind_sub_elas = 0; // ntvec end_point
         const ThermoElastN& m_thermo_elast_n;
         const double m_dt, m_det_vol, m_energy_vol_ref;
-        const double m_pressure_eos, m_temp_k;
+        const double m_pressure_eos, m_tkelv;
         const double* const m_elast_dev_vec_n;
         const double m_inv_dt, m_inv_det_vol, m_a_vol, m_inv_a_vol;
     };

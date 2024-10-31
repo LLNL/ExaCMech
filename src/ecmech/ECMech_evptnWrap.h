@@ -125,7 +125,7 @@ namespace ecmech {
                m_strides[istride_int_eng] = ecmech::ne;
                m_strides[istride_stress] = ecmech::nsvp;
                m_strides[istride_history] = NumHist<SlipGeom, Kinetics, ThermoElastN, EosModel>::numHist;
-               m_strides[istride_temp_k] = 1;
+               m_strides[istride_tkelv] = 1;
                m_strides[istride_sdd ] = ecmech::nsdd;
             }
 
@@ -193,9 +193,9 @@ namespace ecmech {
                   os << "strides[istride_history] should have at least a length of: " << numHist;
                   ECMECH_FAIL(__func__, os.str().c_str());
                }
-               if (strides[istride_temp_k] < 1) {
+               if (strides[istride_tkelv] < 1) {
                   std::ostringstream os;
-                  os << "strides[istride_temp_k] should have at least a length of: " << 1;
+                  os << "strides[istride_tkelv] should have at least a length of: " << 1;
                   ECMECH_FAIL(__func__, os.str().c_str());
                }
                if (strides[istride_sdd] < ecmech::nsdd) {
@@ -354,7 +354,7 @@ namespace ecmech {
                                 double * internal_energyV,
                                 double * cauchy_stress_dev6_pressureV,
                                 double * histV,
-                                double * temp_kV,
+                                double * tkelvV,
                                 double * sddV,
                                 double * mtanSDV,
                                 const int& nPassed) const override final
@@ -370,7 +370,7 @@ namespace ecmech {
                const unsigned int int_eng_stride = m_strides[istride_int_eng];
                const unsigned int stress_stride = m_strides[istride_stress];
                const unsigned int history_stride = m_strides[istride_history];
-               const unsigned int temp_k_stride = m_strides[istride_temp_k];
+               const unsigned int tkelv_stride = m_strides[istride_tkelv];
                const unsigned int sdd_stride = m_strides[istride_sdd];
 
                const auto slipGeom = m_slipGeom;
@@ -396,7 +396,7 @@ namespace ecmech {
                         &internal_energyV[int_eng_stride * i],
                         &cauchy_stress_dev6_pressureV[stress_stride * i],
                         &histV[history_stride * i],
-                        temp_kV[temp_k_stride * i],
+                        tkelvV[tkelv_stride * i],
                         &sddV[sdd_stride * i],
                         mtanSDThis,
                         outputLevel);
@@ -421,7 +421,7 @@ namespace ecmech {
 
                if (this->reduceStatus(histV, nPassed)) {
                   getResponseRetry(dt, defRateV, spinV, volRatioV, internal_energyV,
-                                   cauchy_stress_dev6_pressureV, histV, temp_kV, sddV, mtanSDV, nPassed);
+                                   cauchy_stress_dev6_pressureV, histV, tkelvV, sddV, mtanSDV, nPassed);
                }
             }// End of getResponse
 
@@ -434,7 +434,7 @@ namespace ecmech {
                                    double * UNUSED_EXTRA(internal_energyV),
                                    double * UNUSED_EXTRA(cauchy_stress_dev6_pressureV),
                                    double * UNUSED_EXTRA(histV),
-                                   double * UNUSED_EXTRA(temp_kV),
+                                   double * UNUSED_EXTRA(tkelvV),
                                    double * UNUSED_EXTRA(sddV),
                                    double * UNUSED_EXTRA(mtanSDV),
                                    const int& UNUSED_EXTRA(nPassed)
@@ -452,7 +452,7 @@ namespace ecmech {
                const unsigned int int_eng_stride = m_strides[istride_int_eng];
                const unsigned int stress_stride = m_strides[istride_stress];
                const unsigned int history_stride = m_strides[istride_history];
-               const unsigned int temp_k_stride = m_strides[istride_temp_k];
+               const unsigned int tkelv_stride = m_strides[istride_tkelv];
                const unsigned int sdd_stride = m_strides[istride_sdd];
 
                const auto slipGeom = m_slipGeom;
@@ -481,7 +481,7 @@ namespace ecmech {
                         &internal_energyV[int_eng_stride * i],
                         &cauchy_stress_dev6_pressureV[stress_stride * i],
                         &histV[history_stride * i],
-                        temp_kV[temp_k_stride * i],
+                        tkelvV[tkelv_stride * i],
                         &sddV[sdd_stride * i],
                         mtanSDThis,
                         outputLevel);

@@ -89,7 +89,7 @@ namespace ecmech
    constexpr int istride_int_eng = ISTRIDE_INT_ENG;
    constexpr int istride_stress = ISTRIDE_STRESS;
    constexpr int istride_history = ISTRIDE_HISTORY;
-   constexpr int istride_temp_k = ISTRIDE_TKELV;
+   constexpr int istride_tkelv = ISTRIDE_TKELV;
    constexpr int istride_sdd = ISTRIDE_SDD;
    constexpr int nstride = ECMECH_NSTRIDE;
 

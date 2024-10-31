@@ -29,13 +29,13 @@ namespace ecmech {
                               )
                : m_slipGeom(slipGeom),
                m_kinetics(kinetics),
-               m_lattice_strain_prob(thermoElastN, prob_state.dt, prob_state.rel_vol_new, prob_state.energy_new, prob_state.pressure_EOS, prob_state.temp_k, prob_state.elast_dev_vec_n),
+               m_lattice_strain_prob(thermoElastN, prob_state.dt, prob_state.rel_vol_new, prob_state.energy_new, prob_state.pressure_EOS, prob_state.tkelv, prob_state.elast_dev_vec_n),
                m_lattice_rot_prob(prob_state.dt, prob_state.quat_n),
                m_def_rate_dev_vec_sample(prob_state.def_rate_dev_vec_sample), // vel_grad_sm%d_vecds
                m_spin_vec_sample(prob_state.spin_vec_sample), // vel_grad_sm%w_veccp
                m_mtan_sI(nullptr)
             {
-               m_hdn_scale = m_kinetics.getVals(m_kin_vals, prob_state.pressure_EOS, prob_state.temp_k, prob_state.h_state_u);
+               m_hdn_scale = m_kinetics.getVals(m_kin_vals, prob_state.pressure_EOS, prob_state.tkelv, prob_state.h_state_u);
 
                double adots_ref = m_kinetics.getFixedRefRate(m_kin_vals);
                double eff = vecNorm<ntvec>(m_def_rate_dev_vec_sample); // do not worry about factor of sqrt(twothird)
@@ -304,7 +304,7 @@ namespace ecmech {
                         ProblemState& prob_state
                         ) :
             m_slipGeom(slipGeom),
-            m_lattice_strain_prob(thermoElastN, prob_state.dt, prob_state.rel_vol_new, prob_state.energy_new, prob_state.pressure_EOS, prob_state.temp_k, prob_state.elast_dev_vec_n),
+            m_lattice_strain_prob(thermoElastN, prob_state.dt, prob_state.rel_vol_new, prob_state.energy_new, prob_state.pressure_EOS, prob_state.tkelv, prob_state.elast_dev_vec_n),
             m_lattice_rot_prob(prob_state.dt, prob_state.quat_n),
             m_def_rate_dev_vec_sample(prob_state.def_rate_dev_vec_sample), // vel_grad_sm%d_vecds
             m_spin_vec_sample(prob_state.spin_vec_sample) // vel_grad_sm%w_veccp
@@ -461,7 +461,7 @@ namespace ecmech {
                         m_slipGeom(slipGeom),
                         m_kinetics(kinetics),
                         m_thermoElastN(thermoElastN),
-                        m_lattice_strain_prob(thermoElastN, prob_state.dt, prob_state.rel_vol_new, prob_state.energy_new, prob_state.pressure_EOS, prob_state.temp_k, prob_state.elast_dev_vec_n),
+                        m_lattice_strain_prob(thermoElastN, prob_state.dt, prob_state.rel_vol_new, prob_state.energy_new, prob_state.pressure_EOS, prob_state.tkelv, prob_state.elast_dev_vec_n),
                         m_lattice_rot_prob(prob_state.dt, prob_state.quat_n),
                         m_elast_dev_vec_n(prob_state.elast_dev_vec_n),
                         m_xtal_ori_quat(prob_state.quat_u),
@@ -469,7 +469,7 @@ namespace ecmech {
                         m_spin_vec_sample(prob_state.spin_vec_sample), // vel_grad_sm%w_veccp
                         m_mtan_sI(nullptr)
             {
-               m_hdn_scale = m_kinetics.getVals(m_kin_vals, prob_state.pressure_EOS, prob_state.temp_k, prob_state.h_state_u);
+               m_hdn_scale = m_kinetics.getVals(m_kin_vals, prob_state.pressure_EOS, prob_state.tkelv, prob_state.h_state_u);
 
                double adots_ref = m_kinetics.getFixedRefRate(m_kin_vals);
                double eff = vecNorm<ntvec>(m_def_rate_dev_vec_sample); // do not worry about factor of sqrt(twothird)

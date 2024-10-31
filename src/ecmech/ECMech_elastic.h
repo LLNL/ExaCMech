@@ -79,7 +79,7 @@ namespace evptn {
         inline
         void eval(double* const kirchoff,
                     const double* const elast_dev_press_vec,
-                    double, // temp_k
+                    double, // tkelv
                     double pressure_EOS,
                     double // energy_vol_ref
                     ) const {
@@ -179,7 +179,7 @@ namespace evptn {
 
         __ecmech_hdev__
         inline
-        double getGmod(double, // temp_k
+        double getGmod(double, // tkelv
                         double, // pressure_EOS
                         double // energy_vol_ref
                         ) const {
@@ -289,7 +289,7 @@ namespace evptn {
         inline
         void eval(double* const kirchoff,
                     const double* const elast_dev_press_vec,
-                    double, // temp_k
+                    double, // tkelv
                     double pressure_EOS,
                     double energy_vol_ref
                     ) const {
@@ -381,7 +381,7 @@ namespace evptn {
 
         __ecmech_hdev__
         inline
-        double getGmod(double, // temp_k
+        double getGmod(double, // tkelv
                         double, // pressure_EOS
                         double // energy_vol_ref
                         ) const {

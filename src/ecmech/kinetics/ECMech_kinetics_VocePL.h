@@ -184,7 +184,7 @@ namespace ecmech {
          double
          getVals(double* const vals,
                  double, // p, not currently used
-                 double, // temp_k, not currently used
+                 double, // tkelv, not currently used
                  const double* const h_state
                  ) const
          {
@@ -272,12 +272,12 @@ namespace ecmech {
                  double dt,
                  const double* const gdot,
                  const double* const /*hvals*/,
-                 double temp_k,
+                 double tkelv,
                  int outputLevel = 0) const
          {
             double hs_u_1;
             int nFEvals = updateH1<KineticsVocePL>(this,
-                                                   hs_u_1, hs_o[0], dt, gdot, temp_k,
+                                                   hs_u_1, hs_o[0], dt, gdot, tkelv,
                                                    outputLevel);
             hs_u[0] = hs_u_1;
 
@@ -309,15 +309,15 @@ namespace ecmech {
                   double &dsdot_ds,
                   double h,
                   const double* const evolVals,
-                  double /*temp_k*/
+                  double /*tkelv*/
                   ) const
          {
             double shrate_eff = evolVals[0];
             double sv_sat = evolVals[1];
             // When the below ternary op is true then sdot and dsdot_ds remain zero.
             double temp2 = (sv_sat <= m_tausi) ? zero : one / (sv_sat - m_tausi);
-            // IF (PRESENT(dfdtemp_k)) THEN
-            // dfdtemp_k(1) = zero
+            // IF (PRESENT(dfdtkelv)) THEN
+            // dfdtkelv(1) = zero
             // END IF
 
             if (nonlinear) {

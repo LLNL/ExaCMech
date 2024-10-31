@@ -95,7 +95,7 @@ namespace ecmech {
             m_k2 = *parsIt; ++parsIt;
             m_krelax = *parsIt; ++parsIt;
             m_gdot_0 = *parsIt; ++parsIt;
-            m_temp_k0 = *parsIt; ++parsIt;
+            m_tkelv0 = *parsIt; ++parsIt;
             m_ak = *parsIt; ++parsIt;
             //////////////////////////////
             // nH
@@ -147,7 +147,7 @@ namespace ecmech {
             params.push_back(m_k2);
             params.push_back(m_krelax);
             params.push_back(m_gdot_0);
-            params.push_back(m_temp_k0);
+            params.push_back(m_tkelv0);
             params.push_back(m_ak);
             //////////////////////////////
             // nH
@@ -194,7 +194,7 @@ namespace ecmech {
          // Hardening
          double m_alpha;
          double m_k1, m_k2, m_krelax;
-         double m_gdot_0, m_temp_k0, m_ak;
+         double m_gdot_0, m_tkelv0, m_ak;
          //////////////////////////////
          // nH
          double m_hdn_init;
@@ -224,7 +224,7 @@ namespace ecmech {
          /// vals are the kinetic values - which can contain things like the
          /// reference slip rates, CRSS values, or a constant term that is divided by
          /// temperature
-         /// p down below is the pressure term and temp_k is the temperature
+         /// p down below is the pressure term and tkelv is the temperature
          /// h_state is the hardness state (CRSS for voce model and DD content for orowan model)
          /// Also, it returns the average flow strength (CRSS value) across all slip systems
          __ecmech_hdev__
@@ -232,7 +232,7 @@ namespace ecmech {
          double
          getVals(double* const vals,
                  double, // p, not currently used
-                 double temp_k,
+                 double tkelv,
                  const double* const h_state
                  ) const
          {
@@ -253,7 +253,7 @@ namespace ecmech {
             constexpr double inv_nslip = 1.0 / m_num_slip;
             mVals *= inv_nslip;
             
-            vals[2*m_num_slip] = temp_k;
+            vals[2*m_num_slip] = tkelv;
 
             return mVals;
          }
@@ -270,7 +270,7 @@ namespace ecmech {
                    const double* const vals
                    ) const
          {     
-            double temp_k = 0.0;
+            double tkelv = 0.0;
 
             for (int iSlip = 0; iSlip < m_num_slip; ++iSlip) {
                bool l_act;
@@ -282,7 +282,7 @@ namespace ecmech {
                // traditionally we have a separate function that will calculate everything
                // for only one slip system
                this->evalGdot(gdot[iSlip], l_act, dgdot_dtau[iSlip],
-                              crss, rhoa, taua, chia, temp_k);
+                              crss, rhoa, taua, chia, tkelv);
             }
          }
 
@@ -298,7 +298,7 @@ namespace ecmech {
             double   rho,
             double   tau,
             double   chi,
-            double   /*temp_k*/
+            double   /*tkelv*/
             ) const
          {
             // zero things so that can more easily just return in inactive
@@ -379,7 +379,7 @@ namespace ecmech {
                  double dt,
                  const double* const gdot,
                  const double* const hvals,
-                 double temp_k,
+                 double tkelv,
                  int outputLevel = 0) const
          {
             double log_hs_u[SlipGeom::nslip];
@@ -392,7 +392,7 @@ namespace ecmech {
             getEvolVals(evolVals, gdot);
             // If the equation is incredibly  stiff it's possible this won't solve
             int nFEvals = updateHN<KineticsBCCMD, true>(this,
-                                                  log_hs_u, log_hs_o, dt, evolVals, hvals, temp_k,
+                                                  log_hs_u, log_hs_o, dt, evolVals, hvals, tkelv,
                                                   outputLevel);
 
             for(int islip = 0; islip < SlipGeom::nslip; islip++) {
@@ -436,7 +436,7 @@ namespace ecmech {
                   const double* const h_i,
                   const double* const evolVals,
                   const double* const hvals,
-                  double temp_k
+                  double tkelv
                 ) const
          {
             constexpr bool LOGFORM = true;
@@ -478,7 +478,7 @@ namespace ecmech {
 
             auto k2_func = [=] () -> double {
                const double gamma_ratio = (gamma > ecmech::gam_ratio_min) ? (gamma / m_gdot_0) : 0.0;
-               return m_k2 * gamma_ratio * log(temp_k / m_temp_k0);
+               return m_k2 * gamma_ratio * log(tkelv / m_tkelv0);
             };
 
             auto f_func = [=] (const double abs_gamma_dot) -> double {

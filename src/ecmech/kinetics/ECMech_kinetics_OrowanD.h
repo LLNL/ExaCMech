@@ -31,7 +31,7 @@ namespace ecmech {
     *
     *   ! note: gdot_w, gdot_r are always positive by definition
     *   !
-    *   ! temp_k should only be used for derivative calculations
+    *   ! tkelv should only be used for derivative calculations
     *
     * templated on p and q being 1 or not;
     * might eventually template on number of slip systems, but to not do so just yet
@@ -96,7 +96,7 @@ namespace ecmech {
             // power-law stuff
 
             m_mu_ref = *parsIt; ++parsIt;
-            m_temp_k_ref = *parsIt; ++parsIt;
+            m_tkelv_ref = *parsIt; ++parsIt;
             for (int iVal = 0; iVal < nVPer; ++iVal) {
                m_berg_mag[iVal] = *parsIt; ++parsIt;
             }
@@ -138,7 +138,7 @@ namespace ecmech {
             //
             for (int iVal = 0; iVal<nVPer; ++iVal) {
                // pl%xm = getMtsxmEffective(pl, mu_ref, T_ref)
-               double xm = one / (two * ((m_c_1[iVal] / m_temp_k_ref) * m_mu_ref * m_p * m_q));
+               double xm = one / (two * ((m_c_1[iVal] / m_tkelv_ref) * m_mu_ref * m_p * m_q));
                //
                // CALL fill_power_law(pl)
                // xmm  = xm - one ;
@@ -235,7 +235,7 @@ namespace ecmech {
             int paramsStart = params.size();
 #endif
             params.push_back(m_mu_ref);
-            params.push_back(m_temp_k_ref);
+            params.push_back(m_tkelv_ref);
             for (int iVal = 0; iVal < nVPer; ++iVal) {
                params.push_back(m_berg_mag[iVal]);
             }
@@ -316,7 +316,7 @@ namespace ecmech {
          // parameters
          double m_lbar_b; // We might need to make this per SS as well
          double m_mu_ref;
-         double m_temp_k_ref;
+         double m_tkelv_ref;
          double m_fD;
          double m_berg_mag[nVPer];
          double m_c_1[nVPer];
@@ -371,7 +371,7 @@ namespace ecmech {
          double
          getVals(double* const vals, // [nVals]
                  double, // p, not used
-                 double temp_k,
+                 double tkelv,
                  const double* const h_state
                  ) const
          {
@@ -399,7 +399,7 @@ namespace ecmech {
             vals[0] = maxRefRate;
 
             for (int iVal = 0; iVal < nVPer; ++iVal) {
-               vals[1 + 2 * nslip + iVal] = m_c_1[iVal] / temp_k; // _c_t
+               vals[1 + 2 * nslip + iVal] = m_c_1[iVal] / tkelv; // _c_t
             }
 
             return hdnScale;
@@ -655,7 +655,7 @@ namespace ecmech {
                  double dt,
                  const double* const gdot,
                  const double* const hvals,
-                 double temp_k,
+                 double tkelv,
                  int outputLevel = 0) const
          {
 
@@ -674,7 +674,7 @@ namespace ecmech {
             }
 
             int nFEvals = updateHN<KineticsOrowanD>(this,
-                                                   &hs_u[0], &ihs_o[0], dt, nu, hvals, temp_k,
+                                                   &hs_u[0], &ihs_o[0], dt, nu, hvals, tkelv,
                                                    outputLevel);
             if (LOGFORM) {
                for (int i = 0; i < nslip * 2; i++) {
@@ -722,7 +722,7 @@ namespace ecmech {
                         }
                      }
                      nFEvals += updateHN<KineticsOrowanD>(this,
-                                                         &hs_u[0], hs_temp, dtnew, nu, hvals, temp_k,
+                                                         &hs_u[0], hs_temp, dtnew, nu, hvals, tkelv,
                                                          outputLevel);
                      flag = false;
                      for (int iSlip = 0; iSlip < 2 * nslip; iSlip++) {
@@ -770,7 +770,7 @@ namespace ecmech {
                    const double* const h_i,
                    const double* const evolVals,
                    const double* const /*hvals*/,
-                   double /*temp_k*/                   ) const
+                   double /*tkelv*/                   ) const
          {
             // Hopefully, the compiler is pretty smart here and is able to optimize these
             // loops as if we're using the templated values. Since, this is essentially

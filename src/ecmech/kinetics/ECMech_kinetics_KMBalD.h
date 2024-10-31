@@ -29,7 +29,7 @@ namespace ecmech {
     *
     *   ! note: gdot_w, gdot_r are always positive by definition
     *   !
-    *   ! temp_k should only be used for derivative calculations
+    *   ! tkelv should only be used for derivative calculations
     *
     * templated on p and q being 1 or not;
     * might eventually template on number of slip systems, but do not do so just yet
@@ -88,7 +88,7 @@ namespace ecmech {
             // power-law stuff
 
             m_mu_ref = *parsIt; ++parsIt;
-            m_temp_k_ref = *parsIt; ++parsIt;
+            m_tkelv_ref = *parsIt; ++parsIt;
             for (int iVal = 0; iVal<nVPer; ++iVal) {
                m_c_1[iVal] = *parsIt; ++parsIt;
             }
@@ -118,7 +118,7 @@ namespace ecmech {
             //
             for (int iVal = 0; iVal<nVPer; ++iVal) {
                // pl%xm = getMtsxmEffective(pl, mu_ref, T_ref)
-               double xm = one / (two * ((m_c_1[iVal] / m_temp_k_ref) * m_mu_ref * m_p * m_q));
+               double xm = one / (two * ((m_c_1[iVal] / m_tkelv_ref) * m_mu_ref * m_p * m_q));
                //
                // CALL fill_power_law(pl)
                // xmm  = xm - one ;
@@ -168,7 +168,7 @@ namespace ecmech {
             // power-law stuff
 
             params.push_back(m_mu_ref);
-            params.push_back(m_temp_k_ref);
+            params.push_back(m_tkelv_ref);
             for (int iVal = 0; iVal<nVPer; ++iVal) {
                params.push_back(m_c_1[iVal]);
             }
@@ -226,7 +226,7 @@ namespace ecmech {
 
          // parameters
          double m_mu_ref; // may evetually set for current conditions
-         double m_temp_k_ref;
+         double m_tkelv_ref;
          double m_tau_a; // if withGAthermal then is Peierls barrier
          double m_p; // only used if pOne is false
          double m_q; // only used if qOne is false
@@ -269,7 +269,7 @@ namespace ecmech {
          double
          getVals(double* const vals, // [nVals]
                  double, // p, not used
-                 double temp_k,
+                 double tkelv,
                  const double* const h_state
                  ) const
          {
@@ -286,7 +286,7 @@ namespace ecmech {
                double hdnI = m_go[iVal] + m_s[iVal] * sqrtDDens; // _gAll
                hdnScale += hdnI;
                vals[2 + iVal] = hdnI;
-               vals[2 + nVPer + iVal] = m_c_1[iVal] / temp_k; // _c_t
+               vals[2 + nVPer + iVal] = m_c_1[iVal] / tkelv; // _c_t
                if (!withGAthermal) {
                   assert(vals[2 + iVal] > zero);
                }
@@ -547,7 +547,7 @@ namespace ecmech {
                  double dt,
                  const double* const gdot,
                  const double* const /*hvals*/,
-                 double temp_k,
+                 double tkelv,
                  int outputLevel = 0) const
          {
             // do not yet both with l_overdriven and setting-to-saturation machinery as in Fortran coding
@@ -556,7 +556,7 @@ namespace ecmech {
             double log_hs_u;
             double log_hs_o = log(fmax(hs_o[0], m_hdn_min));
             int nFEvals = updateH1<KineticsKMBalD>(this,
-                                                   log_hs_u, log_hs_o, dt, gdot, temp_k,
+                                                   log_hs_u, log_hs_o, dt, gdot, tkelv,
                                                    outputLevel);
             hs_u[0] = exp(log_hs_u);
 
@@ -589,7 +589,7 @@ namespace ecmech {
                   double &dsdot_ds,
                   double h,
                   const double* const evolVals,
-                  double /*temp_k*/
+                  double /*tkelv*/
                   ) const
          {
             double shrate_eff = evolVals[0];

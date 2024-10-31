@@ -44,7 +44,7 @@ namespace ecmech {
             m_cold_energy0 = *parsIt; ++parsIt;
 
             m_dtde = one / m_cvav;
-            m_temp_k0 = -m_cold_energy0 * m_dtde;
+            m_tkelv0 = -m_cold_energy0 * m_dtde;
 
             //////////////////////////////
 #if defined(ECMECH_DEBUG)
@@ -80,25 +80,25 @@ namespace ecmech {
 
          __ecmech_hdev__
          inline void evalPT(double &pressure,
-                            double &temp_k,
+                            double &tkelv,
                             double  rel_vol,
                             double  energy) const {
             double mu = one / rel_vol - one;
 
             if (isothermal) {
                pressure = m_bulk_modulus * mu;
-               temp_k = m_temp_k0;
+               tkelv = m_tkelv0;
             }
             else {
                pressure = m_bulk_modulus * mu + m_gamma * energy;
-               temp_k = m_temp_k0 + energy * m_dtde;
+               tkelv = m_tkelv0 + energy * m_dtde;
             }
          }
 
          __ecmech_hdev__
          inline
          void evalPTDiff(double &pressure,
-                         double &temp_k,
+                         double &tkelv,
                          double &bulk_modulus_new,
                          double &dpde,
                          double &dtde,
@@ -107,7 +107,7 @@ namespace ecmech {
             double eta = one / rel_vol;
             double mu = eta - one;
 
-            temp_k = this->evalT(energy);
+            tkelv = this->evalT(energy);
 
             if (isothermal) {
                pressure = m_bulk_modulus * mu;
@@ -150,14 +150,14 @@ namespace ecmech {
 
          __ecmech_hdev__
          inline double evalT(double  energy) const {
-            double temp_k;
+            double tkelv;
             if (isothermal) {
-               temp_k = m_temp_k0;
+               tkelv = m_tkelv0;
             }
             else {
-               temp_k = m_temp_k0 + energy * m_dtde;
+               tkelv = m_tkelv0 + energy * m_dtde;
             }
-            return temp_k;
+            return tkelv;
          }
 
       private:
@@ -166,7 +166,7 @@ namespace ecmech {
          double m_density0, m_bulk_modulus, m_gamma, m_cold_energy0, m_cvav;
 
          // derived from parameters
-         double m_dtde, m_temp_k0;
+         double m_dtde, m_tkelv0;
    }; // class EosModelConst
 
    template<class EosModel>
@@ -174,7 +174,7 @@ namespace ecmech {
    inline
    void updateSimple(const EosModel& eos,
                      double &press,
-                     double &temp_k,
+                     double &tkelv,
                      double &energy_new,
                      double &bulk_modulus_new,
                      double &dpde,
@@ -188,7 +188,7 @@ namespace ecmech {
 
       energy_new = energy_old - rel_vol_increment * pressure_old;
 
-      eos.evalPTDiff(press, temp_k, bulk_modulus_new, dpde, dtde, rel_vol_new, energy_new);
+      eos.evalPTDiff(press, tkelv, bulk_modulus_new, dpde, dtde, rel_vol_new, energy_new);
       dpdv = -bulk_modulus_new / rel_vol_new;
 
       double bulk_modulus_min = 1e-5 * eos.getBulkRef();
