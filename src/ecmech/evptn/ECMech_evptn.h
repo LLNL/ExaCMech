@@ -29,7 +29,7 @@ namespace ecmech {
                               )
                : m_slipGeom(slipGeom),
                m_kinetics(kinetics),
-               m_lattice_strain_prob(thermoElastN, prob_state.dt, prob_state.rel_vol_new, prob_state.energy_new, prob_state.pressure_EOS, prob_state.tkelv, prob_state.elast_dev_vec_n),
+               m_lattice_strain_prob(thermoElastN, prob_state.dt, prob_state.rel_vol_new, prob_state.energy_new, prob_state.pressure_EOS, prob_state.tkelv, prob_state.elast_d5_n),
                m_lattice_rot_prob(prob_state.dt, prob_state.quat_n),
                m_def_rate_d5_sample(prob_state.def_rate_d5_sample), // vel_grad_sm%d_vecds
                m_spin_vec_sample(prob_state.spin_vec_sample), // vel_grad_sm%w_veccp
@@ -72,7 +72,7 @@ namespace ecmech {
             /*
              * NOTES :
              * () should be equivalent to what happens in computeRJ
-             * () not necessarily safe if elast_dev_press_vec is the same memory as m_elast_dev_vec_n or quat is the same as _xtal_ori_quat_n
+             * () not necessarily safe if elast_dev_press_vec is the same memory as m_elast_d5_n or quat is the same as _xtal_ori_quat_n
              */
             __ecmech_hdev__
             inline
@@ -118,7 +118,7 @@ namespace ecmech {
                vecsVxa<ntvec>(elas_dt_dev_vec, ecmech::e_scale, &(x[m_i_sub_e]) ); // elas_dt_dev_vec is now the delta, _not_ yet elas_dt_dev_vec
                // elast_dev_vec_f is end-of-step
                double elast_dev_vec_f[ntvec];
-               vecsVapb<ntvec>(elast_dev_vec_f, elas_dt_dev_vec, m_lattice_strain_prob.m_elast_dev_vec_n);
+               vecsVapb<ntvec>(elast_dev_vec_f, elas_dt_dev_vec, m_lattice_strain_prob.m_elast_d5_n);
                vecsVsa<ntvec>(elas_dt_dev_vec, m_lattice_strain_prob.m_inv_dt); // _now_ elas_dt_dev_vec has elas_dt_dev_vec
                //
                double xi_f[nwvec];
@@ -304,7 +304,7 @@ namespace ecmech {
                         ProblemState& prob_state
                         ) :
             m_slipGeom(slipGeom),
-            m_lattice_strain_prob(thermoElastN, prob_state.dt, prob_state.rel_vol_new, prob_state.energy_new, prob_state.pressure_EOS, prob_state.tkelv, prob_state.elast_dev_vec_n),
+            m_lattice_strain_prob(thermoElastN, prob_state.dt, prob_state.rel_vol_new, prob_state.energy_new, prob_state.pressure_EOS, prob_state.tkelv, prob_state.elast_d5_n),
             m_lattice_rot_prob(prob_state.dt, prob_state.quat_n),
             m_def_rate_d5_sample(prob_state.def_rate_d5_sample), // vel_grad_sm%d_vecds
             m_spin_vec_sample(prob_state.spin_vec_sample) // vel_grad_sm%w_veccp
@@ -388,7 +388,7 @@ namespace ecmech {
             double A_e_M35[ecmech::nwvec * ecmech::ntvec];
             double ee_wvec[ecmech::nwvec];
             double ee_fac;
-            elasticity_higher_order_terms(A_e_M35, ee_wvec, ee_fac, m_lattice_strain_prob.m_inv_a_vol, m_lattice_strain_prob.m_elast_dev_vec_n, elas_dt_dev_vec);
+            elasticity_higher_order_terms(A_e_M35, ee_wvec, ee_fac, m_lattice_strain_prob.m_inv_a_vol, m_lattice_strain_prob.m_elast_d5_n, elas_dt_dev_vec);
 
             // Residual Calculations
             m_lattice_rot_prob.get_omega_residual(resid, m_rotincr_scale_inv, ee_fac, xi_f, spin_vec_xtal, m_plastic_spin_vec, ee_wvec);
@@ -461,9 +461,9 @@ namespace ecmech {
                         m_slipGeom(slipGeom),
                         m_kinetics(kinetics),
                         m_thermoElastN(thermoElastN),
-                        m_lattice_strain_prob(thermoElastN, prob_state.dt, prob_state.rel_vol_new, prob_state.energy_new, prob_state.pressure_EOS, prob_state.tkelv, prob_state.elast_dev_vec_n),
+                        m_lattice_strain_prob(thermoElastN, prob_state.dt, prob_state.rel_vol_new, prob_state.energy_new, prob_state.pressure_EOS, prob_state.tkelv, prob_state.elast_d5_n),
                         m_lattice_rot_prob(prob_state.dt, prob_state.quat_n),
-                        m_elast_dev_vec_n(prob_state.elast_dev_vec_n),
+                        m_elast_d5_n(prob_state.elast_d5_n),
                         m_xtal_ori_quat(prob_state.quat_u),
                         m_def_rate_d5_sample(prob_state.def_rate_d5_sample), // vel_grad_sm%d_vecds
                         m_spin_vec_sample(prob_state.spin_vec_sample), // vel_grad_sm%w_veccp
@@ -506,7 +506,7 @@ namespace ecmech {
             /*
              * NOTES :
              * () should be equivalent to what happens in computeRJ
-             * () not necessarily safe if elast_dev_press_vec is the same memory as m_elast_dev_vec_n or quat is the same as _xtal_ori_quat_n
+             * () not necessarily safe if elast_dev_press_vec is the same memory as m_elast_d5_n or quat is the same as _xtal_ori_quat_n
              */
             __ecmech_hdev__
             inline
@@ -550,7 +550,7 @@ namespace ecmech {
                vecsVxa<ntvec>(elas_dt_dev_vec, ecmech::e_scale, &(x[m_i_sub_e]) ); // elas_dt_dev_vec is now the delta, _not_ yet elas_dt_dev_vec
                // elast_dev_vec_f is end-of-step
                double elast_dev_vec_f[ntvec];
-               vecsVapb<ntvec>(elast_dev_vec_f, elas_dt_dev_vec, m_lattice_strain_prob.m_elast_dev_vec_n);
+               vecsVapb<ntvec>(elast_dev_vec_f, elas_dt_dev_vec, m_lattice_strain_prob.m_elast_d5_n);
                vecsVsa<ntvec>(elas_dt_dev_vec, m_lattice_strain_prob.m_inv_dt); // _now_ elas_dt_dev_vec has elas_dt_dev_vec
                //
                double xtal_rmat[ecmech::ndim * ecmech::ndim];
@@ -692,7 +692,7 @@ namespace ecmech {
 
             double m_kin_vals[Kinetics::nVals];
 
-            const double* const m_elast_dev_vec_n;
+            const double* const m_elast_d5_n;
             const double* const m_xtal_ori_quat;
             const double* const m_def_rate_d5_sample; // d_vecds_sm would be fine too -- but do not use m_def_rate_d5_sample[iSvecS];
             const double* const m_spin_vec_sample;

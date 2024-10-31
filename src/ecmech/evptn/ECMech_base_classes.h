@@ -54,7 +54,7 @@ namespace evptn {
 
 
         double def_rate_d5_sample[ecmech::ntvec];
-        double elast_dev_vec_n[ecmech::ntvec];
+        double elast_d5_n[ecmech::ntvec];
         double quat_n[ecmech::qdim];
         double h_state_u[Kinetics::nH];
         double pressure_EOS, energy_new, bulk_modulus_new;
@@ -87,7 +87,7 @@ namespace evptn {
             // copies, to keep beginning-of-step state safe
             //
             for (int i_hist = 0; i_hist < ecmech::ntvec; i_hist++) {
-                elast_dev_vec_n[i_hist] = hist[iHistLbE + i_hist];
+                elast_d5_n[i_hist] = hist[iHistLbE + i_hist];
             }
 
             for (int i_hist = 0; i_hist < ecmech::qdim; i_hist++) {
@@ -114,11 +114,11 @@ namespace evptn {
                                 const double det_v_e, 
                                 const double pressure_EOS, 
                                 const double tkelv,
-                                const double* const elast_dev_vec_n)
+                                const double* const elast_d5_n)
         : m_thermo_elast_n(thermoElastN),
         m_dt(dt), m_det_vol(det_vol), m_det_v_e(det_v_e),
         m_pressure_eos(pressure_EOS), m_tkelv(tkelv),
-        m_elast_dev_vec_n(elast_dev_vec_n),
+        m_elast_d5_n(elast_d5_n),
         m_inv_dt(1.0 / dt),
         m_inv_det_vol(1.0 / m_det_vol),
         m_a_vol(pow(m_det_vol, onethird)),
@@ -178,7 +178,7 @@ namespace evptn {
         vecsVxa<ntvec>(elas_dt_dev_vec, ecmech::e_scale, x); // elas_dt_dev_vec is now the delta, _not_ yet elas_dt_dev_vec
         // elast_dev_vec_f is end-of-step
         // double elast_dev_vec_f[ntvec];
-        vecsVapb<ntvec>(elas_delta_dev_vec, elas_dt_dev_vec, m_elast_dev_vec_n);
+        vecsVapb<ntvec>(elas_delta_dev_vec, elas_dt_dev_vec, m_elast_d5_n);
         if constexpr(calc_strain_rate) {
             vecsVsa<ntvec>(elas_dt_dev_vec, m_inv_dt); // _now_ elas_dt_dev_vec has dt contributions
         }
@@ -187,7 +187,7 @@ namespace evptn {
         /*
         * NOTES :
         * () should be equivalent to what happens in get_elas_strain_state<false>
-        * () not necessarily safe if elast_dev_press_vec is the same memory as _elast_dev_vec_n or quat is the same as _xtal_ori_quat_n
+        * () not necessarily safe if elast_dev_press_vec is the same memory as _elast_d5_n or quat is the same as _xtal_ori_quat_n
         */
         __ecmech_hdev__
         inline
@@ -289,7 +289,7 @@ namespace evptn {
         const ThermoElastN& m_thermo_elast_n;
         const double m_dt, m_det_vol, m_det_v_e;
         const double m_pressure_eos, m_tkelv;
-        const double* const m_elast_dev_vec_n;
+        const double* const m_elast_d5_n;
         const double m_inv_dt, m_inv_det_vol, m_a_vol, m_inv_a_vol;
     };
 
@@ -331,7 +331,7 @@ namespace evptn {
         /*
         * NOTES :
         * () should be equivalent to what happens in get_elas_strain_state<false>
-        * () not necessarily safe if elast_dev_press_vec is the same memory as _elast_dev_vec_n or quat is the same as _xtal_ori_quat_n
+        * () not necessarily safe if elast_dev_press_vec is the same memory as _elast_d5_n or quat is the same as _xtal_ori_quat_n
         */
         // Assume that x has is at the location we need it to be at... 
         __ecmech_hdev__

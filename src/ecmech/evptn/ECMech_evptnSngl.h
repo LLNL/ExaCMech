@@ -70,7 +70,7 @@ bool preprocess(const SlipGeom& slipGeom,
        double m_a_vol = pow(prob_state.rel_vol_new, onethird);
        double m_inv_a_vol = 1.0 / prob_state.rel_vol_new;
 
-        vecsVxa<ntvec>(elas_dev_vol_vec, m_inv_a_vol, prob_state.elast_dev_vec_n);
+        vecsVxa<ntvec>(elas_dev_vol_vec, m_inv_a_vol, prob_state.elast_d5_n);
         elas_dev_vol_vec[iSvecS] = sqr3 * log(m_a_vol);
         thermoElastN.eval(kirchoff, elas_dev_vol_vec, prob_state.tkelv, prob_state.pressure_EOS, prob_state.energy_new);
         vecdsToSvecP(stress_dev6_press, kirchoff);
