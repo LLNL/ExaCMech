@@ -31,14 +31,14 @@ namespace ecmech {
                m_kinetics(kinetics),
                m_lattice_strain_prob(thermoElastN, prob_state.dt, prob_state.rel_vol_new, prob_state.energy_new, prob_state.pressure_EOS, prob_state.tkelv, prob_state.elast_dev_vec_n),
                m_lattice_rot_prob(prob_state.dt, prob_state.quat_n),
-               m_def_rate_dev_vec_sample(prob_state.def_rate_dev_vec_sample), // vel_grad_sm%d_vecds
+               m_def_rate_d5_sample(prob_state.def_rate_d5_sample), // vel_grad_sm%d_vecds
                m_spin_vec_sample(prob_state.spin_vec_sample), // vel_grad_sm%w_veccp
                m_mtan_sI(nullptr)
             {
                m_hdn_scale = m_kinetics.getVals(m_kin_vals, prob_state.pressure_EOS, prob_state.tkelv, prob_state.h_state_u);
 
                double adots_ref = m_kinetics.getFixedRefRate(m_kin_vals);
-               double eff = vecNorm<ntvec>(m_def_rate_dev_vec_sample); // do not worry about factor of sqrt(twothird)
+               double eff = vecNorm<ntvec>(m_def_rate_d5_sample); // do not worry about factor of sqrt(twothird)
                if (eff < epsdot_scl_nzeff * adots_ref) {
                   m_epsdot_scale_inv = one / adots_ref;
                }
@@ -139,7 +139,7 @@ namespace ecmech {
                double def_rate_dev_vec_xtal[ecmech::ntvec];
                double spin_vec_xtal[ecmech::nwvec]; // assumes nwvec = ndim
 
-               get_xtal_frame_vel_grad_terms(def_rate_dev_vec_xtal, spin_vec_xtal, m_def_rate_dev_vec_sample,  m_spin_vec_sample, xtal_rmat, rmat_5x5_sample2xtal);
+               get_xtal_frame_vel_grad_terms(def_rate_dev_vec_xtal, spin_vec_xtal, m_def_rate_d5_sample,  m_spin_vec_sample, xtal_rmat, rmat_5x5_sample2xtal);
 
                //////////////////////////////
                // CALCULATIONS
@@ -182,7 +182,7 @@ namespace ecmech {
                   double dDsm_dxi[ ecmech::ntvec * ecmech::nwvec ];
                   double dWsm_dxi[ ecmech::nwvec * ecmech::nwvec ];
                   eval_d_dxi_impl_quat(dxtal_ori_quat_dxi_T, dDsm_dxi, dWsm_dxi,
-                                       m_def_rate_dev_vec_sample, m_spin_vec_sample,
+                                       m_def_rate_d5_sample, m_spin_vec_sample,
                                        xi_f, 
                                        m_lattice_rot_prob.m_xtal_ori_quat_n,
                                        xtal_rmat, xtal_ori_quat);
@@ -279,7 +279,7 @@ namespace ecmech {
 
             double m_kin_vals[Kinetics::nVals];
 
-            const double* const m_def_rate_dev_vec_sample; // d_vecds_sm would be fine too -- but do not use m_def_rate_dev_vec_sample[iSvecS];
+            const double* const m_def_rate_d5_sample; // d_vecds_sm would be fine too -- but do not use m_def_rate_d5_sample[iSvecS];
             const double* const m_spin_vec_sample;
 
             static constexpr size_t m_nXnDim = nDimSys * nDimSys;
@@ -306,13 +306,13 @@ namespace ecmech {
             m_slipGeom(slipGeom),
             m_lattice_strain_prob(thermoElastN, prob_state.dt, prob_state.rel_vol_new, prob_state.energy_new, prob_state.pressure_EOS, prob_state.tkelv, prob_state.elast_dev_vec_n),
             m_lattice_rot_prob(prob_state.dt, prob_state.quat_n),
-            m_def_rate_dev_vec_sample(prob_state.def_rate_dev_vec_sample), // vel_grad_sm%d_vecds
+            m_def_rate_d5_sample(prob_state.def_rate_d5_sample), // vel_grad_sm%d_vecds
             m_spin_vec_sample(prob_state.spin_vec_sample) // vel_grad_sm%w_veccp
          {
 
             double adots_ref = vecNorm<SlipGeom::nslip>(prob_state.gdot);
 
-            double eff = vecNorm<ecmech::ntvec>(m_def_rate_dev_vec_sample); // do not worry about factor of sqrt(twothird)
+            double eff = vecNorm<ecmech::ntvec>(m_def_rate_d5_sample); // do not worry about factor of sqrt(twothird)
             if (eff < epsdot_scl_nzeff * adots_ref) {
                   m_epsdot_scale_inv = one / adots_ref;
             }
@@ -374,7 +374,7 @@ namespace ecmech {
 
             double def_rate_dev_vec_xtal[ecmech::ntvec];
             double spin_vec_xtal[ecmech::nwvec]; // assumes nwvec = ndim
-            get_xtal_frame_vel_grad_terms(def_rate_dev_vec_xtal, spin_vec_xtal, m_def_rate_dev_vec_sample,  m_spin_vec_sample, xtal_rmat, rmat_5x5_sample2xtal);
+            get_xtal_frame_vel_grad_terms(def_rate_dev_vec_xtal, spin_vec_xtal, m_def_rate_d5_sample,  m_spin_vec_sample, xtal_rmat, rmat_5x5_sample2xtal);
 
             double elas_dt_dev_vec[ecmech::ntvec];
             // Calculate what this elas_dt_dev_vec term should be given the current
@@ -405,7 +405,7 @@ namespace ecmech {
                   double dDsm_dxi[ ecmech::ntvec * ecmech::nwvec ];
                   double dWsm_dxi[ ecmech::nwvec * ecmech::nwvec ];
                   eval_d_dxi_impl_quat(dxtal_ori_quat_dxi_T, dDsm_dxi, dWsm_dxi,
-                                    m_def_rate_dev_vec_sample, m_spin_vec_sample,
+                                    m_def_rate_d5_sample, m_spin_vec_sample,
                                     xi_f,
                                     m_lattice_rot_prob.m_xtal_ori_quat_n,
                                     xtal_rmat, xtal_ori_quat);
@@ -437,7 +437,7 @@ namespace ecmech {
          double m_plastic_def_rate[ecmech::ntvec];
          double m_plastic_spin_vec[ecmech::nwvec]; // \pcDhat
 
-         const double* const m_def_rate_dev_vec_sample; // d_vecds_sm would be fine too -- but do not use m_def_rate_dev_vec_sample[iSvecS];
+         const double* const m_def_rate_d5_sample; // d_vecds_sm would be fine too -- but do not use m_def_rate_d5_sample[iSvecS];
          const double* const m_spin_vec_sample;
 
          static constexpr int m_nXnDim = nDimSys * nDimSys;
@@ -465,14 +465,14 @@ namespace ecmech {
                         m_lattice_rot_prob(prob_state.dt, prob_state.quat_n),
                         m_elast_dev_vec_n(prob_state.elast_dev_vec_n),
                         m_xtal_ori_quat(prob_state.quat_u),
-                        m_def_rate_dev_vec_sample(prob_state.def_rate_dev_vec_sample), // vel_grad_sm%d_vecds
+                        m_def_rate_d5_sample(prob_state.def_rate_d5_sample), // vel_grad_sm%d_vecds
                         m_spin_vec_sample(prob_state.spin_vec_sample), // vel_grad_sm%w_veccp
                         m_mtan_sI(nullptr)
             {
                m_hdn_scale = m_kinetics.getVals(m_kin_vals, prob_state.pressure_EOS, prob_state.tkelv, prob_state.h_state_u);
 
                double adots_ref = m_kinetics.getFixedRefRate(m_kin_vals);
-               double eff = vecNorm<ntvec>(m_def_rate_dev_vec_sample); // do not worry about factor of sqrt(twothird)
+               double eff = vecNorm<ntvec>(m_def_rate_d5_sample); // do not worry about factor of sqrt(twothird)
                if (eff < (epsdot_scl_nzeff * adots_ref)) {
                   m_epsdot_scale_inv = one / adots_ref;
                }
@@ -561,7 +561,7 @@ namespace ecmech {
                double def_rate_dev_vec_xtal[ecmech::ntvec];
                double spin_vec_xtal[ecmech::nwvec]; // assumes nwvec = ndim
 
-               get_xtal_frame_vel_grad_terms(def_rate_dev_vec_xtal, spin_vec_xtal, m_def_rate_dev_vec_sample,  m_spin_vec_sample, xtal_rmat, rmat_5x5_sample2xtal);
+               get_xtal_frame_vel_grad_terms(def_rate_dev_vec_xtal, spin_vec_xtal, m_def_rate_d5_sample,  m_spin_vec_sample, xtal_rmat, rmat_5x5_sample2xtal);
 
                //////////////////////////////
                // CALCULATIONS
@@ -610,7 +610,7 @@ namespace ecmech {
                      double dDsm_dxi[ ecmech::ntvec * ecmech::nwvec ];
                      double dWsm_dxi[ ecmech::nwvec * ecmech::nwvec ];
                      eval_d_dxi_impl_quat(dxtal_ori_quat_dxi_T, dDsm_dxi, dWsm_dxi,
-                                          m_def_rate_dev_vec_sample, m_spin_vec_sample,
+                                          m_def_rate_d5_sample, m_spin_vec_sample,
                                           xi_f,
                                           m_lattice_rot_prob.m_xtal_ori_quat_n,
                                           xtal_rmat, m_xtal_ori_quat);
@@ -694,7 +694,7 @@ namespace ecmech {
 
             const double* const m_elast_dev_vec_n;
             const double* const m_xtal_ori_quat;
-            const double* const m_def_rate_dev_vec_sample; // d_vecds_sm would be fine too -- but do not use m_def_rate_dev_vec_sample[iSvecS];
+            const double* const m_def_rate_d5_sample; // d_vecds_sm would be fine too -- but do not use m_def_rate_d5_sample[iSvecS];
             const double* const m_spin_vec_sample;
 
             static constexpr int m_nXnDim = nDimSys * nDimSys;

@@ -983,7 +983,7 @@ namespace ecmech {
                              // double* const dxtal_rmat_dxi, // (DIMS,DIMS,WVEC)
                              double* const dDapp_dxi, // dDapp_dxi(TVEC, WVEC)
                              double* const dWapp_dxi, // dWapp_dxi(WVEC, WVEC)
-                             const double* const def_rate_dev_vec_sample, // (TVEC), or (SVEC) is fine too
+                             const double* const def_rate_d5_sample, // (TVEC), or (SVEC) is fine too
                              const double* const w_vec_sm, // (WVEC)
                              const double* const xi, // (WVEC)
                              const double* const xtal_ori_quat_n, // (QDIM_p)
@@ -1015,7 +1015,7 @@ namespace ecmech {
 
       {
          double dD_dxtal_rmat[ ecmech::ntvec * (ecmech::ndim * ecmech::ndim) ];
-         d_rot_mat_vecd_latop(dD_dxtal_rmat, xtal_rmat, def_rate_dev_vec_sample);
+         d_rot_mat_vecd_latop(dD_dxtal_rmat, xtal_rmat, def_rate_d5_sample);
          //
          vecsMAB<ntvec, nwvec, ndim*ndim>(dDapp_dxi, dD_dxtal_rmat, dxtal_rmat_dxi);
          // dDapp_dxi(SVEC,:) = zero

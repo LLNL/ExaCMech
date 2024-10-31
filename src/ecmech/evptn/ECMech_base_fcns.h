@@ -12,12 +12,12 @@ namespace evptn {
     inline
     void get_xtal_frame_vel_grad_terms(double* const def_rate_dev_vec_xtal,
                                         double* const spin_vec_xtal,
-                                        const double* const def_rate_dev_vec_sample,
+                                        const double* const def_rate_d5_sample,
                                         const double* const spin_vec_sample,
                                         const double* const xtal_rmat,
                                         const double* const xtal_rot_mat5)
     {
-        vecsVMTa<ecmech::ntvec>(def_rate_dev_vec_xtal, xtal_rot_mat5, def_rate_dev_vec_sample);
+        vecsVMTa<ecmech::ntvec>(def_rate_dev_vec_xtal, xtal_rot_mat5, def_rate_d5_sample);
         vecsVMTa<ecmech::ndim>(spin_vec_xtal, xtal_rmat, spin_vec_sample);
     }
 

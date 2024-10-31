@@ -192,7 +192,7 @@ void postprocess_prob(Problem& prob,
     prob_state.eps += prob_state.eps_dot * prob_state.dt;
     //
     {
-        double dEff = vecd_Deff(prob_state.def_rate_dev_vec_sample);
+        double dEff = vecd_Deff(prob_state.def_rate_d5_sample);
         double flow_strength = prob.getHdnScale();
         if (dEff > idp_tiny_sqrt) {
             flow_strength = pl_disipation_rate / dEff;

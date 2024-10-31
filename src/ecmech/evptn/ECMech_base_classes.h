@@ -53,7 +53,7 @@ namespace evptn {
         double& tkelv;
 
 
-        double def_rate_dev_vec_sample[ecmech::ntvec];
+        double def_rate_d5_sample[ecmech::ntvec];
         double elast_dev_vec_n[ecmech::ntvec];
         double quat_n[ecmech::qdim];
         double h_state_u[Kinetics::nH];
@@ -81,8 +81,8 @@ namespace evptn {
         {
             // convert deformation rate convention
             //
-            // double def_rate_dev_vec_sample[ecmech::ntvec];
-            svecToVecd(def_rate_dev_vec_sample, def_rate_d6v_sample);
+            // double def_rate_d5_sample[ecmech::ntvec];
+            svecToVecd(def_rate_d5_sample, def_rate_d6v_sample);
             //
             // copies, to keep beginning-of-step state safe
             //
