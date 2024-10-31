@@ -23,7 +23,7 @@ bool preprocess(const SlipGeom& slipGeom,
                 const ThermoElastN& thermoElastN,
                 const double* const volRatio,
                 const double* const internal_energy,
-                const double* const def_rate_dev6_vol_sample,
+                const double* const def_rate_d6v_sample,
                 ProbState& prob_state,
                 double& halfVMidDt,
                 double& dev_strain_energy_total)
@@ -34,7 +34,7 @@ bool preprocess(const SlipGeom& slipGeom,
     // just beginning-of-step stress part so far
     //
     halfVMidDt = oneqrtr * (volRatio[0] + volRatio[1]) * prob_state.dt;
-    dev_strain_energy_total = halfVMidDt * vecsInnerSvecDev(prob_state.cauchy_stress_d6p, def_rate_dev6_vol_sample);
+    dev_strain_energy_total = halfVMidDt * vecsInnerSvecDev(prob_state.cauchy_stress_d6p, def_rate_d6v_sample);
 
     // EOS
     //
@@ -210,7 +210,7 @@ __ecmech_hdev__
 inline
 void postprocess(ProblemState& prob_state,
                  const ThermoElastN& elastN,
-                 const double* const def_rate_dev6_vol_sample,
+                 const double* const def_rate_d6v_sample,
                  double* const sdd,
                  double* const internal_energy,
                  double* const cauchy_stress_dev_press_xtal,
@@ -233,7 +233,7 @@ void postprocess(ProblemState& prob_state,
     //
     // and now the second half of the trapezoidal integration
     //
-    dev_strain_energy_total += halfVMidDt * vecsInnerSvecDev(prob_state.cauchy_stress_d6p, def_rate_dev6_vol_sample);
+    dev_strain_energy_total += halfVMidDt * vecsInnerSvecDev(prob_state.cauchy_stress_d6p, def_rate_d6v_sample);
 
     // adjust sign on quat so that as close as possible to quat_o;
     // more likely to keep orientations clustered this way;
@@ -278,7 +278,7 @@ bool getResponseSngl(const SlipGeom& slipGeom,
                      const EosModel& eos,
                      const double dt,
                      const double tolerance,
-                     const double* const def_rate_dev6_vol_sample, // defRate,
+                     const double* const def_rate_d6v_sample, // defRate,
                      const double* const spin_vec_sample, // spin
                      const double* const volRatio,
                      double* const internal_energy,
@@ -289,10 +289,10 @@ bool getResponseSngl(const SlipGeom& slipGeom,
                      double* const mtanSD,
                      int outputLevel = 0)
 {
-    auto prob_state = ProblemState<SlipGeom, Kinetics, ThermoElastN, EosModel>(hist, cauchy_stress_d6p, tkelv, def_rate_dev6_vol_sample, spin_vec_sample, volRatio, dt);
+    auto prob_state = ProblemState<SlipGeom, Kinetics, ThermoElastN, EosModel>(hist, cauchy_stress_d6p, tkelv, def_rate_d6v_sample, spin_vec_sample, volRatio, dt);
 
     double halfVMidDt, dev_strain_energy_total;
-    const bool pre_status = preprocess(slipGeom, kinetics, eos, elastN, volRatio, internal_energy, def_rate_dev6_vol_sample, prob_state, halfVMidDt, dev_strain_energy_total);
+    const bool pre_status = preprocess(slipGeom, kinetics, eos, elastN, volRatio, internal_energy, def_rate_d6v_sample, prob_state, halfVMidDt, dev_strain_energy_total);
 
     if (!pre_status) { return false; }
 
@@ -320,7 +320,7 @@ bool getResponseSngl(const SlipGeom& slipGeom,
         }
         postprocess_prob<Kinetics::nH>(prob, prob_state, cauchy_stress_dev_press_xtal);
     }
-    postprocess(prob_state, elastN, def_rate_dev6_vol_sample, sdd, internal_energy, cauchy_stress_dev_press_xtal, dev_strain_energy_total, halfVMidDt);
+    postprocess(prob_state, elastN, def_rate_d6v_sample, sdd, internal_energy, cauchy_stress_dev_press_xtal, dev_strain_energy_total, halfVMidDt);
     return true;
 } // getResponseSngl
 
@@ -340,7 +340,7 @@ bool getResponseNRSngl(
                      const EosModel& eos,
                      const double dt,
                      const double tolerance,
-                     const double* const def_rate_dev6_vol_sample, // defRate,
+                     const double* const def_rate_d6v_sample, // defRate,
                      const double* const spin_vec_sample, // spin
                      const double* const volRatio,
                      double* const internal_energy,
@@ -351,10 +351,10 @@ bool getResponseNRSngl(
                      double* const mtanSD,
                      int outputLevel = 0)
 {
-    auto prob_state = ProblemState<SlipGeom, Kinetics, ThermoElastN, EosModel>(hist, cauchy_stress_d6p, tkelv, def_rate_dev6_vol_sample, spin_vec_sample, volRatio, dt);
+    auto prob_state = ProblemState<SlipGeom, Kinetics, ThermoElastN, EosModel>(hist, cauchy_stress_d6p, tkelv, def_rate_d6v_sample, spin_vec_sample, volRatio, dt);
 
     double halfVMidDt, dev_strain_energy_total;
-    preprocess<SlipGeom, Kinetics, EosModel, ThermoElastN, decltype(prob_state), true>(slipGeom, kinetics, eos, elastN, volRatio, internal_energy, def_rate_dev6_vol_sample, prob_state, halfVMidDt, dev_strain_energy_total);
+    preprocess<SlipGeom, Kinetics, EosModel, ThermoElastN, decltype(prob_state), true>(slipGeom, kinetics, eos, elastN, volRatio, internal_energy, def_rate_d6v_sample, prob_state, halfVMidDt, dev_strain_energy_total);
 
     double cauchy_stress_dev_press_xtal[ecmech::nsvec];
     {
@@ -380,7 +380,7 @@ bool getResponseNRSngl(
         }
         postprocess_prob<Kinetics::nH>(prob, prob_state, cauchy_stress_dev_press_xtal);
     }
-    postprocess(prob_state, elastN, def_rate_dev6_vol_sample, sdd, internal_energy, cauchy_stress_dev_press_xtal, dev_strain_energy_total, halfVMidDt);
+    postprocess(prob_state, elastN, def_rate_d6v_sample, sdd, internal_energy, cauchy_stress_dev_press_xtal, dev_strain_energy_total, halfVMidDt);
     return true;
 } // getResponseSngl
 #endif

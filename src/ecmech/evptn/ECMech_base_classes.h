@@ -62,7 +62,7 @@ namespace evptn {
         __ecmech_hdev__
         ProblemState(double* const hist, double* const cauchy_stress_d6p,
                     double& tkelv,
-                    const double* const def_rate_dev6_vol_sample,
+                    const double* const def_rate_d6v_sample,
                     const double* const spin_vec_sample,
                     const double* const volRatio,
                     const double dt) :
@@ -82,7 +82,7 @@ namespace evptn {
             // convert deformation rate convention
             //
             // double def_rate_dev_vec_sample[ecmech::ntvec];
-            svecToVecd(def_rate_dev_vec_sample, def_rate_dev6_vol_sample);
+            svecToVecd(def_rate_dev_vec_sample, def_rate_d6v_sample);
             //
             // copies, to keep beginning-of-step state safe
             //
