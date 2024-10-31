@@ -139,12 +139,12 @@ namespace evptn {
                                         double* const ee_spin_vec,
                                         double& ee_fac,
                                         const double inv_a_vol,
-                                        const double* const elast_dev_vec,
+                                        const double* const elast_d5,
                                         const double* const elas_dt_dev_vec
                                     )
     {
         // from e edot product term in spin (formerly neglected)
-        M35_d_AAoB_dA(A_e_M35, elast_dev_vec);
+        M35_d_AAoB_dA(A_e_M35, elast_d5);
         vecsVMa<nwvec, ntvec>(ee_spin_vec, A_e_M35, elas_dt_dev_vec);
         ee_fac = onehalf * inv_a_vol * inv_a_vol;
     }

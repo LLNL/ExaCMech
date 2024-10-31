@@ -86,9 +86,9 @@ namespace ecmech {
             __ecmech_hdev__
             inline
             void elastNEtoC(double* const cauchy_xtal, // nsvec
-                            const double* const elast_dev_vec_f // ntvec
+                            const double* const elast_d5_f // ntvec
                             ) const {
-               m_lattice_strain_prob.elas_strain_to_cauchy_stress(cauchy_xtal, elast_dev_vec_f);
+               m_lattice_strain_prob.elas_strain_to_cauchy_stress(cauchy_xtal, elast_d5_f);
             }
 
             __ecmech_hdev__
@@ -116,9 +116,9 @@ namespace ecmech {
                //
                double elas_dt_dev_vec[ecmech::ntvec];
                vecsVxa<ntvec>(elas_dt_dev_vec, ecmech::e_scale, &(x[m_i_sub_e]) ); // elas_dt_dev_vec is now the delta, _not_ yet elas_dt_dev_vec
-               // elast_dev_vec_f is end-of-step
-               double elast_dev_vec_f[ntvec];
-               vecsVapb<ntvec>(elast_dev_vec_f, elas_dt_dev_vec, m_lattice_strain_prob.m_elast_d5_n);
+               // elast_d5_f is end-of-step
+               double elast_d5_f[ntvec];
+               vecsVapb<ntvec>(elast_d5_f, elas_dt_dev_vec, m_lattice_strain_prob.m_elast_d5_n);
                vecsVsa<ntvec>(elas_dt_dev_vec, m_lattice_strain_prob.m_inv_dt); // _now_ elas_dt_dev_vec has elas_dt_dev_vec
                //
                double xi_f[nwvec];
@@ -145,7 +145,7 @@ namespace ecmech {
                // CALCULATIONS
 
                double kirchoff[ecmech::nsvec];
-               m_lattice_strain_prob.elas_strain_to_kirchoff_stress(kirchoff, elast_dev_vec_f);
+               m_lattice_strain_prob.elas_strain_to_kirchoff_stress(kirchoff, elast_d5_f);
 
                double dgdot_dtau[SlipGeom::nslip] = { 0.0 }; // crys%tmp2_slp
                double plastic_def_rate[ecmech::ntvec] = { 0.0 };
@@ -157,7 +157,7 @@ namespace ecmech {
                double A_e_M35[ecmech::nwvec * ecmech::ntvec];
                double ee_wvec[ecmech::nwvec];
                double ee_fac;
-               elasticity_higher_order_terms(A_e_M35, ee_wvec, ee_fac, m_lattice_strain_prob.m_inv_a_vol, elast_dev_vec_f, elas_dt_dev_vec);
+               elasticity_higher_order_terms(A_e_M35, ee_wvec, ee_fac, m_lattice_strain_prob.m_inv_a_vol, elast_d5_f, elas_dt_dev_vec);
 
                // Residual Calculations
                m_lattice_strain_prob.get_elas_strain_residual(resid, m_epsdot_scale_inv, elas_dt_dev_vec, plastic_def_rate, def_rate_dev_vec_xtal);
@@ -187,7 +187,7 @@ namespace ecmech {
                                        m_lattice_rot_prob.m_xtal_ori_quat_n,
                                        xtal_rmat, xtal_ori_quat);
 
-                  // d(B_S)/d(elast_dev_vec_f)
+                  // d(B_S)/d(elast_d5_f)
                   //
                   m_lattice_strain_prob.template get_deriv_elast_strain_wrt_elast_strain<nDimSys>(Jacobian, dpl_deps_symm);
                   // d(B_S)/d(xi_f)
@@ -518,9 +518,9 @@ namespace ecmech {
             __ecmech_hdev__
             inline
             void elastNEtoC(double* const cauchy_xtal, // nsvec
-                            const double* const elast_dev_vec_f // ntvec
+                            const double* const elast_d5_f // ntvec
                             ) const {
-               m_lattice_strain_prob.elas_strain_to_cauchy_stress(cauchy_xtal, elast_dev_vec_f);
+               m_lattice_strain_prob.elas_strain_to_cauchy_stress(cauchy_xtal, elast_d5_f);
             }
 
             __ecmech_hdev__
@@ -548,9 +548,9 @@ namespace ecmech {
                //
                double elas_dt_dev_vec[ecmech::ntvec];
                vecsVxa<ntvec>(elas_dt_dev_vec, ecmech::e_scale, &(x[m_i_sub_e]) ); // elas_dt_dev_vec is now the delta, _not_ yet elas_dt_dev_vec
-               // elast_dev_vec_f is end-of-step
-               double elast_dev_vec_f[ntvec];
-               vecsVapb<ntvec>(elast_dev_vec_f, elas_dt_dev_vec, m_lattice_strain_prob.m_elast_d5_n);
+               // elast_d5_f is end-of-step
+               double elast_d5_f[ntvec];
+               vecsVapb<ntvec>(elast_d5_f, elas_dt_dev_vec, m_lattice_strain_prob.m_elast_d5_n);
                vecsVsa<ntvec>(elas_dt_dev_vec, m_lattice_strain_prob.m_inv_dt); // _now_ elas_dt_dev_vec has elas_dt_dev_vec
                //
                double xtal_rmat[ecmech::ndim * ecmech::ndim];
@@ -567,7 +567,7 @@ namespace ecmech {
                // CALCULATIONS
 
                double kirchoff[ecmech::nsvec];
-               m_lattice_strain_prob.elas_strain_to_kirchoff_stress(kirchoff, elast_dev_vec_f);
+               m_lattice_strain_prob.elas_strain_to_kirchoff_stress(kirchoff, elast_d5_f);
 
                double dgdot_dtau[SlipGeom::nslip] = { 0.0 }; // crys%tmp2_slp
                double plastic_def_rate[ecmech::ntvec] = { 0.0 };
@@ -589,7 +589,7 @@ namespace ecmech {
                   double dpl_deps_skew[ ecmech::nwvec * ecmech::ntvec ] = { 0.0 };
                   get_slip_rate_deriv_terms(dpl_deps_symm, dpl_deps_skew, dgdot_dtau, m_lattice_strain_prob.m_inv_a_vol, m_slipGeom, m_lattice_strain_prob.m_thermo_elast_n);
 
-                  // d(B_S)/d(elast_dev_vec_f)
+                  // d(B_S)/d(elast_d5_f)
                   //
                   m_lattice_strain_prob.template get_deriv_elast_strain_wrt_elast_strain<nDimSys>(Jacobian, dpl_deps_symm);
 
@@ -603,7 +603,7 @@ namespace ecmech {
 
                      m_lattice_rot_prob.deltaOmegaFromState(xi_f, m_xtal_ori_quat, m_lattice_rot_prob.m_xtal_ori_quat_n);
 
-                     elasticity_higher_order_terms(A_e_M35, ee_wvec, ee_fac, m_lattice_strain_prob.m_inv_a_vol, elast_dev_vec_f, elas_dt_dev_vec);
+                     elasticity_higher_order_terms(A_e_M35, ee_wvec, ee_fac, m_lattice_strain_prob.m_inv_a_vol, elast_d5_f, elas_dt_dev_vec);
 
                      // derivatives with respect to lattice orientation changes
                      double dxtal_ori_quat_dxi_T[ ecmech::nwvec * ecmech::qdim ];

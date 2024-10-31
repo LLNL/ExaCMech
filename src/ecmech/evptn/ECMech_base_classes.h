@@ -137,7 +137,7 @@ namespace evptn {
         //// do not need to use elaw_T_BT here as T and BT are the same
         //
         // specialize to cem%l_lin_lnsd
-        // CALL elawn_T(s_meas, elast_dev_vec_f, crys%elas, tkelv, .TRUE., a_V, &
+        // CALL elawn_T(s_meas, elast_d5_f, crys%elas, tkelv, .TRUE., a_V, &
         // & pressure_EOS, det_v_e, crys%i_eos_model, crys%eos_const &
         // &)
         double elas_dev_vol_vec[ecmech::nsvec];
@@ -156,11 +156,11 @@ namespace evptn {
         __ecmech_hdev__
         inline
         void elas_strain_to_cauchy_stress(double* const cauchy, // nsvec
-                                        const double* const elast_dev_vec_f // ntvec
+                                        const double* const elast_d5_f // ntvec
                                         ) const
         {
         double kirchoff[ecmech::nsvec];
-        this->elas_strain_to_kirchoff_stress(kirchoff, elast_dev_vec_f);
+        this->elas_strain_to_kirchoff_stress(kirchoff, elast_d5_f);
         m_thermo_elast_n.getCauchy(cauchy, kirchoff, m_inv_det_vol);
         }
 
@@ -176,8 +176,8 @@ namespace evptn {
         //
         // double elas_dt_dev_vec[ecmech::ntvec];
         vecsVxa<ntvec>(elas_dt_dev_vec, ecmech::e_scale, x); // elas_dt_dev_vec is now the delta, _not_ yet elas_dt_dev_vec
-        // elast_dev_vec_f is end-of-step
-        // double elast_dev_vec_f[ntvec];
+        // elast_d5_f is end-of-step
+        // double elast_d5_f[ntvec];
         vecsVapb<ntvec>(elas_delta_dev_vec, elas_dt_dev_vec, m_elast_d5_n);
         if constexpr(calc_strain_rate) {
             vecsVsa<ntvec>(elas_dt_dev_vec, m_inv_dt); // _now_ elas_dt_dev_vec has dt contributions
@@ -191,11 +191,11 @@ namespace evptn {
         */
         __ecmech_hdev__
         inline
-        void stateFromX(double* const elast_dev_vec,
+        void stateFromX(double* const elast_d5,
                     const double* const x) const
         {
-        double elast_dev_vec_delta[ecmech::ntvec] = {};
-        this->get_elas_strain_state(elast_dev_vec, elast_dev_vec_delta, x);
+        double elast_d5_delta[ecmech::ntvec] = {};
+        this->get_elas_strain_state(elast_d5, elast_d5_delta, x);
         }
 
         __ecmech_hdev__
