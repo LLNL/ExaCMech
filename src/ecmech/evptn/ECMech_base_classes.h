@@ -111,12 +111,12 @@ namespace evptn {
         EvptnLatticeStrainProblem(const ThermoElastN& thermoElastN,
                                 const double dt,
                                 const double det_vol, 
-                                const double energy_vol_ref, 
+                                const double det_v_e, 
                                 const double pressure_EOS, 
                                 const double tkelv,
                                 const double* const elast_dev_vec_n)
         : m_thermo_elast_n(thermoElastN),
-        m_dt(dt), m_det_vol(det_vol), m_energy_vol_ref(energy_vol_ref),
+        m_dt(dt), m_det_vol(det_vol), m_det_v_e(det_v_e),
         m_pressure_eos(pressure_EOS), m_tkelv(tkelv),
         m_elast_dev_vec_n(elast_dev_vec_n),
         m_inv_dt(1.0 / dt),
@@ -138,7 +138,7 @@ namespace evptn {
         //
         // specialize to cem%l_lin_lnsd
         // CALL elawn_T(s_meas, elast_dev_vec_f, crys%elas, tkelv, .TRUE., a_V, &
-        // & pressure_EOS, energy_vol_ref, crys%i_eos_model, crys%eos_const &
+        // & pressure_EOS, det_v_e, crys%i_eos_model, crys%eos_const &
         // &)
         double elas_dev_vol_vec[ecmech::nsvec];
         vecsVxa<ntvec>(elas_dev_vol_vec, m_inv_a_vol, elas_dev_vec);
@@ -148,8 +148,8 @@ namespace evptn {
         //
         //// Kirchhoff stress from elas_dev_vol_vec
         // CALL elawn_lin_op(s_meas%kirchoff, s_meas%elast_dev_press_vec, cem, tkelv, &
-        // & pressure_EOS, energy_vol_ref, i_eos_model, eos_const)
-        m_thermo_elast_n.eval(kirchoff_stress, elas_dev_vol_vec, m_tkelv, m_pressure_eos, m_energy_vol_ref);
+        // & pressure_EOS, det_v_e, i_eos_model, eos_const)
+        m_thermo_elast_n.eval(kirchoff_stress, elas_dev_vol_vec, m_tkelv, m_pressure_eos, m_det_v_e);
         }
 
         // used to be elastNEtoC
@@ -287,7 +287,7 @@ namespace evptn {
         public:
         static constexpr size_t m_ind_sub_elas = 0; // ntvec end_point
         const ThermoElastN& m_thermo_elast_n;
-        const double m_dt, m_det_vol, m_energy_vol_ref;
+        const double m_dt, m_det_vol, m_det_v_e;
         const double m_pressure_eos, m_tkelv;
         const double* const m_elast_dev_vec_n;
         const double m_inv_dt, m_inv_det_vol, m_a_vol, m_inv_a_vol;
