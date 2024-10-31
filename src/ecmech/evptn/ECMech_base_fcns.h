@@ -97,7 +97,7 @@ namespace evptn {
     void get_slip_contributions(double& pl_disipation_rate,
                                 double& effective_shear_rate,
                                 double* const gdot,
-                                const double inv_det_vol,
+                                const double inv_det_v_e,
                                 const double* const elast_strain,
                                 const double* const kinetic_values,
                                 const SlipGeom& slip_geom,
@@ -127,7 +127,7 @@ namespace evptn {
 #else
         effective_shear_rate = vecsssumabs<SlipGeom::nslip>(gdot);
 #endif
-        pl_disipation_rate = inv_det_vol * vecsyadotb<SlipGeom::nslip>(abs_resolved_shear_stress, gdot);
+        pl_disipation_rate = inv_det_v_e * vecsyadotb<SlipGeom::nslip>(abs_resolved_shear_stress, gdot);
         }
     }
 
@@ -163,7 +163,7 @@ namespace evptn {
                                         const double* const quat,
                                         const double* const rmat,
                                         const double* const cauchy_stress,
-                                        const double inv_det_vol,
+                                        const double inv_det_v_e,
                                         const double inv_a_vol,
                                         const ThermoElastN& thermo_elast_n
                                         )
@@ -219,7 +219,7 @@ namespace evptn {
                 dstrainomega_ddef_rate_t[offset2] = tmp;
             }
         }
-        thermo_elast_n.template multCauchyDif<nRHS, JAC_SIZE>(temp_M6, dstrainomega_ddef_rate_t, inv_det_vol, inv_a_vol);
+        thermo_elast_n.template multCauchyDif<nRHS, JAC_SIZE>(temp_M6, dstrainomega_ddef_rate_t, inv_det_v_e, inv_a_vol);
         // Apply final rotation
         qr6x6_pre_mul<ecmech::nsvec, false>(material_tangent, temp_M6, rmat_5x5_sample2xtal);
         }

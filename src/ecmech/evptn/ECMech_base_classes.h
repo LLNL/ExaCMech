@@ -129,18 +129,18 @@ namespace evptn {
         __ecmech_hdev__
         EvptnLatticeStrainProblem(const ThermoElastN& thermoElastN,
                                 const double dt,
-                                const double det_vol, 
+                                const double det_v_e, 
                                 const double energy_vol_ref, 
                                 const double pressure_EOS, 
                                 const double tkelv,
                                 const double* const elast_d5_n)
         : m_thermo_elast_n(thermoElastN),
-        m_dt(dt), m_det_vol(det_vol), m_energy_vol_ref(energy_vol_ref),
+        m_dt(dt), m_det_v_e(det_v_e), m_energy_vol_ref(energy_vol_ref),
         m_pressure_EOS(pressure_EOS), m_tkelv(tkelv),
         m_elast_d5_n(elast_d5_n),
         m_inv_dt(1.0 / dt),
-        m_inv_det_vol(1.0 / m_det_vol),
-        m_a_vol(pow(m_det_vol, onethird)),
+        m_inv_det_v_e(1.0 / m_det_v_e),
+        m_a_vol(pow(m_det_v_e, onethird)),
         m_inv_a_vol(1.0 / m_a_vol)
         {}
 
@@ -180,7 +180,7 @@ namespace evptn {
         {
         double kirchoff[ecmech::nsvec];
         this->elast_strain_to_kirchoff_stress(kirchoff, elast_d5_f);
-        m_thermo_elast_n.getCauchy(cauchy, kirchoff, m_inv_det_vol);
+        m_thermo_elast_n.getCauchy(cauchy, kirchoff, m_inv_det_v_e);
         }
 
         template<bool calc_strain_rate = false>
@@ -306,10 +306,10 @@ namespace evptn {
         public:
         static constexpr size_t m_ind_sub_elas = 0; // ntvec end_point
         const ThermoElastN& m_thermo_elast_n;
-        const double m_dt, m_det_vol, m_energy_vol_ref;
+        const double m_dt, m_det_v_e, m_energy_vol_ref;
         const double m_pressure_EOS, m_tkelv;
         const double* const m_elast_d5_n;
-        const double m_inv_dt, m_inv_det_vol, m_a_vol, m_inv_a_vol;
+        const double m_inv_dt, m_inv_det_v_e, m_a_vol, m_inv_a_vol;
     };
 
     template <size_t ind_sub_r=ecmech::ntvec>

@@ -203,13 +203,13 @@ namespace ecmech {
 
                   if (m_mtan_sI) {
                      double cauchy_stress_lattice[ ecmech::nsvec ];
-                     m_lattice_strain_prob.m_thermo_elast_n.getCauchy(cauchy_stress_lattice, kirchoff, m_lattice_strain_prob.m_inv_det_vol);
+                     m_lattice_strain_prob.m_thermo_elast_n.getCauchy(cauchy_stress_lattice, kirchoff, m_lattice_strain_prob.m_inv_det_v_e);
                      get_material_tangent_stiffness<ThermoElastN, nDimSys, m_i_sub_r>
                      (m_mtan_sI, Jacobian,
                      dxtal_ori_quat_dxi_T, rmat_5x5_sample2xtal,
                      xtal_ori_quat, xtal_rmat,
                      cauchy_stress_lattice,
-                     m_lattice_strain_prob.m_inv_det_vol,
+                     m_lattice_strain_prob.m_inv_det_v_e,
                      m_lattice_strain_prob.m_inv_a_vol,
                      m_lattice_strain_prob.m_thermo_elast_n);
                   }
@@ -262,7 +262,7 @@ namespace ecmech {
                                       )
             {
                get_slip_contributions(pl_disipation_rate, effective_shear_rate, gdot,
-                                      m_lattice_strain_prob.m_inv_det_vol, elast_strain, m_kin_vals,
+                                      m_lattice_strain_prob.m_inv_det_v_e, elast_strain, m_kin_vals,
                                       m_slipGeom, m_kinetics, m_lattice_strain_prob);
             }
                               
@@ -639,12 +639,12 @@ namespace ecmech {
                      m_lattice_rot_prob.template get_deriv_omega_wrt_omega<nDimSolve>(Jacobian2, dWsm_dxi);
 
                      double cauchy_stress_lattice[ ecmech::nsvec ];
-                     m_lattice_strain_prob.m_thermo_elast_n.getCauchy(cauchy_stress_lattice, kirchoff, m_lattice_strain_prob.m_inv_det_vol);
+                     m_lattice_strain_prob.m_thermo_elast_n.getCauchy(cauchy_stress_lattice, kirchoff, m_lattice_strain_prob.m_inv_det_v_e);
                      get_material_tangent_stiffness<ThermoElastN, nDimSolve, m_i_sub_r>(m_mtan_sI, Jacobian2,
                      dxtal_ori_quat_dxi_T, rmat_5x5_sample2xtal,
                      m_xtal_ori_quat, xtal_rmat,
                      cauchy_stress_lattice,
-                     m_lattice_strain_prob.m_inv_det_vol,
+                     m_lattice_strain_prob.m_inv_det_v_e,
                      m_lattice_strain_prob.m_inv_a_vol,
                      m_lattice_strain_prob.m_thermo_elast_n);
                   }
@@ -675,7 +675,7 @@ namespace ecmech {
                                       )
             {
                get_slip_contributions(pl_disipation_rate, effective_shear_rate, gdot,
-                                      m_lattice_strain_prob.m_inv_det_vol, elast_strain, m_kin_vals,
+                                      m_lattice_strain_prob.m_inv_det_v_e, elast_strain, m_kin_vals,
                                       m_slipGeom, m_kinetics, m_lattice_strain_prob);
             }
 

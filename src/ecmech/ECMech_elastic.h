@@ -118,10 +118,10 @@ namespace evptn {
         inline
         void getCauchy(double* const cauchy_xtal,
                         const double* const kirchoff,
-                        double inv_det_vol) const
+                        double inv_det_v_e) const
         {
             for (int iSvec = 0; iSvec < ecmech::nsvec; ++iSvec) {
-                cauchy_xtal[iSvec] = inv_det_vol * kirchoff[iSvec];
+                cauchy_xtal[iSvec] = inv_det_v_e * kirchoff[iSvec];
             }
         }
 
@@ -142,18 +142,18 @@ namespace evptn {
         inline
         void multCauchyDif(double* const M6,
                             const double* const A,
-                            double inv_det_vol,
+                            double inv_det_v_e,
                             double inv_a_vol
                             ) const {
             // CALL vecds_s_to_trace(tr_ln_V, s_meas%elast_dev_press_vec(SVEC))
-            // det_vol = DEXP(tr_ln_V)
-            // inv_det_vol = one / det_vol
+            // det_v_e = DEXP(tr_ln_V)
+            // inv_det_v_e = one / det_v_e
 
-            // dsigC_de(:,:) = inv_det_vol * s_meas%dT_deps(:,:)
+            // dsigC_de(:,:) = inv_det_v_e * s_meas%dT_deps(:,:)
             // for cubic, dT_deps is diag(K_diag * a_V%ri) (symmetric) ; dT_deps[iSvecS,:] = 0
             // M65_ij = dd_ii A_ij
             for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
-                double vFact = inv_det_vol * inv_a_vol * m_K_diag[iTvec];
+                double vFact = inv_det_v_e * inv_a_vol * m_K_diag[iTvec];
                 for (int jTvec = 0; jTvec < ecmech::ntvec; ++jTvec) {
                     M6[ECMECH_NN_INDX(iTvec, jTvec, ecmech::nsvec)] = vFact * A[ECMECH_NM_INDX(iTvec, jTvec, N, M)];
                 }
@@ -334,10 +334,10 @@ namespace evptn {
         inline
         void getCauchy(double* const cauchy_xtal,
                         const double* const kirchoff,
-                        double inv_det_vol) const
+                        double inv_det_v_e) const
         {
             for (int iSvec = 0; iSvec < ecmech::nsvec; ++iSvec) {
-                cauchy_xtal[iSvec] = inv_det_vol * kirchoff[iSvec];
+                cauchy_xtal[iSvec] = inv_det_v_e * kirchoff[iSvec];
             }
         }
 
@@ -346,11 +346,11 @@ namespace evptn {
         inline
         void multCauchyDif(double* const M6,
                             const double* const A,
-                            double inv_det_vol,
+                            double inv_det_v_e,
                             double inv_a_vol
                             ) const {
             for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
-                double vFact = inv_det_vol * inv_a_vol * m_K_diag[iTvec];
+                double vFact = inv_det_v_e * inv_a_vol * m_K_diag[iTvec];
                 for (int jTvec = 0; jTvec < ecmech::ntvec; ++jTvec) {
                     M6[ECMECH_NN_INDX(iTvec, jTvec, ecmech::nsvec)] = vFact * A[ECMECH_NN_INDX(iTvec, jTvec, ecmech::ntvec)];
                 }
@@ -359,7 +359,7 @@ namespace evptn {
             // M6[iSvecS,:] = dsigC_de[iSvecS, iTvecHex] * A[iTvecHex,:] // for hexagonal specifically
             // dsigC_de[iTvecHex, iSvecS] does not end up getting used
             {
-                double vFact = inv_det_vol * inv_a_vol * m_K_sdax3;
+                double vFact = inv_det_v_e * inv_a_vol * m_K_sdax3;
                 for (int jTvec = 0; jTvec < ecmech::ntvec; ++jTvec) {
                     M6[ECMECH_NN_INDX(iSvecS, jTvec, ecmech::nsvec)] = vFact * A[ECMECH_NN_INDX(iTvecHex, jTvec, ecmech::ntvec)];
                 }
