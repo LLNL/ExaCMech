@@ -175,7 +175,7 @@ __ecmech_hdev__
 inline
 void postprocess_prob(Problem& prob,
                       ProblemState& prob_state,
-                      double* const cauchy_stress_dev_press_xtal
+                      double* const cauchy_stress_d5p_xtal
                      )
 {
     for (int i_hstate = 0; i_hstate < kinNH; i_hstate++) {
@@ -201,7 +201,7 @@ void postprocess_prob(Problem& prob,
     }
         // get Cauchy stress
         //
-        prob.elastNEtoC(cauchy_stress_dev_press_xtal, prob_state.elast_dev_press_vec_u);
+        prob.elastNEtoC(cauchy_stress_d5p_xtal, prob_state.elast_dev_press_vec_u);
 }
 
 
@@ -213,7 +213,7 @@ void postprocess(ProblemState& prob_state,
                  const double* const def_rate_d6v_sample,
                  double* const sdd,
                  double* const internal_energy,
-                 double* const cauchy_stress_dev_press_xtal,
+                 double* const cauchy_stress_d5p_xtal,
                  double dev_strain_energy_total,
                  double halfVMidDt
                 )
@@ -225,8 +225,8 @@ void postprocess(ProblemState& prob_state,
     get_rot_mat_vecd(rmat_5x5_sample2xtal, xtal_rmat);
     //
     double cauchy_stress_dev_press_sample[ecmech::nsvec];
-    vecsVMa<ntvec>(cauchy_stress_dev_press_sample, rmat_5x5_sample2xtal, cauchy_stress_dev_press_xtal);
-    cauchy_stress_dev_press_sample[iSvecS] = cauchy_stress_dev_press_xtal[iSvecS];
+    vecsVMa<ntvec>(cauchy_stress_dev_press_sample, rmat_5x5_sample2xtal, cauchy_stress_d5p_xtal);
+    cauchy_stress_dev_press_sample[iSvecS] = cauchy_stress_d5p_xtal[iSvecS];
     //
     // put end-of-step stress in cauchy_stress_d6p
     vecdsToSvecP(prob_state.cauchy_stress_d6p, cauchy_stress_dev_press_sample);
@@ -296,7 +296,7 @@ bool getResponseSngl(const SlipGeom& slipGeom,
 
     if (!pre_status) { return false; }
 
-    double cauchy_stress_dev_press_xtal[ecmech::nsvec];
+    double cauchy_stress_d5p_xtal[ecmech::nsvec];
     {
         EvptnUpdstProblem prob(slipGeom, kinetics, elastN, prob_state);
 
@@ -318,9 +318,9 @@ bool getResponseSngl(const SlipGeom& slipGeom,
             //
             hist[iHistA_nFEval] = solver.getNFEvals(); // does _not_ include updateH iterations
         }
-        postprocess_prob<Kinetics::nH>(prob, prob_state, cauchy_stress_dev_press_xtal);
+        postprocess_prob<Kinetics::nH>(prob, prob_state, cauchy_stress_d5p_xtal);
     }
-    postprocess(prob_state, elastN, def_rate_d6v_sample, sdd, internal_energy, cauchy_stress_dev_press_xtal, dev_strain_energy_total, halfVMidDt);
+    postprocess(prob_state, elastN, def_rate_d6v_sample, sdd, internal_energy, cauchy_stress_d5p_xtal, dev_strain_energy_total, halfVMidDt);
     return true;
 } // getResponseSngl
 
@@ -356,7 +356,7 @@ bool getResponseNRSngl(
     double halfVMidDt, dev_strain_energy_total;
     preprocess<SlipGeom, Kinetics, EosModel, ThermoElastN, decltype(prob_state), true>(slipGeom, kinetics, eos, elastN, volRatio, internal_energy, def_rate_d6v_sample, prob_state, halfVMidDt, dev_strain_energy_total);
 
-    double cauchy_stress_dev_press_xtal[ecmech::nsvec];
+    double cauchy_stress_d5p_xtal[ecmech::nsvec];
     {
         EvptnNRUpdstProblem prob(slipGeom, kinetics, elastN, prob_state);
 
@@ -378,9 +378,9 @@ bool getResponseNRSngl(
             //
             hist[iHistA_nFEval] = solver.getNFEvals(); // does _not_ include updateH iterations
         }
-        postprocess_prob<Kinetics::nH>(prob, prob_state, cauchy_stress_dev_press_xtal);
+        postprocess_prob<Kinetics::nH>(prob, prob_state, cauchy_stress_d5p_xtal);
     }
-    postprocess(prob_state, elastN, def_rate_d6v_sample, sdd, internal_energy, cauchy_stress_dev_press_xtal, dev_strain_energy_total, halfVMidDt);
+    postprocess(prob_state, elastN, def_rate_d6v_sample, sdd, internal_energy, cauchy_stress_d5p_xtal, dev_strain_energy_total, halfVMidDt);
     return true;
 } // getResponseSngl
 #endif
