@@ -131,7 +131,7 @@ namespace evptn {
         __ecmech_hdev__
         inline
         void elas_strain_to_kirchoff_stress(double* const kirchoff_stress, // nsvec
-                                            const double* const elas_dev_vec // ntvec
+                                            const double* const elast_d5 // ntvec
                                         ) const
         {
         //// do not need to use elaw_T_BT here as T and BT are the same
@@ -141,7 +141,7 @@ namespace evptn {
         // & pressure_EOS, det_v_e, crys%i_eos_model, crys%eos_const &
         // &)
         double elas_dev_vol_vec[ecmech::nsvec];
-        vecsVxa<ntvec>(elas_dev_vol_vec, m_inv_a_vol, elas_dev_vec);
+        vecsVxa<ntvec>(elas_dev_vol_vec, m_inv_a_vol, elast_d5);
         //// tr_Ee = three * DLOG(a_V%r)
         //// CALL trace_to_vecds_s(s_meas%elast_dev_press_vec(SVEC), tr_Ee)
         elas_dev_vol_vec[iSvecS] = sqr3 * log(m_a_vol); // could go into constructor
