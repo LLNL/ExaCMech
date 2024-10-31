@@ -25,7 +25,7 @@ namespace evptn {
     __ecmech_hdev__
     inline
     void get_slip_rate_terms(double* const dgdot_dtau,
-                            double* const plastic_def_rate,
+                            double* const plastic_def_rate_d5,
                             double* const plastic_spin_vec,
                             const double* const kirchoff,
                             const double* const kinetic_values,
@@ -46,13 +46,13 @@ namespace evptn {
             slip_geom.getExtras(&abs_resolved_shear_stress[SlipGeom::nslip]);
         }
         //
-        // CALL plaw_eval(plastic_def_rate, plastic_spin_vec, gss, crys, tkelv, ierr)
+        // CALL plaw_eval(plastic_def_rate_d5, plastic_spin_vec, gss, crys, tkelv, ierr)
         // chi values are passed within extended taua array
         slip_kinetics.evalGdots(gdot, dgdot_dtau, abs_resolved_shear_stress, kinetic_values);
         
         //
-        // CALL sum_slip_def(plastic_def_rate, plastic_spin_vec, crys%tmp1_slp, crys) ;
-        vecsVMa<ntvec, SlipGeom::nslip>(plastic_def_rate, slip_geom.getP(), gdot);
+        // CALL sum_slip_def(plastic_def_rate_d5, plastic_spin_vec, crys%tmp1_slp, crys) ;
+        vecsVMa<ntvec, SlipGeom::nslip>(plastic_def_rate_d5, slip_geom.getP(), gdot);
         vecsVMa<nwvec, SlipGeom::nslip>(plastic_spin_vec, slip_geom.getQ(), gdot);
         }
     }
@@ -121,9 +121,9 @@ namespace evptn {
         slip_geom.evalRSS(abs_resolved_shear_stress, kirchoff, slip_geom.getP());
         slip_kinetics.evalGdots(gdot, junk, abs_resolved_shear_stress, kinetic_values);
 #if defined(ECMECH_USE_DPEFF)
-        double plastic_def_rate[ntvec] = {};
-        vecsVMa<ntvec, SlipGeom::nslip>(plastic_def_rate, slip_geom.getP(), gdot);
-        effective_shear_rate = vecd_Deff(plastic_def_rate);
+        double plastic_def_rate_d5[ntvec] = {};
+        vecsVMa<ntvec, SlipGeom::nslip>(plastic_def_rate_d5, slip_geom.getP(), gdot);
+        effective_shear_rate = vecd_Deff(plastic_def_rate_d5);
 #else
         effective_shear_rate = vecsssumabs<SlipGeom::nslip>(gdot);
 #endif
