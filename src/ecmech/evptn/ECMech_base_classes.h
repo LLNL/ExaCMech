@@ -140,16 +140,16 @@ namespace evptn {
         // CALL elawn_T(s_meas, elast_d5_f, crys%elas, tkelv, .TRUE., a_V, &
         // & pressure_EOS, det_v_e, crys%i_eos_model, crys%eos_const &
         // &)
-        double elas_dev_vol_vec[ecmech::nsvec];
-        vecsVxa<ntvec>(elas_dev_vol_vec, m_inv_a_vol, elast_d5);
+        double elast_d5v[ecmech::nsvec];
+        vecsVxa<ntvec>(elast_d5v, m_inv_a_vol, elast_d5);
         //// tr_Ee = three * DLOG(a_V%r)
         //// CALL trace_to_vecds_s(s_meas%elast_dev_press_vec(SVEC), tr_Ee)
-        elas_dev_vol_vec[iSvecS] = sqr3 * log(m_a_vol); // could go into constructor
+        elast_d5v[iSvecS] = sqr3 * log(m_a_vol); // could go into constructor
         //
-        //// Kirchhoff stress from elas_dev_vol_vec
+        //// Kirchhoff stress from elast_d5v
         // CALL elawn_lin_op(s_meas%kirchoff, s_meas%elast_dev_press_vec, cem, tkelv, &
         // & pressure_EOS, det_v_e, i_eos_model, eos_const)
-        m_thermo_elast_n.eval(kirchoff_stress, elas_dev_vol_vec, m_tkelv, m_pressure_EOS, m_det_v_e);
+        m_thermo_elast_n.eval(kirchoff_stress, elast_d5v, m_tkelv, m_pressure_EOS, m_det_v_e);
         }
 
         // used to be elastNEtoC
