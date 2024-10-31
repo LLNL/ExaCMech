@@ -64,7 +64,7 @@ namespace evptn {
                     double& tkelv,
                     const double* const def_rate_d6v_sample,
                     const double* const spin_vec_sample,
-                    const double* const volRatio,
+                    const double* const rel_vol_ratios,
                     const double dt) :
         h_state(&(hist[iHistLbH])),
         gdot(&(hist[iHistLbGdot])),
@@ -75,7 +75,7 @@ namespace evptn {
         flow_strength(hist[iHistA_flowStr]),
         cauchy_stress_d6p(cauchy_stress_d6p),
         spin_vec_sample(spin_vec_sample),
-        rel_vol_new(volRatio[1]),
+        rel_vol_new(rel_vol_ratios[1]),
         dt(dt),
         tkelv(tkelv)
         {

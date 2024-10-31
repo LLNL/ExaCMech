@@ -109,7 +109,7 @@ namespace ecmech {
           * first six components are the deviatoric part (zero trace)
           * along nsvp :
           *    [dxx, dyy, dzz, dyz, dxz, dxy, vdov]
-          * for vdov, see volRatio; but note that sometimes other expressions are used for vdov;
+          * for vdov, see rel_vol_ratios; but note that sometimes other expressions are used for vdov;
           *    for example in implicit global time stepping
           *
           * @param[in] spinV : Components of the spin (skew part of the velocity gradient)
@@ -121,7 +121,7 @@ namespace ecmech {
           * along ndim :
           *    [wxx, wyy, wzz]
           *
-          * @param volRatio[in] : information about volume evolution
+          * @param rel_vol_ratios[in] : information about volume evolution
           * length nvr*nPassed
           * along nvr :
           *    [rel_vol_old, rel_vol_new, vdov, delv]
@@ -168,7 +168,7 @@ namespace ecmech {
          virtual void getResponseECM(const double & dt,
                                      const double * defRateV,
                                      const double * spinV,
-                                     const double * volRatioV,
+                                     const double * rel_vol_ratiosV,
                                      double * internal_energyV,
                                      double * cauchy_stress_d6pV,
                                      double * histV,
