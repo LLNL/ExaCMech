@@ -186,7 +186,7 @@ void postprocess_prob(Problem& prob,
     double effective_shear_rate = 0.0;
 
     prob.get_slip_contribution(pl_disipation_rate, effective_shear_rate,
-                               prob_state.gdot, prob_state.elast_dev_press_vec_u);
+                               prob_state.gdot, prob_state.elast_d5_u);
 
     prob_state.eps_dot = effective_shear_rate;
     prob_state.eps += prob_state.eps_dot * prob_state.dt;
@@ -201,7 +201,7 @@ void postprocess_prob(Problem& prob,
     }
         // get Cauchy stress
         //
-        prob.elastNEtoC(cauchy_stress_d5p_xtal, prob_state.elast_dev_press_vec_u);
+        prob.elastNEtoC(cauchy_stress_d5p_xtal, prob_state.elast_d5_u);
 }
 
 
@@ -314,7 +314,7 @@ bool getResponseSngl(const SlipGeom& slipGeom,
             }
             // store updated state
             //
-            prob.stateFromX(prob_state.elast_dev_press_vec_u, prob_state.quat_u, solver._x);
+            prob.stateFromX(prob_state.elast_d5_u, prob_state.quat_u, solver._x);
             //
             hist[iHistA_nFEval] = solver.getNFEvals(); // does _not_ include updateH iterations
         }
@@ -374,7 +374,7 @@ bool getResponseNRSngl(
             }
             // store updated state
             //
-            prob.stateFromX(prob_state.elast_dev_press_vec_u, solver._x);
+            prob.stateFromX(prob_state.elast_d5_u, solver._x);
             //
             hist[iHistA_nFEval] = solver.getNFEvals(); // does _not_ include updateH iterations
         }

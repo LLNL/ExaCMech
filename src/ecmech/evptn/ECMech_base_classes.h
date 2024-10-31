@@ -41,7 +41,7 @@ namespace evptn {
 
         double* const h_state;
         double* const gdot;
-        double* const elast_dev_press_vec_u;
+        double* const elast_d5_u;
         double* const quat_u;
         double& eps_dot;
         double& eps;
@@ -68,7 +68,7 @@ namespace evptn {
                     const double dt) :
         h_state(&(hist[iHistLbH])),
         gdot(&(hist[iHistLbGdot])),
-        elast_dev_press_vec_u(&(hist[iHistLbE])),
+        elast_d5_u(&(hist[iHistLbE])),
         quat_u(&(hist[iHistLbQ])),
         eps_dot(hist[iHistA_shrateEff]),
         eps(hist[iHistA_shrEff]),
