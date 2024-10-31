@@ -39,24 +39,43 @@ namespace evptn {
     {
         static constexpr int iHistLbGdot = NumHist<SlipGeom, Kinetics, ThermoElastN, EosModel>::iHistLbGdot;
 
+        /// Hardening state at beg-of-time / end-of-time step
         double* const h_state;
+        /// shearing rate at beg-of-time / end-of-time step
         double* const gdot;
+        /// elastic strain as deviatoric 5 vector at end-of-time step in crystal frame
         double* const elast_d5_u;
+        /// lattice orientation quaternion that maps xtal2sample frame at end-of-time step
         double* const quat_u;
+        /// equivalent plastic strain rate
         double& eps_dot;
+        /// equivalent plastic strain
         double& eps;
         double& flow_strength;
+        /// cauchy stress as deviatoric 6 vector with pressure in sample frame
         double* const cauchy_stress_d6p;
+        /// spin vector of the velocity gradient in sample frame
         const double* const spin_vec_sample;
+        /// Depending on the context this will be seen as either the
+        /// relative volume change when in use cases like EOS evaluations
+        /// or when dealing with the elasticity equations this is the
+        /// $det(\mathbf{V}^e)$
         const double rel_vol_new;
+        /// delta time
         const double dt;
+        /// temperature as typically given in Kelvins
         double& tkelv;
 
-
+        /// deformation rate as the deviatoric 5 vector in the sample frame
         double def_rate_d5_sample[ecmech::ntvec];
+        /// elastic strain as deviatoric 5 vector at beg-of-time step in crystal frame
         double elast_d5_n[ecmech::ntvec];
+        /// lattice orientation quaternion that maps xtal2sample frame at beg-of-time step
         double quat_n[ecmech::qdim];
+        /// Hardening state at end-of-time step
         double h_state_u[Kinetics::nH];
+        /// Values determined by the EOS (equation of state)
+        /// our new pressure, energy from the EOS, and bulk modulus
         double pressure_EOS, energy_new, bulk_modulus_new;
 
         __ecmech_hdev__
