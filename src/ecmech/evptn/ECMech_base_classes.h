@@ -167,7 +167,7 @@ namespace evptn {
         template<bool calc_strain_rate = false>
         __ecmech_hdev__
         inline
-        void get_elas_strain_state(double* const elas_delta_dev_vec,
+        void get_elas_strain_state(double* const elast_delta_d5,
                                 double* const elast_dt_d5,
                                 const double* const x) const
         {
@@ -178,7 +178,7 @@ namespace evptn {
         vecsVxa<ntvec>(elast_dt_d5, ecmech::e_scale, x); // elast_dt_d5 is now the delta, _not_ yet elast_dt_d5
         // elast_d5_f is end-of-step
         // double elast_d5_f[ntvec];
-        vecsVapb<ntvec>(elas_delta_dev_vec, elast_dt_d5, m_elast_d5_n);
+        vecsVapb<ntvec>(elast_delta_d5, elast_dt_d5, m_elast_d5_n);
         if constexpr(calc_strain_rate) {
             vecsVsa<ntvec>(elast_dt_d5, m_inv_dt); // _now_ elast_dt_d5 has dt contributions
         }
