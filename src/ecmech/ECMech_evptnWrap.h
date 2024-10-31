@@ -349,7 +349,7 @@ namespace ecmech {
             __ecmech_host__
             void getResponseECM(const double & dt,
                                 const double * def_rate_d6vV,
-                                const double * spinV,
+                                const double * spin_vecV,
                                 const double * rel_vol_ratiosV,
                                 double * internal_energyV,
                                 double * cauchy_stress_d6pV,
@@ -391,7 +391,7 @@ namespace ecmech {
                         dt,
                         tolerance,
                         &def_rate_d6vV[def_rate_stride * i],
-                        &spinV[spin_v_stride * i],
+                        &spin_vecV[spin_v_stride * i],
                         &rel_vol_ratiosV[vol_ratio_stride * i],
                         &internal_energyV[int_eng_stride * i],
                         &cauchy_stress_d6pV[stress_stride * i],
@@ -420,7 +420,7 @@ namespace ecmech {
                });
 
                if (this->reduceStatus(histV, nPassed)) {
-                  getResponseRetry(dt, def_rate_d6vV, spinV, rel_vol_ratiosV, internal_energyV,
+                  getResponseRetry(dt, def_rate_d6vV, spin_vecV, rel_vol_ratiosV, internal_energyV,
                                    cauchy_stress_d6pV, histV, tkelvV, sddV, mtanSDV, nPassed);
                }
             }// End of getResponse
@@ -429,7 +429,7 @@ namespace ecmech {
             inline
             void getResponseRetry( const double & UNUSED_EXTRA(dt),
                                    const double * UNUSED_EXTRA(def_rate_d6vV),
-                                   const double * UNUSED_EXTRA(spinV),
+                                   const double * UNUSED_EXTRA(spin_vecV),
                                    const double * UNUSED_EXTRA(rel_vol_ratiosV),
                                    double * UNUSED_EXTRA(internal_energyV),
                                    double * UNUSED_EXTRA(cauchy_stress_d6pV),
@@ -476,7 +476,7 @@ namespace ecmech {
                         dt,
                         tolerance,
                         &def_rate_d6vV[def_rate_stride * i],
-                        &spinV[spin_v_stride * i],
+                        &spin_vecV[spin_v_stride * i],
                         &rel_vol_ratiosV[vol_ratio_stride * i],
                         &internal_energyV[int_eng_stride * i],
                         &cauchy_stress_d6pV[stress_stride * i],

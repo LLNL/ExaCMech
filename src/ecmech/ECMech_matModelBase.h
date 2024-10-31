@@ -77,7 +77,7 @@ namespace ecmech {
           * For arguments tha are of length x*nPassed, indexing is fastest along x
           *
           * The interface is always for 3D deformation -- in 2D some of the
-          * deformation rate (def_rate_d6vV) and spin (spinV) will be zero. For
+          * deformation rate (def_rate_d6vV) and spin (spin_vecV) will be zero. For
           * anisotropic materials, the stress response can still be fully
           * populated with non-zeros. If the stress is used to encode state
           * for the given material model (which depends on the details of the
@@ -112,7 +112,7 @@ namespace ecmech {
           * for vdov, see rel_vol_ratios; but note that sometimes other expressions are used for vdov;
           *    for example in implicit global time stepping
           *
-          * @param[in] spinV : Components of the spin (skew part of the velocity gradient)
+          * @param[in] spin_vecV : Components of the spin (skew part of the velocity gradient)
           * length ndim*nPassed
           * Voigt ordering
           *    wxx = (L32-L23)/2
@@ -167,7 +167,7 @@ namespace ecmech {
          __ecmech_host__
          virtual void getResponseECM(const double & dt,
                                      const double * def_rate_d6vV,
-                                     const double * spinV,
+                                     const double * spin_vecV,
                                      const double * rel_vol_ratiosV,
                                      double * internal_energyV,
                                      double * cauchy_stress_d6pV,
