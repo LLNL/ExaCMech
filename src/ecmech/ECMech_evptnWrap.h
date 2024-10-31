@@ -348,7 +348,7 @@ namespace ecmech {
             using matModelBase::getResponseECM;
             __ecmech_host__
             void getResponseECM(const double & dt,
-                                const double * defRateV,
+                                const double * def_rate_d6vV,
                                 const double * spinV,
                                 const double * rel_vol_ratiosV,
                                 double * internal_energyV,
@@ -390,7 +390,7 @@ namespace ecmech {
                      (slip_geom, *kinetics, *elastN, *eosModel,
                         dt,
                         tolerance,
-                        &defRateV[def_rate_stride * i],
+                        &def_rate_d6vV[def_rate_stride * i],
                         &spinV[spin_v_stride * i],
                         &rel_vol_ratiosV[vol_ratio_stride * i],
                         &internal_energyV[int_eng_stride * i],
@@ -420,7 +420,7 @@ namespace ecmech {
                });
 
                if (this->reduceStatus(histV, nPassed)) {
-                  getResponseRetry(dt, defRateV, spinV, rel_vol_ratiosV, internal_energyV,
+                  getResponseRetry(dt, def_rate_d6vV, spinV, rel_vol_ratiosV, internal_energyV,
                                    cauchy_stress_d6pV, histV, tkelvV, sddV, mtanSDV, nPassed);
                }
             }// End of getResponse
@@ -428,7 +428,7 @@ namespace ecmech {
             __ecmech_host__
             inline
             void getResponseRetry( const double & UNUSED_EXTRA(dt),
-                                   const double * UNUSED_EXTRA(defRateV),
+                                   const double * UNUSED_EXTRA(def_rate_d6vV),
                                    const double * UNUSED_EXTRA(spinV),
                                    const double * UNUSED_EXTRA(rel_vol_ratiosV),
                                    double * UNUSED_EXTRA(internal_energyV),
@@ -475,7 +475,7 @@ namespace ecmech {
                      (slip_geom, *kinetics, *elastN, *eosModel,
                         dt,
                         tolerance,
-                        &defRateV[def_rate_stride * i],
+                        &def_rate_d6vV[def_rate_stride * i],
                         &spinV[spin_v_stride * i],
                         &rel_vol_ratiosV[vol_ratio_stride * i],
                         &internal_energyV[int_eng_stride * i],

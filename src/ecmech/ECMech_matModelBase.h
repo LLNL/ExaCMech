@@ -77,7 +77,7 @@ namespace ecmech {
           * For arguments tha are of length x*nPassed, indexing is fastest along x
           *
           * The interface is always for 3D deformation -- in 2D some of the
-          * deformation rate (defRateV) and spin (spinV) will be zero. For
+          * deformation rate (def_rate_d6vV) and spin (spinV) will be zero. For
           * anisotropic materials, the stress response can still be fully
           * populated with non-zeros. If the stress is used to encode state
           * for the given material model (which depends on the details of the
@@ -103,7 +103,7 @@ namespace ecmech {
           *
           * @param[in] dt : Time step size
           *
-          * @param[in] defRateV : Components of the deformation rate (symmetric part of the velocity gradient)
+          * @param[in] def_rate_d6vV : Components of the deformation rate (symmetric part of the velocity gradient)
           * length nsvp*nPassed
           * Voigt ordering
           * first six components are the deviatoric part (zero trace)
@@ -166,7 +166,7 @@ namespace ecmech {
 
          __ecmech_host__
          virtual void getResponseECM(const double & dt,
-                                     const double * defRateV,
+                                     const double * def_rate_d6vV,
                                      const double * spinV,
                                      const double * rel_vol_ratiosV,
                                      double * internal_energyV,
