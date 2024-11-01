@@ -107,31 +107,31 @@ void init_data(const std::vector<double>& ori_vec, const ecmech::matModelBase* m
    });
 } // end of init_data
 
-// This sets the macroscopic vgrad to be purely deviatoric and behaving as a tension test in the
-// z direction. More interesting vgrads could be created just as easily as well where we also have some
+// This sets the macroscopic velocity grad to be purely deviatoric and behaving as a tension test in the
+// z direction. More interesting velocity grads could be created just as easily as well where we also have some
 // spin terms as well. We could also create a case where there is some sort of spin term as well.
-void setup_vgrad(const std::vector<double>& vgrad_input, double* const vgrad, const int nqpts){
-   // vgrad is kinda a pain to deal with as a raw 1d array, so we're
+void setup_velocity_grad(const std::vector<double>& velocity_grad_input, double* const velocity_grad, const int nqpts){
+   // velocity grad is kinda a pain to deal with as a raw 1d array, so we're
    // going to just use a RAJA view here. The data is taken to be in col. major format.
    // It might be nice to eventually create a type alias for the below or
    // maybe something like it.
 
 #if !defined(SNLS_RAJA_PORT_SUITE)
-   const auto vgrad_data = vgrad_input.data();
+   const auto velocity_grad_data = velocity_grad_input.data();
 #else
    auto mm = snls::memoryManager::getInstance();
-   auto mvec = mm.allocManagedArray<double>(vgrad_input.size());
+   auto mvec = mm.allocManagedArray<double>(velocity_grad_input.size());
    auto mvec_data = mvec.data(chai::ExecutionSpace::CPU);
-   for (size_t i = 0; i < vgrad_input.size(); i++ ) {
-      mvec_data[i] = vgrad_input[i];
+   for (size_t i = 0; i < velocity_grad_input.size(); i++ ) {
+      mvec_data[i] = velocity_grad_input[i];
    }
-   const auto vgrad_data = mvec.data(snls::Device::GetInstance().GetCHAIES());
+   const auto velocity_grad_data = mvec.data(snls::Device::GetInstance().GetCHAIES());
 #endif
 
    const int DIM = 3;
    std::array<RAJA::idx_t, DIM> perm { { 2, 1, 0 } };
    RAJA::Layout<DIM> layout = RAJA::make_permuted_layout({ { ecmech::ndim, ecmech::ndim, nqpts } }, perm);
-   RAJA::View<double, RAJA::Layout<DIM, RAJA::Index_type, 0> > vgrad_view(vgrad, layout);
+   RAJA::View<double, RAJA::Layout<DIM, RAJA::Index_type, 0> > velocity_grad_view(velocity_grad, layout);
 
    RAJA::RangeSegment default_range(0, nqpts);
 
@@ -139,29 +139,29 @@ void setup_vgrad(const std::vector<double>& vgrad_input, double* const vgrad, co
       __ecmech_hdev__
       (int i)
    {
-      vgrad_view(0, 0, i) = vgrad_data[0];
-      vgrad_view(0, 1, i) = vgrad_data[1];
-      vgrad_view(0, 2, i) = vgrad_data[2];
+      velocity_grad_view(0, 0, i) = velocity_grad_data[0];
+      velocity_grad_view(0, 1, i) = velocity_grad_data[1];
+      velocity_grad_view(0, 2, i) = velocity_grad_data[2];
 
-      vgrad_view(1, 0, i) = vgrad_data[3];
-      vgrad_view(1, 1, i) = vgrad_data[4];
-      vgrad_view(1, 2, i) = vgrad_data[5];
+      velocity_grad_view(1, 0, i) = velocity_grad_data[3];
+      velocity_grad_view(1, 1, i) = velocity_grad_data[4];
+      velocity_grad_view(1, 2, i) = velocity_grad_data[5];
 
-      vgrad_view(2, 0, i) = vgrad_data[6];
-      vgrad_view(2, 1, i) = vgrad_data[7];
-      vgrad_view(2, 2, i) = vgrad_data[8];
+      velocity_grad_view(2, 0, i) = velocity_grad_data[6];
+      velocity_grad_view(2, 1, i) = velocity_grad_data[7];
+      velocity_grad_view(2, 2, i) = velocity_grad_data[8];
    }); // end of qpt loop
-} // end of setup_vgrad
+} // end of setup_velocity_grad
 
 // This function/kernel is used to set-up the problem at each time step
 void setup_data(const int nqpts, const int nstatev,
                 const double dt, const double* vel_grad_array,
-                const double* stress_array, const double* state_vars_array,
-                double* stress_svec_p_array, double* d_svec_p_array,
-                double* w_vec_array, double* ddsdde_array,
-                double* vol_ratio_array, double* eng_int_array,
-                double* temp_array){
-   // vgrad is kinda a pain to deal with as a raw 1d array, so we're
+                const double* cauchy_stress_array, const double* state_vars_array,
+                double* cauchy_stress_d6p_array, double* def_rate_d6v_array,
+                double* spin_vec_array, double* ddsdde_array,
+                double* rel_vol_ratios_array, double* internal_energy_array,
+                double* tkelv_array){
+   // velocity grad is kinda a pain to deal with as a raw 1d array, so we're
    // going to just use a RAJA view here. The data is taken to be in col. major format.
    // It might be nice to eventually create a type alias for the below or
    // maybe something like it.
@@ -172,7 +172,7 @@ void setup_data(const int nqpts, const int nstatev,
    const int DIM = 3;
    std::array<RAJA::idx_t, DIM> perm { { 2, 1, 0 } };
    RAJA::Layout<DIM> layout = RAJA::make_permuted_layout({ { ecmech::ndim, ecmech::ndim, nqpts } }, perm);
-   RAJA::View<const double, RAJA::Layout<DIM, RAJA::Index_type, 0> > vgrad_view(vel_grad_array, layout);
+   RAJA::View<const double, RAJA::Layout<DIM, RAJA::Index_type, 0> > velocity_grad_view(vel_grad_array, layout);
 
    snls::forall(0, nqpts, [=]
       __ecmech_hdev__
@@ -182,18 +182,18 @@ void setup_data(const int nqpts, const int nstatev,
       // things later on.
       // These are our inputs
       const double* state_vars = &(state_vars_array[i_qpts * nstatev]);
-      const double* stress = &(stress_array[i_qpts * ecmech::nsvec]);
+      const double* cauchy_stress = &(cauchy_stress_array[i_qpts * ecmech::nsvec]);
       // Here is all of our ouputs
       double* ddsdde = &(ddsdde_array[i_qpts * ecmech::nsvec * ecmech::nsvec]);
-      double* eng_int = &(eng_int_array[i_qpts * ecmech::ne]);
-      double* w_vec = &(w_vec_array[i_qpts * ecmech::nwvec]);
-      double* vol_ratio = &(vol_ratio_array[i_qpts * ecmech::nvr]);
+      double* internal_energy = &(internal_energy_array[i_qpts * ecmech::ne]);
+      double* spin_vec = &(spin_vec_array[i_qpts * ecmech::nwvec]);
+      double* rel_vol_ratios = &(rel_vol_ratios_array[i_qpts * ecmech::nvr]);
       // A few variables are set up as the 6-vec deviatoric + tr(tens) values
       int ind_svecp = i_qpts * ecmech::nsvp;
-      double* stress_svec_p = &(stress_svec_p_array[ind_svecp]);
-      double* d_svec_p = &(d_svec_p_array[ind_svecp]);
+      double* cauchy_stress_d6p = &(cauchy_stress_d6p_array[ind_svecp]);
+      double* def_rate_d6p = &(def_rate_d6v_array[ind_svecp]);
 
-      temp_array[i_qpts] = 300.;
+      tkelv_array[i_qpts] = 300.;
 
       // initialize 6x6 2d arrays all to 0
       for (int i = 0; i < ecmech::nsvec; i++) {
@@ -203,40 +203,40 @@ void setup_data(const int nqpts, const int nstatev,
       }
 
       for (int i = 0; i < ecmech::ne; i++) {
-         eng_int[i] = state_vars[ind_int_eng + i];
+         internal_energy[i] = state_vars[ind_int_eng + i];
       }
 
       // Here we have the skew portion of our velocity gradient as represented as an
       // axial vector.
-      w_vec[0] = 0.5 * (vgrad_view(2, 1, i_qpts) - vgrad_view(1, 2, i_qpts));
-      w_vec[1] = 0.5 * (vgrad_view(0, 2, i_qpts) - vgrad_view(2, 0, i_qpts));
-      w_vec[2] = 0.5 * (vgrad_view(1, 0, i_qpts) - vgrad_view(0, 1, i_qpts));
+      spin_vec[0] = 0.5 * (velocity_grad_view(2, 1, i_qpts) - velocity_grad_view(1, 2, i_qpts));
+      spin_vec[1] = 0.5 * (velocity_grad_view(0, 2, i_qpts) - velocity_grad_view(2, 0, i_qpts));
+      spin_vec[2] = 0.5 * (velocity_grad_view(1, 0, i_qpts) - velocity_grad_view(0, 1, i_qpts));
 
       // Really we're looking at the negative of J but this will do...
-      double d_mean = -ecmech::onethird * (vgrad_view(0, 0, i_qpts) + vgrad_view(1, 1, i_qpts) + vgrad_view(2, 2, i_qpts));
+      double def_rate_mean = -ecmech::onethird * (velocity_grad_view(0, 0, i_qpts) + velocity_grad_view(1, 1, i_qpts) + velocity_grad_view(2, 2, i_qpts));
       // The 1st 6 components are the symmetric deviatoric portion of our velocity gradient
       // The last value is simply the trace of the deformation rate
-      d_svec_p[0] = vgrad_view(0, 0, i_qpts) + d_mean;
-      d_svec_p[1] = vgrad_view(1, 1, i_qpts) + d_mean;
-      d_svec_p[2] = vgrad_view(2, 2, i_qpts) + d_mean;
-      d_svec_p[3] = 0.5 * (vgrad_view(2, 1, i_qpts) + vgrad_view(1, 2, i_qpts));
-      d_svec_p[4] = 0.5 * (vgrad_view(2, 0, i_qpts) + vgrad_view(0, 2, i_qpts));
-      d_svec_p[5] = 0.5 * (vgrad_view(1, 0, i_qpts) + vgrad_view(0, 1, i_qpts));
-      d_svec_p[6] = -3 * d_mean;
-      vol_ratio[0] = state_vars[ind_vols];
-      vol_ratio[1] = vol_ratio[0] * exp(d_svec_p[ecmech::iSvecP] * dt);
-      vol_ratio[3] = vol_ratio[1] - vol_ratio[0];
-      vol_ratio[2] = vol_ratio[3] / (dt * 0.5 * (vol_ratio[0] + vol_ratio[1]));
+      def_rate_d6p[0] = velocity_grad_view(0, 0, i_qpts) + def_rate_mean;
+      def_rate_d6p[1] = velocity_grad_view(1, 1, i_qpts) + def_rate_mean;
+      def_rate_d6p[2] = velocity_grad_view(2, 2, i_qpts) + def_rate_mean;
+      def_rate_d6p[3] = 0.5 * (velocity_grad_view(2, 1, i_qpts) + velocity_grad_view(1, 2, i_qpts));
+      def_rate_d6p[4] = 0.5 * (velocity_grad_view(2, 0, i_qpts) + velocity_grad_view(0, 2, i_qpts));
+      def_rate_d6p[5] = 0.5 * (velocity_grad_view(1, 0, i_qpts) + velocity_grad_view(0, 1, i_qpts));
+      def_rate_d6p[6] = -3 * def_rate_mean;
+      rel_vol_ratios[0] = state_vars[ind_vols];
+      rel_vol_ratios[1] = rel_vol_ratios[0] * exp(def_rate_d6p[ecmech::iSvecP] * dt);
+      rel_vol_ratios[3] = rel_vol_ratios[1] - rel_vol_ratios[0];
+      rel_vol_ratios[2] = rel_vol_ratios[3] / (dt * 0.5 * (rel_vol_ratios[0] + rel_vol_ratios[1]));
 
       for (int i = 0; i < ecmech::nsvec; i++) {
-         stress_svec_p[i] = stress[i];
+         cauchy_stress_d6p[i] = cauchy_stress[i];
       }
 
-      double stress_mean = -ecmech::onethird * (stress[0] + stress[1] + stress[2]);
-      stress_svec_p[0] += stress_mean;
-      stress_svec_p[1] += stress_mean;
-      stress_svec_p[2] += stress_mean;
-      stress_svec_p[ecmech::iSvecP] = stress_mean;
+      double stress_mean = -ecmech::onethird * (cauchy_stress[0] + cauchy_stress[1] + cauchy_stress[2]);
+      cauchy_stress_d6p[0] += stress_mean;
+      cauchy_stress_d6p[1] += stress_mean;
+      cauchy_stress_d6p[2] += stress_mean;
+      cauchy_stress_d6p[ecmech::iSvecP] = stress_mean;
    }); // end of qpt loop
 } // end setup_data
 

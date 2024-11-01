@@ -49,7 +49,7 @@ int main(int argc, char *argv[]){
    int num_state_vars;
    // Quaternion and the number of quaternions total.
    std::vector<double> quats;
-   std::vector<double> vgrad_init;
+   std::vector<double> velocity_grad_init;
    //
    {
       // All the input arguments
@@ -60,7 +60,7 @@ int main(int argc, char *argv[]){
       std::string device_type;
       std::string dt_vals = "0.00025";
       std::string nsteps_vals = "60";
-      std::string vgrad_vals = "[[-0.5 0.0 0.0], [0.0 -0.5 0.0], [0.0 0.0 1.0]]";
+      std::string velocity_grad_vals = "[[-0.5 0.0 0.0], [0.0 -0.5 0.0], [0.0 0.0 1.0]]";
 
       {
          std::ostringstream fail_str;
@@ -95,15 +95,15 @@ int main(int argc, char *argv[]){
             std::getline(ofile, nsteps_vals);
          }
          if (ofile.peek() != std::ifstream::traits_type::eof()) {
-            std::getline(ofile, vgrad_vals);
+            std::getline(ofile, velocity_grad_vals);
          }
 
-         if (dt_vals.size() == 0 || nsteps_vals.size() == 0 || vgrad_vals.size() == 0) {
+         if (dt_vals.size() == 0 || nsteps_vals.size() == 0 || velocity_grad_vals.size() == 0) {
             std::cerr << fail_str.str();
             std::cerr << "Check for an empty string for one of the optional variables" << std::endl;
             std::cerr << "dt_val.size()" << dt_vals.size()
                       << " nsteps_vals.size() " << nsteps_vals.size()
-                      << " vgrad_vals.size() " << vgrad_vals.size() << std::endl;
+                      << " velocity_grad_vals.size() " << velocity_grad_vals.size() << std::endl;
             return 1;
          }
       }
@@ -119,7 +119,7 @@ int main(int argc, char *argv[]){
       }
 
       {
-         std::istringstream iss(vgrad_vals);
+         std::istringstream iss(velocity_grad_vals);
          auto parse_data_row = [=] (auto& data, std::istringstream& stream) {
             constexpr auto max_size = std::numeric_limits<std::streamsize>::max();
             stream.ignore(max_size, '[');
@@ -132,7 +132,7 @@ int main(int argc, char *argv[]){
          iss.ignore(1, '[');
 
          for (int i = 0; i < 3; i++) {
-            parse_data_row(vgrad_init, iss);
+            parse_data_row(velocity_grad_init, iss);
          }
       }
 
@@ -210,7 +210,7 @@ int main(int argc, char *argv[]){
       std::cout << "Number of qpts: " << nqpts << std::endl;
       std::cout << "Velocity Gradient: " << std::endl;
       {
-         auto it = vgrad_init.begin();
+         auto it = velocity_grad_init.begin();
          for (int irow = 0; irow < 3; irow++) {
             for (int icol = 0; icol < 3; icol++) {
                std::cout << *it++ << " ";
@@ -326,39 +326,39 @@ int main(int argc, char *argv[]){
 
       std::cout << "Class has been completely initialized" << std::endl;
    }
-      // We're now initializing our state variables and vgrad to be used in other parts
+      // We're now initializing our state variables and velocity_grad to be used in other parts
       // of the simulations.
       constexpr size_t num_var_variables = (1 + ecmech::nsdd + + ecmech::ne + ecmech::nwvec + ecmech::nvr + ecmech::nsvec + 2 * ecmech::nsvp + ecmech::nsvec * ecmech::nsvec + ecmech::ndim * ecmech::ndim);
       const size_t num_items = nqpts * (num_state_vars + num_var_variables);
       auto mm = memoryManager<double>(num_items);
       auto state_vars = mm.getNew(nqpts * num_state_vars, class_device);
-      auto vgrad = mm.getNew(nqpts * ecmech::ndim * ecmech::ndim, class_device);
+      auto velocity_grad = mm.getNew(nqpts * ecmech::ndim * ecmech::ndim, class_device);
 
       init_data(quats, mat_model_base, nqpts, num_hardness,
                 num_gdot, iHistLbGdot, num_state_vars, state_vars);
       std::cout << "Data is now initialized" << std::endl;
-      setup_vgrad(vgrad_init, vgrad, nqpts);
+      setup_velocity_grad(velocity_grad_init, velocity_grad, nqpts);
 
    // The stress array is the only one of the below variables that needs to be
    // initialized to 0.
-   auto stress_array = mm.getNew(nqpts * ecmech::nsvec, class_device);
+   auto cauchy_stress_array = mm.getNew(nqpts * ecmech::nsvec, class_device);
    snls::forall(0, nqpts * ecmech::nsvec,
       [=]
       __ecmech_hdev__
       (int i) {
-         stress_array[i] = 0.0;
+         cauchy_stress_array[i] = 0.0;
    });
 
    // We'll leave these uninitialized for now, since they're set in the
    // setup_data function.
    
    auto ddsdde_array = mm.getNew(nqpts * ecmech::nsvec * ecmech::nsvec, class_device);
-   auto eng_int_array = mm.getNew(nqpts * ecmech::ne, class_device);
-   auto w_vec_array = mm.getNew(nqpts * ecmech::nwvec, class_device);
-   auto vol_ratio_array = mm.getNew(nqpts * ecmech::nvr, class_device);
-   auto stress_svec_p_array = mm.getNew(nqpts * ecmech::nsvp, class_device);
-   auto d_svec_p_array = mm.getNew(nqpts * ecmech::nsvp, class_device);
-   auto temp_array = mm.getNew(nqpts, class_device);
+   auto internal_energy_array = mm.getNew(nqpts * ecmech::ne, class_device);
+   auto spin_vec_array = mm.getNew(nqpts * ecmech::nwvec, class_device);
+   auto rel_vol_ratios_array = mm.getNew(nqpts * ecmech::nvr, class_device);
+   auto cauchy_stress_d6p_array = mm.getNew(nqpts * ecmech::nsvp, class_device);
+   auto def_rate_d6v_array = mm.getNew(nqpts * ecmech::nsvp, class_device);
+   auto tkelv_array = mm.getNew(nqpts, class_device);
    auto sdd_array = mm.getNew(nqpts * ecmech::nsdd, class_device);
 
    double stress_avg[6];
@@ -372,18 +372,18 @@ int main(int argc, char *argv[]){
 
    for (int i = 0; i < nsteps; i++) {
       // set up our data in the correct format that the material model kernel expects
-      setup_data(nqpts, num_state_vars, dt, vgrad, stress_array, state_vars,
-                 stress_svec_p_array, d_svec_p_array, w_vec_array, ddsdde_array,
-                 vol_ratio_array, eng_int_array, temp_array);
+      setup_data(nqpts, num_state_vars, dt, velocity_grad, cauchy_stress_array, state_vars,
+                 cauchy_stress_d6p_array, def_rate_d6v_array, spin_vec_array, ddsdde_array,
+                 rel_vol_ratios_array, internal_energy_array, tkelv_array);
       // run our material model
       mat_model_kernel(mat_model_base, nqpts, dt,
-                       state_vars, stress_svec_p_array,
-                       d_svec_p_array, w_vec_array, ddsdde_array,
-                       vol_ratio_array, eng_int_array, temp_array, sdd_array);
+                       state_vars, cauchy_stress_d6p_array,
+                       def_rate_d6v_array, spin_vec_array, ddsdde_array,
+                       rel_vol_ratios_array, internal_energy_array, tkelv_array, sdd_array);
       // retrieve all of the data and put it back in the global arrays
       retrieve_data(nqpts, num_state_vars,
-                    stress_svec_p_array, vol_ratio_array,
-                    eng_int_array, state_vars, stress_array);
+                    cauchy_stress_d6p_array, rel_vol_ratios_array,
+                    internal_energy_array, state_vars, cauchy_stress_array);
 
       switch ( class_device ) {
          default :
@@ -405,8 +405,8 @@ int main(int argc, char *argv[]){
             for (int j = 0; j < ecmech::nsvec; j++) {
                RAJA::ReduceSum<RAJA::seq_reduce, double> seq_sum(0.0);
                RAJA::forall<RAJA::seq_exec>(default_range, [ = ] (int i_qpts){
-                  const double* stress = &(stress_array[i_qpts * ecmech::nsvec]);
-                  seq_sum += wts * stress[j];
+                  const double* cauchy_stress = &(cauchy_stress_array[i_qpts * ecmech::nsvec]);
+                  seq_sum += wts * cauchy_stress[j];
                });
                stress_avg[j] = seq_sum.get();
 	    }
@@ -431,7 +431,7 @@ int main(int argc, char *argv[]){
             for (int j = 0; j < ecmech::nsvec; j++) {
                RAJA::ReduceSum<RAJA::omp_reduce_ordered, double> omp_sum(0.0);
                RAJA::forall<RAJA::omp_parallel_for_exec>(default_range, [ = ] (int i_qpts){
-                  const double* stress = &(stress_array[i_qpts * ecmech::nsvec]);
+                  const double* cauchy_stress = &(cauchy_stress_array[i_qpts * ecmech::nsvec]);
                   omp_sum += wts * stress[j];
                });
                stress_avg[j] = omp_sum.get();
@@ -465,7 +465,7 @@ int main(int argc, char *argv[]){
             for (int j = 0; j < ecmech::nsvec; j++) {
                RAJA::ReduceSum<gpu_reduce, double> gpu_sum(0.0);
                RAJA::forall<gpu_policy>(default_range, [ = ] RAJA_DEVICE(int i_qpts){
-                  const double* stress = &(stress_array[i_qpts * ecmech::nsvec]);
+                  const double* cauchy_stress = &(cauchy_stress_array[i_qpts * ecmech::nsvec]);
                   gpu_sum += wts * stress[j];
                });
                stress_avg[j] = gpu_sum.get();
