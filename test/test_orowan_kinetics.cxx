@@ -23,7 +23,7 @@ TEST(ecmech, kin_orowan_fcc)
 
    const double hUpdtTol = 1.0e-11;
 
-   const int nslip = 12;
+   constexpr int nslip = 12;
    const double init_tau = 1.0e-2;
 
    {
@@ -38,7 +38,7 @@ TEST(ecmech, kin_orowan_fcc)
          std::vector<bool>        state;
          kinetics.getHistInfo(names, init, plot, state);
       }
-      double kin_vals[kinetics.nVals];
+      double kin_vals[Kin_OroD_Iso_FCC::nVals];
       kinetics.getVals(kin_vals, 0.0, 300.0, &(init[0]));
 
       double gdot[nslip] = {0.0};

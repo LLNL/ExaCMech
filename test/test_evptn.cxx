@@ -73,7 +73,7 @@ TEST(ecmech, evptn_a)
 
    //////////////////////////////
 
-   double tK = 300.0;
+   double tkelv = 300.0;
    std::vector<double> h_state_vec;
    double* h_state;
    {
@@ -89,7 +89,7 @@ TEST(ecmech, evptn_a)
    constexpr int numHist1 = evptn::NumHist<SlipGeom, Kinetics, ThermoElastN, EosModelConst<false>>::numHist;
    double hist2[numHist1] = {};
 
-   ProblemState prob_state(hist2, nullptr, tK, d_svec_kk_sm, w_veccp_sm, volRatio, dt);
+   ProblemState prob_state(hist2, nullptr, tkelv, def_rate_d6v_sample, spin_vec_sample, rel_vol_ratios, dt);
 
    prob_state.quat_n[0] = 1.0;
    for (int iqdim = 1; iqdim < ecmech::qdim; iqdim++) {
@@ -130,9 +130,9 @@ TEST(ecmech, evptn_a)
       double gdot[slipGeom.nslip] = {};
       double junk = 0.0;
       double junk_vec[ecmech::qdim] = {};
-      double elas_strain[ecmech::ntvec] = {};
-      prob.stateFromX(elas_strain, junk_vec, solver._x);
-      prob.get_slip_contribution(junk, junk, gdot, elas_strain);
+      double elast_strain_d5[ecmech::ntvec] = {};
+      prob.stateFromX(elast_strain_d5, junk_vec, solver._x);
+      prob.get_slip_contribution(junk, junk, gdot, elast_strain_d5);
       printVec<slipGeom.nslip>(gdot, std::cout);
    }
 #endif
@@ -141,9 +141,9 @@ TEST(ecmech, evptn_a)
       double gdot[slipGeom.nslip] = {};
       double junk = 0.0;
       double junk_vec[ecmech::qdim] = {};
-      double elas_strain[ecmech::ntvec] = {};
-      prob.stateFromX(elas_strain, junk_vec, solver._x);
-      prob.get_slip_contribution(junk, junk, gdot, elas_strain);
+      double elast_strain_d5[ecmech::ntvec] = {};
+      prob.stateFromX(elast_strain_d5, junk_vec, solver._x);
+      prob.get_slip_contribution(junk, junk, gdot, elast_strain_d5);
       EXPECT_LT(fabs(gdot[iGdotExpected] - expectedGdotVal), 1e-8) <<
          "Did not get expected value for gdot[iGdotExpected]";
    }
@@ -158,8 +158,8 @@ TEST(ecmech, evptn_a)
    EosModel eos;
 #include "setup_eos.h"
 
-   double eInt[ecmech::ne] = { 0.0 };
-   double stressSvecP[ecmech::nsvp] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+   double internal_energy[ecmech::ne] = { 0.0 };
+   double cauchy_stress_d6p[ecmech::nsvp] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                                         0.0 };
    static const int iHistLbGdot = evptn::NumHist<SlipGeom, Kinetics, ThermoElastN, EosModel>::iHistLbGdot;
    static const int numHist = evptn::NumHist<SlipGeom, Kinetics, ThermoElastN, EosModel>::numHist;
@@ -169,7 +169,7 @@ TEST(ecmech, evptn_a)
    double* gdot = &(hist[iHistLbGdot]); // already zerod
    // do not bother with other stuff (like e_vecd_n) that is all zero above
    //
-   double tkelv;
+   double tkelv2;
    double sdd[ecmech::nsdd];
    double mtanSD[ecmech::nsvec2];
    //
@@ -177,9 +177,9 @@ TEST(ecmech, evptn_a)
       (slipGeom, kinetics, elastN, eos,
       dt,
       tolerance,
-      d_svec_kk_sm, w_veccp_sm, volRatio,
-      eInt, stressSvecP, hist,
-      tkelv, sdd, mtanSD);
+      def_rate_d6v_sample, spin_vec_sample, rel_vol_ratios,
+      internal_energy, cauchy_stress_d6p, hist,
+      tkelv2, sdd, mtanSD);
    int nFEvals = hist[evptn::iHistA_nFEval];
    std::cout << "Function evaluations: " << nFEvals << std::endl;
 #ifdef ECMECH_DEBUG

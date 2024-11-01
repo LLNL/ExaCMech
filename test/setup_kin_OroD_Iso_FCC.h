@@ -1,7 +1,7 @@
 {
    double
-      mu_ref = 1.0, //MBar
-      tK_ref = 300., //K
+      shear_modulus_ref = 1.0, //MBar
+      tkelv_ref = 300., //K
       berg_mag = 1.0e-4, // microns
       lbar = 10.0 * berg_mag, // microns
 #ifdef KIN_BCC
@@ -16,7 +16,7 @@
       tau_a = 0.004, //MBar
       p = 0.28, //unitless
       q = 1.34, //unitless
-      c2 = mu_ref * berg_mag, // MBar * microns
+      c2 = shear_modulus_ref * berg_mag, // MBar * microns
       gam_ro = 1e3, //1/micro-sec /(1/micron^2) / (micron)
       wrD = 0.02, // MBar?
       inter_mat = 1.0;// unitless;
@@ -43,7 +43,7 @@
    // sqrt(qM)/berg_mag
    fD *= sqrt(qM);
    std::vector<double> paramsThese {
-      mu_ref, tK_ref, berg_mag, lbar,
+      shear_modulus_ref, tkelv_ref, berg_mag, lbar,
       gam_ro, wrD,
       fD, c_1, tau_a, p, q, c2, inter_mat,
       c_ann, d_ann, c_trap, c_mult,

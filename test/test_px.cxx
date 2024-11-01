@@ -18,8 +18,8 @@ TEST(ecmech, px_a)
 {
    // can adjust these to change the computational workload
    //
-   const int nPassed = 16;
-   const int nStep = 100;
+   constexpr int nPassed = 16;
+   constexpr int nStep = 100;
    //
    const double weight = 1.0 / (double) (nPassed);
 
@@ -38,7 +38,7 @@ TEST(ecmech, px_a)
 #include "setup_base.h"
    std::vector<int>           opts; // none
    std::vector<std::string>   strs; // none
-   std::vector<double>         params { rho0, cvav, tolerance };
+   std::vector<double>         params { density0, cvav, tolerance };
 #if KIN_TYPE
 
 #include "setup_elastn.h"
@@ -100,26 +100,26 @@ TEST(ecmech, px_a)
    double relRate = 1e-6;
    double dt = 0.002 / relRate;
 
-   double d_svec_kk_sm[ecmech::nsvp] = { -0.5 * relRate, -0.5 * relRate, 1.0 * relRate,
+   double def_rate_d6v_sample[ecmech::nsvp] = { -0.5 * relRate, -0.5 * relRate, 1.0 * relRate,
                                          0.0, 0.0, 0.0,
                                          0.0 };
-   double V_d_svec_kk_sm[ecmech::nsvp * nPassed];
+   double V_def_rate_d6v_sample[ecmech::nsvp * nPassed];
    for (int iPassed = 0; iPassed < nPassed; iPassed++) {
       int pOffsetSVP = ecmech::nsvp * iPassed;
-      std::copy(d_svec_kk_sm, d_svec_kk_sm + ecmech::nsvp, &(V_d_svec_kk_sm[pOffsetSVP]));
+      std::copy(def_rate_d6v_sample, def_rate_d6v_sample + ecmech::nsvp, &(V_def_rate_d6v_sample[pOffsetSVP]));
    }
 
-   std::vector<double> w_veccp_sm_vec(ecmech::nwvec * nPassed, 0.0);
-   double* V_w_veccp_sm = &(w_veccp_sm_vec[0]);
+   std::vector<double> spin_vec_sample_vec(ecmech::nwvec * nPassed, 0.0);
+   double* V_spin_vec_sample = &(spin_vec_sample_vec[0]);
 
-   std::vector<double> volRatio_vec(ecmech::nvr * nPassed, 1.0); // not really 1 for all entries, but this works given what happens below
-   double* V_volRatio = &(volRatio_vec[0]);
+   std::vector<double> rel_vol_ratios_vec(ecmech::nvr * nPassed, 1.0); // not really 1 for all entries, but this works given what happens below
+   double* V_rel_vol_ratios = &(rel_vol_ratios_vec[0]);
 
-   std::vector<double> eInt_vec(ecmech::ne * nPassed, 0.0);
-   double* V_eInt = &(eInt_vec[0]);
+   std::vector<double> internal_energy_vec(ecmech::ne * nPassed, 0.0);
+   double* V_internal_energy = &(internal_energy_vec[0]);
 
-   std::vector<double> stressSvecP_vec(ecmech::nsvp * nPassed, 0.0);
-   double* V_stressSvecP = &(stressSvecP_vec[0]);
+   std::vector<double> cauchy_stress_d6p_vec(ecmech::nsvp * nPassed, 0.0);
+   double* V_cauchy_stress_d6p = &(cauchy_stress_d6p_vec[0]);
 
    double V_tkelv[nPassed];
    double V_sdd[ecmech::nsdd * nPassed];
@@ -137,21 +137,21 @@ TEST(ecmech, px_a)
       for (int iPassed = 0; iPassed < nPassed; iPassed++) {
          int pOffsetSVP = ecmech::nsvp * iPassed;
          int pOffsetVR = ecmech::nvr * iPassed;
-         V_volRatio[0 + pOffsetVR] = V_volRatio[1 + pOffsetVR];
-         V_volRatio[1 + pOffsetVR] = V_volRatio[0 + pOffsetVR] * exp(V_d_svec_kk_sm[ecmech::iSvecP + pOffsetSVP] * dt);
-         V_volRatio[3 + pOffsetVR] = V_volRatio[1 + pOffsetVR] - V_volRatio[0 + pOffsetVR];
-         V_volRatio[2 + pOffsetVR] = V_volRatio[3 + pOffsetVR] /
-                                     (dt * 0.5 * (V_volRatio[0 + pOffsetVR] + V_volRatio[1 + pOffsetVR]) );
+         V_rel_vol_ratios[0 + pOffsetVR] = V_rel_vol_ratios[1 + pOffsetVR];
+         V_rel_vol_ratios[1 + pOffsetVR] = V_rel_vol_ratios[0 + pOffsetVR] * exp(V_def_rate_d6v_sample[ecmech::iSvecP + pOffsetSVP] * dt);
+         V_rel_vol_ratios[3 + pOffsetVR] = V_rel_vol_ratios[1 + pOffsetVR] - V_rel_vol_ratios[0 + pOffsetVR];
+         V_rel_vol_ratios[2 + pOffsetVR] = V_rel_vol_ratios[3 + pOffsetVR] /
+                                     (dt * 0.5 * (V_rel_vol_ratios[0 + pOffsetVR] + V_rel_vol_ratios[1 + pOffsetVR]) );
       }
 
       mmb->getResponseECM(dt,
-                          V_d_svec_kk_sm, V_w_veccp_sm, V_volRatio,
-                          V_eInt, V_stressSvecP, V_hist.data(), V_tkelv, V_sdd, nullptr,
+                          V_def_rate_d6v_sample, V_spin_vec_sample, V_rel_vol_ratios,
+                          V_internal_energy, V_cauchy_stress_d6p, V_hist.data(), V_tkelv, V_sdd, nullptr,
                           nPassed);
 
       sAvg = 0.0;
       for (int iPassed = 0; iPassed<nPassed; ++iPassed) {
-         sAvg += weight * V_stressSvecP[iPassed * ecmech::nsvp + 2];
+         sAvg += weight * V_cauchy_stress_d6p[iPassed * ecmech::nsvp + 2];
       }
 
       std::cout << time << " "
