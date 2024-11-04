@@ -34,12 +34,12 @@ Terms that look like `h_state` refer to the hardening state.
 
 Terms that have the name `gdot` refer to the macroscopic shearing rate per slip system of the material commonly seen written as $\dot{\gamma}$ in the literature.
 
-`tkelv` is the temperature which is most commonly provided in `K`.
+`tkelv` is the temperature which is most commonly provided in Kelvin.
 
 Terms with the suffix `_n` commonly refer to the begining of time step information.
 
 Terms with the suffix `_u` or `_f` commonly refer to the end of time step information.
 
 # Further Notes:
-If you find something unclea in either the documentation or code please open an issue asking for clarification. Alternatively, if you find issues with those same topics feel free to open a PR with a fix as generally our developer team's bandwidth is limited so some of these items will be lower on the priority list for us.
+If you find something unclear in either the documentation or code please open an issue asking for clarification. Alternatively, if you find issues with those same topics feel free to open a PR with a fix as generally our developer team's bandwidth is limited so some of these items will be lower on the priority list for us.
 
