@@ -18,7 +18,7 @@ Function names should also be lowercase with `_` between names. However as earli
 
 We have a wide range of different variables used through out the code. This is a short guide on at least some of them and is by no means a complete guide to everything in the library.
 
-Next, we try to add the following substrings to names if the variables refer to quantities that either are some form of a deviatoric, deviatoric + pressure, or some variation of those vector quantities in Voigt notation. `d5` refers to a deviatoric vector that makes use of the actual 5D space representation. `d6` refers to a deviatoric vector that has values in the expanded 6D space. If the `d5` or `d6` has a character following that it refers to either the pressure (`p`) or volume (`v`).
+Next, we try to add the following substrings to names if the variables refer to quantities that either are some form of a deviatoric, deviatoric + pressure, or some variation of those vector quantities in Voigt notation. `d5` refers to a deviatoric vector that makes use of the actual 5D space representation. `d6` refers to a deviatoric vector that has values in the expanded 6D space. If the `d5` or `d6` has a character following that it refers to either the pressure (`p`) or volume (`v`), and these vectors are concatenation of the deviatoric and volumetric/pressure terms. So, a variable with a `d6p` substring would be of length 7 where the first 6 terms are the deviatoric terms and the final is the pressure term.
 
 First, `elast` suffix names refer to the elastic strain and generally this involves quantities in the crystal/lattice frame.
 

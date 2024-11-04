@@ -45,13 +45,21 @@
  *             const double* const vals
  *             ) const ;
  *
+ * This returns the number of function evaluations with a negative
+ * value signaling a failed solve
+ *
+ * hs_u and hs_o are the hardening states
+ * gdot is the slip rate
+ * hvals are any additional variables that might required by the internal solver
+ *
  *  int
  *  updateH( double* const hs_u,
- *           const double* const hs_o,
- *           double dt,
- *           const double* const gdot,
- *           int outputLevel = 0 ) const ;
- *           // returns number of function evaluations with negative value signaling failed solve
+             const double* const hs_o,
+             double dt,
+             const double* const gdot,
+             const double* const hvals,
+             double tkelv,
+             int outputLevel = 0) const ;
  *
  *  void
  *  getEvolVals( double* const evolVals,
@@ -70,6 +78,8 @@
  *
  * The incoming dsdot_ds ptr should be checked to make sure its not a nullptr,
  * and if so the calculations relevant to dsdot_ds should be skipped.
+ *
+ * hvals are any additional variables that might required by the internal solver
  *
  * void
  * getSdotN( double* sdot,
