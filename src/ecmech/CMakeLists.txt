@@ -76,6 +76,9 @@ endif()
 
 if(NOT USE_BUILT_SNLS)
     list(APPEND ECMECH_DEPENDS snls)
+    if (SNLS_USE_RAJA_PORT_SUITE)
+        list(APPEND ECMECH_DEPENDS chai umpire camp fmt)
+    endif()
 endif()
 
 message("-- ECMECH_DEPENDS: ${ECMECH_DEPENDS}")
@@ -118,7 +121,10 @@ endif(BUILD_STATIC_LIBS)
 # Install files
 #------------------------------------------------------------------------------
 
-install(FILES ${ECMECH_HEADERS} DESTINATION include/ecmech)
+install(DIRECTORY ${PROJECT_SOURCE_DIR}/src/ DESTINATION include/ FILES_MATCHING PATTERN *.h)
+install(
+  FILES ${ECMECH_HEADER_INCLUDE_DIR}/ECMech_config.h
+  DESTINATION include/ecmech/)
 
 
 if(BUILD_SHARED_LIBS)
@@ -140,11 +146,3 @@ if(BUILD_STATIC_LIBS)
       $<INSTALL_INTERFACE:include>)
     install(TARGETS ecmech_static DESTINATION lib)
 endif(BUILD_STATIC_LIBS)
-
-install(
-  FILES ${ECMECH_HEADER_INCLUDE_DIR}/ECMech_config.h
-  DESTINATION include/ecmech/)
-
-install(
-  FILES ${ECMECH_HEADERS}
-  DESTINATION include/ecmech/)

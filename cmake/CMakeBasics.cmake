@@ -1,7 +1,7 @@
 ################################
 # Version
 ################################
-set(PACKAGE_BUGREPORT "barton22@llnl.gov")
+set(PACKAGE_BUGREPORT "carson16@llnl.gov")
 
 set(ECMech_VERSION_MAJOR 0)
 set(ECMech_VERSION_MINOR 4)
