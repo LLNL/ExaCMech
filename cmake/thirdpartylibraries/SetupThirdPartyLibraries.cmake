@@ -31,7 +31,7 @@ endif()
 ################################
 
 if (SNLS_DIR)
-    find_package(snls REQUIRED CONFIG PATHS ${SNLS_DIR})
+    find_package(SNLS REQUIRED CONFIG PATHS ${SNLS_DIR})
     set_target_properties(snls PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${SNLS_INCLUDE_DIRS}")
 endif()
 

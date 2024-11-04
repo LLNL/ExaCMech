@@ -432,7 +432,7 @@ int main(int argc, char *argv[]){
                RAJA::ReduceSum<RAJA::omp_reduce_ordered, double> omp_sum(0.0);
                RAJA::forall<RAJA::omp_parallel_for_exec>(default_range, [ = ] (int i_qpts){
                   const double* cauchy_stress = &(cauchy_stress_array[i_qpts * ecmech::nsvec]);
-                  omp_sum += wts * stress[j];
+                  omp_sum += wts * cauchy_stress[j];
                });
                stress_avg[j] = omp_sum.get();
             }
@@ -466,7 +466,7 @@ int main(int argc, char *argv[]){
                RAJA::ReduceSum<gpu_reduce, double> gpu_sum(0.0);
                RAJA::forall<gpu_policy>(default_range, [ = ] RAJA_DEVICE(int i_qpts){
                   const double* cauchy_stress = &(cauchy_stress_array[i_qpts * ecmech::nsvec]);
-                  gpu_sum += wts * stress[j];
+                  gpu_sum += wts * cauchy_stress[j];
                });
                stress_avg[j] = gpu_sum.get();
             }
