@@ -1,15 +1,11 @@
-#ifndef MINIAPP_UTIL_H
-#define MINIAPP_UTIL_H
+#pragma once
 
-#include "RAJA/RAJA.hpp"
-
-#if defined(RAJA_ENABLE_CUDA)
-#include "RAJA/policy/cuda/raja_cudaerrchk.hpp"
+#include "SNLS_config.h"
+#if defined(SNLS_RAJA_PORT_SUITE)
+#include "SNLS_memory_manager.h"
 #endif
 
-#if defined(RAJA_ENABLE_HIP)
-#include "RAJA/policy/hip/raja_hiperrchk.hpp"
-#endif
+#include "SNLS_unused.h"
 
 // We're going to use this to determine what RAJA code to run for our
 // kernels.
@@ -17,142 +13,62 @@
 // until device function pointers are supported.
 enum class ExecutionStrategy { CPU, GPU, OPENMP };
 
-// The below is a simple memory manager taken directly from the RAJA repo and as such
-// the necessary copyright/LICENSE information is provided towards the bottom of this file
-// for it.
-// The memory manager is also sufficient for our basic needs for this miniapp. The CUDA calls
-// make use of unified memory which might not be sufficient for our needs later on if we need to start
-// experimenting with using pinned memory type models for GPU runs.
+template<class T>
+class memoryManager {
+public:
+    memoryManager() = delete;
 
-/*
-  As RAJA does not manage memory we include a general purpose memory
-  manager which may be used to perform c++ style allocation/deallocation
-  or allocate/deallocate CUDA unified memory. The type of memory allocated
-  is dependent on how RAJA was configured.
-*/
-namespace memoryManager
-{
-  template <typename T>
-  T *allocate(RAJA::Index_type size, bool host)
-{
-  T *ptr;
-#if defined(RAJA_ENABLE_CUDA)
-  if (!host) {
-     cudaErrchk(
-       cudaMallocManaged((void **)&ptr, sizeof(T) * size, cudaMemAttachGlobal));
-  }
-  else 
-#elif defined(RAJA_ENABLE_HIP)
-  if (!host) {
-     hipErrchk(hipMalloc((void **)&ptr, sizeof(T) * size));
-  }
-  else
+    memoryManager(const size_t num_items) : total_items(num_items) {
+        assert(num_items > 0 && "num_items must be greater than 0...");
+#if defined(SNLS_RAJA_PORT_SUITE)
+        auto mm = snls::memoryManager::getInstance();
+        buffer = mm.allocManagedArray<T>(num_items);
+#else
+    buffer = new T[num_items];
 #endif
-  {
-    ptr = new T[size];
-  }
-  return ptr;
-}
-
-template <typename T>
-void deallocate(T *&ptr, bool host)
-{
-   if (ptr){
-#if defined(RAJA_ENABLE_CUDA)
-      if (!host) {
-         cudaErrchk(cudaFree(ptr));
-      }
-      else
-#elif defined(RAJA_ENABLE_HIP)
-      if (!host) {
-         hipErrchk(hipFree(ptr));
-      }
-      else
-#endif
-      {
-         delete[] ptr;
-      }
-      ptr = nullptr;
-   }
-}
-
-#if defined(RAJA_ENABLE_CUDA) || defined(RAJA_ENABLE_HIP)
-  template <typename T>
-  T *allocate_gpu(RAJA::Index_type size)
-  {
-    T *ptr;
-#if defined(RAJA_ENABLE_CUDA)
-    cudaErrchk(cudaMalloc((void **)&ptr, sizeof(T) * size));
-#elif defined(RAJA_ENABLE_HIP)
-    hipErrchk(hipMalloc((void **)&ptr, sizeof(T) * size));
-#endif
-    return ptr;
-  }
-
-  template <typename T>
-  void deallocate_gpu(T *&ptr)
-  {
-    if (ptr) {
-#if defined(RAJA_ENABLE_CUDA)
-      cudaErrchk(cudaFree(ptr));
-#elif defined(RAJA_ENABLE_HIP)
-      hipErrchk(hipFree(ptr));
-#endif
-      ptr = nullptr;
     }
-  }
+
+    ~memoryManager() {
+#if defined(SNLS_RAJA_PORT_SUITE)
+        buffer.free();
+#else
+        if (buffer) {
+            delete buffer;
+        }
 #endif
-}; // namespace memoryManager
+    }
 
-// Copyright (c) 2016-22, Lawrence Livermore National Security, LLC.
-// All rights reserved.
-
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-
-// * Redistributions of source code must retain the above copyright notice,
-// this list of conditions and the disclaimer below.
-
-// * Redistributions in binary form must reproduce the above copyright notice,
-// this list of conditions and the disclaimer (as noted below) in the
-// documentation and/or other materials provided with the distribution.
-
-// * Neither the name of the LLNS/LLNL nor the names of its contributors may be
-// used to endorse or promote products derived from this software without
-// specific prior written permission.
-
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-// ARE DISCLAIMED. IN NO EVENT SHALL LAWRENCE LIVERMORE NATIONAL SECURITY, LLC,
-// THE U.S. DEPARTMENT OF ENERGY OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
-// INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-// BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
-// OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-// NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
-// EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-// Additional BSD Notice
-
-// 1. This notice is required to be provided under our contract with the U.S.
-// Department of Energy (DOE). This work was produced at Lawrence Livermore
-// National Laboratory under Contract No. DE-AC52-07NA27344 with the DOE.
-
-// 2. Neither the United States Government nor Lawrence Livermore National
-// Security, LLC nor any of their employees, makes any warranty, express or
-// implied, or assumes any liability or responsibility for the accuracy,
-// completeness, or usefulness of any information, apparatus, product, or
-// process disclosed, or represents that its use would not infringe
-// privately-owned rights.
-
-// 3. Also, reference herein to any specific commercial products, process,
-// or services by trade name, trademark, manufacturer or otherwise does not
-// necessarily constitute or imply its endorsement, recommendation, or favoring
-// by the United States Government or Lawrence Livermore National Security, LLC.
-// The views and opinions of authors expressed herein do not necessarily state
-// or reflect those of the United States Government or Lawrence Livermore
-// National Security, LLC, and shall not be used for advertising or product
-// endorsement purposes.
-
+    T* getNew(const size_t num_items, const ecmech::ExecutionStrategy UNUSED_GPU(strat)) {
+        assert((num_items + offset) <= total_items && "Requested too large of an allocation");
+        const size_t old_offset = offset;
+        offset += num_items;
+#if defined(SNLS_RAJA_PORT_SUITE)
+        chai::ExecutionSpace ses;
+        switch (strat) {
+            case ecmech::ExecutionStrategy::GPU: {
+                ses = chai::ExecutionSpace::GPU;
+                break;
+            }
+            case ecmech::ExecutionStrategy::OPENMP:
+            case ecmech::ExecutionStrategy::CPU:
+            default: {
+                ses = chai::ExecutionSpace::CPU;
+                break;
+            }
+        }
+        return &(buffer.data(ses)[old_offset]);
+#else
+        return &(buffer[old_offset]);
 #endif
+    }
+
+private:
+#if defined(SNLS_RAJA_PORT_SUITE)
+    chai::ManagedArray<T> buffer;
+#else
+    T* buffer = nullptr;
+#endif
+    size_t offset = 0;
+    const size_t total_items;
+};
+

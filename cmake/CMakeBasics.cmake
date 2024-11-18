@@ -1,11 +1,11 @@
 ################################
 # Version
 ################################
-set(PACKAGE_BUGREPORT "barton22@llnl.gov")
+set(PACKAGE_BUGREPORT "carson16@llnl.gov")
 
 set(ECMech_VERSION_MAJOR 0)
-set(ECMech_VERSION_MINOR 3)
-set(ECMech_VERSION_PATCH \"4\")
+set(ECMech_VERSION_MINOR 4)
+set(ECMech_VERSION_PATCH \"0\")
 
 set(ECMECH_HEADER_INCLUDE_DIR
     ${PROJECT_BINARY_DIR}/include/ecmech
@@ -32,12 +32,8 @@ if(ENABLE_PYTHON)
     set(ECMECH_PY "1" CACHE STRING "")
 endif()
 
-if(ENABLE_PYTHON_DEV)
-    set(ECMECH_PYDEV "1" CACHE STRING "")
-endif()
-
-if(ENABLE_CUDA_WORKAROUND)
-    set(ECMECH_NON_CORAL1_MACHINE "1" CACHE STRING "")
+if(ENABLE_EXTRA_SOLVERS)
+    set(ECMECH_EXTRA_SOLVERS "1" CACHE STRING "1")
 endif()
 
 if(CMAKE_BUILD_TYPE MATCHES DEBUG)

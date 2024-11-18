@@ -1,0 +1,7 @@
+./cases/rand_quats_cpu.txt
+evptn_FCC_A
+./cases/props.txt
+CPU
+0.00025
+60
+[[-0.5 0 0], [0 -0.5 0], [0 0 1.0]]

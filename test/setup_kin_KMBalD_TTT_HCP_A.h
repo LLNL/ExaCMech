@@ -1,7 +1,7 @@
 {
    double
-      mu = 1.0,
-      tK_ref = 300.,
+      shear_modulus = 1.0,
+      tkelv_ref = 300.,
       c_1 = 20000.,
       tau_a = 0.004,
       p = 1.0,
@@ -19,7 +19,7 @@
    double
       rho_dd_init = 0.25;
    std::vector<double> paramsThese {
-      mu, tK_ref,
+      shear_modulus, tkelv_ref,
       c_1, c_1, c_1,
       c_1, c_1, c_1,
       c_1, c_1, c_1, c_1, c_1, c_1,

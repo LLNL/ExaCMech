@@ -1,0 +1,7 @@
+./cases/rand_quats_gpu.txt
+evptn_BCC_E
+./cases/props_oro_bcc_e_iso.txt
+GPU
+0.025
+60
+[[-0.005 0 0], [0 -0.005 0], [0 0 0.01]]

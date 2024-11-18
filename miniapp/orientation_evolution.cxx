@@ -1,5 +1,4 @@
 #include "ECMech_cases.h"
-#include "ECMech_evptnWrap.h"
 #include "RAJA/RAJA.hpp"
 #include "RAJA/util/Timer.hpp"
 #include "miniapp_util.h"
@@ -15,9 +14,6 @@
 
 #define NEVALS_COUNTS false
 
-
-using namespace ecmech;
-
 int main(int argc, char *argv[]){
    // TODO:
    // Compare GPU versus the serial results (We need to figure out what the bounds on our
@@ -32,113 +28,17 @@ int main(int argc, char *argv[]){
       return 1;
    }
 
-   const double dt = 0.00025;
-   const int nsteps = 60;
-
-   // All of the varibles that we'll be using in our simulations
-   double* state_vars = nullptr;
-   double* vgrad = nullptr;
-
-   double* d_state_vars = nullptr;
-   double* d_vgrad = nullptr;
+   double dt = 0.00025;
+   int nsteps = 60;
 
    int nqpts = 0;
    int num_props = 0;
    int num_hardness = 0;
    int num_gdot = 0;
    int iHistLbGdot = 0;
-   // For FCC material models we have the following state variables
-   // and their number of components
-   // effective shear rate(1), effective shear(1), flow strength(1), n_evals(1), deviatoric elastic strain(5),
-   // quaternions(4), h(Kinetics::nH), gdot(SlipGeom::nslip), relative volume(1),
-   // internal energy(ecmech::ne)
-   int num_state_vars_voce = ecmech::matModelEvptn_FCC_A::numHist + ecmech::ne + 1;
-   int num_state_vars_mts = ecmech::matModelEvptn_FCC_B::numHist + ecmech::ne + 1;
 
    ecmech::matModelBase* mat_model_base;
-   // Could probably do this in a smarter way where we don't create two class objects for
-   // our different use cases...
-
-   std::vector<unsigned int> strides;
-   // Deformation rate stride
-   strides.push_back(ecmech::nsvp);
-   // Spin rate stride
-   strides.push_back(ecmech::ndim);
-   // Volume ratio stride
-   strides.push_back(ecmech::nvr);
-   // Internal energy stride
-   strides.push_back(ecmech::ne);
-   // Stress vector stride
-   strides.push_back(ecmech::nsvp);
-   // History variable stride
-   strides.push_back(num_state_vars_voce);
-   // Temperature stride
-   strides.push_back(1);
-   // SDD stride
-   strides.push_back(ecmech::nsdd);
-
-   // The  Voce model (matModelEvptn_FCC_A) requires the properties file to have the following parameters
-   // in this order:
-   // Property file start off with:
-   // initial density, heat capacity at constant volume, and a tolerance param
-   // Property file then includes elastic constants:
-   // c11, c12, c44 for cubic crystals
-   // Property file then includes the following:
-   // shear modulus, m parameter seen in slip kinetics, gdot_0 term found in slip kinetic eqn,
-   // hardening coeff. defined for g_crss evolution eqn, initial CRSS value,
-   // initial CRSS saturation strength, CRSS saturation strength scaling exponent,
-   // CRSS saturation strength rate scaling coeff, and initial CRSS value
-   // Property file then includes the following:
-   // the Gruneisen parameter and reference internal energy
-
-   ecmech::matModelEvptn_FCC_A mat_modela(strides.data(), strides.size());
-
-   // The MTS model (matModelEvptn_FCC_B) requires the properties file to have the following parameters
-   // in this order:
-   // Property file start off with:
-   // initial density, heat capacity at constant volume, and a tolerance param
-   // Property file then include elastic constants:
-   // c11, c12, c44 for cubic crystals
-   // Property file then includes the following:
-   // reference shear modulus, reference temperature, g_0 * b^3 / \kappa where b is the
-   // magnitude of the burger's vector and \kappa is Boltzmann's constant, Peierls barrier,
-   // MTS curve shape parameter (p), MTS curve shape parameter (q), reference thermally activated
-   // slip rate, reference drag limited slip rate, drag reference stress, slip resistance const (g_0),
-   // slip resistance const (s), dislocation density production constant (k_1),
-   // dislocation density production constant (k_{2_0}), dislocation density exponential constant,
-   // reference net slip rate constant, and reference relative dislocation density
-   // Property file then includes the following:
-   // the Gruneisen parameter and reference internal energy
-
-   strides.at(5) = num_state_vars_mts;
-
-   ecmech::matModelEvptn_FCC_B mat_modelb(strides.data(), strides.size());
-
    ecmech::ExecutionStrategy class_device;
-
-   // Data structures needed for each time step
-   // We really don't need to allocate these constantly, so we should just do it
-   // once and be done with it.
-   double* stress_array = nullptr;
-   double* stress_svec_p_array = nullptr;
-   double* d_svec_p_array = nullptr;
-   double* w_vec_array = nullptr;
-   double* ddsdde_array = nullptr;
-   double* vol_ratio_array = nullptr;
-   double* eng_int_array = nullptr;
-   double* temp_array = nullptr;
-   double* sdd_array = nullptr;
-
-   double* d_stress_array = nullptr;
-   double* d_stress_svec_p_array = nullptr;
-   double* d_d_svec_p_array = nullptr;
-   double* d_w_vec_array = nullptr;
-   double* d_ddsdde_array = nullptr;
-   double* d_vol_ratio_array = nullptr;
-   double* d_eng_int_array = nullptr;
-   double* d_temp_array = nullptr;
-   double* d_sdd_array = nullptr;
-
    std::string mat_model_str;
 
    // The below scope of work sets up everything that we're going to be doing initially.
@@ -147,7 +47,9 @@ int main(int argc, char *argv[]){
    // in scope without running into memory issues.
    //
    int num_state_vars;
-   bool host = true;
+   // Quaternion and the number of quaternions total.
+   std::vector<double> quats;
+   std::vector<double> velocity_grad_init;
    //
    {
       // All the input arguments
@@ -156,8 +58,22 @@ int main(int argc, char *argv[]){
       std::string ori_file;
       std::string mat_prop_file;
       std::string device_type;
+      std::string dt_vals = "0.00025";
+      std::string nsteps_vals = "60";
+      std::string velocity_grad_vals = "[[-0.5 0.0 0.0], [0.0 -0.5 0.0], [0.0 0.0 1.0]]";
 
       {
+         std::ostringstream fail_str;
+         fail_str << "Option file could not be correctly parsed." << std::endl
+                  << "Option file contains: quat file path, material model, " << std::endl
+                  << "material param file path, and device type each on their own line." << std::endl
+                  << "Optionally, the option file past those required values can also contain:" << std::endl
+                  << "dt value" << std::endl
+                  << "number of steps value" << std::endl
+                  << "velocity gradient as defined using the following notation [[# # #], [# # #], [# # #]]" << std::endl
+                  << "Note each line in these optional values requires that the previous optional value also be defined"
+                  << std::endl;
+
          std::ifstream ofile(option_file);
          ofile.clear();
          std::string line;
@@ -168,20 +84,62 @@ int main(int argc, char *argv[]){
          std::getline(ofile, device_type);
 
          if (ofile.fail()) {
-            std::cerr << "Option file could not be correctly parsed.\n"
-                      << "Option file contains: quat file path, material model, "
-                      << "material param file path, and device type each on their own line."
-                      << std::endl;
+            std::cerr << fail_str.str();
+            return 1;
+         }
+
+         if (ofile.peek() != std::ifstream::traits_type::eof()) {
+            std::getline(ofile, dt_vals);
+         }
+         if (ofile.peek() != std::ifstream::traits_type::eof()) {
+            std::getline(ofile, nsteps_vals);
+         }
+         if (ofile.peek() != std::ifstream::traits_type::eof()) {
+            std::getline(ofile, velocity_grad_vals);
+         }
+
+         if (dt_vals.size() == 0 || nsteps_vals.size() == 0 || velocity_grad_vals.size() == 0) {
+            std::cerr << fail_str.str();
+            std::cerr << "Check for an empty string for one of the optional variables" << std::endl;
+            std::cerr << "dt_val.size()" << dt_vals.size()
+                      << " nsteps_vals.size() " << nsteps_vals.size()
+                      << " velocity_grad_vals.size() " << velocity_grad_vals.size() << std::endl;
             return 1;
          }
       }
 
-      // Quaternion and the number of quaternions total.
-      std::vector<double> quats;
+      {
+         std::istringstream iss(dt_vals);
+         iss >> dt;
+      }
+
+      {
+         std::istringstream iss(nsteps_vals);
+         iss >> nsteps;
+      }
+
+      {
+         std::istringstream iss(velocity_grad_vals);
+         auto parse_data_row = [=] (auto& data, std::istringstream& stream) {
+            constexpr auto max_size = std::numeric_limits<std::streamsize>::max();
+            stream.ignore(max_size, '[');
+            double vrow[3] = {};
+            stream >> vrow[0] >> vrow[1] >> vrow[2];
+            data.push_back(vrow[0]);
+            data.push_back(vrow[1]);
+            data.push_back(vrow[2]);
+         };
+         iss.ignore(1, '[');
+
+         for (int i = 0; i < 3; i++) {
+            parse_data_row(velocity_grad_init, iss);
+         }
+      }
+
       // This next chunk reads in all of the quaternions and pushes them to a vector.
       // It will exit if 4 values are not read on a line.
       bool quat_random = false;
-      unsigned int quat_nrand = 0;
+      unsigned int quat_nrand = 1;
       {
          std::ifstream qfile(ori_file);
          std::string line;
@@ -205,8 +163,10 @@ int main(int argc, char *argv[]){
          }
          if (quat_random) {
             // provide a seed so things are reproducible
-            std::default_random_engine gen(42);
+            // std::default_random_engine gen(42);
             // std::normal_distribution<double> distrib(0.0, 1.0); // An alternative way to initialize the quats
+            // std::uniform_real_distribution<double> udistrib(-1.0, 1.0);
+            std::minstd_rand0 gen(42);
             std::uniform_real_distribution<double> udistrib(-1.0, 1.0);
             std::vector<double> q_state = { 1., 0., 0., 0. };
 
@@ -241,6 +201,23 @@ int main(int argc, char *argv[]){
          }
       }
 
+      std::cout << "Orientation File: " << ori_file << std::endl;
+      std::cout << "Material Property File: " << mat_prop_file << std::endl;
+      std::cout << "Material Model: " << mat_model_str << std::endl;
+      std::cout << "Execution Strategy: " << device_type << std::endl;
+      std::cout << "Delta Time Step: " << dt << std::endl;
+      std::cout << "Number of steps: " << nsteps << std::endl;
+      std::cout << "Number of qpts: " << nqpts << std::endl;
+      std::cout << "Velocity Gradient: " << std::endl;
+      {
+         auto it = velocity_grad_init.begin();
+         for (int irow = 0; irow < 3; irow++) {
+            for (int icol = 0; icol < 3; icol++) {
+               std::cout << *it++ << " ";
+            }
+            std::cout << std::endl;
+         }
+      }
 
       // Read and store our material property data
       // We're going to check that the number of properties are what we expect
@@ -281,7 +258,6 @@ int main(int argc, char *argv[]){
 #endif
 #if defined(RAJA_ENABLE_CUDA) || defined(RAJA_ENABLE_HIP)
       else if (device_type.compare("GPU") == 0) {
-         host = false;
          class_device = ECM_EXEC_STRAT_GPU;
       }
 #endif
@@ -301,128 +277,89 @@ int main(int argc, char *argv[]){
       }
 
       std::cout << "\nAbout to initialize class" << std::endl;
-      // Initialize our base class using the appropriate model
-      if (mat_model_str.compare("voce") == 0) {
-         num_state_vars = num_state_vars_voce;
-         num_props = ecmech::matModelEvptn_FCC_A::nParams;
-         num_hardness = mat_modela.nH;
-         num_gdot = mat_modela.nslip;
-         iHistLbGdot = mat_modela.iHistLbGdot;
+      mat_model_base = ecmech::makeMatModel(mat_model_str);
+      auto index_map = ecmech::modelParamIndexMap(mat_model_str);
+      num_props = index_map["num_params"];
+      num_state_vars = index_map["num_hist"];
+      num_state_vars += ecmech::ne + 1;
 
-         // This check used to be in the loop used to read in the material properties
-         // However, things were re-arranged, so it's now during the class initialization
-         if (mp_nlines != num_props) {
-            std::cerr << "Material prop file should have " << num_props
-                      << " properties (each on their own line). A total of " << mp_nlines
-                      << " properties were provided instead." << std::endl;
-            return 1;
-         }
+      num_hardness = index_map["num_hardening"];
+      num_gdot = index_map["num_slip_system"];
+      iHistLbGdot = index_map["index_slip_rates"];
 
-         // We really shouldn't see this change over time at least for our applications.
-         mat_modela.initFromParams(opts, params, strs);
-         mat_modela.complete();
-         mat_modela.setExecutionStrategy(class_device);
-         mat_model_base = dynamic_cast<matModelBase*>(&mat_modela);
-      }
-      else if (mat_model_str.compare("mts") == 0) {
-         num_state_vars = num_state_vars_mts;
-         num_props = ecmech::matModelEvptn_FCC_B::nParams;
-         num_hardness = mat_modelb.nH;
-         num_gdot = mat_modelb.nslip;
-         iHistLbGdot = mat_modelb.iHistLbGdot;
+      std::cout << "num_props: " << num_props << " num_state_vars " << num_state_vars << std::endl;
+      std::cout << "num_hardness: " << num_hardness << " num_gdot " << num_gdot << " iHistLbGdot " << iHistLbGdot << std::endl;
 
-         // This check used to be in the loop used to read in the material properties
-         // However, things were re-arranged, so it's now during the class initialization
-         if (mp_nlines != num_props) {
-            std::cerr << "Material prop file should have " << num_props
-                      << " properties (each on their own line). A total of " << mp_nlines
-                      << " properties were provided instead." << std::endl;
-            return 1;
-         }
-
-         // We really shouldn't see this change over time at least for our applications.
-         mat_modelb.initFromParams(opts, params, strs);
-         mat_modelb.complete();
-         mat_modela.setExecutionStrategy(class_device);
-         mat_model_base = dynamic_cast<matModelBase*>(&mat_modelb);
-      }
-      else {
-         std::cerr << "material model must be either voce or mts " << std::endl;
+      // This check used to be in the loop used to read in the material properties
+      // However, things were re-arranged, so it's now during the class initialization
+      if (mp_nlines != num_props) {
+         std::cerr << "Material prop file should have " << num_props
+                     << " properties (each on their own line). A total of " << mp_nlines
+                     << " properties were provided instead." << std::endl;
          return 1;
       }
 
+      std::vector<size_t> strides;
+      // Deformation rate stride
+      strides.push_back(ecmech::nsvp);
+      // Spin rate stride
+      strides.push_back(ecmech::ndim);
+      // Volume ratio stride
+      strides.push_back(ecmech::nvr);
+      // Internal energy stride
+      strides.push_back(ecmech::ne);
+      // Stress vector stride
+      strides.push_back(ecmech::nsvp);
+      // History variable stride
+      strides.push_back(num_state_vars);
+      // Temperature stride
+      strides.push_back(1);
+      // SDD stride
+      strides.push_back(ecmech::nsdd);
+
+      mat_model_base->updateStrides(strides);
+
+      // We really shouldn't see this change over time at least for our applications.
+      mat_model_base->setExecutionStrategy(class_device);
+      mat_model_base->initFromParams(opts, params, strs);
+      mat_model_base->complete();
+
       std::cout << "Class has been completely initialized" << std::endl;
-
-      // We're now initializing our state variables and vgrad to be used in other parts
+   }
+      // We're now initializing our state variables and velocity_grad to be used in other parts
       // of the simulations.
-      state_vars = memoryManager::allocate<double>(num_state_vars * nqpts, host);
-      vgrad = memoryManager::allocate<double>(nqpts * ecmech::ndim * ecmech::ndim, host);
+      constexpr size_t num_var_variables = (1 + ecmech::nsdd + + ecmech::ne + ecmech::nwvec + ecmech::nvr + ecmech::nsvec + 2 * ecmech::nsvp + ecmech::nsvec * ecmech::nsvec + ecmech::ndim * ecmech::ndim);
+      const size_t num_items = nqpts * (num_state_vars + num_var_variables);
+      auto mm = memoryManager<double>(num_items);
+      auto state_vars = mm.getNew(nqpts * num_state_vars, class_device);
+      auto velocity_grad = mm.getNew(nqpts * ecmech::ndim * ecmech::ndim, class_device);
 
-      double* quats_array = quats.data();
-
-      init_data(class_device, quats_array, mat_model_base, nqpts, num_hardness,
+      init_data(quats, mat_model_base, nqpts, num_hardness,
                 num_gdot, iHistLbGdot, num_state_vars, state_vars);
       std::cout << "Data is now initialized" << std::endl;
-      setup_vgrad(vgrad, nqpts);
-   }
+      setup_velocity_grad(velocity_grad_init, velocity_grad, nqpts);
 
    // The stress array is the only one of the below variables that needs to be
    // initialized to 0.
-   stress_array = memoryManager::allocate<double>(nqpts * ecmech::nsvec, host);
-   for (int i = 0; i < nqpts * ecmech::nsvec; i++) {
-      stress_array[i] = 0.0;
-   }
+   auto cauchy_stress_array = mm.getNew(nqpts * ecmech::nsvec, class_device);
+   snls::forall(0, nqpts * ecmech::nsvec,
+      [=]
+      __ecmech_hdev__
+      (int i) {
+         cauchy_stress_array[i] = 0.0;
+   });
 
    // We'll leave these uninitialized for now, since they're set in the
    // setup_data function.
-   ddsdde_array = memoryManager::allocate<double>(nqpts * ecmech::nsvec * ecmech::nsvec, host);
-   eng_int_array = memoryManager::allocate<double>(nqpts * ecmech::ne, host);
-   w_vec_array = memoryManager::allocate<double>(nqpts * ecmech::nwvec, host);
-   vol_ratio_array = memoryManager::allocate<double>(nqpts * ecmech::nvr, host);
-   stress_svec_p_array = memoryManager::allocate<double>(nqpts * ecmech::nsvp, host);
-   d_svec_p_array = memoryManager::allocate<double>(nqpts * ecmech::nsvp, host);
-   temp_array = memoryManager::allocate<double>(nqpts, host);
-   sdd_array = memoryManager::allocate<double>(nqpts * ecmech::nsdd, host);
-
-#if defined(RAJA_ENABLE_HIP)
-   if (class_device == ECM_EXEC_STRAT_GPU) {
-      // We'll leave these uninitialized for now, since they're set in the
-      // setup_data function.
-      d_state_vars = memoryManager::allocate_gpu<double>(num_state_vars * nqpts);
-      d_vgrad = memoryManager::allocate_gpu<double>(nqpts * ecmech::ndim * ecmech::ndim);
-      d_stress_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nsvec);
-
-      hipErrchk(hipMemcpy( d_state_vars, state_vars, num_state_vars * nqpts * sizeof(double), hipMemcpyHostToDevice ));
-      hipErrchk(hipMemcpy( d_vgrad, vgrad, nqpts * ecmech::ndim * ecmech::ndim * sizeof(double), hipMemcpyHostToDevice ));
-      hipErrchk(hipMemcpy( d_stress_array, stress_array, nqpts * ecmech::nsvec * sizeof(double), hipMemcpyHostToDevice ));
-
-      d_ddsdde_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nsvec * ecmech::nsvec);
-      d_eng_int_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::ne);
-      d_w_vec_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nwvec);
-      d_vol_ratio_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nvr);
-      d_stress_svec_p_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nsvp);
-      d_d_svec_p_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nsvp);
-      d_temp_array = memoryManager::allocate_gpu<double>(nqpts);
-      d_sdd_array = memoryManager::allocate_gpu<double>(nqpts * ecmech::nsdd);
-   }
-   else
-#endif 
-   {
-      // We'll leave these uninitialized for now, since they're set in the
-      // setup_data function.
-      d_state_vars = state_vars;
-      d_vgrad = vgrad;
-      d_stress_array = stress_array;
-      d_ddsdde_array = ddsdde_array;
-      d_eng_int_array = eng_int_array;
-      d_w_vec_array = w_vec_array;
-      d_vol_ratio_array = vol_ratio_array;
-      d_stress_svec_p_array = stress_svec_p_array;
-      d_d_svec_p_array = d_svec_p_array;
-      d_temp_array = temp_array;
-      d_sdd_array = sdd_array;
-   }
    
+   auto ddsdde_array = mm.getNew(nqpts * ecmech::nsvec * ecmech::nsvec, class_device);
+   auto internal_energy_array = mm.getNew(nqpts * ecmech::ne, class_device);
+   auto spin_vec_array = mm.getNew(nqpts * ecmech::nwvec, class_device);
+   auto rel_vol_ratios_array = mm.getNew(nqpts * ecmech::nvr, class_device);
+   auto cauchy_stress_d6p_array = mm.getNew(nqpts * ecmech::nsvp, class_device);
+   auto def_rate_d6v_array = mm.getNew(nqpts * ecmech::nsvp, class_device);
+   auto tkelv_array = mm.getNew(nqpts, class_device);
+   auto sdd_array = mm.getNew(nqpts * ecmech::nsdd, class_device);
 
    double stress_avg[6];
    double wts = 1.0 / nqpts;
@@ -435,18 +372,18 @@ int main(int argc, char *argv[]){
 
    for (int i = 0; i < nsteps; i++) {
       // set up our data in the correct format that the material model kernel expects
-      setup_data(class_device, nqpts, num_state_vars, dt, d_vgrad, d_stress_array, d_state_vars,
-                 d_stress_svec_p_array, d_d_svec_p_array, d_w_vec_array, d_ddsdde_array,
-                 d_vol_ratio_array, d_eng_int_array, d_temp_array);
+      setup_data(nqpts, num_state_vars, dt, velocity_grad, cauchy_stress_array, state_vars,
+                 cauchy_stress_d6p_array, def_rate_d6v_array, spin_vec_array, ddsdde_array,
+                 rel_vol_ratios_array, internal_energy_array, tkelv_array);
       // run our material model
       mat_model_kernel(mat_model_base, nqpts, dt,
-                       d_state_vars, d_stress_svec_p_array,
-                       d_d_svec_p_array, d_w_vec_array, d_ddsdde_array,
-                       d_vol_ratio_array, d_eng_int_array, d_temp_array, d_sdd_array);
+                       state_vars, cauchy_stress_d6p_array,
+                       def_rate_d6v_array, spin_vec_array, ddsdde_array,
+                       rel_vol_ratios_array, internal_energy_array, tkelv_array, sdd_array);
       // retrieve all of the data and put it back in the global arrays
-      retrieve_data(class_device, nqpts, num_state_vars,
-                    d_stress_svec_p_array, d_vol_ratio_array,
-                    d_eng_int_array, d_state_vars, d_stress_array);
+      retrieve_data(nqpts, num_state_vars,
+                    cauchy_stress_d6p_array, rel_vol_ratios_array,
+                    internal_energy_array, state_vars, cauchy_stress_array);
 
       switch ( class_device ) {
          default :
@@ -456,8 +393,8 @@ int main(int argc, char *argv[]){
                RAJA::ReduceSum<RAJA::seq_reduce, double> seq_sum(0.0);
                RAJA::ReduceMin<RAJA::seq_reduce, double> seq_min(100.0); // We know this shouldn't ever be more than 100
                RAJA::ReduceMax<RAJA::seq_reduce, double> seq_max(0.0); // We know this will always be at least 1.0
-               RAJA::forall<RAJA::loop_exec>(default_range, [ = ] (int i_qpts){
-                  double* nfunceval = &(d_state_vars[i_qpts * num_state_vars + 2]);
+               RAJA::forall<RAJA::seq_exec>(default_range, [ = ] (int i_qpts){
+                  double* nfunceval = &(state_vars[i_qpts * num_state_vars + 2]);
                   seq_sum += wts * nfunceval[0];
                   seq_max.max(nfunceval[0]);
                   seq_min.min(nfunceval[0]);
@@ -467,9 +404,9 @@ int main(int argc, char *argv[]){
             }
             for (int j = 0; j < ecmech::nsvec; j++) {
                RAJA::ReduceSum<RAJA::seq_reduce, double> seq_sum(0.0);
-               RAJA::forall<RAJA::loop_exec>(default_range, [ = ] (int i_qpts){
-                  const double* stress = &(d_stress_array[i_qpts * ecmech::nsvec]);
-                  seq_sum += wts * stress[j];
+               RAJA::forall<RAJA::seq_exec>(default_range, [ = ] (int i_qpts){
+                  const double* cauchy_stress = &(cauchy_stress_array[i_qpts * ecmech::nsvec]);
+                  seq_sum += wts * cauchy_stress[j];
                });
                stress_avg[j] = seq_sum.get();
 	    }
@@ -483,7 +420,7 @@ int main(int argc, char *argv[]){
                RAJA::ReduceMin<RAJA::omp_reduce_ordered, double> omp_min(100.0); // We know this shouldn't ever be more than 100
                RAJA::ReduceMax<RAJA::omp_reduce_ordered, double> omp_max(0.0); // We know this will always be at least 1.0
                RAJA::forall<RAJA::omp_parallel_for_exec>(default_range, [ = ] (int i_qpts){
-                  double* nfunceval = &(d_state_vars[i_qpts * num_state_vars + 2]);
+                  double* nfunceval = &(state_vars[i_qpts * num_state_vars + 2]);
                   omp_sum += wts * nfunceval[0];
                   omp_max.max(nfunceval[0]);
                   omp_min.min(nfunceval[0]);
@@ -494,8 +431,8 @@ int main(int argc, char *argv[]){
             for (int j = 0; j < ecmech::nsvec; j++) {
                RAJA::ReduceSum<RAJA::omp_reduce_ordered, double> omp_sum(0.0);
                RAJA::forall<RAJA::omp_parallel_for_exec>(default_range, [ = ] (int i_qpts){
-                  const double* stress = &(d_stress_array[i_qpts * ecmech::nsvec]);
-                  omp_sum += wts * stress[j];
+                  const double* cauchy_stress = &(cauchy_stress_array[i_qpts * ecmech::nsvec]);
+                  omp_sum += wts * cauchy_stress[j];
                });
                stress_avg[j] = omp_sum.get();
             }
@@ -517,7 +454,7 @@ int main(int argc, char *argv[]){
                RAJA::ReduceMin<gpu_reduce, double> gpu_min(100.0); // We know this shouldn't ever be more than 100
                RAJA::ReduceMax<gpu_reduce, double> gpu_max(0.0); // We know this will always be at least 1.0
                RAJA::forall<gpu_policy>(default_range, [ = ] RAJA_DEVICE(int i_qpts){
-                  double* nfunceval = &(d_state_vars[i_qpts * num_state_vars + 2]);
+                  double* nfunceval = &(state_vars[i_qpts * num_state_vars + 2]);
                   gpu_sum += wts * nfunceval[0];
                   gpu_max.max(nfunceval[0]);
                   gpu_min.min(nfunceval[0]);
@@ -528,8 +465,8 @@ int main(int argc, char *argv[]){
             for (int j = 0; j < ecmech::nsvec; j++) {
                RAJA::ReduceSum<gpu_reduce, double> gpu_sum(0.0);
                RAJA::forall<gpu_policy>(default_range, [ = ] RAJA_DEVICE(int i_qpts){
-                  const double* stress = &(d_stress_array[i_qpts * ecmech::nsvec]);
-                  gpu_sum += wts * stress[j];
+                  const double* cauchy_stress = &(cauchy_stress_array[i_qpts * ecmech::nsvec]);
+                  gpu_sum += wts * cauchy_stress[j];
                });
                stress_avg[j] = gpu_sum.get();
             }
@@ -544,8 +481,20 @@ int main(int argc, char *argv[]){
       for (int i = 0; i < ecmech::nsvec; i++) {
          std::cout << stress_avg[i] << " ";
       }
-
       std::cout << std::endl;
+      // If we want to later output the deviatoric stress then we can add that in as
+      // an option here with the following set of code...
+      /*
+      const double stress_mean = (stress_avg[0] + stress_avg[1] + stress_avg[2]) / 3.0;
+      std::cout << "Deviatoric Stress: ";
+      for (int i = 0; i < ecmech::ndim; i++) {
+         std::cout << stress_avg[i] - stress_mean << " ";
+      }
+      for (int i = ecmech::ndim; i < ecmech::nsvec; i++) {
+         std::cout << stress_avg[i] << " ";
+      }
+      std::cout << " " << stress_mean << std::endl;
+      */
    }
 
    run_time.stop();
@@ -556,36 +505,8 @@ int main(int argc, char *argv[]){
 
    std::cout << "Run time of set-up, material, and retrieve kernels over " <<
       nsteps << " time steps is: " << time << "(s)" << std::endl;
-
-   // Delete all variables declared using the memory allocator now.
-
-   memoryManager::deallocate(state_vars, host);
-   memoryManager::deallocate(vgrad, host);
-   memoryManager::deallocate(stress_array, host);
-   memoryManager::deallocate(stress_svec_p_array, host);
-   memoryManager::deallocate(d_svec_p_array, host);
-   memoryManager::deallocate(w_vec_array, host);
-   memoryManager::deallocate(ddsdde_array, host);
-   memoryManager::deallocate(vol_ratio_array, host);
-   memoryManager::deallocate(eng_int_array, host);
-   memoryManager::deallocate(temp_array, host);
-   memoryManager::deallocate(sdd_array, host);
-
-#if defined(RAJA_ENABLE_HIP)
-   if (class_device == ECM_EXEC_STRAT_GPU) {
-      memoryManager::deallocate_gpu(d_state_vars);
-      memoryManager::deallocate_gpu(d_vgrad);
-      memoryManager::deallocate_gpu(d_stress_array);
-      memoryManager::deallocate_gpu(d_stress_svec_p_array);
-      memoryManager::deallocate_gpu(d_d_svec_p_array);
-      memoryManager::deallocate_gpu(d_w_vec_array);
-      memoryManager::deallocate_gpu(d_ddsdde_array);
-      memoryManager::deallocate_gpu(d_vol_ratio_array);
-      memoryManager::deallocate_gpu(d_eng_int_array);
-      memoryManager::deallocate_gpu(d_temp_array);
-      memoryManager::deallocate_gpu(d_sdd_array);
-   }
-#endif
+   // All the variables share the same memory buffer so once the mm object goes out of scope
+   // it's deconstructor will free all of the memory used
 
    return 0;
 }

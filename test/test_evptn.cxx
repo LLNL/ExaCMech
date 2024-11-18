@@ -1,13 +1,11 @@
 #include <gtest/gtest.h>
 
 #include "SNLS_TrDLDenseG.h"
-
-#include "ECMech_evptn.h"
-#include "ECMech_cases.h"
-#include "ECMech_kinetics.h"
-#include "ECMech_slipgeom.h"
-#include "ECMech_eosSimple.h"
 #include "ECMech_util.h"
+
+#include "cases/ECMech_cases_fcc_defs.h"
+#include "cases/ECMech_cases_bcc_defs.h"
+#include "cases/ECMech_cases_hcp_defs.h"
 
 #ifndef KIN_TYPE
 #define KIN_TYPE 1
@@ -25,30 +23,26 @@ TEST(ecmech, evptn_a)
    using namespace ecmech;
 
 #if KIN_TYPE == 3
-   typedef ecmech::SlipGeom_BCC_A SlipGeom;
-   typedef Kin_BCC_A Kinetics;
-   typedef EvptnUpsdtProblem_BCC_A Prob;
-   typedef EvptnSolver_BCC_A Solver;
-   typedef evptn::ThermoElastNCubic ThermoElastN;
+   using SlipGeom = SlipGeom_BCC_A ;
+   using Kinetics = Kin_KMBalD_TFF;
+   using ThermoElastN =  EVPTN_cubic;
 #elif KIN_TYPE == 2
-   typedef ecmech::SlipGeom_HCP_A SlipGeom;
-   typedef Kin_HCP_A Kinetics;
-   typedef EvptnUpsdtProblem_HCP_A Prob;
-   typedef EvptnSolver_HCP_A Solver;
-   typedef evptn::ThermoElastNHexag ThermoElastN;
+   using SlipGeom = SlipGeom_HCP_A;
+   using Kinetics = Kin_HCP_A;
+   using ThermoElastN =  EVPTN_hex;
 #elif KIN_TYPE == 1
-   typedef ecmech::SlipGeomFCC SlipGeom;
-   typedef Kin_FCC_B Kinetics;
-   typedef EvptnUpsdtProblem_FCC_B Prob;
-   typedef EvptnSolver_FCC_B Solver;
-   typedef evptn::ThermoElastNCubic ThermoElastN;
+   using SlipGeom = SlipGeomFCC;
+   using Kinetics = Kin_KMBalD_FFF;
+   using ThermoElastN =  EVPTN_cubic;
 #else
-   typedef ecmech::SlipGeomFCC SlipGeom;
-   typedef Kin_FCC_A Kinetics;
-   typedef EvptnUpsdtProblem_FCC_A Prob;
-   typedef EvptnSolver_FCC_A Solver;
-   typedef evptn::ThermoElastNCubic ThermoElastN;
+   using SlipGeom = SlipGeomFCC;
+   using Kinetics = Kin_Voce;
+   using ThermoElastN =  EVPTN_cubic;
 #endif
+   using ProblemState = evptn::ProblemState<SlipGeom, Kinetics, ThermoElastN, EosModelConst<false>>;
+
+   using Prob = evptn::EvptnUpdstProblem<SlipGeom, Kinetics, ThermoElastN, ProblemState>;
+   using Solver = snls::SNLSTrDlDenseG<Prob>;
 
    SlipGeom slipGeom;
    Kinetics kinetics(slipGeom.nslip);
@@ -79,7 +73,7 @@ TEST(ecmech, evptn_a)
 
    //////////////////////////////
 
-   double p = 0.0, tK = 300.0;
+   double tkelv = 300.0;
    std::vector<double> h_state_vec;
    double* h_state;
    {
@@ -91,16 +85,25 @@ TEST(ecmech, evptn_a)
    }
 
 #include "setup_conditions.h"
-   double detV = 1.0;
-   double eVref = 0.0;
-   double e_vecd_n[ecmech::ntvec] = { 0.0 };
-   double Cn_quat[ecmech::qdim] = { 1.0, 0.0, 0.0, 0.0 };
 
-   Prob prob(slipGeom, kinetics, elastN,
-             dt,
-             detV, eVref, p, tK,
-             h_state, e_vecd_n, Cn_quat,
-             d_vecd_sm, w_veccp_sm);
+   constexpr int numHist1 = evptn::NumHist<SlipGeom, Kinetics, ThermoElastN, EosModelConst<false>>::numHist;
+   double hist2[numHist1] = {};
+
+   ProblemState prob_state(hist2, nullptr, tkelv, def_rate_d6v_sample, spin_vec_sample, rel_vol_ratios, dt);
+
+   prob_state.quat_n[0] = 1.0;
+   for (int iqdim = 1; iqdim < ecmech::qdim; iqdim++) {
+      prob_state.quat_n[iqdim] = 0.0;
+   }
+
+   for (size_t iH = 0; iH < h_state_vec.size(); iH++) {
+      prob_state.h_state_u[iH] = h_state[iH];
+   }
+
+   prob_state.energy_new = 0.0;
+   prob_state.pressure_EOS = 0.0;
+
+   Prob prob(slipGeom, kinetics, elastN, prob_state); 
 
    Solver solver(prob);
 
@@ -123,11 +126,24 @@ TEST(ecmech, evptn_a)
    std::cout << "Last 'rho' in solver: " << solver.getRhoLast() << std::endl;
 #ifdef ECMECH_DEBUG
    std::cout << "Slip system shearing rates : ";
-   printVec<slipGeom.nslip>(prob.getGdot(), std::cout);
+   {
+      double gdot[slipGeom.nslip] = {};
+      double junk = 0.0;
+      double junk_vec[ecmech::qdim] = {};
+      double elast_strain_d5[ecmech::ntvec] = {};
+      prob.stateFromX(elast_strain_d5, junk_vec, solver._x);
+      prob.get_slip_contribution(junk, junk, gdot, elast_strain_d5);
+      printVec<slipGeom.nslip>(gdot, std::cout);
+   }
 #endif
    EXPECT_TRUE(solver.getNFEvals() == expectedNFEvals) << "Not the expected number of function evaluations";
    {
-      const double* gdot = prob.getGdot();
+      double gdot[slipGeom.nslip] = {};
+      double junk = 0.0;
+      double junk_vec[ecmech::qdim] = {};
+      double elast_strain_d5[ecmech::ntvec] = {};
+      prob.stateFromX(elast_strain_d5, junk_vec, solver._x);
+      prob.get_slip_contribution(junk, junk, gdot, elast_strain_d5);
       EXPECT_LT(fabs(gdot[iGdotExpected] - expectedGdotVal), 1e-8) <<
          "Did not get expected value for gdot[iGdotExpected]";
    }
@@ -142,18 +158,18 @@ TEST(ecmech, evptn_a)
    EosModel eos;
 #include "setup_eos.h"
 
-   double eInt[ecmech::ne] = { 0.0 };
-   double stressSvecP[ecmech::nsvp] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+   double internal_energy[ecmech::ne] = { 0.0 };
+   double cauchy_stress_d6p[ecmech::nsvp] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                                         0.0 };
    static const int iHistLbGdot = evptn::NumHist<SlipGeom, Kinetics, ThermoElastN, EosModel>::iHistLbGdot;
    static const int numHist = evptn::NumHist<SlipGeom, Kinetics, ThermoElastN, EosModel>::numHist;
    double hist[numHist] = { 0.0 };
-   std::copy(Cn_quat, Cn_quat + ecmech::qdim, hist + evptn::iHistLbQ);
+   std::copy(prob_state.quat_n, prob_state.quat_n + ecmech::qdim, hist + evptn::iHistLbQ);
    std::copy(h_state, h_state + kinetics.nH, hist + evptn::iHistLbH);
    double* gdot = &(hist[iHistLbGdot]); // already zerod
    // do not bother with other stuff (like e_vecd_n) that is all zero above
    //
-   double tkelv;
+   double tkelv2;
    double sdd[ecmech::nsdd];
    double mtanSD[ecmech::nsvec2];
    //
@@ -161,9 +177,9 @@ TEST(ecmech, evptn_a)
       (slipGeom, kinetics, elastN, eos,
       dt,
       tolerance,
-      d_svec_kk_sm, w_veccp_sm, volRatio,
-      eInt, stressSvecP, hist,
-      tkelv, sdd, mtanSD);
+      def_rate_d6v_sample, spin_vec_sample, rel_vol_ratios,
+      internal_energy, cauchy_stress_d6p, hist,
+      tkelv2, sdd, mtanSD);
    int nFEvals = hist[evptn::iHistA_nFEval];
    std::cout << "Function evaluations: " << nFEvals << std::endl;
 #ifdef ECMECH_DEBUG

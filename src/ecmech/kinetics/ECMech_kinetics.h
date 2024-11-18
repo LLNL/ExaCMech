@@ -1,7 +1,7 @@
 // -*-c++-*-
 
-#ifndef ECMECH_KINETICS_H
-#define ECMECH_KINETICS_H
+#ifndef ECMECH_kinetics_H
+#define ECMECH_kinetics_H
 
 #include "SNLS_TrDLDenseG.h"
 
@@ -34,25 +34,32 @@
  *
  *  double getVals( double* const vals,
  *                  double p,
- *                  double tK,
+ *                  double tkelv,
  *                  const double* const h_state
  *                  ) const ;
  *
  *  void
  *  evalGdots( double* const gdot,
  *             double* const dgdot_dtau,
- *             double* const dgdot_dg,
  *             const double* const tau,
  *             const double* const vals
  *             ) const ;
  *
+ * This returns the number of function evaluations with a negative
+ * value signaling a failed solve
+ *
+ * hs_u and hs_o are the hardening states
+ * gdot is the slip rate
+ * hvals are any additional variables that might required by the internal solver
+ *
  *  int
  *  updateH( double* const hs_u,
- *           const double* const hs_o,
- *           double dt,
- *           const double* const gdot,
- *           int outputLevel = 0 ) const ;
- *           // returns number of function evaluations
+             const double* const hs_o,
+             double dt,
+             const double* const gdot,
+             const double* const hvals,
+             double tkelv,
+             int outputLevel = 0) const ;
  *
  *  void
  *  getEvolVals( double* const evolVals,
@@ -66,16 +73,21 @@
  *  getSdot1( double &sdot,
  *            double &dsdot_ds,
  *            double h,
- *            const double* const evolVals) const ;
+ *            const double* const evolVals,
+ *            double tkelv) const const;
  *
  * The incoming dsdot_ds ptr should be checked to make sure its not a nullptr,
  * and if so the calculations relevant to dsdot_ds should be skipped.
+ *
+ * hvals are any additional variables that might required by the internal solver
  *
  * void
  * getSdotN( double* sdot,
  *           double* dsdot_ds,
  *           const double* const h,
- *           const double* const evolVals) const;
+ *           const double* const evolVals,
+ *           const double* const hvals,
+ *           double tkelv) const;
  */
 
 namespace ecmech {
@@ -86,19 +98,20 @@ namespace ecmech {
    class Kinetics_H1Problem
    {
       public:
-         static const int nDimSys = Kinetics::nH;
+         static constexpr int nDimSys = Kinetics::nH;
 
          // constructor
          __ecmech_hdev__
          Kinetics_H1Problem(const Kinetics* const kinetics,
                             double h_o,
                             double dt,
-                            const double* const evolVals) :
-            _kinetics(kinetics), _h_o(h_o), _dt(dt), _evolVals(evolVals)
+                            const double* const evolVals,
+                            double tkelv) :
+            m_kinetics(kinetics), m_h_o(h_o), m_dt(dt), m_evolVals(evolVals), m_tkelv(tkelv)
          {
-            _x_scale = fmax(_h_o, 1.0); // TO_DO -- generalize this to not max with 1
-            // NOTE : see comment below about changing Jacobian calculation if _res_scale != one / s_scale
-            _res_scale = one / _x_scale;
+            m_x_scale = fmax(m_h_o, 1.0); // TO_DO -- generalize this to not max with 1
+            // NOTE : see comment below about changing Jacobian calculation if m_res_scale != one / s_scale
+            m_res_scale = one / m_x_scale;
          }
 
          // deconstructor
@@ -108,7 +121,7 @@ namespace ecmech {
          __ecmech_hdev__
          inline
          double getHn(const double* const x) const {
-            return _h_o + x[0] * _x_scale;
+            return m_h_o + x[0] * m_x_scale;
          }
 
          __ecmech_hdev__
@@ -118,35 +131,40 @@ namespace ecmech {
                         const double* const x) {
             bool doComputeJ = (Jacobian != nullptr);
 
-            double h_delta = x[0] * _x_scale;
-            double h = _h_o + h_delta;
+            double h_delta = x[0] * m_x_scale;
+            double h = m_h_o + h_delta;
 
             double sdot, dsdot_ds;
-            _kinetics->getSdot1(sdot, dsdot_ds, h, _evolVals);
+            m_kinetics->getSdot1(sdot, dsdot_ds, h, m_evolVals, m_tkelv);
 
-            resid[0] = (h_delta - sdot * _dt) * _res_scale;
+            resid[0] = (h_delta - sdot * m_dt) * m_res_scale;
 
             if (doComputeJ) {
-               // The below is based on the assumption that _res_scale = 1/_x_scale
+               // The below is based on the assumption that m_res_scale = 1/m_x_scale
                // if this were to change in the future version than this would need to become
-               // Jacobian[0] = (one - dsdot_ds * _dt) * _res_scale * _x_scale;
-               Jacobian[0] = (one - dsdot_ds * _dt);
+               // Jacobian[0] = (one - dsdot_ds * m_dt) * m_res_scale * m_x_scale;
+               Jacobian[0] = (one - dsdot_ds * m_dt);
             }
 
             return true;
          } // computeRJ
 
       private:
-         const Kinetics* _kinetics;
-         const double _h_o, _dt;
-         const double* const _evolVals;
-         double _x_scale, _res_scale;
+         const Kinetics* m_kinetics;
+         const double m_h_o, m_dt;
+         const double* const m_evolVals;
+         const double m_tkelv;
+         double m_x_scale, m_res_scale;
    }; // class Kinetics_H1Problem
 
    /*
     * Helper function to run the state update solver for cases in which there is a single hardness state variable.
+    If the solve did not fail then it returns the number of function evaluations
+    the solver required. However, if it did fail then it returns a -1 value
+    to signal failure rather than throwing failures. This is done as we
+    throw exceptions on GPUs so we need a way to handle failures.
     */
-   template<class Kinetics>
+   template<class Kinetics, bool relaxed_solver = false>
    __ecmech_hdev__
    inline
    int
@@ -155,12 +173,13 @@ namespace ecmech {
             double hs_o,
             double dt,
             const double* const gdot,
+            double tkelv,
             int outputLevel = 0)
    {
       double evolVals[Kinetics::nEvolVals];
       kinetics->getEvolVals(evolVals, gdot);
 
-      Kinetics_H1Problem<Kinetics> prob(kinetics, hs_o, dt, evolVals);
+      Kinetics_H1Problem<Kinetics> prob(kinetics, hs_o, dt, evolVals, tkelv);
       snls::SNLSTrDlDenseG<Kinetics_H1Problem<Kinetics> > solver(prob);
 
       snls::TrDeltaControl deltaControl;
@@ -176,10 +195,26 @@ namespace ecmech {
       }
 
       snls::SNLSStatus_t status = solver.solve( );
-      if (status != snls::converged) {
-         ECMECH_FAIL(__func__, "Solver failed to converge!");
-      }
+
       int nFevals = solver.getNFEvals();
+      if (status != snls::converged) {
+         snls::SNLSStatus_t status2 = status;
+         if constexpr(relaxed_solver) {
+            {
+               int maxIter = 100;
+               double tolerance = 1e-9;
+               solver.setupSolver(maxIter, tolerance, &deltaControl, outputLevel);
+            }
+            for (int iX = 0; iX < prob.nDimSys; ++iX) {
+               solver._x[iX] = 0e0;
+            }
+            status2= solver.solve();
+            nFevals = solver.getNFEvals();
+         }
+         if (status2 != snls::converged) {
+            nFevals = -1;
+         }
+      }
 
       hs_n = prob.getHn(solver._x);
 
@@ -193,20 +228,22 @@ namespace ecmech {
    class Kinetics_HNProblem
    {
       public:
-         static const int nDimSys = Kinetics::nH;
+         static constexpr int nDimSys = Kinetics::nH;
 
          // constructor
          __ecmech_hdev__
          Kinetics_HNProblem(const Kinetics* const kinetics,
                             const double* const h_o,
                             double dt,
-                            const double* const evolVals) :
-            _kinetics(kinetics), _h_o(h_o), _dt(dt), _evolVals(evolVals)
+                            const double* const evolVals,
+                            const double* const hvals,
+                            double tkelv) :
+            m_kinetics(kinetics), m_h_o(h_o), m_dt(dt), m_evolVals(evolVals), m_hvals(hvals), m_tkelv(tkelv)
          {
             for (int i = 0; i < nDimSys; i++) {
-               _x_scale[i] = fmax(_h_o[i], 1.0); // TO_DO -- generalize this to not max with 1
-               // NOTE : see comment below about changing Jacobian calculation if _res_scale != one / s_scale
-               _res_scale[i] = one / _x_scale[i];
+               m_x_scale[i] = fmax(m_h_o[i], 1.0); // TO_DO -- generalize this to not max with 1
+               // NOTE : see comment below about changing Jacobian calculation if m_res_scale != one / s_scale
+               m_res_scale[i] = one / m_x_scale[i];
             }
          }
 
@@ -218,7 +255,7 @@ namespace ecmech {
          inline
          void getHn(double* h, const double* const x) const {
             for (int i = 0; i < nDimSys; i++) {
-               h[i] = _h_o[i] + x[i] * _x_scale[i];
+               h[i] = m_h_o[i] + x[i] * m_x_scale[i];
             }
          }
 
@@ -229,29 +266,29 @@ namespace ecmech {
                         const double* const x) {
             double h[nDimSys];
             for (int i = 0; i < nDimSys; i++) {
-               h[i] = _h_o[i] + x[i] * _x_scale[i];
+               h[i] = m_h_o[i] + x[i] * m_x_scale[i];
             }
 
             double sdot[nDimSys];
             // The dsdot_ds portion of the Jacobian is set in here if it was provided
-            _kinetics->getSdotN(sdot, Jacobian, h, _evolVals);
+            m_kinetics->getSdotN(sdot, Jacobian, h, m_evolVals, m_hvals, m_tkelv);
 
             for (int i = 0; i < nDimSys; i++) {
-               resid[i] = (x[i] * _x_scale[i] - sdot[i] * _dt) * _res_scale[i];
+               resid[i] = (x[i] * m_x_scale[i] - sdot[i] * m_dt) * m_res_scale[i];
             }
 
             if (Jacobian) {
                // Multiply dsdot_ds terms by the negative outer product of x_scale and res_scale and dt
                for (int i = 0; i < nDimSys; i++) {
                   for (int j = 0; j < nDimSys; j++) {
-                     Jacobian[ECMECH_NN_INDX(i, j, nDimSys)] *= -_x_scale[j] * _res_scale[i] * _dt;
+                     Jacobian[ECMECH_NN_INDX(i, j, nDimSys)] *= -m_x_scale[j] * m_res_scale[i] * m_dt;
                   }
                }
 
                // Now add in the identity term
-               // The below is based on the assumption that _res_scale = 1/_x_scale
+               // The below is based on the assumption that m_res_scale = 1/m_x_scale
                // if this were to change in the future version than this would need to become
-               // Jacobian[ECMECH_NN_INDX(i, i, nDimSys)] += ecmech::one * _x_scale[i] * _r_scale[i]
+               // Jacobian[ECMECH_NN_INDX(i, i, nDimSys)] += ecmech::one * m_x_scale[i] * _r_scale[i]
                for (int i = 0; i < nDimSys; i++) {
                   Jacobian[ECMECH_NN_INDX(i, i, nDimSys)] += ecmech::one;
                }
@@ -261,17 +298,23 @@ namespace ecmech {
          } // computeRJ
 
       private:
-         const Kinetics* _kinetics;
-         const double* const _h_o;
-         const double _dt;
-         const double* const _evolVals;
-         double _x_scale[nDimSys], _res_scale[nDimSys];
+         const Kinetics* m_kinetics;
+         const double* const m_h_o;
+         const double m_dt;
+         const double* const m_evolVals;
+         const double* const m_hvals;
+         const double m_tkelv;
+         double m_x_scale[nDimSys], m_res_scale[nDimSys];
    }; // class Kinetics_HNProblem
 
    /*
     * Helper function to run the state update solver for cases in which there are multiple hardness state variables.
+    If the solve did not fail then it returns the number of function evaluations
+    the solver required. However, if it did fail then it returns a -1 value
+    to signal failure rather than throwing failures. This is done as we
+    throw exceptions on GPUs so we need a way to handle failures.
     */
-   template<class Kinetics>
+   template<class Kinetics, bool relaxed_solver = false>
    __ecmech_hdev__
    inline
    int
@@ -280,12 +323,14 @@ namespace ecmech {
             const double* const hs_o,
             double dt,
             const double* const gdot,
+            const double* const hvals,
+            double tkelv,
             int outputLevel = 0)
    {
       double evolVals[Kinetics::nEvolVals];
       kinetics->getEvolVals(evolVals, gdot);
 
-      Kinetics_HNProblem<Kinetics> prob(kinetics, hs_o, dt, evolVals);
+      Kinetics_HNProblem<Kinetics> prob(kinetics, hs_o, dt, evolVals, hvals, tkelv);
       snls::SNLSTrDlDenseG<Kinetics_HNProblem<Kinetics> > solver(prob);
 
       snls::TrDeltaControl deltaControl;
@@ -301,10 +346,26 @@ namespace ecmech {
       }
 
       snls::SNLSStatus_t status = solver.solve( );
-      if (status != snls::converged) {
-         ECMECH_FAIL(__func__, "Solver failed to converge!");
-      }
+
       int nFevals = solver.getNFEvals();
+      if (status != snls::converged) {
+         snls::SNLSStatus_t status2 = status;
+         if constexpr(relaxed_solver) {
+            {
+               int maxIter = 100;
+               double tolerance = 1e-9;
+               solver.setupSolver(maxIter, tolerance, &deltaControl, outputLevel);
+            }
+            for (int iX = 0; iX < prob.nDimSys; ++iX) {
+               solver._x[iX] = 0e0;
+            }
+            status2= solver.solve();
+            nFevals = solver.getNFEvals();
+         }
+         if (status2 != snls::converged) {
+            nFevals = -1;
+         }
+      }
 
       prob.getHn(hs_n, solver._x);
 
@@ -317,5 +378,7 @@ namespace ecmech {
  */
 #include "ECMech_kinetics_KMBalD.h"
 #include "ECMech_kinetics_VocePL.h"
+#include "ECMech_kinetics_OrowanD.h"
+#include "ECMech_kinetics_BCCMD.h"
 
 #endif // ECMECH_KINETICS_H

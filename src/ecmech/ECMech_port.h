@@ -3,6 +3,8 @@
 #ifndef ECMECH_port_h__
 #define ECMECH_port_h__
 
+#include "ECMech_gpu_portability.h"
+
 #if ECMECH_HAVE_MSLIB
 
 #include "MS_port.h"
