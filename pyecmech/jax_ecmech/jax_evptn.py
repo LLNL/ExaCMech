@@ -136,12 +136,16 @@ class evptnClass:
         # Note not all systems will actually use chia so it might just be a zeros vector
         # We're just combining things here to make our lives a bit less complicated at the
         # cost of efficiency
-        _, schmid_system_p_vecs, schmid_system_q_vecs = self.slip_geom_class.get_PQ_chia(crystal_kirchoff_dev)
+        chi, schmid_system_p_vecs, schmid_system_q_vecs = self.slip_geom_class.get_PQ_chia(crystal_kirchoff_dev, True)
 
         # Calculate our resolved shear stress and then slip rates
-        rss = self.slip_geom_class.evaluate_RSS(crystal_kirchoff_dev)
+        rss = self.slip_geom_class.evaluate_RSS(crystal_kirchoff_dev, schmid_system_p_vecs)
         # Eventually we should be able to have the derivative terms calculated for us through AD but for now that's not important
-        slip_rates = self.slip_kinetics_class.eval_slip_rates(rss, self.kinetic_vals)
+        if self.slip_geom_class.dynamic >= 1:
+            rsschi = jnp.hstack([rss, chi])
+            slip_rates = self.slip_kinetics_class.eval_slip_rates(rsschi, self.kinetic_vals)
+        else:
+            slip_rates = self.slip_kinetics_class.eval_slip_rates(rss, self.kinetic_vals)
         # Calculate the plastic slip rate symmetric and skew tensor values
         plastic_def_rate_dev_vecs = jnp.dot(schmid_system_p_vecs, slip_rates)
         plastic_spin_dev_vecs = jnp.dot(schmid_system_q_vecs, slip_rates)
@@ -245,7 +249,7 @@ def get_response(slip_geom_class, slip_kinetics_class, thermo_elas_class, eos_cl
     crystal_kirchoff_dev = calc_kirchoff_stress()
 
     # Hardening update using beg of time step values
-    chia, _, _ = slip_geom_class.get_PQ_chia(crystal_kirchoff_dev)
+    chia, _, _ = slip_geom_class.get_PQ_chia(crystal_kirchoff_dev, setvals=True)
     # ignore the nfev value returned as we don't save it anywhere
     _, hard_state_n1 = slip_kinetics_class.update_hardness(hard_state_n, chia, slip_rate_n, delta_time, temp_k)
 
@@ -311,7 +315,81 @@ def get_response(slip_geom_class, slip_kinetics_class, thermo_elas_class, eos_cl
 
     stress_vec = stress_vec_pressure_n1[0:-1]
     stress_vec = stress_vec.at[0:3].set(stress_vec[0:3] - stress_vec_pressure_n1[-1])
-    return (stress_vec, (history_update, internal_energy_n1, temp_k, sdd))
+
+    return (stress_vec, (history_update, internal_energy_n1, temp_k, sdd, jnp.copy(xs)))
+
+# Due to the above nonlinear solver consistently giving NANs during the backpropagation step to get
+# out the material tangent stiffness matrix, we needed to resort to essentially duplicating portions
+# of the above so that we could get out correct values of the material tangent stiffness matrix when doing AD calcs :/
+def get_response_mtan(slip_geom_class, slip_kinetics_class, thermo_elas_class, eos_class,
+                      delta_time, def_rate_samp, spin_vec_samp,
+                      vol_ratio_vec, history_vec, ie_peos_tk_hard_tup, xs):
+
+    hist_class = jec.HistClass(slip_geom_class, slip_kinetics_class, thermo_elas_class, eos_class)
+
+    dmean = -1.0 / 3.0 * (def_rate_samp[0] + def_rate_samp[1] + def_rate_samp[2])
+
+    def_rate_vec7_samp = jnp.asarray([def_rate_samp[0] + dmean,
+                                      def_rate_samp[1] + dmean,
+                                      def_rate_samp[2] + dmean,
+                                      def_rate_samp[3],
+                                      def_rate_samp[4],
+                                      def_rate_samp[5],
+                                      -3.0 * dmean])
+
+    def_dev_vec_samp = jeu.sym_vec_to_vec_dev(def_rate_vec7_samp)
+
+    slip_rate_n = hist_class.get_slip_rate(history_vec)
+    elas_dev_vec_n = hist_class.get_elas_dev(history_vec)
+    # This also normalizes the quats just in-case they weren't ahead of time
+    crystal_quat_n = hist_class.get_quats(history_vec)
+
+    energy_new, press_eos, temp_k, hard_state_n1 = ie_peos_tk_hard_tup
+
+    def calc_kirchoff_stress():
+        a_vol = jnp.power(vol_ratio_vec[1], 1.0 / 3.0)
+        inv_a_vol = 1.0 / a_vol
+        elas_dev = inv_a_vol * elas_dev_vec_n
+        elas_dev = jnp.hstack((elas_dev, jnp.sqrt(3.0) * jnp.log(a_vol))) 
+        return thermo_elas_class.eval(elas_dev, press_eos, energy_new)
+
+    crystal_kirchoff_dev = calc_kirchoff_stress()
+
+    # Hardening update using beg of time step values
+    chia, _, _ = slip_geom_class.get_PQ_chia(crystal_kirchoff_dev, setvals=True)
+    # Elastic and lattice rotation updates
+
+    evptn_class = evptnClass(slip_geom_class, slip_kinetics_class, thermo_elas_class,
+                             delta_time, vol_ratio_vec[1], energy_new, press_eos,
+                             temp_k, hard_state_n1, elas_dev_vec_n, crystal_quat_n,
+                             def_dev_vec_samp, spin_vec_samp)
+
+    # Technically not correct but this does allow JAX to get out more or less the correct
+    # material tangent stiffness matrix. If we could tell JAX to only worry about the last
+    # iteration of our various nonlinear solver updates for the jacobian calcs then this
+    # wouldn't be an issue...
+    resid, jacob = evptn_class.compute_resid_jacobian(xs)
+    xsol = xs - jnp.linalg.solve(jacob, resid)
+
+    resid = evptn_class.get_residual(xsol)
+
+    evptn_class.calculate_other_terms(xsol)
+
+    elas_dev_vec_n1, crystal_quat_n1 = evptn_class.get_state_from_x(xsol)
+
+    cauchy_crystal = evptn_class.elas_strain_to_cauchy_stress(elas_dev_vec_n1)
+
+    rmat_n1 = jeu.quat_to_rmat(crystal_quat_n1)
+    rmat_m5 = jeu.rot_mat_to_rot_mat5(rmat_n1)
+
+    cauchy_samp_dev_vec = jnp.dot(rmat_m5, cauchy_crystal[0:5])
+    cauchy_samp = jnp.hstack((cauchy_samp_dev_vec, cauchy_crystal[-1]))
+    stress_vec_pressure_n1 = jeu.dev_vec_to_sym_vec(cauchy_samp)
+
+    stress_vec = stress_vec_pressure_n1[0:-1]
+    stress_vec = stress_vec.at[0:3].set(stress_vec[0:3] - stress_vec_pressure_n1[-1])
+
+    return stress_vec
 
 if __name__ == "__main__":
 
@@ -422,7 +500,3 @@ if __name__ == "__main__":
     jax.debug.print("{}", hist_class.get_quats(history_update))
     print("Number of function evaluations")
     jax.debug.print("{}", history_update[hist_class.ind_hist_num_func_evals])
-
-
-
-

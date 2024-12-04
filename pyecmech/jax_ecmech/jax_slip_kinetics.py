@@ -825,7 +825,6 @@ class SlipKineticOrowanD:
 
         solver = optx.Dogleg(rtol=1e-6, atol=1e-8, norm=optx.two_norm)
         sol = optx.root_find(self.update_hard_resid, solver=solver, y0=init_sol, args=args, throw=False)
-        # jax.debug.print("{}", jnp.linalg.norm(self.update_hard_resid(sol.value, args)))
         xs = sol.value
         nfev = sol.stats["num_steps"]
 
@@ -884,6 +883,241 @@ class SlipKineticOrowanD:
         q_t_dot = q_mult_dot - q_ann_dot
 
         return jnp.hstack([q_m_dot, q_t_dot])  * (1.0 / hard_state_exp)
+
+
+class SlipKineticBCCMD:
+    def __init__(self, params):
+        
+        #slip_system_geometry_class = params["slip_system_geometry_class"]
+        #self.slip_geom_dynamic = slip_system_geometry_class.dynamic
+        slip_system_geometry = params["slip_system_geometry"]
+        self.slip_geom_dynamic = (slip_system_geometry == "bcc_pencil")
+        
+        #self.num_slip_systems = slip_system_geometry_class.num_slip_systems
+        self.num_slip_systems = params["num_slip_systems"]
+        self.num_hard = self.num_slip_systems
+        
+        #self.nIH = 1
+        # Number of parameters the model needs to be instantiated
+        self.num_params = 8+4+1
+        # Number of slip kinetic related-variables outputted
+        self.num_vals = 2 * self.num_slip_systems + 1
+        # num of evol vals are signed scalar mobile dislocation velocity
+        self.num_evolve_vals = self.num_hard
+        
+        self.mu = params["shear_mod"]
+        self.bmag = params["bergers_magnitude"]
+        
+        xm = params["slip_kinetics_exp_m"]
+        xnn = 1.0 / xm
+        self.xn  = xnn - 1.0
+        self.t_min = jnp.power(jec.GAM_RATIO_MIN, xm)
+        self.t_max = jnp.power(jec.GAM_RATIO_OVF, xm)
+        
+        self.gam_w0 = params["slip_kinetics_gam_w0"]
+        self.tau_p = params["slip_kinetics_tau_p"]
+        self.alpha_p = params["slip_kinetics_alpha_p"]
+        self.vmax = params["slip_kinetics_vmax"]
+        self.tau_drag = params["slip_kinetics_tau_drag"]
+        
+        # Hardening paraneters
+        self.alpha = params["slip_kinetics_alpha"]
+        self.k1 = params["slip_kinetics_k1"]
+        self.k2 = params["slip_kinetics_k2"]
+        self.krelax = params["slip_kinetics_krelax"]
+        self.gdot_0 = params["slip_kinetics_gdot_0"]
+        self.temp_k0 = params["slip_kinetics_temp_k0"]
+        self.ak = params["slip_kinetics_ak"]
+        self.hdn_init = params["slip_kinetics_hdn_init"]
+        self.hdn_min = 1e-4 * self.hdn_init
+    
+    # isn't the argument supposed to be params instead of parameters??
+    def get_parameters(self, parameters):
+        
+        params["shear_mod"] = self.mu
+        params["bergers_magnitude"] = self.bmag
+        params["slip_kinetics_exp_m"] = self.xm
+        params["slip_kinetics_gam_w0"] = self.gam_w0
+        params["slip_kinetics_tau_p"] = self.tau_p
+        params["slip_kinetics_alpha_p"] = self.alpha_p
+        params["slip_kinetics_vmax"] = self.vmax
+        params["slip_kinetics_tau_drag"] = self.tau_drag
+        params["slip_kinetics_alpha"] = self.alpha
+        params["slip_kinetics_k1"] = self.k1
+        params["slip_kinetics_k2"] = self.k2
+        params["slip_kinetics_krelax"] = self.krelax
+        params["slip_kinetics_gdot_0"] = self.gdot_0
+        params["slip_kinetics_temp_k0"] = self.temp_k0
+        params["slip_kinetics_ak"] = self.ak
+        params["slip_kinetics_hdn_init"] = self.hdn_init
+        
+        return params
+    
+    def get_history_info(self, names, init, plot, state):
+        
+        for i in range(self.num_slip_systems):
+            name = "rho_" + str(i)
+            names.append(name)
+            init.append(self.hdn_init)
+            plot.append(True)
+            state.append(True)
+        
+        return (names, init, plot, state)
+        
+    def get_fixed_reference_rate(self, values):
+        return self.gam_w0
+    
+    def get_values(self, pressure, temp_k, hard_state):
+        
+        values = jnp.zeros(self.num_vals)
+        crss = jnp.sum(hard_state[0:self.num_slip_systems])
+        crss = self.alpha * self.mu * self.bmag * jnp.sqrt(crss)
+        mVals = crss
+        for i in range(self.num_slip_systems):
+            values = values.at[i].set(crss)
+            values = values.at[self.num_slip_systems+i].set(hard_state[i])
+        values = values.at[self.num_vals].set(temp_k)
+        
+        return (mVals, jnp.asarray(values))
+        
+    def calc_slip_rate(self, tau, chi, crss, rho, tK):
+        
+        def gdot_fun(tau, chi, crss, rho, tK):
+            tau_p = self.tau_p / jnp.cos(chi-self.alpha_p)
+            t_eff = jnp.maximum(jnp.abs(tau) - tau_p, 0.0)
+            g_i = 1.0 / crss
+            t_frac = t_eff * g_i
+            t_frac = jnp.copysign(t_frac, tau)
+            at = jnp.abs(t_frac)
+            gam_w = jax.lax.cond(
+                self.gam_w0 < 0.0,
+                lambda: jnp.abs(self.gam_w0),
+                lambda: rho * self.bmag * self.gam_w0
+            )
+            gmax = rho * self.bmag * self.vmax * (1.0-jnp.exp(-t_eff/self.tau_drag))
+            
+            def gdot_fun2(at, gam_w, t_frac, gmax):
+                blog = self.xn * jnp.log(at)
+                gdot = gam_w * jnp.exp(blog) * t_frac
+                # Smooth capping to gmax with Lorentz-like factor
+                ac = 10.0
+                fact = 1.0 / jnp.power(1.0 + jnp.power(jnp.abs(gdot)/gmax, ac), 1.0/ac)
+                gdot = fact * gdot
+                return gdot
+            
+            gdot = jnp.select(
+                condlist=[
+                    (at > self.t_min) & (at > self.t_max),
+                    (at > self.t_min) & (at <= self.t_max)
+                ],
+                choicelist=[
+                    jnp.copysign(jec.GAM_RATIO_OVF * gam_w, tau),
+                    gdot_fun2(at, gam_w, t_frac, gmax)
+                ],
+                default=0.0
+            )
+            
+            return gdot
+        
+        gdot = jax.lax.cond(
+            tau == 0.0,
+            lambda: 0.0,
+            lambda: gdot_fun(tau, chi, crss, rho, tK)
+        )
+        
+        return gdot
+    
+    def eval_slip_rates(self, rss, values):
+        tK = values[-1]
+        shear_dot = jnp.zeros(self.num_slip_systems)
+        for islip in range(self.num_slip_systems):
+            if rss.size == self.num_slip_systems:
+                # to debug only, should always provide chi for this model
+                taua, chia = rss[islip], 0.0
+            else:
+                taua, chia = rss[islip], rss[self.num_slip_systems+islip]
+            crss, rhoa = values[islip], values[self.num_slip_systems+islip]
+            shear_dot = shear_dot.at[islip].set(self.calc_slip_rate(taua, chia, crss, rhoa, tK))
+            #print(' ',islip,'taua',taua,'chia',chia*180.0/jnp.pi,'rhoa',rhoa,'gdot',shear_dot[islip])
+        return shear_dot
+    
+    def update_hardness(self, hard_state_0, hard_vals, gdot, delta_time, temp_k):
+        hard_state_init = jnp.log(jnp.maximum(hard_state_0, self.hdn_min))
+        evol_vals = jnp.hstack([jnp.abs(gdot), jnp.sum(jnp.abs(gdot))])
+        init_sol = jnp.zeros_like(hard_state_init)
+        args = (hard_state_init, evol_vals, delta_time, hard_vals, temp_k)
+        '''
+        solver = snls.SNLSTrDlDenseG(self.compute_resid_jacobian, xtolerance=1e-10, ndim=init_sol.shape[0], args=args)
+        solver.delta_control.deltaInit = 1.0
+        status, xs = solver.solve(init_sol)
+        nfev = solver.nfev
+        '''
+        self.compute_resid_jacobian(init_sol, args=args)
+        solver = optx.Dogleg(rtol=1e-6, atol=1e-8, norm=optx.two_norm)
+        sol = optx.root_find(self.update_hard_resid, solver=solver, y0=init_sol, args=args, throw=False)
+        xs = sol.value
+        nfev = sol.stats["num_steps"]
+
+        x_scale = jnp.minimum(hard_state_init, 1.0)
+        hard_delta = xs * x_scale
+        hard_state = jnp.exp(hard_state_init + hard_delta)
+        
+        return (nfev, jnp.copy(hard_state))
+
+    def update_hard_resid(self, x, args=()):
+        hard_state_0, evol_vals, delta_time, h_vals, temp_k = args
+        x_scale = jnp.minimum(hard_state_0, 1.0)
+        res_scale = 1.0 / x_scale
+        
+        hard_state = hard_state_0 + x * x_scale
+        hard_state_dot = self.get_hard_state_dot(hard_state, evol_vals, h_vals, temp_k)
+        
+        residual = (x * x_scale - hard_state_dot * delta_time) * res_scale
+        return residual
+
+    def update_hard_jacob(self, x, args=()):
+        return jax.jacfwd(self.update_hard_resid, argnums=0)(x, args)
+
+    def compute_resid_jacobian(self, x, args=()):
+        residual = self.update_hard_resid(x, args)
+        jacob = self.update_hard_jacob(x, args)
+        return (residual, jacob)
+    
+    def get_hard_state_dot(self, hard_state, evol_vals, h_vals, temp_k):
+        nslip = self.num_slip_systems
+
+        hexp = jnp.maximum(jnp.exp(hard_state), jec.EPS)
+        gamma = evol_vals[-1]
+
+        def k1_func(xi):
+            return self.k1 * (1.0 + self.ak) / (jnp.cos(xi - self.alpha_p))
+
+        def k2_func():
+            gamma_ratio = jax.lax.cond(gamma > jec.GAM_RATIO_MIN, lambda: (gamma / self.gdot_0), lambda: 0.0)
+            return self.k2 * gamma_ratio * jnp.log(temp_k / self.temp_k0)
+
+        def f_func(abs_gamma_dot):
+            A = 100.0
+            t = 0.01
+            gamma_ratio = jax.lax.cond(gamma > jec.GAM_RATIO_MIN, lambda: (abs_gamma_dot / gamma), lambda: jec.GAM_RATIO_MAX)
+            exp_inner = -A * (gamma_ratio - t)
+            return 1.0 - ( 1.0 + jnp.exp(exp_inner))
+
+        def k_relax_func(h):
+            relax_term = 1.0 - jnp.exp(- (h - self.hdn_min) / self.hdn_min)
+            return relax_term
+
+        a_mat = jnp.eye(nslip)
+        amat_rho_sqrt = jnp.sqrt(a_mat.dot(hexp))
+        sdot = jnp.zeros(nslip)
+
+        for islip in range(nslip):
+            k1 = k1_func(h_vals[islip]) * evol_vals[islip]
+            k2 = k2_func() * evol_vals[islip]
+            fval = f_func(evol_vals[islip]) * self.krelax * k_relax_func(hexp[islip])
+            sdot = sdot.at[islip].set(((k1 * amat_rho_sqrt[islip] - k2 * hexp[islip]) - fval * hexp[islip]) / hexp[islip])
+
+        return sdot
 
 if __name__ == "__main__":
 
@@ -1023,4 +1257,3 @@ if __name__ == "__main__":
 
             gdot_expected = 64.795444829571
             print(gdots_update[0], gdot_expected)
-

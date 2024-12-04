@@ -26,6 +26,8 @@ import jax_slip_kinetics as jslkin
 import jax_thermo_elastn as jtelas
 import jax_evptn as jevptn
 
+np.set_printoptions(linewidth=np.inf)
+
 class evptnWrapClass:
     def __init__(
                  self,
@@ -39,6 +41,9 @@ class evptnWrapClass:
             case "bcc" | "BCC":
                 self.crystal_symmetry = "cubic"
                 self.slip_geom_class = jslgeo.SlipGeomBCC(params)
+            case "bcc_pencil":
+                self.crystal_symmetry = "cubic"
+                self.slip_geom_class = jslgeo.SlipGeomBCCPencil(params)
             case _ :
                 val = params["slip_system_geometry"]
                 raise ValueError(f"A slip_system_geometry value was not provided {val}")
@@ -56,6 +61,7 @@ class evptnWrapClass:
 
         # update our bulk modulus value based on what thermo_elas_class calculated
         params["bulk_modulus_0"] = self.thermo_elas_class.bulk_mod
+        params["shear_mod"] = self.thermo_elas_class.shear_mod
 
         match params["eos_class_isothermal"]:
             case "isothermal" | "true" | True:
@@ -72,6 +78,8 @@ class evptnWrapClass:
                 self.slip_kinetics_class = jslkin.SlipKineticOrowanD(params)
             case "km_bal_dd":
                 self.slip_kinetics_class = jslkin.SlipKineticMTSKocksMecking(params)
+            case "bcc_md":
+                self.slip_kinetics_class = jslkin.SlipKineticBCCMD(params)
             case _ :
                 val = params["slip_kinetics_hardening_class"]
                 raise ValueError(f"A slip_kinetics_hardening_class value was not provided {val}")
@@ -81,13 +89,30 @@ class evptnWrapClass:
         self.hist_class = jec.HistClass(self.slip_geom_class, self.slip_kinetics_class, self.thermo_elas_class, self.eos_class)
         self.num_hist = self.hist_class.num_hist
 
-        self.get_response_jit = jax.jit(jevptn.get_response, static_argnums=(0, 1, 2, 3, 5))
-        self.mtan_jit = jax.jit(jax.jacrev(self.get_response_jit, argnums=6, has_aux=True), static_argnums=(0, 1, 2, 3, 5))
+        # Plain JAX jit funcs
+        self.get_response_jit = jax.jit(self.get_response_jittable)
+        self.mtan_jit = jax.jit(jax.jacrev(self.get_response_mtan_jittable, argnums=1, has_aux=False))
         # Still a WIP to get all the necessary things ported to JAX idioms so that
         # we can have vectorized calls
         # So this does at least appear to work as the code doesn't crash...
         # No idea if it actually works though...
         # self.batch_solve = jax.vmap(self.solve)
+
+    def get_response_jittable(self, 
+                 delta_time, def_rate_samp, spin_vec_samp,
+                 vol_ratio_vec, internal_energy, stress_vec_pressure, history_vec,
+                 temp_k):
+        return jevptn.get_response(self.slip_geom_class, self.slip_kinetics_class, self.thermo_elas_class, self.eos_class, 
+                 delta_time, self.solver_tolerance, def_rate_samp, spin_vec_samp,
+                 vol_ratio_vec, internal_energy, stress_vec_pressure, history_vec,
+                 temp_k)
+
+    def get_response_mtan_jittable(self, 
+                 delta_time, def_rate_samp, spin_vec_samp,
+                 vol_ratio_vec, history_vec, ie_peos_tk_hard_tup, sols):
+        return jevptn.get_response_mtan(self.slip_geom_class, self.slip_kinetics_class, self.thermo_elas_class, self.eos_class, 
+                 delta_time, def_rate_samp, spin_vec_samp,
+                 vol_ratio_vec, history_vec, ie_peos_tk_hard_tup, sols)
 
     def init_history_vec(self, elas_dev=None, quats=None, hard_state=None, slip_rate=None, shear_rate_eff=None, shear_eff=None, flow_strength=None):
         if elas_dev is None:
@@ -97,7 +122,6 @@ class evptnWrapClass:
         if hard_state is None:
             # currently only sub-module which would have non-trivial values here
             _, hard_state, _, _ = self.slip_kinetics_class.get_history_info(list(), list(), list(), list())
-            print(hard_state)
             hard_state = jnp.asarray(hard_state)
         if slip_rate is None:
             slip_rate  = jnp.zeros(self.slip_geom_class.num_slip_systems)
@@ -153,21 +177,21 @@ class evptnWrapClass:
         return params
 
     def mtan_calc(self, args=()):
-        delta_time, def_rate_samp, spin_vec_samp, vol_ratio_vec, internal_energy, stress_vec_pressure, history_vec, temp_k, sdd = args
-        jacobians, others = self.mtan_jit(
-                self.slip_geom_class, self.slip_kinetics_class, self.thermo_elas_class, self.eos_class,
-                delta_time, self.solver_tolerance, def_rate_samp, spin_vec_samp,
-                vol_ratio_vec, internal_energy, stress_vec_pressure, history_vec,
-                temp_k
+        delta_time, def_rate_samp, spin_vec_samp, vol_ratio_vec, history_vec, ie_peos_tk_hard_tup, sols, sdd = args
+        jacobians = self.mtan_jit(
+                delta_time, def_rate_samp, spin_vec_samp,
+                vol_ratio_vec, history_vec,
+                ie_peos_tk_hard_tup, sols
             )
 
         jacob_bulk = np.zeros((6, 6))
         jacob_bulk[-1,-1] = 3.0 * sdd[0]
         jacob_bulk *= delta_time
         jacob_bulk = jeu.mtan_conv_sd_svec(jacob_bulk, True)
-
+        jacobians = jnp.where(jnp.abs(jacobians) > 1e-16, jacobians, 0.0)
         jacob_np = np.asarray(jacobians) + jacob_bulk
-        jacob_np[3:-1, 3:-1] *= 0.5
+        jacob_np = np.where(np.abs(jacob_np) > 1e-16, jacob_np, 0.0)
+        jacob_np[0:6, 3:6] *= 0.5
 
         return jacob_np
 
@@ -202,20 +226,20 @@ class evptnWrapClass:
         #         )
 
         stress_vec, others = self.get_response_jit(
-                        self.slip_geom_class, self.slip_kinetics_class, self.thermo_elas_class, self.eos_class,
-                        delta_time, self.solver_tolerance, def_rate_samp, spin_vec_samp,
+                        jnp.array(delta_time), def_rate_samp, spin_vec_samp,
                         vol_ratio_vec, internal_energy, stress_vec_pressure, history_vec,
-                        temp_k
+                        jnp.array(temp_k)
                     )
 
         pressure = -jnp.sum(stress_vec[0:3]) / 3.0
         stress_vec = stress_vec.at[0:3].set(stress_vec[0:3] + pressure)
         stress_vec_pressure_n1 = jnp.hstack((stress_vec, pressure))
-        history_update, internal_energy_n1, temp_k, sdd = others
+        history_update, internal_energy_n1, temp_k, sdd, sols = others
 
         jacob_np = None
         if need_mtan:
-            args = (delta_time, def_rate_samp, spin_vec_samp, vol_ratio_vec, internal_energy, stress_vec_pressure, history_vec, temp_k, sdd)
+            ie_peos_tk_hard_tup = (internal_energy_n1, pressure, temp_k, self.hist_class.get_hard_state(history_update))
+            args = (delta_time, def_rate_samp, spin_vec_samp, vol_ratio_vec, history_vec, ie_peos_tk_hard_tup, sols, sdd)
             jacob_np = self.mtan_calc(args)
 
         return (stress_vec_pressure_n1, history_update, internal_energy_n1, temp_k, sdd, jacob_np)
@@ -259,8 +283,8 @@ if __name__ == "__main__":
     params["slip_kinetics_hardening_class"] = "voce_pl"
 
     evptn_wc = evptnWrapClass(params)
-
-    history_vec = evptn_wc.init_history_vec()
+    quats = np.asarray([1.0, 0.0, 0.0, 0.0])
+    history_vec = evptn_wc.init_history_vec(quats=quats)
 
     jax.debug.print("history vec {}", history_vec)
 
@@ -279,8 +303,8 @@ if __name__ == "__main__":
 
     # Note the last value returned here is the material tangent stiffness matrix
     # It is only calculated if the user asks us to
-    stress_vec_pressure_n1, history_update, internal_energy_n1, temp_k, sdd, junk = evptn_wc.solve(
-                 delta_time, def_rate_samp, spin_vec_samp, vol_ratio_vec, internal_energy, stress_vec_pressure, history_vec, temp_k)
+    stress_vec_pressure_n1, history_update, internal_energy_n1, temp_k, sdd, mtan = evptn_wc.solve(
+                 delta_time, def_rate_samp, spin_vec_samp, vol_ratio_vec, internal_energy, stress_vec_pressure, history_vec, temp_k, True)
 
     # Still working on getting all the conditionals into a JAX friendly manner so we can vectorize and JIT
     # compile things if need be...
@@ -311,5 +335,5 @@ if __name__ == "__main__":
     jax.debug.print("{}", evptn_wc.hist_class.get_quats(history_update))
     print("Number of function evaluations")
     jax.debug.print("{}", history_update[evptn_wc.hist_class.ind_hist_num_func_evals])
-
-
+    print("MTan array")
+    print(mtan)

@@ -7,23 +7,43 @@ Created on Fri Aug 25 09:38:58 2023
 """
 
 import numpy as np
-import pyecmech as pecm
 
 import jax
 import jax.numpy as jnp
 jax.config.update("jax_enable_x64", True)
 
-NWVEC = pecm.constants.nwvec
-NTVEC = pecm.constants.ntvec
-NSVP = pecm.constants.nsvp
-NSDD = pecm.constants.nsdd
-DBL_TINY_SQRT = pecm.constants.dbl_tiny_sqrt
-GAM_RATIO_OVFFX = pecm.constants.gam_ratio_ovffx
-GAM_RATIO_MIN = pecm.constants.gam_ratio_min
-GAM_RATIO_OVF = pecm.constants.gam_ratio_ovf
-LN_GAM_RATIO_MIN = pecm.constants.ln_gam_ratio_min
-ELAS_SCALE = 5e-4
-ROT_SCALE = 0.01
+try:
+    import pyecmech as pecm
+    NWVEC = pecm.constants.nwvec
+    NTVEC = pecm.constants.ntvec
+    NSVP = pecm.constants.nsvp
+    NSDD = pecm.constants.nsdd
+    QDIM = pecm.constants.qdim
+    DBL_TINY_SQRT = pecm.constants.dbl_tiny_sqrt
+    GAM_RATIO_OVFFX = pecm.constants.gam_ratio_ovffx
+    GAM_RATIO_MIN = pecm.constants.gam_ratio_min
+    GAM_RATIO_OVF = pecm.constants.gam_ratio_ovf
+    LN_GAM_RATIO_MIN = pecm.constants.ln_gam_ratio_min
+    ELAS_SCALE = pecm.constants.e_scale
+    ROT_SCALE = pecm.constants.r_scale
+except:
+    NWVEC = int(3)
+    NTVEC = int(5)
+    NSVP = int(7)
+    NSDD = int(2)
+    QDIM = int(4)
+    DBL_TINY_SQRT = 1.0e-90
+    GAM_RATIO_OVFFX = 1.0e45
+    GAM_RATIO_MIN = 1.0e-60
+    GAM_RATIO_OVF = 1.0e60
+    LN_GAM_RATIO_MIN = -138.15
+    ELAS_SCALE = 5e-4
+    ROT_SCALE = 0.01
+GAM_RATIO_MAX = 1.0e30
+EPS = 2.22e-16
+
+GAM_RATIO_MAX = 1.0e30
+EPS = 2.22e-16
 
 class HistClass:
     def __init__(self,
