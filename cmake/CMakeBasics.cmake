@@ -1,24 +1,47 @@
 ################################
 # Version
 ################################
-set(PACKAGE_BUGREPORT "barton22@llnl.gov")
+set(PACKAGE_BUGREPORT "carson16@llnl.gov")
 
 set(ECMech_VERSION_MAJOR 0)
-set(ECMech_VERSION_MINOR 3)
+set(ECMech_VERSION_MINOR 4)
 set(ECMech_VERSION_PATCH \"0\")
 
-set(HEADER_INCLUDE_DIR
-    ${PROJECT_BINARY_DIR}/include
+set(ECMECH_HEADER_INCLUDE_DIR
+    ${PROJECT_BINARY_DIR}/include/ecmech
     CACHE PATH
     "Directory where all generated headers will go in the build tree")
-
-configure_file( src/ecmech/ECMech_Version.h.in
-                ${HEADER_INCLUDE_DIR}/ECMech_Version.h )
 
 ################################
 # Setup build options and their default values
 ################################
+
 include(cmake/ECMechOptions.cmake)
+
+##############################
+# settings into ECMech_config.h
+##############################
+
+set(HAVE_ECMECH "1" CACHE STRING "")
+
+if(USE_DPEFF)
+    set(ECMECH_USE_DPEFF "1" CACHE STRING "")
+endif()
+
+if(ENABLE_PYTHON)
+    set(ECMECH_PY "1" CACHE STRING "")
+endif()
+
+if(ENABLE_EXTRA_SOLVERS)
+    set(ECMECH_EXTRA_SOLVERS "1" CACHE STRING "1")
+endif()
+
+if(CMAKE_BUILD_TYPE MATCHES DEBUG)
+    set(ECMECH_DEBUG "1" CACHE STRING "")
+endif()
+
+configure_file( src/ecmech/ECMech_config.h.in
+                ${ECMECH_HEADER_INCLUDE_DIR}/ECMech_config.h )
 
 ################################
 # Third party library setup

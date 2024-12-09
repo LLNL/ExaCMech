@@ -1,0 +1,4 @@
+./cases/rand_quats_openmp.txt
+evptn_FCC_A
+./cases/props.txt
+OpenMP

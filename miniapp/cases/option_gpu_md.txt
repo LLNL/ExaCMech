@@ -1,0 +1,7 @@
+./cases/rand_quats_gpu.txt
+evptn_BCC_MD
+./cases/props_bcc_md.txt
+GPU
+1e5
+60
+[[-5e-10 0 0], [0 -5e-10 0], [0 0 1e-9]]

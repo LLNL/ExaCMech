@@ -1,10 +1,27 @@
 set(ECMECH_MINIAPP_DEPENDS )
 
-SET(CMAKE_C_FLAGS_DEBUG   "${CMAKE_C_FLAGS_DEBUG}   -DECMECH_DEBUG")
-SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DECMECH_DEBUG")
-
 ecmech_fill_depends_list(LIST_NAME  ECMECH_MINIAPP_DEPENDS
-                        DEPENDS_ON raja snls cuda openmp)
+                        DEPENDS_ON RAJA snls)
+
+if (${BLT_VERSION} VERSION_GREATER_EQUAL 0.6.0)
+    if(ENABLE_CUDA)
+        list(APPEND ECMECH_DEPENDS blt::cuda_runtime blt::cuda) 
+    endif()
+    if(ENABLE_OPENMP)
+        list(APPEND ECMECH_MINIAPP_DEPENDS blt::openmp) 
+    endif()
+else()
+    if(ENABLE_CUDA)
+        list(APPEND ECMECH_MINIAPP_DEPENDS cuda cuda_runtime) 
+    endif()
+    if(ENABLE_OPENMP)
+        list(APPEND ECMECH_MINIAPP_DEPENDS openmp) 
+    endif()
+endif()
+
+if(ENABLE_HIP)
+    list(APPEND ECMECH_MINIAPP_DEPENDS blt::hip blt::hip_runtime)
+endif()
 
 if(BUILD_STATIC_LIBS)
     list(APPEND ECMECH_MINIAPP_DEPENDS ecmech_static ${SNLS_STATIC_TARGET})

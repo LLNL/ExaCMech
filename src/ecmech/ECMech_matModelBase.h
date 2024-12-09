@@ -4,9 +4,13 @@
 #define ECMech_matModelBase_include
 
 #include <string>
+#include <sstream>
 #include <vector>
 
 #include "ECMech_core.h"
+
+#define DUMPVECOSS(aname, a) oss << aname << " : "; \
+   for (unsigned int iThing = 0; iThing<a.size(); ++iThing) { if (iThing) { oss << ", "; } oss << a[iThing]; } oss << std::endl;
 
 namespace ecmech {
    // **************** //
@@ -16,32 +20,36 @@ namespace ecmech {
    class matModelBase
    {
       protected:
-         bool  _complete;
-         double _rho0, _cvav, _v0, _e0, _bulkRef;
-         ecmech::ExecutionStrategy _accel;
+         bool  m_complete;
+         double m_density0, m_cvav, m_rel_vol0, m_energy0, m_bulkRef;
+         int m_outputLevel;
+         ecmech::ExecutionStrategy m_accel;
 
          // constructor
          __ecmech_host__
          matModelBase() :
-            _complete(false),
-            _rho0(-1.0),
-            _cvav(-1.0),
-            _v0(-1.0),
-            _e0(-1.0),
-            _bulkRef(-1.0),
-            _accel(ecmech::ExecutionStrategy::CPU)
-         {};
+            m_complete(false),
+            m_density0(-1.0),
+            m_cvav(-1.0),
+            m_rel_vol0(-1.0),
+            m_energy0(-1.0),
+            m_bulkRef(-1.0),
+            m_outputLevel(0),
+            m_accel(ECM_EXEC_STRAT_CPU)
+         {}
 
       public:
          // deconstructor
          __ecmech_host__
-         virtual ~matModelBase() {};
+         virtual ~matModelBase() {}
 
+         __ecmech_host__
          virtual void initFromParams(const std::vector<int>& opts,
                                      const std::vector<double>& pars,
                                      const std::vector<std::string>& strs,
                                      void* call_back = nullptr) = 0;
 
+         __ecmech_host__
          virtual void getParams(std::vector<int>& opts,
                                 std::vector<double>& pars,
                                 std::vector<std::string>& strs) const = 0;
@@ -49,7 +57,17 @@ namespace ecmech {
          /**
           * @brief log parameters, including history information; more human-readable than getParams output
           */
-         virtual void logParameters(std::ostringstream& oss) const = 0;
+         __ecmech_host__
+         virtual void logParameters(std::ostringstream& oss) const {
+            std::vector<int>         opts;
+            std::vector<double>      pars;
+            std::vector<std::string> strs;
+            this->getParams(opts, pars, strs);
+            oss << "evptn constitutive model" << std::endl;
+            DUMPVECOSS("  opts", opts);
+            DUMPVECOSS("  pars", pars);
+            DUMPVECOSS("  strs", strs);
+         }
 
          /**
           * @brief Request response information for a group of host-code
@@ -59,7 +77,7 @@ namespace ecmech {
           * For arguments tha are of length x*nPassed, indexing is fastest along x
           *
           * The interface is always for 3D deformation -- in 2D some of the
-          * deformation rate (defRateV) and spin (spinV) will be zero. For
+          * deformation rate (def_rate_d6vV) and spin (spin_vecV) will be zero. For
           * anisotropic materials, the stress response can still be fully
           * populated with non-zeros. If the stress is used to encode state
           * for the given material model (which depends on the details of the
@@ -85,16 +103,16 @@ namespace ecmech {
           *
           * @param[in] dt : Time step size
           *
-          * @param[in] defRateV : Components of the deformation rate (symmetric part of the velocity gradient)
+          * @param[in] def_rate_d6vV : Components of the deformation rate (symmetric part of the velocity gradient)
           * length nsvp*nPassed
           * Voigt ordering
           * first six components are the deviatoric part (zero trace)
           * along nsvp :
           *    [dxx, dyy, dzz, dyz, dxz, dxy, vdov]
-          * for vdov, see volRatio; but note that sometimes other expressions are used for vdov;
+          * for vdov, see rel_vol_ratios; but note that sometimes other expressions are used for vdov;
           *    for example in implicit global time stepping
           *
-          * @param[in] spinV : Components of the spin (skew part of the velocity gradient)
+          * @param[in] spin_vecV : Components of the spin (skew part of the velocity gradient)
           * length ndim*nPassed
           * Voigt ordering
           *    wxx = (L32-L23)/2
@@ -103,23 +121,23 @@ namespace ecmech {
           * along ndim :
           *    [wxx, wyy, wzz]
           *
-          * @param volRatio[in] : information about volume evolution
+          * @param rel_vol_ratios[in] : information about volume evolution
           * length nvr*nPassed
           * along nvr :
-          *    [vOld, vNew, vdov, delv]
-          * vOld -- relative volume at beginning of time step
-          * vNew -- relative volume at end of time step
-          * vdov = delv / (dt * 0.5*(vNew+vOld)) -- volumetric strain rate
-          * delv = vNew - vOld -- increment in relative volume
+          *    [rel_vol_old, rel_vol_new, vdov, delv]
+          * rel_vol_old -- relative volume at beginning of time step
+          * rel_vol_new -- relative volume at end of time step
+          * vdov = delv / (dt * 0.5*(rel_vol_new+rel_vol_old)) -- volumetric strain rate
+          * delv = rel_vol_new - rel_vol_old -- increment in relative volume
           *
-          * @param eIntV[in,out] : Internal energy per reference volume
+          * @param internal_energyV[in,out] : Internal energy per reference volume
           * length ne*nPassed
           * along ne :
           *    [eTotal, cold, eQ, etherms, ?, ?, deltrh, ?, deltz, eMelt]
           * on input, all but the eTotal (first entry) should be zero, and eTotal is beginning-of-step;
           * on output, eTotal is updated to end-of-step
           *
-          * @param stressSvecPV[in,out] : Cauchy stress components
+          * @param cauchy_stress_d6pV[in,out] : Cauchy stress components
           * length nsvp*nPassed
           * first six components are the deviatoric part (zero trace)
           * along nsvp :
@@ -147,17 +165,17 @@ namespace ecmech {
           */
 
          __ecmech_host__
-         virtual void getResponse(const double & dt,
-                                  const double * defRateV,
-                                  const double * spinV,
-                                  const double * volRatioV,
-                                  double * eIntV,
-                                  double * stressSvecPV,
-                                  double * histV,
-                                  double * tkelvV,
-                                  double * sddV,
-                                  double * mtanSDV,
-                                  const int & nPassed) const = 0;
+         virtual void getResponseECM(const double & dt,
+                                     const double * def_rate_d6vV,
+                                     const double * spin_vecV,
+                                     const double * rel_vol_ratiosV,
+                                     double * internal_energyV,
+                                     double * cauchy_stress_d6pV,
+                                     double * histV,
+                                     double * tkelvV,
+                                     double * sddV,
+                                     double * mtanSDV,
+                                     const int & nPassed) const = 0;
 
          /**
           * @brief
@@ -173,8 +191,12 @@ namespace ecmech {
           * @brief
           * Get number of history variables
           */
-         __ecmech_hdev__
+         __ecmech_host__
          virtual int getNumHist( ) const = 0;
+
+
+         __ecmech_host__
+         virtual void updateStrides(std::vector<size_t> strides) = 0;
 
          /**
           *  @brief
@@ -182,34 +204,37 @@ namespace ecmech {
           */
          __ecmech_host__
          virtual void setExecutionStrategy(ecmech::ExecutionStrategy accel)  {
-            _accel = accel;
-         };
+            m_accel = accel;
+         }
 
          /**
           * @brief Get the reference density
           */
-         __ecmech_hdev__
+         __ecmech_host__
          virtual double getRhoRef() const {
-            if (_rho0 < 0.0) { // want to be able to call this before _complete
-               ECMECH_FAIL(__func__, "rho0 does not appear to have been set");
+            if (m_density0 < 0.0) { // want to be able to call this before m_complete
+               ECMECH_FAIL(__func__, "density0 does not appear to have been set");
             }
-            return _rho0;
-         };
+            return m_density0;
+         }
+
+         __ecmech_host__
+         void setOutputLevel(int outputLevel) { m_outputLevel = outputLevel; }
 
 
          /**
           * @brief
           * May end up requiring this to be called before the model may be used; and probably want to redefine this
           */
-         __ecmech_hdev__
-         virtual void complete() { _complete = true; };
+         __ecmech_host__
+         virtual void complete() { m_complete = true; }
 
          /**
           * @brief
           * Return whether or not complete has been called
           */
-         __ecmech_hdev__
-         virtual bool isComplete() { return _complete; };
+         __ecmech_host__
+         virtual bool isComplete() { return m_complete; }
    }; // class matModelBase
 } // ecmech namespace
 

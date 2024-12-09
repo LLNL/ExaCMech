@@ -7,13 +7,11 @@
 
 #include <cmath>
 
-#ifdef ECMECH_DEBUG
-#ifdef __cuda_host_only__
+#if defined(ECMECH_DEBUG) && defined(__ecmech_host_only__)
 #include <iostream>
 #include <string>
 #include <sstream>
 #include <iomanip>
-#endif
 #endif
 
 #include "RAJA/RAJA.hpp"
@@ -133,9 +131,11 @@ namespace ecmech {
    template<int n>
    __ecmech_hdev__
    inline void vecsVNormalize(double* const v){
-      double s = 1.0 / vecNorm<n>(v);
+      const double norm = vecNorm<n>(v);
+      const double s = (fabs(norm) > idp_eps) ? 1.0 / norm : 1.0 / idp_eps;
       vecsVsa<n>(v, s);
    }
+   // -fsanitize=address -fsanitize=undefined -fno-sanitize-recover=all -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fno-omit-frame-pointer -fno-optimize-sibling-calls 
 
    /**
     * @brief matrix transposed times vector for square matrix
@@ -487,6 +487,27 @@ namespace ecmech {
       inv_to_quat(quat, inv);
    }
 
+   // emap is simply the condensed 3 component version of an angle-axis vector
+   __ecmech_hdev__
+   inline void quat_to_emap(double* const emap,
+                            const double* const quat) {
+
+      constexpr auto tol = std::numeric_limits<double>::epsilon();
+      const auto phi = 2.0 * acos(quat[0]);
+
+      if (fabs(quat[0]) < tol) {
+         emap[0] = quat[1] * M_PI;
+         emap[1] = quat[2] * M_PI;
+         emap[2] = quat[3] * M_PI;
+      } else {
+         const double sign = (quat[0] < 0.0) ? -1.0 : 1.0; 
+         const double s = sign / sqrt(quat[1] * quat[1] + quat[2] * quat[2] + quat[3] * quat[3]);
+         emap[0] = s * quat[1] * phi;
+         emap[1] = s * quat[2] * phi;
+         emap[2] = s * quat[3] * phi; 
+      }
+   }
+
    /**
     * @brief calculate quaternion product q = a . b
     */
@@ -499,6 +520,33 @@ namespace ecmech {
       q[1] = a[0] * b[1] + a[1] * b[0] + a[2] * b[3] - a[3] * b[2];
       q[2] = a[0] * b[2] - a[1] * b[3] + a[2] * b[0] + a[3] * b[1];
       q[3] = a[0] * b[3] + a[1] * b[2] - a[2] * b[1] + a[3] * b[0];
+   }
+
+   /**
+    * @brief calculate quaternion inverse q^{-1}
+    * q^{-1} = 1 / |q| [q0, -q1, -q2, -q3]
+    */
+   __ecmech_hdev__
+   inline void quat_inverse(double* const inv_quat,
+                            const double* const quat) {
+      // I mean this should be equal to 1 as we're dealing with unit quats...
+      const double inv_quat_norm = 1.0 / vecNorm<ecmech::qdim>(quat);
+      inv_quat[0] = inv_quat_norm * quat[0];
+      inv_quat[1] = -inv_quat_norm * quat[1];
+      inv_quat[2] = -inv_quat_norm * quat[2];
+      inv_quat[3] = -inv_quat_norm * quat[3];
+   }
+
+   /**
+    * @brief calculate quaternion product q' = q^{-1}_1 . q_2
+    */
+   __ecmech_hdev__
+   inline void quat_rel_rotation(double* const qprime,
+                                 const double* const q1,
+                                 const double* const q2) {
+      double q1_inv[4] = {1.0, 0.0, 0.0, 0.0};
+      quat_inverse(q1_inv, q1);
+      quat_prod(qprime, q1_inv, q2);
    }
 
    __ecmech_hdev__
@@ -556,7 +604,7 @@ namespace ecmech {
                                 ) {
       // include "mc_vars.f90"
       // include "set_mc.f90"
-#include "mc_vars_set.h"
+#include "util/mc_vars_set.h"
 
 
       // IF ((UBOUND(c,DIM=1) /= DIMS) .OR. (UBOUND(c,DIM=2) /= DIMS)) &
@@ -613,7 +661,7 @@ namespace ecmech {
    inline void M35_d_AAoB_dA(double* const M35, // nwvec * ntvec
                              const double* const cmv6b // nsvec or ntvec -- cmv6b[iSvecS] not accessed
                              ) {
-#include "vb_d_vars_set.h"
+#include "util/vb_d_vars_set.h"
       // include "M36_d_AAoB_dA.f90"
 
       M35[ECMECH_NM_INDX(0, 0, nwvec, ntvec)] = vb5 * onehalf;
@@ -820,8 +868,8 @@ namespace ecmech {
                                     const double* const vec_sm // (TVEC)
                                     )
    {
-#include "mc_vars_set.h"
-#include "vad_vars_set.h"
+#include "util/mc_vars_set.h"
+#include "util/vad_vars_set.h"
 
       // include "d_Alat_dC.f90"
       RAJA::View<double, RAJA::Layout<3> > dvdc(dvdc_raw, ecmech::ntvec, ecmech::ndim, ecmech::ndim);
@@ -888,7 +936,7 @@ namespace ecmech {
                                       const double* const cmv3w // (WVEC) // vec_sm(WVEC)
                                       )
    {
-#include "vw_vars_set.h"
+#include "util/vw_vars_set.h"
 
       // include "d_Wlat_dC.f90"
       RAJA::View<double, RAJA::Layout<3> > dvdc(dvdc_raw, ecmech::nwvec, ecmech::ndim, ecmech::ndim);
@@ -931,16 +979,16 @@ namespace ecmech {
     */
    __ecmech_hdev__
    inline
-   void eval_d_dxi_impl_quat(double* const dC_quat_dxi_T, // (WVEC,QDIM_p)
-                             // double* const dC_matx_dxi, // (DIMS,DIMS,WVEC)
+   void eval_d_dxi_impl_quat(double* const dxtal_ori_quat_dxi_T, // (WVEC,QDIM_p)
+                             // double* const dxtal_rmat_dxi, // (DIMS,DIMS,WVEC)
                              double* const dDapp_dxi, // dDapp_dxi(TVEC, WVEC)
                              double* const dWapp_dxi, // dWapp_dxi(WVEC, WVEC)
-                             const double* const d_vecd_sm, // (TVEC), or (SVEC) is fine too
+                             const double* const def_rate_d5_sample, // (TVEC), or (SVEC) is fine too
                              const double* const w_vec_sm, // (WVEC)
                              const double* const xi, // (WVEC)
-                             const double* const Cn_quat, // (QDIM_p)
-                             const double* const C_matx, // (DIMS,DIMS)
-                             const double* const C_quat // (QDIM_p)
+                             const double* const xtal_ori_quat_n, // (QDIM_p)
+                             const double* const xtal_rmat, // (DIMS,DIMS)
+                             const double* const xtal_ori_quat // (QDIM_p)
                              // const double* const A_quat // (QDIM_p) // not used
                              ) {
       // working with quats, so do not call eval_d_cA_dxi(dc_dxi, dA_dxi, xi, c_n)
@@ -951,34 +999,34 @@ namespace ecmech {
 
          // can get away with these three calls as quat_prod is bilinear in the input arguments
          //
-         quat_prod(&(dC_quat_dxi_T[ecmech::qdim * 0]), Cn_quat, &(dA_quat_dxi_T[ecmech::qdim * 0]) );
-         quat_prod(&(dC_quat_dxi_T[ecmech::qdim * 1]), Cn_quat, &(dA_quat_dxi_T[ecmech::qdim * 1]) );
-         quat_prod(&(dC_quat_dxi_T[ecmech::qdim * 2]), Cn_quat, &(dA_quat_dxi_T[ecmech::qdim * 2]) );
+         quat_prod(&(dxtal_ori_quat_dxi_T[ecmech::qdim * 0]), xtal_ori_quat_n, &(dA_quat_dxi_T[ecmech::qdim * 0]) );
+         quat_prod(&(dxtal_ori_quat_dxi_T[ecmech::qdim * 1]), xtal_ori_quat_n, &(dA_quat_dxi_T[ecmech::qdim * 1]) );
+         quat_prod(&(dxtal_ori_quat_dxi_T[ecmech::qdim * 2]), xtal_ori_quat_n, &(dA_quat_dxi_T[ecmech::qdim * 2]) );
       }
-      // now have dC_quat_dxi
+      // now have dxtal_ori_quat_dxi
 
-      double dC_matx_dxi[ (ecmech::ndim * ecmech::ndim) *ecmech::nwvec ]; // (DIMS,DIMS,WVEC)
+      double dxtal_rmat_dxi[ (ecmech::ndim * ecmech::ndim) *ecmech::nwvec ]; // (DIMS,DIMS,WVEC)
       {
          double dCmatx_dq[ (ecmech::ndim * ecmech::ndim) *ecmech::qdim ]; // (DIMS,DIMS,QDIM_p)
-         // get dC_matx_dxi
-         d_quat_to_tensor(dCmatx_dq, C_quat);
-         vecsMABT<ndim*ndim, nwvec, qdim>(dC_matx_dxi, dCmatx_dq, dC_quat_dxi_T); // vecsMABT because _T on dC_quat_dxi_T
+         // get dxtal_rmat_dxi
+         d_quat_to_tensor(dCmatx_dq, xtal_ori_quat);
+         vecsMABT<ndim*ndim, nwvec, qdim>(dxtal_rmat_dxi, dCmatx_dq, dxtal_ori_quat_dxi_T); // vecsMABT because _T on dxtal_ori_quat_dxi_T
       }
 
       {
-         double dD_dC_matx[ ecmech::ntvec * (ecmech::ndim * ecmech::ndim) ];
-         d_rot_mat_vecd_latop(dD_dC_matx, C_matx, d_vecd_sm);
+         double dD_dxtal_rmat[ ecmech::ntvec * (ecmech::ndim * ecmech::ndim) ];
+         d_rot_mat_vecd_latop(dD_dxtal_rmat, xtal_rmat, def_rate_d5_sample);
          //
-         vecsMAB<ntvec, nwvec, ndim*ndim>(dDapp_dxi, dD_dC_matx, dC_matx_dxi);
+         vecsMAB<ntvec, nwvec, ndim*ndim>(dDapp_dxi, dD_dxtal_rmat, dxtal_rmat_dxi);
          // dDapp_dxi(SVEC,:) = zero
       }
 
       {
-         double dW_dC_matx[ ecmech::nwvec * (ecmech::ndim * ecmech::ndim) ]; // (WVEC,DIMS,DIMS)
-         d_rot_mat_wveccp_latop(dW_dC_matx, // C_matx,
+         double dW_dxtal_rmat[ ecmech::nwvec * (ecmech::ndim * ecmech::ndim) ]; // (WVEC,DIMS,DIMS)
+         d_rot_mat_wveccp_latop(dW_dxtal_rmat, // xtal_rmat,
                                 w_vec_sm);
          //
-         vecsMAB<nwvec, nwvec, ndim*ndim>(dWapp_dxi, dW_dC_matx, dC_matx_dxi);
+         vecsMAB<nwvec, nwvec, ndim*ndim>(dWapp_dxi, dW_dxtal_rmat, dxtal_rmat_dxi);
       }
    }
 
@@ -996,8 +1044,8 @@ namespace ecmech {
       // dvdc is d({vec_sm})/d{C}
       //
 
-#include "mc_vars_set.h"
-#include "vadl_vars_set.h"
+#include "util/mc_vars_set.h"
+#include "util/vadl_vars_set.h"
 
       // include "d_Asm_dC.f90"
       RAJA::View<double, RAJA::Layout<3> > dvdc(dvdc_raw, ecmech::ntvec, ecmech::ndim, ecmech::ndim);
@@ -1193,7 +1241,7 @@ namespace ecmech {
          }
       }
    } // mtan_conv_sd_svec
-
+  
    __ecmech_hdev__
    inline
    void
@@ -1213,7 +1261,7 @@ namespace ecmech {
    inline
    void
    m_to_o_dir(double* const dir_o, // ecmech::ndim
-              const double* const dir_m,  // ecmech::nMiller
+              const double* const dir_m, // ecmech::nMiller
               double cOverA
               ) {
       // note: this does not assume SUM(dir_m[:]) = 0
@@ -1324,11 +1372,11 @@ namespace ecmech {
 #endif
    } // miller_to_orthog_sngl
 
-#ifdef ECMECH_DEBUG
-#ifdef __cuda_host_only__
+#if defined(ECMECH_DEBUG) && defined(__ecmech_host_only__)
+
    template<int n>
    inline void
-   printVec(const double* const y, std::ostream & oss) {
+   printVec(const double* const y, std::ostream & oss = std::cout) {
       for (int iX = 0; iX<n; ++iX) {
          oss << std::setw(21) << std::setprecision(14) << y[iX] << " ";
       }
@@ -1344,20 +1392,32 @@ namespace ecmech {
 
       oss << std::endl;
    }
-
+   
    template<int n>
    inline void
-   printMat(const double* const A, std::ostream & oss) {
+   printMat(const double* const A, std::ostream & oss = std::cout) {
       for (int iX = 0; iX<n; ++iX) {
          for (int jX = 0; jX<n; ++jX) {
             oss << std::setw(21) << std::setprecision(14) << A[ECMECH_NN_INDX(iX, jX, n)] << " ";
          }
+         oss << std::endl;
+      }
+      oss << std::endl;
+   }
+
+   template<int n, int m>
+   inline void
+   printMat(const double* const A, std::ostream & oss = std::cout) {
+      for (int iX = 0; iX<n; ++iX) {
+         for (int jX = 0; jX<m; ++jX) {
+            oss << std::setw(21) << std::setprecision(14) << A[ECMECH_NM_INDX(iX, jX, n, m)] << " ";
+         }
 
          oss << std::endl;
       }
+      oss << std::endl;
    }
 
-#endif
 #endif
 } // namespace ecmech
 

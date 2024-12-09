@@ -2,8 +2,7 @@
 
 #include "SNLS_TrDLDenseG.h"
 
-#include "ECMech_cases.h"
-#include "ECMech_evptnWrap.h"
+#include "cases/ECMech_cases_fcc_defs.h"
 
 #define STACK_PARAMS
 
@@ -13,6 +12,7 @@
 
 #if DO_FD_CHECK_MTAN
 // if doing finite-difference check of tangent stiffness, then change some other defaults
+// it is useful to have a mushy rate sensitivity (more rate sensitive) for checking the tangent stiffness as the finite differencing gets a better result
 #define NON_I_QUAT 1
 #define KIN_TYPE 0
 #define XM_MUSHY 1
@@ -35,16 +35,17 @@ TEST(ecmech, updst_a)
    using namespace ecmech;
 
 #if KIN_TYPE
-   matModelEvptn_FCC_B* mmodel = new matModelEvptn_FCC_B();
+   using mat_model = matModelEvptn_FCC_B;
 #else
-   matModelEvptn_FCC_A* mmodel = new matModelEvptn_FCC_A();
+   using mat_model = matModelEvptn_FCC_A;
 #endif
+   mat_model* mmodel = new mat_model();
    matModelBase* mmb = dynamic_cast<matModelBase*>(mmodel);
 
 #include "setup_base.h"
    std::vector<int>           opts; // none
    std::vector<std::string>   strs; // none
-   std::vector<double>         params { rho0, cvav, tolerance };
+   std::vector<double>         params { density0, cvav, tolerance };
 #if KIN_TYPE
 
 #include "setup_elastn.h"
@@ -59,6 +60,11 @@ TEST(ecmech, updst_a)
 
 #endif
    //
+   DUMPVEC("opts", opts);
+   DUMPVEC("params", params);
+   DUMPVEC("strs", strs);
+   //
+   mmb->setExecutionStrategy(ecmech::ExecutionStrategy::CPU);
    mmb->initFromParams(opts, params, strs);
    //
    mmb->complete();
@@ -85,39 +91,39 @@ TEST(ecmech, updst_a)
 
    // int numHist = hist_vec.size() ; // should equal mmodel->numHist
 
-   const int nPassed = 1; // just do a single point here as a simple example
+   constexpr int nPassed = 1; // just do a single point here as a simple example
 
    mmodel->setOutputLevel(outputLevel); // would not normally do this in a production setting
 
    static const int iHistLbGdot = mmodel->iHistLbGdot;
    double* gdot = &(hist[iHistLbGdot]);
-#ifdef ECMECH_DEBUG
+#if defined(ECMECH_DEBUG) && defined(__ecmech_host_only__)
    std::cout << "Initial hist : ";
-   printVec(hist, mmodel->numHist, std::cout);
+   ecmech::printVec(hist, mmodel->numHist, std::cout);
 #endif
 #include "setup_conditions.h"
    {
-      double eInt[ecmech::ne] = { 0.0 };
-      double stressSvecP[ecmech::nsvp] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+      double internal_energy[ecmech::ne] = { 0.0 };
+      double cauchy_stress_d6p[ecmech::nsvp] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                                            0.0 };
       double tkelv[nPassed];
       double sdd[ecmech::nsdd * nPassed];
 
-      mmb->getResponse(dt, d_svec_kk_sm, w_veccp_sm, volRatio,
-                       eInt, stressSvecP, hist, tkelv, sdd, nullptr,
-                       nPassed);
+      mmb->getResponseECM(dt, def_rate_d6v_sample, spin_vec_sample, rel_vol_ratios,
+                          internal_energy, cauchy_stress_d6p, hist, tkelv, sdd, nullptr,
+                          nPassed);
 
       std::cout << "Function evaluations: " << hist[evptn::iHistA_nFEval] << std::endl;
    }
-#ifdef ECMECH_DEBUG
+#if defined(ECMECH_DEBUG) && defined(__ecmech_host_only__)
    std::cout << "Updated hist : ";
-   printVec(hist, mmodel->numHist, std::cout);
+   ecmech::printVec(hist, mmodel->numHist, std::cout);
 
    std::cout << "Hardness state : ";
-   printVec<mmodel->nH>(&(hist[ecmech::evptn::iHistLbH]), std::cout);
+   ecmech::printVec<mat_model::nH>(&(hist[ecmech::evptn::iHistLbH]), std::cout);
 
    std::cout << "Slip system shearing rates : ";
-   printVec<mmodel->nslip>(gdot, std::cout);
+   ecmech::printVec<mat_model::nslip>(gdot, std::cout);
 #endif
    EXPECT_TRUE(hist[evptn::iHistA_nFEval] == expectedNFEvals) << "Not the expected number of function evaluations";
    EXPECT_LT(fabs(hist[evptn::iHistLbE + 1] - expectedE2), 1e-10) <<
@@ -135,16 +141,17 @@ TEST(ecmech, driver_a)
    using namespace ecmech;
 
 #if KIN_TYPE
-   matModelEvptn_FCC_B* mmodel = new matModelEvptn_FCC_B();
+   using mat_model = matModelEvptn_FCC_B;
 #else
-   matModelEvptn_FCC_A* mmodel = new matModelEvptn_FCC_A();
+   using mat_model = matModelEvptn_FCC_A;
 #endif
+   mat_model* mmodel = new mat_model();
    matModelBase* mmb = dynamic_cast<matModelBase*>(mmodel);
 
 #include "setup_base.h"
    std::vector<int>           opts; // none
    std::vector<std::string>   strs; // none
-   std::vector<double>         params { rho0, cvav, tolerance };
+   std::vector<double>         params { density0, cvav, tolerance };
 #if KIN_TYPE
 
 #include "setup_elastn.h"
@@ -159,6 +166,11 @@ TEST(ecmech, driver_a)
 
 #endif
    //
+   DUMPVEC("opts", opts);
+   DUMPVEC("params", params);
+   DUMPVEC("strs", strs);
+   //
+   mmb->setExecutionStrategy(ecmech::ExecutionStrategy::CPU);
    mmb->initFromParams(opts, params, strs);
    //
    mmb->complete();
@@ -190,54 +202,53 @@ TEST(ecmech, driver_a)
    mmodel->setOutputLevel(outputLevel); // would not normally do this in a production setting
 
    double relRate = 1e-6;
-   double d_svec_kk_sm[ecmech::nsvp] = { -0.5 * relRate, -0.5 * relRate, 1.0 * relRate,
+   double def_rate_d6v_sample[ecmech::nsvp] = { -0.5 * relRate, -0.5 * relRate, 1.0 * relRate,
                                          0.0, 0.0, 0.0,
                                          0.0 };
-   // vecsVsa<ecmech::nsvp>(d_svec_kk_sm, sqr2b3) ; // nope, choose not to do that here
+   // vecsVsa<ecmech::nsvp>(def_rate_d6v_sample, sqr2b3) ; // nope, choose not to do that here
    //
-   double d_vecd_sm[ecmech::ntvec];
-   svecToVecd(d_vecd_sm, d_svec_kk_sm);
+   double def_rate_d5_sample[ecmech::ntvec];
+   svecToVecd(def_rate_d5_sample, def_rate_d6v_sample);
 
    // dt value in setup_conditions.h is meant to stress the implementation --
    // here go with a smaller value to be able to make a nicer curve
    double dt = 0.002 / relRate;
    int nStep = 100;
 
-   double w_veccp_sm[ecmech::nwvec] = { 0.0, 0.0, 0.0 };
+   double spin_vec_sample[ecmech::nwvec] = { 0.0, 0.0, 0.0 };
 
-   double volRatio[ecmech::nvr] = { 1.0, 1.0, 0.0, 0.0 };
+   double rel_vol_ratios[ecmech::nvr] = { 1.0, 1.0, 0.0, 0.0 };
 
-   double eInt[ecmech::ne] = { 0.0 };
-   double stressSvecP[ecmech::nsvp] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+   double internal_energy[ecmech::ne] = { 0.0 };
+   double cauchy_stress_d6p[ecmech::nsvp] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                                         0.0 };
    double tkelv[nPassed];
    double sdd[ecmech::nsdd * nPassed];
 
 #if !(DO_FD_CHECK_MTAN)
    std::cout << "# time, Axial deviatoric stress, h[0], p : " << std::endl;
-#endif
    double time = 0.0;
+#endif
    //
    for (int iStep = 0; iStep<nStep; ++iStep) {
-      //
-      time += dt;
 
       // update current relative volume from the volumetric deformation rate
       //
-      volRatio[0] = volRatio[1];
-      volRatio[1] = volRatio[0] * exp(d_svec_kk_sm[ecmech::iSvecP] * dt);
-      volRatio[3] = volRatio[1] - volRatio[0];
-      volRatio[2] = volRatio[3] / (dt * 0.5 * (volRatio[0] + volRatio[1]) );
+      rel_vol_ratios[0] = rel_vol_ratios[1];
+      rel_vol_ratios[1] = rel_vol_ratios[0] * exp(def_rate_d6v_sample[ecmech::iSvecP] * dt);
+      rel_vol_ratios[3] = rel_vol_ratios[1] - rel_vol_ratios[0];
+      rel_vol_ratios[2] = rel_vol_ratios[3] / (dt * 0.5 * (rel_vol_ratios[0] + rel_vol_ratios[1]) );
 
-      mmb->getResponse(dt, d_svec_kk_sm, w_veccp_sm, volRatio,
-                       eInt, stressSvecP, hist, tkelv, sdd, nullptr,
-                       nPassed);
+      mmb->getResponseECM(dt, def_rate_d6v_sample, spin_vec_sample, rel_vol_ratios,
+                          internal_energy, cauchy_stress_d6p, hist, tkelv, sdd, nullptr,
+                          nPassed);
 
 #if !(DO_FD_CHECK_MTAN)
+      time += dt;
       std::cout << time << " "
-                << std::setprecision(14) << stressSvecP[2] << " "
+                << std::setprecision(14) << cauchy_stress_d6p[2] << " "
                 << std::setprecision(14) << hist[ecmech::evptn::iHistLbH + 0] << " "
-                << std::setprecision(14) << stressSvecP[iSvecP] << " "
+                << std::setprecision(14) << cauchy_stress_d6p[iSvecP] << " "
                 << std::endl;
 
       // std::cout << "hist : " ;
@@ -246,11 +257,11 @@ TEST(ecmech, driver_a)
    }
 
 #if KIN_TYPE && !(DO_FD_CHECK_MTAN)
-   EXPECT_LT(fabs(stressSvecP[2] - 0.006664661118275), 1e-10) <<
+   EXPECT_LT(fabs(cauchy_stress_d6p[2] - 0.006664661118275), 1e-10) <<
       "Did not get expected value for stress component";
    EXPECT_LT(fabs(hist[ecmech::evptn::iHistLbH + 0] - 88.61845050083), 1e-8) <<
       "Did not get expected value for history variable";
-   EXPECT_LT(fabs(stressSvecP[iSvecP] - 0.00332602112947), 1e-10) <<
+   EXPECT_LT(fabs(cauchy_stress_d6p[iSvecP] - 0.00332602112947), 1e-10) <<
       "Did not get expected value for stress component";
 #endif
 
@@ -260,76 +271,76 @@ TEST(ecmech, driver_a)
       // do another step, and do finite differencing to check mtanSD
 
       std::vector<double> hist_ref(hist, hist + mmodel->numHist);
-      std::vector<double> eInt_ref(eInt, eInt + ecmech::ne);
-      std::vector<double> stressSvecP_ref(stressSvecP, stressSvecP + ecmech::nsvp);
-      double v_ref = volRatio[1];
+      std::vector<double> internal_energy_ref(internal_energy, internal_energy + ecmech::ne);
+      std::vector<double> cauchy_stress_d6p_ref(cauchy_stress_d6p, cauchy_stress_d6p + ecmech::nsvp);
+      double v_ref = rel_vol_ratios[1];
 
-      volRatio[0] = v_ref;
-      volRatio[1] = volRatio[0] * exp(d_svec_kk_sm[ecmech::iSvecP] * dt);
-      volRatio[3] = volRatio[1] - volRatio[0];
-      volRatio[2] = volRatio[3] / (dt * 0.5 * (volRatio[0] + volRatio[1]) );
+      rel_vol_ratios[0] = v_ref;
+      rel_vol_ratios[1] = rel_vol_ratios[0] * exp(def_rate_d6v_sample[ecmech::iSvecP] * dt);
+      rel_vol_ratios[3] = rel_vol_ratios[1] - rel_vol_ratios[0];
+      rel_vol_ratios[2] = rel_vol_ratios[3] / (dt * 0.5 * (rel_vol_ratios[0] + rel_vol_ratios[1]) );
 
       double mtanSD_an[ecmech::nsvec2];
-      mmb->getResponse(dt, d_svec_kk_sm, w_veccp_sm, volRatio,
-                       eInt, stressSvecP, hist, tkelv, sdd, mtanSD_an,
-                       nPassed);
+      mmb->getResponseECM(dt, def_rate_d6v_sample, spin_vec_sample, rel_vol_ratios,
+                          internal_energy, cauchy_stress_d6p, hist, tkelv, sdd, mtanSD_an,
+                          nPassed);
 
 
-      double stressSvec[ecmech::nsvec];
-      svecpToSvec(stressSvec, stressSvecP);
-#ifdef ECMECH_DEBUG
+      double cauchy_stress[ecmech::nsvec];
+      svecpToSvec(cauchy_stress, cauchy_stress_d6p);
+#if defined(ECMECH_DEBUG) && defined(__ecmech_host_only__)
       std::cout << "mtanSD_an : " << std::endl;
       printMat<ecmech::nsvec>(mtanSD_an, std::cout);
 #endif
-      double d_svec_kk_sm_pert[ecmech::nsvp];
+      double def_rate_d6v_sample_pert[ecmech::nsvp];
       const double pertVal = 1e-8 * relRate;
       double mtanSD_fd[ecmech::nsvec2];
       //
-      double eInt_pert[ecmech::ne];
-      double stressSvecP_pert[ecmech::nsvp];
+      double internal_energy_pert[ecmech::ne];
+      double cauchy_stress_d6p_pert[ecmech::nsvp];
       //
       for (int jSvec = 0; jSvec<ecmech::nsvec; ++jSvec) {
-         std::copy(d_svec_kk_sm, d_svec_kk_sm + ecmech::nsvp, d_svec_kk_sm_pert);
+         std::copy(def_rate_d6v_sample, def_rate_d6v_sample + ecmech::nsvp, def_rate_d6v_sample_pert);
          if (jSvec < 3) {
-            d_svec_kk_sm_pert[jSvec] += pertVal;
-            double d_kk = d_svec_kk_sm_pert[0] + d_svec_kk_sm_pert[1] + d_svec_kk_sm_pert[2];
-            d_svec_kk_sm_pert[ecmech::iSvecP] += d_kk;
-            d_svec_kk_sm_pert[0] += (-ecmech::onethird * d_kk);
-            d_svec_kk_sm_pert[1] += (-ecmech::onethird * d_kk);
-            d_svec_kk_sm_pert[2] += (-ecmech::onethird * d_kk);
+            def_rate_d6v_sample_pert[jSvec] += pertVal;
+            double d_kk = def_rate_d6v_sample_pert[0] + def_rate_d6v_sample_pert[1] + def_rate_d6v_sample_pert[2];
+            def_rate_d6v_sample_pert[ecmech::iSvecP] += d_kk;
+            def_rate_d6v_sample_pert[0] += (-ecmech::onethird * d_kk);
+            def_rate_d6v_sample_pert[1] += (-ecmech::onethird * d_kk);
+            def_rate_d6v_sample_pert[2] += (-ecmech::onethird * d_kk);
          }
          else {
             // factor of 2 to go with l_ddsdde_gamma being true in call to mtan_conv_sd_svec ;
-            d_svec_kk_sm_pert[jSvec] += 0.5 * pertVal;
+            def_rate_d6v_sample_pert[jSvec] += 0.5 * pertVal;
          }
          //
-         volRatio[0] = v_ref;
-         volRatio[1] = volRatio[0] * exp(d_svec_kk_sm_pert[ecmech::iSvecP] * dt);
-         volRatio[3] = volRatio[1] - volRatio[0];
-         volRatio[2] = volRatio[3] / (dt * 0.5 * (volRatio[0] + volRatio[1]) );
+         rel_vol_ratios[0] = v_ref;
+         rel_vol_ratios[1] = rel_vol_ratios[0] * exp(def_rate_d6v_sample_pert[ecmech::iSvecP] * dt);
+         rel_vol_ratios[3] = rel_vol_ratios[1] - rel_vol_ratios[0];
+         rel_vol_ratios[2] = rel_vol_ratios[3] / (dt * 0.5 * (rel_vol_ratios[0] + rel_vol_ratios[1]) );
 
-         std::copy(eInt_ref.begin(), eInt_ref.end(), eInt_pert);
-         std::copy(stressSvecP_ref.begin(), stressSvecP_ref.end(), stressSvecP_pert);
+         std::copy(internal_energy_ref.begin(), internal_energy_ref.end(), internal_energy_pert);
+         std::copy(cauchy_stress_d6p_ref.begin(), cauchy_stress_d6p_ref.end(), cauchy_stress_d6p_pert);
 
          double tkelv_pert[nPassed];
          double sdd_pert[ecmech::nsdd * nPassed];
 
          std::copy(hist_ref.begin(), hist_ref.end(), hist); // make hist equal to hist_ref again
 
-         mmb->getResponse(dt, d_svec_kk_sm_pert, w_veccp_sm, volRatio,
-                          eInt_pert, stressSvecP_pert, hist, tkelv_pert, sdd_pert, nullptr,
-                          nPassed);
+         mmb->getResponseECM(dt, def_rate_d6v_sample_pert, spin_vec_sample, rel_vol_ratios,
+                             internal_energy_pert, cauchy_stress_d6p_pert, hist, tkelv_pert, sdd_pert, nullptr,
+                             nPassed);
 
-         double stressSvec_pert[ecmech::nsvec];
-         svecpToSvec(stressSvec_pert, stressSvecP_pert);
+         double cauchy_stress_pert[ecmech::nsvec];
+         svecpToSvec(cauchy_stress_pert, cauchy_stress_d6p_pert);
          //
          for (int iSvec = 0; iSvec<ecmech::nsvec; ++iSvec) {
             // divide by dt because tangent gets converted to a per-strain-increment type quantity
-            mtanSD_fd[ECMECH_NN_INDX(iSvec, jSvec, ecmech::nsvec)] = (stressSvec_pert[iSvec] - stressSvec[iSvec]) / pertVal / dt;
+            mtanSD_fd[ECMECH_NN_INDX(iSvec, jSvec, ecmech::nsvec)] = (cauchy_stress_pert[iSvec] - cauchy_stress[iSvec]) / pertVal / dt;
          }
       }
 
-#ifdef ECMECH_DEBUG
+#if defined(ECMECH_DEBUG) && defined(__ecmech_host_only__)
       std::cout << "mtanSD_fd : " << std::endl;
       printMat<ecmech::nsvec>(mtanSD_fd, std::cout);
 #endif

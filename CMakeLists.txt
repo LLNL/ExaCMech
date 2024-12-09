@@ -2,16 +2,28 @@
 # see README.md for copyright and license information
 # 
 
-cmake_minimum_required(VERSION 3.1)
-if("${CMAKE_VERSION}" VERSION_GREATER 3.3)
-    cmake_policy(SET CMP0057 NEW)
+cmake_minimum_required(VERSION 3.20)
+cmake_policy(SET CMP0042 NEW)
+cmake_policy(SET CMP0048 NEW)
+cmake_policy(SET CMP0057 NEW)
+
+if (APPLE)
+    cmake_policy(SET CMP0025 NEW)
 endif()
 
 message(STATUS "Using cmake version ${CMAKE_VERSION}")
 
 project(ECMECH LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 11)
+# GTest requires a C compiler when running with HIP...
+# On other systems this isn't necessarily an issue as CMake will
+# just pick-up a valid system C compiler but on our AMD GPU machines
+# that doesn't always happen.
+if (ENABLE_HIP AND ENABLE_TESTS)
+    enable_language(C)
+endif()
+
+set(CMAKE_CXX_STANDARD 17)
 
 ################################
 # BLT
@@ -53,7 +65,10 @@ set(BUILD_SHARED_LIBS ON CACHE BOOL "Build shared libraries")
 include(cmake/CMakeBasics.cmake)
 
 if(ENABLE_CUDA)
-  set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -restrict -arch ${CUDA_ARCH} --expt-extended-lambda --expt-relaxed-constexpr")
+  set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -restrict --expt-extended-lambda --expt-relaxed-constexpr")
+endif()
+if(ENABLE_HIP)
+    set(HIP_HIPCC_FLAGS ${RAJA_HIPCC_FLAGS})
 endif()
 
 ################################
@@ -68,6 +83,11 @@ if (DEFINED SNLS_DIR)
 else()
     # Use internal SNLS submodule if no SNLS_DIR is given
     set(SNLS_SOURCE_DIR "${PROJECT_SOURCE_DIR}/snls" CACHE PATH "")
+    if(ENABLE_CUDA OR ENABLE_HIP)
+        set(USE_BATCH_SOLVERS "ON" CACHE BOOL "")
+    else()
+        set(USE_RAJA_ONLY "ON" CACHE BOOL "")
+    endif()
     message(STATUS "Using submodule SNLS: ${SNLS_SOURCE_DIR}")
     if (NOT EXISTS ${SNLS_SOURCE_DIR}/CMakeLists.txt)
         message(FATAL_ERROR
@@ -96,3 +116,32 @@ endif(ENABLE_TESTS)
 if(ENABLE_MINIAPPS)
     add_subdirectory(miniapp)
 endif(ENABLE_MINIAPPS)
+
+if(ENABLE_PYTHON)
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+################################
+# PYBIND11
+################################
+    set(USE_BUILT_PYBIND OFF CACHE BOOL "")
+
+    set(PYBIND_SOURCE_DIR "${PROJECT_SOURCE_DIR}/pybind11" CACHE PATH "")
+    message(STATUS "Using submodule PYBIND11: ${PYBIND_SOURCE_DIR}")
+    if (NOT EXISTS ${PYBIND_SOURCE_DIR}/CMakeLists.txt)
+        message(FATAL_ERROR
+            "The pybind11 submodule is not present. "
+            "Run the following two commands in your git repository: \n"
+            "    git submodule init\n"
+            "    git submodule update\n"
+            "Or you can point to an already built pybind11 with PYBIND_DIR." )
+    endif()
+
+    add_subdirectory(pybind11)
+
+    # If using internal submodule use actual CMake targets
+    set(PYBIND_SHARED_TARGET pybind11 CACHE STRING "")
+    set(PYBIND_STATIC_TARGET pybind11 CACHE STRING "")
+##########################################
+# Python bindings of models
+##########################################
+    add_subdirectory(pyecmech/)
+endif()
