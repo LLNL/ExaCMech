@@ -1090,11 +1090,11 @@ class SlipKineticBCCMD:
         gamma = evol_vals[-1]
 
         def k1_func(xi):
-            return self.k1 * (1.0 + self.ak) / (jnp.cos(xi - self.alpha_p))
+            return self.k1 * (1.0 + (self.ak / (jnp.cos(xi - self.alpha_p))))
 
         def k2_func():
-            gamma_ratio = jax.lax.cond(gamma > jec.GAM_RATIO_MIN, lambda: (gamma / self.gdot_0), lambda: 0.0)
-            return self.k2 * gamma_ratio * jnp.log(temp_k / self.temp_k0)
+            gamma_ratio = jax.lax.cond(gamma > jec.GAM_RATIO_MIN, lambda: (gamma / self.gdot_0), lambda: jec.GAM_RATIO_MIN)
+            return self.k2 * jnp.log(gamma_ratio) * jnp.log(temp_k / self.temp_k0)
 
         def f_func(abs_gamma_dot):
             A = 100.0

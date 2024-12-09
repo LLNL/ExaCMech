@@ -61,7 +61,8 @@ class evptnWrapClass:
 
         # update our bulk modulus value based on what thermo_elas_class calculated
         params["bulk_modulus_0"] = self.thermo_elas_class.bulk_mod
-        params["shear_mod"] = self.thermo_elas_class.shear_mod
+        if not "shear_mod" in params:
+                    params["shear_mod"] = self.thermo_elas_class.shear_mod
 
         match params["eos_class_isothermal"]:
             case "isothermal" | "true" | True:
