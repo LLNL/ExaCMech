@@ -473,12 +473,12 @@ namespace ecmech {
                return m_k1 * a;
                */
                // Pure paper implementation of things
-               return m_k1 * (1.0 + m_ak) / (cos(xi - m_alpha_p));
+               return m_k1 * (1.0 +(m_ak / (cos(xi - m_alpha_p))));
             };
 
             auto k2_func = [=] () -> double {
-               const double gamma_ratio = (gamma > ecmech::gam_ratio_min) ? (gamma / m_gdot_0) : 0.0;
-               return m_k2 * gamma_ratio * log(tkelv / m_tkelv0);
+               const double gamma_ratio = (gamma > ecmech::gam_ratio_min) ? (gamma / m_gdot_0) : ecmech::gam_ratio_min;
+               return m_k2 * log(gamma_ratio) * log(tkelv / m_tkelv0);
             };
 
             auto f_func = [=] (const double abs_gamma_dot) -> double {
