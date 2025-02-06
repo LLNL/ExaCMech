@@ -3,6 +3,13 @@ set(ECMECH_TEST_DEPENDS )
 ecmech_fill_depends_list(LIST_NAME  ECMECH_TEST_DEPENDS
                         DEPENDS_ON RAJA snls)
 
+if(NOT USE_BUILT_SNLS)
+    list(APPEND ECMECH_TEST_DEPENDS snls)
+    if (SNLS_USE_RAJA_PORT_SUITE)
+        list(APPEND ECMECH_TEST_DEPENDS chai umpire camp fmt::fmt)
+    endif()
+endif()
+
 if (${BLT_VERSION} VERSION_GREATER_EQUAL 0.6.0)
     if(ENABLE_CUDA)
         list(APPEND ECMECH_TEST_DEPENDS blt::cuda_runtime blt::cuda) 

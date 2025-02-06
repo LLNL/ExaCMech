@@ -77,7 +77,7 @@ endif()
 if(NOT USE_BUILT_SNLS)
     list(APPEND ECMECH_DEPENDS snls)
     if (SNLS_USE_RAJA_PORT_SUITE)
-        list(APPEND ECMECH_DEPENDS chai umpire camp fmt::fmt)
+        list(APPEND ECMECH_DEPENDS chai umpire camp)
     endif()
 endif()
 
