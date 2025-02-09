@@ -52,7 +52,7 @@ set(ECMECH_SOURCES
 set(ECMECH_DEPENDS)
 
 ecmech_fill_depends_list(LIST_NAME  ECMECH_DEPENDS
-                        DEPENDS_ON RAJA snls)
+                        DEPENDS_ON RAJA camp snls)
 
 if (${BLT_VERSION} VERSION_GREATER_EQUAL 0.6.0)
     if(ENABLE_CUDA)
@@ -77,7 +77,7 @@ endif()
 if(NOT USE_BUILT_SNLS)
     list(APPEND ECMECH_DEPENDS snls)
     if (SNLS_USE_RAJA_PORT_SUITE)
-        list(APPEND ECMECH_DEPENDS chai umpire camp)
+        list(APPEND ECMECH_DEPENDS chai umpire)
     endif()
 endif()
 
