@@ -257,7 +257,7 @@ namespace evptn {
             m_K_diag[3] = two * m_c44;
             m_K_diag[4] = two * m_c44;
             double K_vecds_s = twothird * m_c11 + twothird * m_c12 + fourthirds * m_c13 + m_c33 * onethird;
-            m_K_sdax3 = sqr2 * (-m_c11 - m_c12 + m_c13 + m_c33) * onethird;
+            m_K_sdax3 = -sqr2 * (-m_c11 - m_c12 + m_c13 + m_c33) * onethird;
             m_bulk_modulus = onethird * K_vecds_s;
             //
             // m_shear_modulus below ignores the m_K_sdax3 contribution, but it is just meant to be approximate anyway
@@ -352,21 +352,28 @@ namespace evptn {
             for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
                 double vFact = inv_det_v_e * inv_a_vol * m_K_diag[iTvec];
                 for (int jTvec = 0; jTvec < ecmech::ntvec; ++jTvec) {
-                    M6[ECMECH_NN_INDX(iTvec, jTvec, ecmech::nsvec)] = vFact * A[ECMECH_NN_INDX(iTvec, jTvec, ecmech::ntvec)];
+                    M6[ECMECH_NN_INDX(iTvec, jTvec, ecmech::nsvec)] = vFact * A[ECMECH_NM_INDX(iTvec, jTvec, N, M)];
                 }
             }
 
             // M6[iSvecS,:] = dsigC_de[iSvecS, iTvecHex] * A[iTvecHex,:] // for hexagonal specifically
             // dsigC_de[iTvecHex, iSvecS] does not end up getting used
+            for (int iSvec = 0; iSvec < ecmech::nsvec; ++iSvec) {
+                M6[ECMECH_NN_INDX(iSvec, iSvecS, ecmech::nsvec)] = 0.0;
+                M6[ECMECH_NN_INDX(iSvecS, iSvec, ecmech::nsvec)] = 0.0;
+            }
+
             {
                 double vFact = inv_det_v_e * inv_a_vol * m_K_sdax3;
                 for (int jTvec = 0; jTvec < ecmech::ntvec; ++jTvec) {
-                    M6[ECMECH_NN_INDX(iSvecS, jTvec, ecmech::nsvec)] = vFact * A[ECMECH_NN_INDX(iTvecHex, jTvec, ecmech::ntvec)];
+                    M6[ECMECH_NN_INDX(iSvecS, jTvec, ecmech::nsvec)] = vFact * A[ECMECH_NM_INDX(iTvecHex, jTvec, N, M)];
                 }
             }
-
-            for (int iSvec = 0; iSvec < ecmech::nsvec; ++iSvec) {
-                M6[ECMECH_NN_INDX(iSvec, iSvecS, ecmech::nsvec)] = 0.0;
+            {
+                double vFact = inv_det_v_e * inv_a_vol * m_K_sdax3;
+                for (int jTvec = 0; jTvec < ecmech::ntvec; ++jTvec) {
+                    M6[ECMECH_NN_INDX(jTvec, iSvecS, ecmech::nsvec)] = vFact * A[ECMECH_NM_INDX(iTvecHex, jTvec, N, M)];
+                }
             }
         }
 

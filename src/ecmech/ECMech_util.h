@@ -15,6 +15,7 @@
 #endif
 
 #include "RAJA/RAJA.hpp"
+#include "SNLS_linalg.h"
 
 //
 // maybe replace this macro with RAJA::View machinery at some point
