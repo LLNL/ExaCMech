@@ -255,7 +255,7 @@ namespace ecmech {
          double
          getFixedRefRate(const double* const vals) const
          {
-            return 1.0 / (1.0 / vals[0] + 1.0 / vals[1]); // _gam_w + _gam_r ;
+            return 1.0 / (1.0 / vals[0] + 1.0 / vals[1]);
          }
 
          /**

@@ -257,7 +257,7 @@ namespace evptn {
             m_K_diag[3] = two * m_c44;
             m_K_diag[4] = two * m_c44;
             double K_vecds_s = twothird * m_c11 + twothird * m_c12 + fourthirds * m_c13 + m_c33 * onethird;
-            m_K_sdax3 = -sqr2 * (-m_c11 - m_c12 + m_c13 + m_c33) * onethird;
+            m_K_sdax3 = sqr2 * (-m_c11 - m_c12 + m_c13 + m_c33) * onethird;
             m_bulk_modulus = onethird * K_vecds_s;
             //
             // m_shear_modulus below ignores the m_K_sdax3 contribution, but it is just meant to be approximate anyway
