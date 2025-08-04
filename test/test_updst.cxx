@@ -257,11 +257,11 @@ TEST(ecmech, driver_a)
    }
 
 #if KIN_TYPE && !(DO_FD_CHECK_MTAN)
-   EXPECT_LT(fabs(cauchy_stress_d6p[2] - 0.006664661118275), 1e-10) <<
+   EXPECT_LT(fabs(cauchy_stress_d6p[2] - 0.006664208062085), 1e-10) <<
       "Did not get expected value for stress component";
-   EXPECT_LT(fabs(hist[ecmech::evptn::iHistLbH + 0] - 88.61845050083), 1e-8) <<
+   EXPECT_LT(fabs(hist[ecmech::evptn::iHistLbH + 0] - 87.96284116155), 1e-8) <<
       "Did not get expected value for history variable";
-   EXPECT_LT(fabs(cauchy_stress_d6p[iSvecP] - 0.00332602112947), 1e-10) <<
+   EXPECT_LT(fabs(cauchy_stress_d6p[iSvecP] - 0.00332519207297), 1e-10) <<
       "Did not get expected value for stress component";
 #endif
 

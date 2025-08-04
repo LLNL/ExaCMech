@@ -352,21 +352,28 @@ namespace evptn {
             for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
                 double vFact = inv_det_v_e * inv_a_vol * m_K_diag[iTvec];
                 for (int jTvec = 0; jTvec < ecmech::ntvec; ++jTvec) {
-                    M6[ECMECH_NN_INDX(iTvec, jTvec, ecmech::nsvec)] = vFact * A[ECMECH_NN_INDX(iTvec, jTvec, ecmech::ntvec)];
+                    M6[ECMECH_NN_INDX(iTvec, jTvec, ecmech::nsvec)] = vFact * A[ECMECH_NM_INDX(iTvec, jTvec, N, M)];
                 }
             }
 
             // M6[iSvecS,:] = dsigC_de[iSvecS, iTvecHex] * A[iTvecHex,:] // for hexagonal specifically
             // dsigC_de[iTvecHex, iSvecS] does not end up getting used
+            for (int iSvec = 0; iSvec < ecmech::nsvec; ++iSvec) {
+                M6[ECMECH_NN_INDX(iSvec, iSvecS, ecmech::nsvec)] = 0.0;
+                M6[ECMECH_NN_INDX(iSvecS, iSvec, ecmech::nsvec)] = 0.0;
+            }
+
             {
                 double vFact = inv_det_v_e * inv_a_vol * m_K_sdax3;
                 for (int jTvec = 0; jTvec < ecmech::ntvec; ++jTvec) {
-                    M6[ECMECH_NN_INDX(iSvecS, jTvec, ecmech::nsvec)] = vFact * A[ECMECH_NN_INDX(iTvecHex, jTvec, ecmech::ntvec)];
+                    M6[ECMECH_NN_INDX(iSvecS, jTvec, ecmech::nsvec)] = vFact * A[ECMECH_NM_INDX(iTvecHex, jTvec, N, M)];
                 }
             }
-
-            for (int iSvec = 0; iSvec < ecmech::nsvec; ++iSvec) {
-                M6[ECMECH_NN_INDX(iSvec, iSvecS, ecmech::nsvec)] = 0.0;
+            {
+                double vFact = inv_det_v_e * inv_a_vol * m_K_sdax3;
+                for (int jTvec = 0; jTvec < ecmech::ntvec; ++jTvec) {
+                    M6[ECMECH_NN_INDX(jTvec, iSvecS, ecmech::nsvec)] = vFact * A[ECMECH_NM_INDX(iTvecHex, jTvec, N, M)];
+                }
             }
         }
 

@@ -160,7 +160,7 @@ TEST(ecmech, px_a)
    }
 
 #if KIN_TYPE
-   EXPECT_LT(fabs(sAvg - 0.00816346240674), 1e-10) << "Did not get expected value";
+   EXPECT_LT(fabs(sAvg - 0.00816331652264), 1e-10) << "Did not get expected value";
 #else
    EXPECT_LT(fabs(sAvg - 0.00344825801180), 1e-10) << "Did not get expected value";
 #endif
