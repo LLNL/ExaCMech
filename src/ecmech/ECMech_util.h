@@ -61,7 +61,7 @@
  * - RAJA::View used for multi-dimensional array indexing in complex functions
  * 
  * Usage with util headers:
- * Many rotation derivative functions include util/*.h headers (mc_vars_set.h, 
+ * Many rotation derivative functions include util/.h headers (mc_vars_set.h, 
  * vad_vars_set.h, etc.) to extract tensor components into named variables,
  * improving readability of complex mathematical expressions.
  * 
