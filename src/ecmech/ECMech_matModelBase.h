@@ -74,25 +74,18 @@ namespace ecmech {
       protected:
          /** @brief Flag indicating whether model initialization is complete */
          bool  m_complete;
-
          /** @brief Reference density (mass per unit reference volume) */
          double m_density0;
-
          /** @brief Average specific heat at constant volume for temperature evolution */
          double m_cvav;
-
          /** @brief Reference relative volume (typically 1.0 for unstressed state) */
          double m_rel_vol0;
-
          /** @brief Reference internal energy corresponding to reference state */
          double m_energy0;
-
          /** @brief Reference bulk modulus for equation of state scaling */
          double m_bulkRef;
-
          /** @brief Output verbosity level (0=silent, higher values=more verbose) */
          int m_outputLevel;
-
          /** @brief Execution strategy for parallel operations (CPU/GPU/OpenMP) */
          ecmech::ExecutionStrategy m_accel;
 
