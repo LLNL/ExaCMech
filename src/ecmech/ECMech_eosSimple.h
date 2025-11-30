@@ -1,3 +1,36 @@
+/**
+ * @file ECMech_eosSimple.h
+ * @brief Simple equation of state models for crystal plasticity.
+ * 
+ * This file provides equation of state (EOS) models that relate pressure, volume,
+ * energy, and temperature in thermomechanical coupling. The EOS is essential for:
+ * - Computing pressure from volumetric deformation and internal energy
+ * - Determining temperature evolution from energy changes
+ * - Providing bulk modulus for elastic response
+ * - Coupling mechanical and thermal physics
+ * 
+ * **Key components**:
+ * - **EosModelConst**: Constant Grüneisen gamma EOS (isothermal or non-isothermal)
+ * - **updateSimple**: Helper function for simple EOS update during time stepping
+ * 
+ * **Physical model**:
+ * - Pressure: p = p_cold(V) + Γ(V) × e(V,T) / V
+ * - Temperature: T = T_0 + e / c_v (linear for constant c_v)
+ * - Grüneisen gamma: Γ = constant (material parameter)
+ * - Bulk modulus: K = -V × dp/dV
+ * 
+ * **Usage context**: Called within crystal plasticity stress update to:
+ * 1. Compute pressure from deformation (volumetric strain)
+ * 2. Update temperature from energy dissipation (plastic work)
+ * 3. Provide stiffness for implicit tangent
+ * 
+ * **Template parameters**:
+ * - isothermal: If true, temperature held constant; if false, temperature evolves
+ * 
+ * @see EosModelConst for the main EOS class
+ * @see updateSimple for time integration helper
+ * @see matModel for integration into crystal plasticity framework
+ */
 // -*-c++-*-
 
 #ifndef ECMECH_EOS_SIMPLE_H
