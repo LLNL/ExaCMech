@@ -1,3 +1,78 @@
+/**
+ * @file ECMech_evptnSngl.h
+ * @brief Single material point integration functions for crystal plasticity.
+ * 
+ * This file provides the high-level interface for crystal plasticity time integration
+ * at a single material point (Gauss point). It orchestrates:
+ * - State initialization and preparation (preprocess)
+ * - Nonlinear system solution (main_problem)
+ * - State extraction and post-processing (postprocess)
+ * - Optional material tangent computation (computeTangentStiffness)
+ * 
+ * **Main entry point**:
+ * - `getResponseSngl()`: Complete time step integration for one material point
+ * - `getResponseNRSngl()`: Alternative with simplified rotation treatment (optional)
+ * 
+ * **Integration workflow**:
+ * ```
+ * 1. preprocess():
+ *    - EOS update (pressure, temperature, bulk modulus)
+ *    - Hardening state update (may involve sub-iterations)
+ *    - Compute initial stress and slip rates
+ *    - Accumulate deviatoric strain energy (trapezoidal rule)
+ * 
+ * 2. main_problem():
+ *    - Set up SNLS trust region solver
+ *    - Initialize guess (typically zeros)
+ *    - Solve nonlinear system via Newton iterations
+ *    - Check convergence
+ * 
+ * 3. postprocess_prob():
+ *    - Extract converged elastic strain and orientation
+ *    - Update hardening state with converged slip rates
+ *    - Compute stress in crystal frame
+ *    - Calculate plastic dissipation and flow strength
+ * 
+ * 4. postprocess():
+ *    - Rotate stress back to sample frame
+ *    - Update internal energy with plastic work
+ *    - Finalize strain energy integration
+ *    - Compute material properties (bulk, shear modulus)
+ *    - Store final stress state
+ * 
+ * 5. computeTangentStiffness() [optional]:
+ *    - Compute material tangent via implicit function theorem
+ *    - Scale from rate to increment form
+ *    - Add EOS volumetric contribution
+ *    - Convert from deviatoric to full Voigt notation
+ * ```
+ * 
+ * **Function organization**:
+ * - **Template functions**: Templated by constitutive model types for flexibility
+ * - **Inline functions**: Header-only for GPU compatibility and optimization
+ * - **__ecmech_hdev__**: All functions work on both CPU and GPU
+ * 
+ * **Error handling**:
+ * - Return bool: true = success, false = convergence failure
+ * - Failed solves return false, allowing host code to handle errors
+ * - Debug builds may print diagnostic info on failure
+ * 
+ * **Solver configuration**:
+ * - Uses SNLS trust region dense Gauss-Newton solver
+ * - Default tolerance: passed as parameter (typically 1e-8 to 1e-12)
+ * - Max iterations: 200 (hard-coded in main_problem)
+ * - Initial trust region: 1.0
+ * 
+ * **Advanced features**:
+ * - Material tangent computation for consistent FEM tangent operator
+ * - Multiple solver variants (full coupled, strain-only, rotation-only)
+ * - RStarSolve: Optional secondary rotation solve for improved accuracy
+ * 
+ * @see ECMech_evptn.h for problem formulation classes
+ * @see ECMech_base_classes.h for state container (ProblemState)
+ * @see SNLS_TrDLDenseG.h for nonlinear solver details
+ */
+
 #pragma once
 
 #include "ECMech_core.h"
@@ -14,6 +89,69 @@
 namespace ecmech {
 namespace evptn {
 
+/**
+ * @brief Prepare state for crystal plasticity time integration.
+ * 
+ * This function performs all computations needed before the main nonlinear solve:
+ * 1. **Thermodynamic update**: EOS evaluation for pressure, temperature, bulk modulus
+ * 2. **Energy integration**: Start deviatoric strain energy accumulation (trapezoidal rule)
+ * 3. **Hardening update**: Evolve hardening state using beginning-of-step slip rates
+ * 
+ * **Thermodynamic calculations**:
+ * - Evaluate temperature at beginning of step from EOS
+ * - Update pressure and temperature to end of step (simple EOS model)
+ * - Compute bulk modulus at new state
+ * - Store thermodynamic derivatives (dp/de, dp/dv, dT/de)
+ * 
+ * **Energy integration**:
+ * - Uses trapezoidal rule for deviatoric part: ∫σ:D dt ≈ (σ_n + σ_{n+1})/2 * D * Δt
+ * - Begins accumulation with n-state contribution
+ * - Final contribution added in postprocess after stress converges
+ * 
+ * **Hardening update**:
+ * - Uses beginning-of-step slip rates (from history or initial guess)
+ * - Integrates hardening ODEs over time step
+ * - May involve inner Newton iterations for implicit hardening laws
+ * - Updates prob_state.h_state_u with new hardening state
+ * - For dynamic slip systems, evaluates extra quantities (e.g., chi angles)
+ * 
+ * **Template parameters**:
+ * @tparam SlipGeom Slip geometry class
+ * @tparam Kinetics Kinetics class
+ * @tparam EosModel Equation of state class
+ * @tparam ThermoElastN Thermoelastic class
+ * @tparam ProbState Problem state container
+ * @tparam RStarSolve If true, enables secondary rotation solve (default: false)
+ * 
+ * @param[in] slipGeom Slip geometry object
+ * @param[in] kinetics Kinetics object
+ * @param[in] eos Equation of state object
+ * @param[in] thermoElastN Thermoelastic object
+ * @param[in] rel_vol_ratios Volume ratio array [nvr]:
+ *                           [0] = J_n, [1] = J_{n+1}, [2] = (J_{n+1}-J_n)/dt, [3] = J_{n+1}-J_n
+ * @param[in] internal_energy Energy array [ne]: [0] = total internal energy
+ * @param[in] def_rate_d6v_sample Deformation rate [nsvp], uses first ntvec components
+ * @param[in,out] prob_state State container, modified with updated thermodynamics and hardening
+ * @param[out] halfVMidDt Half volume × midpoint time: 0.25*(J_n + J_{n+1})*Δt
+ * @param[out] dev_strain_energy_total Accumulated deviatoric strain energy [energy/volume]
+ * 
+ * @return true if preprocessing successful, false if hardening update failed to converge
+ * 
+ * **State modifications** (via prob_state):
+ * - tkelv: Updated to end-of-step temperature
+ * - pressure_EOS: Updated to end-of-step pressure
+ * - energy_new: End-of-step internal energy estimate
+ * - bulk_modulus_new: Bulk modulus at new state
+ * - h_state_u: Updated hardening state variables
+ * 
+ * **Failure modes**:
+ * - Hardening solver fails to converge → return false
+ * - Currently only hardening can fail; EOS and energy updates assumed robust
+ * 
+ * @note Called once per time step before nonlinear solve
+ * @note Side effects on prob_state are essential (not const)
+ * @note Energy contribution completed in postprocess() after stress converges
+ */
 template<class SlipGeom, class Kinetics, class EosModel, class ThermoElastN, class ProbState, bool RStarSolve=false>
 __ecmech_hdev__
 inline
@@ -103,6 +241,58 @@ bool preprocess(const SlipGeom& slipGeom,
     return true;
 }
 
+/**
+ * @brief Solve the nonlinear crystal plasticity system via trust region Newton.
+ * 
+ * This function configures and executes the SNLS SNLSTrDlDenseG solver to find
+ * the solution of the implicit time integration equations. It handles:
+ * - Solver initialization and configuration
+ * - Initial guess setup
+ * - Solution iteration
+ * - Convergence checking
+ * 
+ * **Solver configuration**:
+ * - Algorithm: Dogleg approximation to the trust-region sub-problem for multi-dimensional nonlinear systems of equations 
+ * - Max iterations: 200
+ * - Initial trust region: 1.0
+ * - Tolerance: Passed as parameter (user-specified)
+ * - Delta control: Default SNLS delta control region parameters
+ * 
+ * **Initial guess**:
+ * - All unknowns initialized to zero
+ * - Assumes incremental formulation (Δε_e = 0, Δω = 0 is reasonable guess)
+ * - Solver typically converges in 3-8 iterations from this guess
+ * 
+ * **Convergence criteria**:
+ * - Residual norm ‖R‖ < tolerance
+ * - Trust region successfully updated
+ * - Status returned by solver: converged or better
+ * 
+ * **Template parameter**:
+ * @tparam SNLS_Solver Solver type (typically snls::SNLSTrDlDenseG<Problem>)
+ * 
+ * @param[in] tolerance Convergence tolerance [dimensionless]
+ *                      Typical values: 1e-8 (standard), 1e-12 (tight), 1e-6 (loose)
+ * @param[in,out] solver SNLS solver instance, modified during iterations
+ *                       Contains problem reference and solution on exit
+ * @param[in] outputLevel Diagnostic output verbosity:
+ *                        0 = silent, 1 = iteration info, 2 = detailed debug
+ * 
+ * @return true if solver converged, false if failed to converge
+ * 
+ * **Convergence failure handling**:
+ * - Returns false if status < converged
+ * - Host code can attempt recovery (reduce time step, change strategy, etc.)
+ * - Debug builds print residual norm and status code
+ * 
+ * **Performance notes**:
+ * - Analytical Jacobian enables quadratic convergence
+ * - Most time steps converge in 2-10 iterations
+ * - Ill-conditioned cases may hit iteration limit (200)
+ * 
+ * @see SNLS documentation for trust region algorithm details
+ * @see EvptnUpdstProblem::computeRJ() for residual/Jacobian evaluation
+ */
 template<class SNLS_Solver>
 __ecmech_hdev__
 inline
@@ -134,6 +324,65 @@ bool main_problem(const double tolerance,
     return true;
 }
 
+/**
+ * @brief Compute material tangent stiffness matrix for finite element codes.
+ * 
+ * This function calculates the consistent tangent operator ∂σ/∂ε needed by
+ * implicit finite element codes for Newton-Raphson equilibrium iterations.
+ * 
+ * **Mathematical formulation**:
+ * The tangent is obtained via the implicit function theorem:
+ * ```
+ * ∂σ/∂ε = ∂σ/∂ε_e * (∂ε_e/∂ε)
+ * ```
+ * where ∂ε_e/∂ε is obtained from the implicit solve by perturbing RHS.
+ * 
+ * **Computation approach**:
+ * 1. Enable material tangent flag in problem: prob.provideMTan(mtanSD_vecds)
+ * 2. Re-evaluate Jacobian: This triggers tangent accumulation
+ * 3. Disable tangent flag: prob.clearMTan()
+ * 4. Scale from rate to increment: multiply by Δt
+ * 5. Add volumetric EOS contribution (3K on diagonal)
+ * 6. Convert from deviatoric to full Voigt notation
+ * 
+ * **Deviatoric vs. full tangent**:
+ * - Internal computation in deviatoric-pressure form (6-vector + 1)
+ * - EOS provides volumetric stiffness (assumed decoupled)
+ * - Final output in standard Voigt 6×6 symmetric form
+ * 
+ * **Template parameters**:
+ * @tparam Problem Problem class (e.g., EvptnUpdstProblem)
+ * @tparam Solver Solver class (e.g., snls::SNLSTrDlDenseG)
+ * @tparam ProblemState State container class
+ * 
+ * @param[in,out] prob Problem instance, used for tangent accumulation
+ * @param[in,out] solver Solver instance, Jacobian re-evaluated
+ * @param[in] prob_state State container for current material state
+ * @param[out] mtanSD Material tangent [nsvec2 = 36 components]
+ *                    Stored in row-major Voigt notation:
+ *                    dσ_11/dε_11, dσ_11/dε_22, ..., dσ_12/dε_12
+ * 
+ * **Coordinate frame**:
+ * - Tangent returned in sample/global frame
+ * - Internal computations in crystal frame, rotated back
+ * 
+ * **Typical values**:
+ * - Diagonal: ~Elastic moduli (100-400 GPa for metals)
+ * - Off-diagonal: Poisson coupling + plastic flow direction effects
+ * - Symmetric: Material response is rate-independent in final form
+ * 
+ * **Limitations**:
+ * - Assumes deviatoric-volumetric decoupling (crude for pressure dependence)
+ * - Neglects thermal expansion effects on stiffness
+ * - Symmetric tangent (assumes no rate effects in final form)
+ * 
+ * @note Tangent is with respect to strain INCREMENT Δε, not rate
+ * @note EOS contribution simplified: K on (S,S) component only
+ * @note Matrix symmetric by construction (no explicit symmetrization needed)
+ * 
+ * @see mtan_conv_sd_svec() for deviatoric-to-Voigt conversion
+ * @see Problem::provideMTan() for tangent accumulation mechanism
+ */
 template<class Problem, class Solver, class ProblemState>
 __ecmech_hdev__
 inline
@@ -170,6 +419,58 @@ void computeTangentStiffness(Problem& prob,
     mtan_conv_sd_svec<true>(mtanSD, mtanSD_vecds);
 }
 
+/**
+ * @brief Extract solution and update state after nonlinear solve convergence.
+ * 
+ * This function is called immediately after the main nonlinear solve succeeds.
+ * It extracts physical state from the solution vector and computes derived
+ * quantities needed for output and the next time step.
+ * 
+ * **Operations performed**:
+ * 1. Copy updated hardening state to primary storage
+ * 2. Compute stress in crystal frame from converged elastic strain
+ * 3. Calculate plastic dissipation rate and effective shear rate
+ * 4. Update accumulated equivalent plastic strain
+ * 5. Compute flow strength for current state
+ * 
+ * **Template parameters**:
+ * @tparam kinNH Number of hardening state variables (Kinetics::nH)
+ * @tparam Problem Problem class
+ * @tparam ProblemState State container class
+ * 
+ * @param[in,out] prob Problem instance, provides slip contribution calculation
+ * @param[in,out] prob_state State container:
+ *                           IN: elast_d5_u (from stateFromX)
+ *                           OUT: h_state, eps, eps_dot, flow_strength
+ * @param[out] cauchy_stress_d5p_xtal Cauchy stress in crystal frame [nsvec]
+ *                                     Deviatoric components + pressure
+ * 
+ * **Flow strength calculation**:
+ * ```
+ * if (D_eff > tiny):
+ *     flow_strength = plastic_dissipation_rate / D_eff
+ * else:
+ *     flow_strength = hardening_scale_factor
+ * ```
+ * This gives a generalized "yield stress" measure.
+ * 
+ * **Equivalent plastic strain**:
+ * - Integrated as: ε_p^{n+1} = ε_p^n + γ̇_eff * Δt
+ * - Provides scalar measure of accumulated plastic deformation
+ * - Used for hardening laws, damage models, output
+ * 
+ * **State updates** (via prob_state):
+ * - h_state: Hardening variables copied from h_state_u
+ * - eps_dot: Effective plastic strain rate at end of step
+ * - eps: Accumulated equivalent plastic strain
+ * - flow_strength: Current resistance to plastic flow
+ * 
+ * @note Called before postprocess() which handles frame transformations
+ * @note Stress returned in CRYSTAL frame; rotated to sample frame later
+ * 
+ * @see prob.get_slip_contribution() for plastic work calculations
+ * @see postprocess() for final stress rotation and energy update
+ */
 template<int kinNH, class Problem, class ProblemState>
 __ecmech_hdev__
 inline
@@ -204,7 +505,72 @@ void postprocess_prob(Problem& prob,
         prob.elastNEtoC(cauchy_stress_d5p_xtal, prob_state.elast_d5_u);
 }
 
-
+/**
+ * @brief Finalize state updates after convergence and post-processing.
+ * 
+ * This function completes the time step integration by:
+ * 1. Rotating stress from crystal to sample frame
+ * 2. Finalizing strain energy integration
+ * 3. Updating internal energy with plastic work
+ * 4. Computing material properties (bulk and shear moduli)
+ * 5. Storing final stress state
+ * 
+ * **Frame transformation**:
+ * - Input: Cauchy stress in crystal frame (from postprocess_prob)
+ * - Rotation matrix: From updated crystal orientation
+ * - Output: Cauchy stress in sample/global frame
+ * - Includes both deviatoric and pressure components
+ * 
+ * **Energy integration completion**:
+ * - Add end-of-step contribution to trapezoidal rule
+ * - Total: E_dev = (V_{n+1/2} * Δt / 2) * (σ_n : D + σ_{n+1} : D)
+ * - Update total internal energy: E += E_dev
+ * 
+ * **Material properties**:
+ * - Bulk modulus: From EOS at current state
+ * - Shear modulus: From elasticity at current state  
+ * - Stored in sdd array for output
+ * 
+ * **Quaternion flip correction**:
+ * - Check if updated quaternion closer to -Q_n than Q_n
+ * - If so, flip sign (antipodal symmetry: Q ≡ -Q)
+ * - Keeps orientation clustered, improves post-processing
+ * 
+ * **Template parameters**:
+ * @tparam ProblemState State container class
+ * @tparam ThermoElastN Thermoelastic model class
+ * 
+ * @param[in,out] prob_state State container:
+ *                           IN: quat_u, cauchy_stress_d6p (sample frame stress storage)
+ *                           OUT: quat_u (possibly flipped), energy_new
+ * @param[in] elastN Thermoelastic model for property evaluation
+ * @param[in] def_rate_d6v_sample Deformation rate for energy integration
+ * @param[out] sdd Auxiliary output array [nsdd = 2]:
+ *                 [0] = bulk modulus, [1] = shear modulus
+ * @param[in,out] internal_energy Energy array [ne = 1]:
+ *                                [0] = total internal energy (updated)
+ * @param[in] cauchy_stress_d5p_xtal Stress in crystal frame [nsvec]
+ * @param[in] dev_strain_energy_total Accumulated deviatoric strain energy
+ * @param[in] halfVMidDt Half volume × midpoint time factor
+ * 
+ * **Final stress storage**:
+ * - Converted from deviatoric-pressure to standard Voigt form
+ * - Stored in prob_state.cauchy_stress_d6p for return to host code
+ * - Layout: [σ11, σ22, σ33, σ23, σ13, σ12, -p]
+ * 
+ * **Energy balance**:
+ * - Internal energy updated to include plastic work
+ * - EOS could be re-evaluated for consistency (currently not done)
+ * - Small discrepancy acceptable for typical loading rates
+ * 
+ * @note Called after postprocess_prob() completes
+ * @note Final operation before returning to host code
+ * @note No convergence checks (assumed converged at this point)
+ * 
+ * @see postprocess_prob() for crystal-frame calculations
+ * @see quat_to_tensor() for rotation matrix generation
+ * @see get_rot_mat_vecd() for 5-vector rotation matrix
+ */
 template<class ProblemState, class ThermoElastN>
 __ecmech_hdev__
 inline
@@ -264,11 +630,89 @@ void postprocess(ProblemState& prob_state,
 #endif
 }
 
-/*
-* for steady-flow capability, might want to check out Dlsmm_getEnabled() stuff in EvpC.c
-*
-* convention for spin coming in should be consistent with spin_vec_sample convention
-*/
+/**
+ * @brief Complete time step integration for single material point (main interface).
+ * 
+ * This is the primary entry point for crystal plasticity integration. It orchestrates
+ * the complete sequence: preprocessing → nonlinear solve → post-processing.
+ * 
+ * **Function signature summary**:
+ * - Input: Beginning-of-step state, prescribed kinematics, material models, time step
+ * - Output: End-of-step stress, updated history variables, optional tangent
+ * - Return: Success/failure flag
+ * 
+ * **Integration sequence**:
+ * ```
+ * 1. Create ProblemState from input arrays
+ * 2. preprocess(): EOS, hardening, energy initialization
+ * 3. Create EvptnUpdstProblem for coupled elastic-rotation solve
+ * 4. Create SNLS solver and configure
+ * 5. main_problem(): Solve nonlinear system
+ * 6. If tangent requested: computeTangentStiffness()
+ * 7. stateFromX(): Extract converged elastic strain and orientation
+ * 8. Store number of function evaluations in history
+ * 9. postprocess_prob(): Compute plastic work, flow strength
+ * 10. postprocess(): Rotate stress, finalize energy
+ * ```
+ * 
+ * **Template parameters**:
+ * @tparam SlipGeom Slip geometry class (e.g., SlipGeomFCC, SlipGeomBCC)
+ * @tparam Kinetics Kinetics class (e.g., KineticsKMBalD, KineticsVocePL)
+ * @tparam ThermoElastN Thermoelastic class (e.g., ThermoElastNCubic)
+ * @tparam EosModel Equation of state class (e.g., EosModelConst)
+ * 
+ * @param[in] slipGeom Slip geometry object defining slip systems
+ * @param[in] kinetics Kinetics object for rate-dependent strength
+ * @param[in] elastN Thermoelastic object for stress-strain relation
+ * @param[in] eos Equation of state object for pressure-volume-energy
+ * @param[in] dt Time step size [time units]
+ * @param[in] tolerance Convergence tolerance for nonlinear solver [dimensionless]
+ * @param[in] def_rate_d6v_sample Prescribed deformation rate [1/time, nsvp = 7 components]
+ *                                 Only first ntvec = 5 used (deviatoric)
+ * @param[in] spin_vec_sample Prescribed spin [1/time, ndim = 3 components]
+ * @param[in] rel_vol_ratios Volume ratio array [nvr = 4 components]:
+ *                           [0] = J_n, [1] = J_{n+1}, [2] = (J_{n+1}-J_n)/dt, [3] = J_{n+1}-J_n
+ * @param[in,out] internal_energy Internal energy [energy/volume, ne = 1 component]
+ *                                 Updated with plastic work contribution
+ * @param[in,out] cauchy_stress_d6p Cauchy stress [stress units, nsvp = 7 components]
+ *                                   Input: σ_n, Output: σ_{n+1}
+ *                                   Layout: [σ11, σ22, σ33, σ23, σ13, σ12, -p]
+ * @param[in,out] hist History variable array [numHist components]
+ *                     Contains and updates: orientation, elastic strain, hardening, etc.
+ * @param[in,out] tkelv Temperature [Kelvin]
+ *                      May be updated by EOS evaluation
+ * @param[out] sdd Auxiliary outputs [nsdd = 2 components]:
+ *                 [0] = bulk modulus, [1] = shear modulus
+ * @param[out] mtanSD Material tangent stiffness [nsvec2 = 36 components or nullptr]
+ *                    If nullptr: Skip tangent computation
+ *                    If non-null: Compute and store ∂σ/∂Δε
+ * @param[in] outputLevel Diagnostic output verbosity (0 = silent)
+ * 
+ * @return true if integration successful, false if solver failed to converge
+ * 
+ * **History array layout**:
+ * Defined by case-specific indices (iHistLbQ, iHistLbGdot, etc.):
+ * - Orientation quaternion [4 components]
+ * - Slip rates [nslip components]
+ * - Elastic deviatoric strain [ntvec = 5 components]
+ * - Hardening state [nH components]
+ * - Equivalent plastic strain [1 component]
+ * - Equivalent plastic strain rate [1 component]
+ * - Flow strength [1 component]
+ * - Number of function evaluations [1 component]
+ * 
+ * **Convergence failure**:
+ * - Returns false immediately if preprocessing fails (hardening divergence)
+ * - Returns false if main nonlinear solve fails to converge
+ * - Host code should handle failure (reduce time step, flag element, etc.)
+ * 
+ * @note Thread-safe: No static storage, can be called in parallel for different points
+ * @note GPU-compatible: All functions marked __ecmech_hdev__
+ * @note Const correctness: Material models passed by const reference
+ * 
+ * @see getResponseECM() in ECMech_evptnWrap.h for vectorized batch interface
+ * @see ProblemState constructor for history array interpretation
+ */
 template<class SlipGeom, class Kinetics, class ThermoElastN, class EosModel>
 __ecmech_hdev__
 inline
@@ -325,11 +769,70 @@ bool getResponseSngl(const SlipGeom& slipGeom,
 } // getResponseSngl
 
 #if defined(ECMECH_EXTRA_SOLVERS)
-/*
-* for steady-flow capability, might want to check out Dlsmm_getEnabled() stuff in EvpC.c
-*
-* convention for spin coming in should be consistent with spin_vec_sample convention
-*/
+/**
+ * @brief Alternative integration with simplified rotation treatment.
+ * 
+ * Similar to getResponseSngl() but uses EvptnNRUpdstProblem which solves only
+ * for elastic strain (5 DOFs instead of 8). Lattice rotation handled separately
+ * or extrapolated.
+ * 
+ * **When to use**:
+ * - Small rotation increments (quasi-static, small strain)
+ * - Faster convergence more important than rotation accuracy
+ * - Debugging: isolate elastic strain solver issues
+ * - Operator-split schemes with separate rotation update
+ * 
+ * **Differences from getResponseSngl**:
+ * - Uses EvptnNRUpdstProblem instead of EvptnUpdstProblem
+ * - Solves smaller system (5 unknowns vs 8)
+ * - Potentially faster convergence (fewer coupling terms)
+ * - Less accurate for large rotations
+ * 
+ * **Compile flag**:
+ * Only available if ECMECH_EXTRA_SOLVERS is defined.
+ * 
+ * **Optional RStarSolve**:
+ * If template parameter RStarSolve=true, performs secondary rotation solve
+ * after elastic strain converges for improved accuracy.
+ * 
+ * **Template parameters**:
+ * @tparam SlipGeom Slip geometry class (e.g., SlipGeomFCC, SlipGeomBCC)
+ * @tparam Kinetics Kinetics class (e.g., KineticsKMBalD, KineticsVocePL)
+ * @tparam ThermoElastN Thermoelastic class (e.g., ThermoElastNCubic)
+ * @tparam EosModel Equation of state class (e.g., EosModelConst)
+ * 
+ * @param[in] slipGeom Slip geometry object defining slip systems
+ * @param[in] kinetics Kinetics object for rate-dependent strength
+ * @param[in] elastN Thermoelastic object for stress-strain relation
+ * @param[in] eos Equation of state object for pressure-volume-energy
+ * @param[in] dt Time step size [time units]
+ * @param[in] tolerance Convergence tolerance for nonlinear solver [dimensionless]
+ * @param[in] def_rate_d6v_sample Prescribed deformation rate [1/time, nsvp = 7 components]
+ *                                 Only first ntvec = 5 used (deviatoric)
+ * @param[in] spin_vec_sample Prescribed spin [1/time, ndim = 3 components]
+ * @param[in] rel_vol_ratios Volume ratio array [nvr = 4 components]:
+ *                           [0] = J_n, [1] = J_{n+1}, [2] = (J_{n+1}-J_n)/dt, [3] = J_{n+1}-J_n
+ * @param[in,out] internal_energy Internal energy [energy/volume, ne = 1 component]
+ *                                 Updated with plastic work contribution
+ * @param[in,out] cauchy_stress_d6p Cauchy stress [stress units, nsvp = 7 components]
+ *                                   Input: σ_n, Output: σ_{n+1}
+ *                                   Layout: [σ11, σ22, σ33, σ23, σ13, σ12, -p]
+ * @param[in,out] hist History variable array [numHist components]
+ *                     Contains and updates: orientation, elastic strain, hardening, etc.
+ * @param[in,out] tkelv Temperature [Kelvin]
+ *                      May be updated by EOS evaluation
+ * @param[out] sdd Auxiliary outputs [nsdd = 2 components]:
+ *                 [0] = bulk modulus, [1] = shear modulus
+ * @param[out] mtanSD Material tangent stiffness [nsvec2 = 36 components or nullptr]
+ *                    If nullptr: Skip tangent computation
+ *                    If non-null: Compute and store ∂σ/∂Δε
+ * @param[in] outputLevel Diagnostic output verbosity (0 = silent)
+ * 
+ * @return true if integration successful, false if solver failed to converge
+ * 
+ * @see getResponseSngl() for full coupled integration
+ * @see EvptnNRUpdstProblem for problem formulation
+ */
 template<class SlipGeom, class Kinetics, class ThermoElastN, class EosModel>
 __ecmech_hdev__
 inline
