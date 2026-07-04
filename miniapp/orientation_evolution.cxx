@@ -1,3 +1,41 @@
+/**
+ * @file orientation_evolution.cxx
+ *
+ * @brief The `orientation_evolution` miniapp: a standalone driver that exercises an
+ * ExaCMech material model over a large batch of independent single-crystal
+ * orientations, all subjected to the same user-specified macroscopic velocity gradient
+ * (a Taylor-type/full-constraint polycrystal averaging setup), and reports the
+ * volume-averaged Cauchy stress at every time step along with the total wall-clock run
+ * time. Its main purpose is as a performance/correctness benchmark for the CPU/OpenMP/
+ * GPU execution strategies `matModelBase` supports -- not a full finite-element
+ * integration, just the pointwise material-model evaluation that would sit inside one.
+ *
+ * **Usage**: `orientation_evolution <option file>`, where the option file is a plain
+ * text file with one value per line, in order:
+ * -# path to a quaternion file (either `#random <N>` to generate `N` random unit
+ *    quaternions, or `#data 0` followed by one whitespace-separated quaternion per line)
+ * -# material model name (e.g. `"evptn_FCC_A"`; see `ECMech_cases.h`)
+ * -# path to a material property file (one parameter value per line; see
+ *    `ecmech::modelParamIndexMap` for how many are expected)
+ * -# execution strategy: `"CPU"`, `"OpenMP"`, or `"GPU"` (only the strategies RAJA was
+ *    built with are available; requesting another fails with an error)
+ * -# *(optional)* time-step size `dt` (default `0.00025`)
+ * -# *(optional, requires the previous line)* number of time steps (default `60`)
+ * -# *(optional, requires the previous two lines)* macroscopic velocity gradient as
+ *    `[[# # #], [# # #], [# # #]]` (default is a purely deviatoric uniaxial-tension
+ *    velocity gradient along z)
+ *
+ * See `miniapp/cases/` for example option/quaternion/property files and
+ * `miniapp/miniapp_script.bash` for a sample batch-scheduler invocation sweeping several
+ * of them.
+ *
+ * **Per-time-step pipeline** (see the main loop below): `setup_data()`
+ * (`setup_kernels.h`) converts the persistent state into the material model's expected
+ * input layout, `mat_model_kernel()` (`material_kernels.h`) advances it one step, and
+ * `retrieve_data()` (`retrieve_kernels.h`) writes the results back -- see those headers
+ * for the array-layout conventions shared across all three stages.
+ */
+
 #include "ECMech_cases.h"
 #include "RAJA/RAJA.hpp"
 #include "RAJA/util/Timer.hpp"
@@ -119,6 +157,10 @@ int main(int argc, char *argv[]){
       }
 
       {
+         // Parses the "[[# # #], [# # #], [# # #]]" velocity-gradient notation: each row
+         // is read by skipping forward to its opening '[' and then reading 3
+         // whitespace-separated doubles, so the exact placement of commas/brackets
+         // between rows doesn't matter as long as each row has its own '['.
          std::istringstream iss(velocity_grad_vals);
          auto parse_data_row = [=] (auto& data, std::istringstream& stream) {
             constexpr auto max_size = std::numeric_limits<std::streamsize>::max();
@@ -281,6 +323,9 @@ int main(int argc, char *argv[]){
       auto index_map = ecmech::modelParamIndexMap(mat_model_str);
       num_props = index_map["num_params"];
       num_state_vars = index_map["num_hist"];
+      // Widen past the model's own history stride by the miniapp's appended
+      // volume-ratio (1) and internal-energy (ecmech::ne) bookkeeping slots -- see
+      // init_data's doc in setup_kernels.h for the resulting state_vars layout.
       num_state_vars += ecmech::ne + 1;
 
       num_hardness = index_map["num_hardening"];
@@ -299,6 +344,8 @@ int main(int argc, char *argv[]){
          return 1;
       }
 
+      // Order here must match the ISTRIDE_* indices in ECMech_const.h (matModelBase's
+      // getResponseECM reads this vector positionally, not by name).
       std::vector<size_t> strides;
       // Deformation rate stride
       strides.push_back(ecmech::nsvp);
@@ -328,6 +375,15 @@ int main(int argc, char *argv[]){
    }
       // We're now initializing our state variables and velocity_grad to be used in other parts
       // of the simulations.
+      //
+      // num_var_variables is the sum of the per-point widths of every array that will
+      // be carved out of `mm` below via getNew (tkelv=1, sdd, internal_energy, spin_vec,
+      // rel_vol_ratios, cauchy_stress, cauchy_stress_d6p + def_rate_d6v (2 * nsvp),
+      // ddsdde (nsvec*nsvec), velocity_grad (ndim*ndim)); num_state_vars is added
+      // separately since state_vars is sized by it directly, not by num_var_variables.
+      // This total must stay in sync with the getNew calls that follow, since
+      // memoryManager has no way to detect a mismatch other than its `assert` on
+      // over-allocation.
       constexpr size_t num_var_variables = (1 + ecmech::nsdd + + ecmech::ne + ecmech::nwvec + ecmech::nvr + ecmech::nsvec + 2 * ecmech::nsvp + ecmech::nsvec * ecmech::nsvec + ecmech::ndim * ecmech::ndim);
       const size_t num_items = nqpts * (num_state_vars + num_var_variables);
       auto mm = memoryManager<double>(num_items);
@@ -385,6 +441,17 @@ int main(int argc, char *argv[]){
                     cauchy_stress_d6p_array, rel_vol_ratios_array,
                     internal_energy_array, state_vars, cauchy_stress_array);
 
+      // Below, the volume-averaged Cauchy stress (and, if NEVALS_COUNTS is flipped on,
+      // solver function-eval statistics) is computed via a RAJA reduction, with an
+      // identical block repeated per execution strategy (seq/OpenMP/CUDA-or-HIP) just
+      // using that back end's own reduction/exec policy types -- since RAJA's reduction
+      // objects are tied to a specific policy at compile time, there isn't a way to
+      // share one block across strategies here.
+      //
+      // @note NEVALS_COUNTS is `#define`d false above, so this branch is dead in every
+      // current build; if it's ever flipped on, note that `state_vars[... + 2]` is
+      // `ecmech::evptn::iHistA_flowStr` (flow stress), not `iHistA_nFEval` (index 3) as
+      // the "nfunceval" name here implies -- see DOCUMENTATION_TODO.md.
       switch ( class_device ) {
          default :
          case ECM_EXEC_STRAT_CPU :

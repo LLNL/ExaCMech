@@ -1,8 +1,15 @@
+/**
+ * @file material_kernels.cxx
+ * @brief Implementation of `mat_model_kernel` (declared in `material_kernels.h`).
+ */
+
 #include "material_kernels.h"
 
 #include "ECMech_evptnWrap.h"
 
-// All of the parallelization operations are within the getResponseECM function of the material class.
+// See material_kernels.h for the full @brief/@param doc. All of the parallelization
+// (across nqpts material points, per the model's configured ExecutionStrategy) happens
+// inside getResponseECM itself -- this function only forwards the arguments.
 void mat_model_kernel(const ecmech::matModelBase* mat_model_base,
                       const int nqpts, const double dt, double* state_vars_array,
                       double* cauchy_stress_d6p_array, double* def_rate_d6v_array,

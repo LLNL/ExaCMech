@@ -1,10 +1,14 @@
+/**
+ * @file setup_kernels.cxx
+ * @brief Implementation of `init_data`, `setup_velocity_grad`, and `setup_data`
+ * (declared in `setup_kernels.h`).
+ */
+
 #include "setup_kernels.h"
 
 #include "ECMech_evptnWrap.h"
 #include <math.h>
-// Here we're going to initialize all of the data that's going inside of
-// of our material update function call.
-// This function is used to initialize the data originally
+// See setup_kernels.h for the full @brief/@param doc.
 void init_data(const std::vector<double>& ori_vec, const ecmech::matModelBase* mat_model_base,
                const int nqpts, const int num_hardness,
                const int num_slip, const int ind_gdot,
@@ -27,6 +31,11 @@ void init_data(const std::vector<double>& ori_vec, const ecmech::matModelBase* m
    }
    std::cout << std::endl;
 
+   // histInit_vec/ori_vec are plain host std::vectors. Without the CHAI-backed RAJA
+   // port suite, a raw pointer into them is fine for the snls::forall lambda below
+   // (host-only build). With it, GPU execution needs its own device-visible copies, so
+   // we stage both into chai::ManagedArrays on the host and then fetch each array's
+   // pointer in whatever execution space snls::Device is currently configured for.
 #if !defined(SNLS_RAJA_PORT_SUITE)
    const auto histInit_data = histInit_vec.data();
    const auto ori = ori_vec.data();
@@ -59,6 +68,10 @@ void init_data(const std::vector<double>& ori_vec, const ecmech::matModelBase* m
    // instead of all 4 values used in the evalModel. The rest can be calculated from
    // this value.
    const int num_vols = 1;
+   // These two slots are *not* part of the model's own history layout (nothing at or
+   // past ind_gdot + num_slip comes from histInit_data/getHistInfo) -- they're this
+   // miniapp's own bookkeeping, appended right after the model's slip-rate block. See
+   // this file's @file doc / init_data's doc in setup_kernels.h.
    const int ind_vols = ind_gdot + num_slip;
    const int ind_int_eng = ind_vols + num_vols;
 
@@ -107,14 +120,16 @@ void init_data(const std::vector<double>& ori_vec, const ecmech::matModelBase* m
    });
 } // end of init_data
 
-// This sets the macroscopic velocity grad to be purely deviatoric and behaving as a tension test in the
-// z direction. More interesting velocity grads could be created just as easily as well where we also have some
-// spin terms as well. We could also create a case where there is some sort of spin term as well.
+// See setup_kernels.h for the full @brief/@param doc. This function itself just
+// broadcasts whatever 3x3 matrix it's given to every point; it's the option file's
+// velocity-gradient entry (see orientation_evolution.cxx) that determines whether the
+// resulting run is a deviatoric uniaxial-tension test, includes spin, etc. -- the
+// default option files use a purely deviatoric z-direction tension velocity gradient.
 void setup_velocity_grad(const std::vector<double>& velocity_grad_input, double* const velocity_grad, const int nqpts){
-   // velocity grad is kinda a pain to deal with as a raw 1d array, so we're
-   // going to just use a RAJA view here. The data is taken to be in col. major format.
-   // It might be nice to eventually create a type alias for the below or
-   // maybe something like it.
+   // velocity_grad is stored as a RAJA view with a permuted (2,1,0) layout so that,
+   // despite indexing as (row, col, point), the fastest-varying dimension in memory is
+   // the point index -- i.e. all nqpts copies of a given (row, col) entry are
+   // contiguous, which is the layout setup_data's own velocity_grad_view expects.
 
 #if !defined(SNLS_RAJA_PORT_SUITE)
    const auto velocity_grad_data = velocity_grad_input.data();
@@ -153,7 +168,7 @@ void setup_velocity_grad(const std::vector<double>& velocity_grad_input, double*
    }); // end of qpt loop
 } // end of setup_velocity_grad
 
-// This function/kernel is used to set-up the problem at each time step
+// See setup_kernels.h for the full @brief/@param doc.
 void setup_data(const int nqpts, const int nstatev,
                 const double dt, const double* vel_grad_array,
                 const double* cauchy_stress_array, const double* state_vars_array,
@@ -161,11 +176,10 @@ void setup_data(const int nqpts, const int nstatev,
                 double* spin_vec_array, double* ddsdde_array,
                 double* rel_vol_ratios_array, double* internal_energy_array,
                 double* tkelv_array){
-   // velocity grad is kinda a pain to deal with as a raw 1d array, so we're
-   // going to just use a RAJA view here. The data is taken to be in col. major format.
-   // It might be nice to eventually create a type alias for the below or
-   // maybe something like it.
+   // Same permuted-layout view as setup_velocity_grad, just read-only here.
 
+   // Mirror of init_data/retrieve_data's layout: the volume-ratio and internal-energy
+   // bookkeeping slots are the last 1 + ecmech::ne entries of the nstatev-wide record.
    const int ind_int_eng = nstatev - ecmech::ne;
    const int ind_vols = ind_int_eng - 1;
 
@@ -212,10 +226,15 @@ void setup_data(const int nqpts, const int nstatev,
       spin_vec[1] = 0.5 * (velocity_grad_view(0, 2, i_qpts) - velocity_grad_view(2, 0, i_qpts));
       spin_vec[2] = 0.5 * (velocity_grad_view(1, 0, i_qpts) - velocity_grad_view(0, 1, i_qpts));
 
-      // Really we're looking at the negative of J but this will do...
+      // def_rate_mean = -trace(L)/3 (the sign matches the svecp/pressure convention in
+      // ECMech_util.h: adding it onto the diagonal below removes the trace, and
+      // negating it back out at the end restores it as the volumetric-rate slot).
       double def_rate_mean = -ecmech::onethird * (velocity_grad_view(0, 0, i_qpts) + velocity_grad_view(1, 1, i_qpts) + velocity_grad_view(2, 2, i_qpts));
-      // The 1st 6 components are the symmetric deviatoric portion of our velocity gradient
-      // The last value is simply the trace of the deformation rate
+      // The 1st 6 components are the symmetric, trace-removed (deviatoric) portion of
+      // the velocity gradient -- diagonal entries directly (already symmetric), shear
+      // entries symmetrized as 0.5*(L_ij + L_ji). The 7th (index ecmech::iSvecP) is
+      // trace(L) = trace(D) itself (the volumetric rate), matching the def_rate_d6vV
+      // convention documented on matModelBase::getResponseECM.
       def_rate_d6p[0] = velocity_grad_view(0, 0, i_qpts) + def_rate_mean;
       def_rate_d6p[1] = velocity_grad_view(1, 1, i_qpts) + def_rate_mean;
       def_rate_d6p[2] = velocity_grad_view(2, 2, i_qpts) + def_rate_mean;
@@ -223,11 +242,19 @@ void setup_data(const int nqpts, const int nstatev,
       def_rate_d6p[4] = 0.5 * (velocity_grad_view(2, 0, i_qpts) + velocity_grad_view(0, 2, i_qpts));
       def_rate_d6p[5] = 0.5 * (velocity_grad_view(1, 0, i_qpts) + velocity_grad_view(0, 1, i_qpts));
       def_rate_d6p[6] = -3 * def_rate_mean;
+      // Integrate the volumetric rate over dt (J_{n+1} = J_n * exp(trace(D)*dt)) to get
+      // this step's relative volume, then derive the rate/delta slots -- see
+      // ECMech_const.h's `nvr` doc for the [rel_vol_n, rel_vol_n+1, rate, delta] layout.
       rel_vol_ratios[0] = state_vars[ind_vols];
       rel_vol_ratios[1] = rel_vol_ratios[0] * exp(def_rate_d6p[ecmech::iSvecP] * dt);
       rel_vol_ratios[3] = rel_vol_ratios[1] - rel_vol_ratios[0];
       rel_vol_ratios[2] = rel_vol_ratios[3] / (dt * 0.5 * (rel_vol_ratios[0] + rel_vol_ratios[1]));
 
+      // Convert the previous step's Cauchy stress from plain Voigt form to ExaCMech's
+      // deviatoric + pressure (svecp) form -- the inverse of what retrieve_data
+      // (retrieve_kernels.cxx) does going back out: subtract the mean normal stress
+      // from the three normal components to make them traceless, and stash it (negated,
+      // per the svecp/pressure convention in ECMech_util.h) in the iSvecP slot.
       for (int i = 0; i < ecmech::nsvec; i++) {
          cauchy_stress_d6p[i] = cauchy_stress[i];
       }

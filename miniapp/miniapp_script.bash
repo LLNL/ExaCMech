@@ -1,3 +1,8 @@
+### Example LSF batch script for sweeping the orientation_evolution miniapp across
+### execution strategies/thread counts on an LSF-scheduled cluster (e.g. LLNL's Summit/
+### Lassen). Not meant to be run as-is -- copy and adjust the paths/option files below
+### for your own allocation. See orientation_evolution.cxx's @file doc for what each
+### option file (option_cpu.txt, option_openmp.txt, ...) configures.
 ### LSF syntax
 #BSUB -nnodes 1                   #number of nodes
 #BSUB -W 60                      #walltime in minutes
