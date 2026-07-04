@@ -1,9 +1,22 @@
+/**
+ * @file ECMech_cases_hcp.cxx
+ * @brief HCP model-name factory and parameter/history-index lookup, dispatched to from
+ * `makeMatModel`/`modelParamIndexMap` in ECMech_cases.cxx.
+ */
+
 #include "ECMech_cases_hcp_defs.h"
 #include "ECMech_cases_util.h"
 
 
 namespace ecmech {
 
+/**
+ * @brief Build an HCP material model from its exact name.
+ * @param modelName Currently only `"evptn_HCP_A"` is recognized; see
+ * ECMech_cases_hcp_defs.h.
+ * @return Newly heap-allocated `matModelBase*`, or `nullptr` if `modelName` is not
+ * recognized.
+ */
 __ecmech_host__
 matModelBase* makeMatModelHCP(const std::string &modelName) {
     matModelBase* matModel = nullptr;
@@ -15,6 +28,13 @@ matModelBase* makeMatModelHCP(const std::string &modelName) {
     return matModel;
 }
 
+/**
+ * @brief Look up parameter-count and history-array-index information for an HCP model by
+ * its exact name.
+ * @param modelName Currently only `"evptn_HCP_A"` is recognized.
+ * @return Lookup map as described in ECMech_cases.h's modelParamIndexMap, or an empty
+ * map if `modelName` is not recognized.
+ */
 __ecmech_host__
 std::map<std::string, size_t>
 modelParamIndexMapHCP(const std::string_view &modelName) {
