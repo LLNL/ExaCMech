@@ -1,3 +1,21 @@
+/**
+ * @file test_orowan_hardening.cxx
+ *
+ * @brief Isolated unit test of `KineticsOrowanD::updateH` (the mobile/total
+ * dislocation-density hardening ODE only -- contrast `test_orowan_kinetics.cxx`, which
+ * tests the slip-rate law with the hardening state held fixed): builds
+ * `Kin_OroD_Iso_FCC` directly, applies a uniform slip rate on every slip system, solves
+ * the hardening update for one time step, and checks the updated mobile density
+ * (`hs_u[0]`) and total density (`hs_u[12]`, the second half of the `2 * nslip`-long
+ * hardening state -- see `kinetics/ECMech_kinetics_OrowanD.h`'s hardening-law doc)
+ * against recorded reference values.
+ *
+ * `LARGE_DD` (see `test/CMakeLists.txt`) swaps in `setup_kin_OroD_Iso_FCC.h`'s
+ * `LARGE_DD` branch (much higher initial densities), which also converges in fewer
+ * solver iterations (`nevals = 2` vs. `4`) since the relative change in density over one
+ * step is smaller when the starting densities are already large.
+ */
+
 #include <gtest/gtest.h>
 
 #include "SNLS_TrDLDenseG.h"

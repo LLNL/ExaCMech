@@ -1,3 +1,25 @@
+/**
+ * @file test_orowan_px.cxx
+ *
+ * @brief The Orowan-dislocation-density-kinetics counterpart to `test_px.cxx`'s "px"
+ * (points, batched) driver pattern -- see that file's `@file` doc for the shared
+ * mechanics (random per-point orientations, per-step relative-volume update, batched
+ * `getResponseECM`, volume-averaged axial deviatoric stress checked against a recorded
+ * reference value).
+ *
+ * What's specific to this file is the model selection: `KIN_BCC` builds
+ * `matModelEvptn_BCC_C` (isotropic Orowan BCC), `KIN_BCC_NS` builds
+ * `matModelEvptn_BCC_E` (anisotropic **non-Schmid** BCC, `Kin_OroD_Aniso_BCC_NS`), and
+ * the default builds `matModelEvptn_FCC_C` (isotropic Orowan FCC). The `KIN_BCC_NS`
+ * branch additionally inserts a `slip_geom_ns` block of 3 zeros into `params` **twice**:
+ * once for `SlipGeomBCCNonSchmid::nParams == 3` at the matModel level (right after
+ * `tolerance`, before the elastic constants), and again after
+ * `setup_kin_OroD_Iso_FCC_ns.h`'s own parameters, since `KineticsOrowanD::setParams`
+ * itself separately consumes a trailing copy of `SlipGeom::nParams` values to build a
+ * temporary `SlipGeom` for its default forest-interaction-matrix computation (see the
+ * `@note` on `getParams` in `kinetics/ECMech_kinetics_OrowanD.h`).
+ */
+
 #include <gtest/gtest.h>
 #include <random>
 
@@ -42,12 +64,15 @@ TEST(ecmech, px_orowan)
    std::vector<std::string>   strs; // none
    std::vector<double>         params { density0, cvav, tolerance };
 
+// 1st insertion: SlipGeomBCCNonSchmid::nParams == 3 slot at the matModel level.
 #if defined(KIN_BCC_NS)
 std::vector<double> slip_geom_ns(3, 0.0);
 params.insert(params.end(), slip_geom_ns.begin(), slip_geom_ns.end());
 #endif
 
 #include "setup_elastn.h"
+// 2nd insertion: KineticsOrowanD::setParams's own trailing SlipGeom::nParams copy
+// (see this file's @file doc) -- needed only in this STACK_PARAMS/non-Schmid case.
 #if defined(KIN_BCC_NS)
 #include "setup_kin_OroD_Iso_FCC_ns.h"
 params.insert(params.end(), slip_geom_ns.begin(), slip_geom_ns.end());

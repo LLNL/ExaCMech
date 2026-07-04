@@ -1,5 +1,25 @@
 // -*-c++-*-
 
+/**
+ * @file test_aniso_kinetics_VocePL.h
+ *
+ * @brief Test-only companion to `kinetics/ECMech_kinetics_VocePL.h`: `KineticsAnisoVocePL`,
+ * a per-slip-system-hardening variant of the linear/nonlinear-Voce power-law kinetics
+ * model, used exclusively by `test_aniso_hardening.cxx` to exercise `updateHN`'s
+ * vector-hardening solve path (`kinetics/ECMech_kinetics.h`) with a real, if simplified,
+ * multi-component hardening law -- the production `KineticsVocePL` only ever has a
+ * single (`nH == 1`) hardening state.
+ *
+ * The physics is otherwise identical to `KineticsVocePL`: the same power-law slip-rate
+ * law (`evalGdot`) and the same per-slip-system Voce hardening-rate form (`getSdotN`),
+ * just with `nH == Nslip` independent CRSS states (`m_tausi[]`, one per slip system)
+ * instead of one shared value. **Simplification**: each slip system's hardening ODE only
+ * depends on its own CRSS -- `getSdotN`'s Jacobian `dsdot_ds` is purely diagonal (no
+ * cross-slip-system hardening coupling terms), which keeps this test class simple but
+ * means it isn't a template for how a "real" anisotropic hardening model's Jacobian
+ * should look.
+ */
+
 #ifndef TEST_ANISO_KINETICS_VOCEPL_H
 #define TEST_ANISO_KINETICS_VOCEPL_H
 
@@ -7,21 +27,28 @@
 #include <cmath>
 #include "ECMech_port.h"
 
+/** @brief Row-major flattening of a `(p, q)` index into an `nDim × nDim` matrix; shared with the production kinetics headers. */
 #define ECMECH_NN_INDX(p, q, nDim) (p) * (nDim) + (q)
 
 namespace ecmech {
    /**
-    * slip and hardening kinetics
+    * @brief Linear/nonlinear-Voce power-law kinetics with one independent hardening
+    * state per slip system, rather than `KineticsVocePL`'s single shared state.
     *
-    * power-law slip kinetics with Voce hardening law -- meant to be about as simple as it gets
+    * @tparam nonlinear Selects the linear (`false`) or nonlinear (`true`) Voce
+    * saturation-stress rate-sensitivity form, exactly as in `KineticsVocePL`.
+    * @tparam Nslip Number of slip systems, and (since `nH == Nslip` here) the number of
+    * independent hardening states.
     */
    template<bool nonlinear,
             int Nslip>
    class KineticsAnisoVocePL
    {
       public:
+         /** @brief One hardening state per slip system (unlike `KineticsVocePL`'s single shared state). */
          static constexpr int nH = Nslip;
          static constexpr int nslip = Nslip;
+         /** @brief `mu`, `xm`, `gam_w` (power-law) + `h0`, `tausi[Nslip]`, `taus0`, [`xmprime` if `nonlinear`], `xms`, `gamss0` (Voce) + `hdn_init` -- see `setParams`. */
          static constexpr int nParams = 3 + 5 + nH + (nonlinear ? 1 : 0);
          static constexpr int nVals = nslip;
          static constexpr int nEvolVals = 2;
@@ -33,6 +60,11 @@ namespace ecmech {
          __ecmech_hdev__
          ~KineticsAnisoVocePL() {}
 
+         /**
+          * @brief Set parameters from a flat array; order matches `KineticsVocePL::setParams`
+          * except `tausi` is `nslip` values (one initial CRSS per slip system) rather than one.
+          * @param params Flat parameter array of length #nParams.
+          */
          __ecmech_host__
          inline void setParams(const std::vector<double> & params // const double* const params
                                ) {
@@ -86,6 +118,7 @@ namespace ecmech {
             assert((parsIt - params.begin()) == nParams);
          }
 
+         /** @brief Inverse of `setParams`: appends this instance's current parameters (in the same order) onto `params`. */
          __ecmech_host__
          inline void getParams(std::vector<double> & params
                                ) const {
@@ -124,6 +157,15 @@ namespace ecmech {
 #endif
          }
 
+         /**
+          * @brief Report a single representative initial hardening value, *not* one per
+          * slip system.
+          * @note Deviates from the usual kinetics-class contract of reporting `nH`
+          * history entries: this always pushes exactly one `"h"` entry (`m_hdn_init`)
+          * regardless of `nH == nslip`. `test_aniso_hardening.cxx` compensates by
+          * broadcasting this single value across all `nslip` initial-state entries
+          * itself (`std::fill`) rather than relying on `getHistInfo` to supply them.
+          */
          __ecmech_host__
          void getHistInfo(std::vector<std::string> & names,
                           std::vector<double>       & init,
@@ -143,26 +185,35 @@ namespace ecmech {
          // power-law stuff
 
          // parameters
+         /** @brief Reference shear modulus for the power-law slip rate. */
          double m_shear_modulus; // may evetually set for current conditions
+         /** @brief Power-law rate-sensitivity exponent (1/m). */
          double m_xm;
+         /** @brief Reference/normalizing shear rate for the power-law slip rate. */
          double m_gam_w; // pl%adots, adots0
 
          // derived from parameters
+         /** @brief Overflow/underflow stress-ratio thresholds and power-law exponent helpers derived from `m_xm`. */
          double m_t_max, m_t_min, m_xn, m_xnn;
 
          //////////////////////////////
          // Voce hardening stuff
 
+         /** @brief Voce hardening-rate coefficient, saturation-stress reference value, and saturation-stress rate-sensitivity exponent/reference rate (shared across all slip systems). */
          double m_h0, m_taus0, m_xms, m_gamss0;
+         /** @brief Per-slip-system initial CRSS -- the one place this class differs structurally from `KineticsVocePL`. */
          double m_tausi[nslip];
+         /** @brief Nonlinear-Voce exponent and its (exponent - 1) precompute; fixed at `1`/`0` (a no-op multiplicatively) when `nonlinear == false`. */
          double m_xmprime, m_xmprime1;
 
          //////////////////////////////
 
+         /** @brief Single shared initial value for every slip system's hardening state (see `getHistInfo`'s `@note`). */
          double m_hdn_init;
 
       public:
 
+         /** @brief Reference shear rate used to non-dimensionalize slip rates elsewhere in the solver machinery. */
          __ecmech_hdev__
          inline double getFixedRefRate(const double* const // vals, not used
                                        ) const
@@ -170,6 +221,14 @@ namespace ecmech {
             return m_gam_w;
          }
 
+         /**
+          * @brief Copy the per-slip-system CRSS directly out of the hardening state
+          * (no forest-hardening combination step, unlike the production kinetics
+          * classes) and return their mean.
+          * @param[out] vals Per-slip-system CRSS, copied from `h_state`.
+          * @param[in] h_state Current hardening state (one value per slip system).
+          * @return Mean CRSS across all slip systems.
+          */
          __ecmech_hdev__
          inline
          double
@@ -191,6 +250,7 @@ namespace ecmech {
             return mVals;
          }
 
+         /** @brief Evaluate the power-law slip rate (and its derivatives) on every slip system independently, using each system's own CRSS from `vals`. */
          __ecmech_hdev__
          inline
          void
@@ -213,7 +273,16 @@ namespace ecmech {
          }
 
          /**
-          * see kinetics_pl_d
+          * @brief Single-slip-system power-law slip rate: `γ̇ = gam_w · sign(τ) · |τ/g|^(1/xm)`,
+          * inactive (zero rate/derivatives) below the `m_t_min` rate-independent floor and
+          * clamped to a large finite value above the `m_t_max` overflow guard -- same
+          * form as `KineticsVocePL::evalGdot`.
+          * @param[out] gdot Slip rate.
+          * @param[out] l_act Whether this slip system is above the rate-independent floor.
+          * @param[out] dgdot_dtau Derivative of `gdot` with respect to resolved shear stress.
+          * @param[out] dgdot_dg Derivative of `gdot` with respect to slip-system strength.
+          * @param[in] gIn Current CRSS for this slip system.
+          * @param[in] tau Resolved shear stress on this slip system.
           */
          __ecmech_hdev__
          inline
@@ -264,6 +333,15 @@ namespace ecmech {
             }
          } // evalGdot
 
+         /**
+          * @brief Solve the `nslip`-component (vector) hardening-state update via
+          * `updateHN` (`kinetics/ECMech_kinetics.h`)'s trust-region dogleg solver.
+          * @param[out] hs_u Updated per-slip-system hardening state.
+          * @param[in] hs_o Beginning-of-step per-slip-system hardening state.
+          * @param[in] dt Time-step size.
+          * @param[in] gdot Slip rates driving the hardening update.
+          * @return Number of solver function evaluations.
+          */
          __ecmech_hdev__
          inline
          int
@@ -287,6 +365,13 @@ namespace ecmech {
             return nFEvals;
          }
 
+         /**
+          * @brief Precompute the total effective shear rate and the (rate-dependent)
+          * saturation stress shared by every slip system's hardening ODE this step.
+          * @param[out] evolVals `[0]`: total effective shear rate `Σ|γ̇ᵢ|`; `[1]`: Voce
+          * saturation stress at that rate.
+          * @param[in] gdot Per-slip-system slip rates.
+          */
          __ecmech_hdev__
          inline
          void
@@ -305,9 +390,20 @@ namespace ecmech {
             evolVals[1] = sv_sat;
          }
 
+         /**
+          * @brief Per-slip-system Voce hardening rate `ḣᵢ = h0 · (1 - hᵢ/sv_sat)^xmprime ·
+          * shrate_eff` (or its linear form when `nonlinear == false`) and its Jacobian.
+          * @note The Jacobian `dsdot_ds` is purely diagonal -- slip system `i`'s hardening
+          * rate depends only on its own state `h[i]`, not on any other system's (see this
+          * file's `@file` doc for why that's a deliberate test-only simplification).
+          * @param[out] sdot Per-slip-system hardening rate.
+          * @param[out] dsdot_ds `nslip × nslip` Jacobian of `sdot` with respect to `h` (only the diagonal is nonzero).
+          * @param[in] h Current per-slip-system hardening state.
+          * @param[in] evolVals `[0]`/`[1]` from `getEvolVals` (effective shear rate, saturation stress).
+          */
          __ecmech_hdev__
          inline
-         void                   
+         void
          getSdotN(double *sdot,
                   double *dsdot_ds,
                   const double* const h,

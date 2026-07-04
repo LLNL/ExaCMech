@@ -1,3 +1,21 @@
+/**
+ * @file test_orowan_kinetics.cxx
+ *
+ * @brief Isolated unit test of `KineticsOrowanD::evalGdots` (the slip-rate law only --
+ * no hardening-state ODE, contrast `test_orowan_hardening.cxx`): builds
+ * `Kin_OroD_Iso_FCC` directly (not via a full `matModelBase`), evaluates the
+ * dislocation-density-based CRSS/reference-rate values (`getVals`) from the initial
+ * hardening state, then evaluates the resulting slip rate on every slip system for a
+ * fixed, uniform resolved shear stress (`init_tau`) and checks slip system 0's slip
+ * rate against a recorded reference value.
+ *
+ * `LARGE_DD` (see `test/CMakeLists.txt`) swaps in the `qM`/`qT` (initial mobile/total
+ * dislocation density) values from `setup_kin_OroD_Iso_FCC.h`'s `LARGE_DD` branch,
+ * giving a much higher initial CRSS and hence a much smaller slip rate at the same
+ * resolved shear stress -- exercising the same code path at a very different point in
+ * its range.
+ */
+
 #include <gtest/gtest.h>
 
 #include "SNLS_TrDLDenseG.h"

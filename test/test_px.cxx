@@ -1,3 +1,26 @@
+/**
+ * @file test_px.cxx
+ *
+ * @brief The canonical "px" (points, batched) driver test: builds a full FCC
+ * `matModelBase` via the `STACK_PARAMS` flat-array path (see `setup_base.h`), then
+ * repeatedly calls `matModelBase::getResponseECM` on a batch of `nPassed` randomly
+ * oriented single-crystal points subjected to the same deviatoric uniaxial-tension
+ * deformation rate, checking the resulting volume-averaged axial deviatoric stress
+ * after `nStep` time steps against a recorded reference value. This is the same
+ * public, string/flat-array-driven API a real host code would use (unlike
+ * `test_evptn.cxx`, which drives the lower-level per-component classes directly, or
+ * `test_updst.cxx`, which drives a single point at a time) -- so it's as close as this
+ * test suite gets to an end-to-end integration test of the whole `matModel` machinery.
+ *
+ * `test_orowan_px.cxx` follows this exact same pattern for the Orowan dislocation-density
+ * kinetics models instead; see this file's comments for the parts that are common to
+ * both (per-step relative-volume update, random-orientation setup, batched
+ * `getResponseECM` call) and that file's doc for what's specific to it.
+ *
+ * `KIN_TYPE` (0 or 1, default `1`) selects between `matModelEvptn_FCC_A` (linear-Voce
+ * kinetics) and `matModelEvptn_FCC_B` (KMBalD kinetics).
+ */
+
 #include <gtest/gtest.h>
 
 #include "SNLS_TrDLDenseG.h"
@@ -75,6 +98,11 @@ TEST(ecmech, px_a)
    //
    // set up hist and other state information
    //
+   // Every point starts from the model's own initial history values, except the
+   // orientation quaternion, which is drawn from a normal distribution and renormalized
+   // to a unit quaternion per point below -- giving nPassed independent, randomly
+   // oriented single crystals to average over, similar in spirit to the
+   // orientation_evolution miniapp's batched Taylor-averaging setup.
    const int numHist = mmb->getNumHist();
    std::vector<double> V_hist(numHist * nPassed, 0.0);
    {
@@ -97,6 +125,10 @@ TEST(ecmech, px_a)
       }
    }
 
+   // A small deviatoric (z-tension) strain rate, held for a large dt (dt is defined as
+   // a fixed strain increment divided by relRate) -- same deviatoric shape used in
+   // setup_conditions.h's def_rate_d6v_sample, but broadcast identically to every point
+   // here rather than derived from a per-point velocity gradient.
    double relRate = 1e-6;
    double dt = 0.002 / relRate;
 
@@ -133,6 +165,8 @@ TEST(ecmech, px_a)
       time += dt;
 
       // update current relative volume from the volumetric deformation rate
+      // ([rel_vol_n, rel_vol_n+1, rate, delta] per point -- see ECMech_const.h's `nvr`
+      // doc; same recurrence as the miniapp's setup_data and pyecmech's example.py)
       //
       for (int iPassed = 0; iPassed < nPassed; iPassed++) {
          int pOffsetSVP = ecmech::nsvp * iPassed;
@@ -144,6 +178,10 @@ TEST(ecmech, px_a)
                                      (dt * 0.5 * (V_rel_vol_ratios[0 + pOffsetVR] + V_rel_vol_ratios[1 + pOffsetVR]) );
       }
 
+      // Advance all nPassed points one step (tangent stiffness not requested, hence
+      // nullptr), then average the resulting axial (index 2, the z-normal component)
+      // deviatoric stress across every randomly oriented point -- the "px" (points)
+      // pattern's actual figure of merit.
       mmb->getResponseECM(dt,
                           V_def_rate_d6v_sample, V_spin_vec_sample, V_rel_vol_ratios,
                           V_internal_energy, V_cauchy_stress_d6p, V_hist.data(), V_tkelv, V_sdd, nullptr,

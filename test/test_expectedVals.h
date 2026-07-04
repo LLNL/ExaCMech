@@ -1,3 +1,24 @@
+/**
+ * @file test_expectedVals.h
+ *
+ * @brief Shared regression-value fragment (see `setup_base.h` for the general
+ * `setup_*.h`/`test_*.h` inclusion pattern) `#include`d by `test_evptn.cxx` and
+ * `test_updst.cxx`. Both drive an FCC single-crystal update to convergence and check
+ * the result against these previously-recorded reference numbers -- so a diff here
+ * would mean the underlying math/solver changed, not that these values are somehow
+ * independently "correct" from first principles.
+ *
+ * Selects one of four sets of `expectedNFEvals`/`expectedGdotVal`/`expectedE2`/
+ * `expectedQ1` values based on the including file's `KIN_TYPE` (and, for the default
+ * `KIN_TYPE`, `XM_MUSHY`) build-time macro -- i.e. one reference solution per
+ * slip-geometry/kinetics-model combination under test (`KIN_TYPE == 3`: BCC +
+ * `Kin_KMBalD_TFF`; `== 2`: HCP + `Kin_HCP_A`; `== 1`: FCC + `Kin_KMBalD_FFF`;
+ * default: FCC + `Kin_Voce`, further split by `XM_MUSHY`).
+ *
+ * @note `expectedNFEvals` is the raw solver function-evaluation count; `test_evptn.cxx`
+ * checks it directly, while `test_updst.cxx` checks `expectedNFEvals + 1` since it also
+ * requests the tangent stiffness matrix, which costs one extra evaluation.
+ */
 #if KIN_TYPE == 3
 
 static const int   expectedNFEvals = 9;

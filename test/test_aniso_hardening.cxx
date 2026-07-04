@@ -1,3 +1,19 @@
+/**
+ * @file test_aniso_hardening.cxx
+ *
+ * @brief Per-slip-system-hardening counterpart to `test_hardening.cxx`'s `hard_voce_a`/
+ * `hard_voce_nostr` tests -- same setup (`setup_kin_VocePL.h`/`setup_kin_VocePL_NS.h`,
+ * same reference values), but driving `KineticsAnisoVocePL` (`test_aniso_kinetics_VocePL.h`)
+ * instead of `KineticsVocePL`, so every slip system has its own independent hardening
+ * state (`nH == nslip`). Since `KineticsAnisoVocePL::getHistInfo` only ever reports one
+ * representative initial value (see that function's `@note`), both tests here manually
+ * broadcast it across all `nslip` entries of the initial-state vector before calling
+ * `updateH`, and check the *last* slip system's updated state (`hs_u[nslip - 1]`)
+ * against the same reference value `test_hardening.cxx` checks `hs_u[0]` against --
+ * since every slip system starts identically and is driven by the same uniform slip
+ * rate, they all converge to the same updated value.
+ */
+
 #include <gtest/gtest.h>
 
 #include "SNLS_TrDLDenseG.h"

@@ -1,3 +1,28 @@
+/**
+ * @file test_evptn.cxx
+ *
+ * @brief Lowest-level end-to-end test of a single-crystal update: drives
+ * `evptn::EvptnUpdstProblem`/`ProblemState` and the SNLS trust-region dogleg solver
+ * directly (component objects wired together by hand), rather than going through a
+ * `matModelBase`/`matModel<...>` -- contrast `test_updst.cxx`/`test_px.cxx`, which test
+ * the same underlying math through that higher-level, string/flat-array-driven API.
+ *
+ * `KIN_TYPE` (0-3, default `1`) selects which slip-geometry/kinetics/elasticity
+ * combination to test: `0` FCC + linear-Voce, `1` FCC + `Kin_KMBalD_FFF`, `2` HCP +
+ * `Kin_HCP_A`, `3` BCC + `Kin_KMBalD_TFF`. Each is checked against the matching
+ * `KIN_TYPE` branch in `test_expectedVals.h`.
+ *
+ * The test has two halves: first it solves the implicit single-step update via the
+ * `Prob`/`Solver` object pair directly (checking the solver's function-eval count,
+ * a representative slip rate, and how close the solver's final trust-region ratio
+ * `rho` is to 1, i.e. how well-behaved the final step was); then it re-solves the
+ * *same* problem via `evptn::getResponseSngl` (the single-point free function that
+ * `matModel::getResponseECM` itself calls per point internally) starting from
+ * zeroed-out beginning-of-step slip rates, and checks that it reproduces the lattice
+ * strain, orientation, and slip-rate results from the first half -- so this file
+ * doubles as a consistency check between the two ways of driving the same physics.
+ */
+
 #include <gtest/gtest.h>
 
 #include "SNLS_TrDLDenseG.h"
@@ -39,6 +64,10 @@ TEST(ecmech, evptn_a)
    using Kinetics = Kin_Voce;
    using ThermoElastN =  EVPTN_cubic;
 #endif
+   // ProblemState packages the beginning-of-step kinematics/history into the form
+   // EvptnUpdstProblem's residual/Jacobian evaluation expects; Prob wraps that as an
+   // SNLS-solvable nonlinear problem, and Solver is the dense trust-region dogleg
+   // solver instantiated for it (see evptn/ECMech_evptn.h and the SNLS docs).
    using ProblemState = evptn::ProblemState<SlipGeom, Kinetics, ThermoElastN, EosModelConst<false>>;
 
    using Prob = evptn::EvptnUpdstProblem<SlipGeom, Kinetics, ThermoElastN, ProblemState>;

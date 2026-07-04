@@ -1,3 +1,21 @@
+/**
+ * @file test_hardening.cxx
+ *
+ * @brief Isolated unit tests of three kinetics models' hardening-state ODEs
+ * (`updateH`), each driven directly (no full `matModelBase`) with a fixed, uniform slip
+ * rate on every slip system for a single time step, checking the updated hardening
+ * state against a recorded reference value:
+ * - `hard_voce_a`: `KineticsVocePL` (linear or, with `KIN_NONLINEAR`, nonlinear Voce).
+ * - `hard_voce_nostr`: same, but with `setup_kin_VocePL_NS.h`'s rate-insensitive
+ *   saturation stress (see that file's doc for what `_NS`/"nostr" means).
+ * - `hard_kmbaldfff_a`: `Kin_KMBalD_FFF` (Kocks-Mecking relative-dislocation-density
+ *   hardening).
+ *
+ * `test_orowan_hardening.cxx` covers the same kind of isolated hardening-ODE test for
+ * the Orowan dislocation-density model; `test_aniso_hardening.cxx` covers the
+ * per-slip-system-hardening `KineticsAnisoVocePL` variant of the first two tests here.
+ */
+
 #include <gtest/gtest.h>
 
 #include "SNLS_TrDLDenseG.h"

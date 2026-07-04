@@ -1,3 +1,32 @@
+/**
+ * @file test_updst.cxx
+ *
+ * @brief Single-point tests of a full `matModelBase` built via the `STACK_PARAMS`
+ * flat-array path (see `setup_base.h`), built from two `TEST`s that share the same
+ * model construction but drive it differently:
+ * - `updst_a`: one `getResponseECM` call, checked against `test_expectedVals.h`'s
+ *   reference values (the same physical setup `test_evptn.cxx`'s `evptn_a` test
+ *   checks, but reached through the public `matModelBase` API instead of the raw
+ *   `evptn` component objects).
+ * - `driver_a`: repeatedly calls `getResponseECM` for `nStep` steps under a small,
+ *   sustained deviatoric strain rate and checks the resulting stress/hardening-state
+ *   trajectory against reference values -- this test suite's version of a simple
+ *   "drive a material point through a stress-strain curve" integration test. When
+ *   `DO_FD_CHECK_MTAN` is set (built as the separate `test_mtan` target -- see
+ *   `test/CMakeLists.txt`), it also runs a finite-difference verification of the
+ *   analytic tangent-stiffness matrix (`mtanSD`) after that loop: it perturbs each of
+ *   the 6 Voigt components of the deformation rate one at a time, re-evaluates the
+ *   stress response, and checks that `(stress(perturbed) - stress(reference)) /
+ *   perturbation` matches the analytically computed tangent to within `1e-3` -- see the
+ *   `DO_FD_CHECK_MTAN` block below for the perturbation-scaling details (shear
+ *   components get an extra factor of 2, and the perturbed normal components are
+ *   re-symmetrized to stay deviatoric).
+ *
+ * `KIN_TYPE` (0 or 1, default `1`) selects `matModelEvptn_FCC_A` (linear-Voce) or
+ * `matModelEvptn_FCC_B` (KMBalD); `NON_I_QUAT` starts the crystal from a non-identity
+ * orientation quaternion instead of the identity.
+ */
+
 #include <gtest/gtest.h>
 
 #include "SNLS_TrDLDenseG.h"
@@ -269,6 +298,10 @@ TEST(ecmech, driver_a)
    {
       //
       // do another step, and do finite differencing to check mtanSD
+      //
+      // Snapshot the state right before this extra step (hist_ref/internal_energy_ref/
+      // cauchy_stress_d6p_ref/v_ref) so every perturbed re-evaluation below can be
+      // restored back to the exact same beginning-of-step condition.
 
       std::vector<double> hist_ref(hist, hist + mmodel->numHist);
       std::vector<double> internal_energy_ref(internal_energy, internal_energy + ecmech::ne);
@@ -299,6 +332,13 @@ TEST(ecmech, driver_a)
       double internal_energy_pert[ecmech::ne];
       double cauchy_stress_d6p_pert[ecmech::nsvp];
       //
+      // One column of mtanSD_fd per Voigt component jSvec of the deformation rate:
+      // perturb just that component, re-run getResponseECM from the snapshotted
+      // reference state, and take a one-sided finite difference of the resulting
+      // stress. Voigt indices 0-2 are the normal components, which must stay traceless
+      // (per def_rate_d6v's deviatoric convention) -- so perturbing one of them also
+      // shifts the trace/volumetric slot (iSvecP) and re-subtracts the mean back out of
+      // all three normal components to restore that constraint.
       for (int jSvec = 0; jSvec<ecmech::nsvec; ++jSvec) {
          std::copy(def_rate_d6v_sample, def_rate_d6v_sample + ecmech::nsvp, def_rate_d6v_sample_pert);
          if (jSvec < 3) {
