@@ -1,3 +1,16 @@
+/**
+ * @file setup_kin_VocePL_NS.h
+ *
+ * @brief Fragment (see `setup_base.h` for the general `setup_*.h` inclusion pattern),
+ * identical in structure and macro handling to `setup_kin_VocePL.h` (see that file's
+ * doc), but with `xms = 0.0` (versus `0.05`) -- removing the saturation stress's rate
+ * sensitivity, so `taus0` becomes a fixed target independent of shear rate. This is
+ * what the including test in `test_hardening.cxx` calls the `hard_voce_nostr` case
+ * ("no [rate-sensitive] str[ess]" for the saturation stress), used as a simpler
+ * cross-check against the general (`xms != 0`) hardening law exercised by
+ * `setup_kin_VocePL.h`. `taus0` is also set equal to `tausi` here (versus `4x` larger),
+ * leaving little initial headroom to harden through.
+ */
 #if XM_MUSHY
 #define XM_VAL 0.1
 #else

@@ -1,3 +1,26 @@
+/**
+ * @file setup_kin_KMBalD_TTT_HCP_A.h
+ *
+ * @brief Fragment (see `setup_base.h` for the general `setup_*.h` inclusion pattern)
+ * that sets parameters for `Kin_HCP_A` (`KineticsKMBalD<true, true, true, true,
+ * SlipGeom_HCP_A::nslip>`, see `ECMech_cases_hcp_defs.h` /
+ * `kinetics/ECMech_kinetics_KMBalD.h`), used by `matModelEvptn_HCP_A`
+ * (`"evptn_HCP_A"`). The "TTT" name is the three leading template bools, all true:
+ * `withGAthermal = true` (CRSS ĝ and the MTS-normalizing stress `τ_a` are split, hence
+ * both `go` (initial ĝ, athermal-floor-like) and `tau_a` appear below), `pOne = true`
+ * and `qOne = true` (the MTS activation-energy exponents are fixed at 1 -- hence `p =
+ * 1.0`, `q = 1.0` here, unlike the FFF/TFF variants' `p = 0.28`, `q = 1.34`).
+ *
+ * Unlike `setup_kin_KMBalD_FFF.h`/`_TFF_BCC_A.h`, this model also sets `perSS = true`
+ * with `nVPer = SlipGeom_HCP_A::nslip = 24` -- so `c_1`, `go`, and `s` are each given as
+ * 24 individual per-slip-system values below (grouped 3 + 3 + 6 + 12, matching HCP_A's
+ * basal/prismatic/pyramidal-⟨a⟩/pyramidal-⟨c+a⟩ slip-system families) rather than one
+ * shared crystal-wide value each. All 24 entries happen to be identical here (same
+ * physical value repeated per system), but the *shape* of the parameter list itself is
+ * what exercises the `perSS = true` code path.
+ *
+ * See `setup_kin_KMBalD_FFF.h`'s doc for what each parameter name physically means.
+ */
 {
    double
       shear_modulus = 1.0,

@@ -1,3 +1,30 @@
+/**
+ * @file setup_kin_OroD_Iso_FCC_ns.h
+ *
+ * @brief Fragment (see `setup_base.h` for the general `setup_*.h` inclusion pattern)
+ * that sets `KineticsOrowanD` parameters with `isotropic = false` (the full,
+ * explicit-matrix code path) rather than the `isotropic = true` scalar shortcut
+ * `setup_kin_OroD_Iso_FCC.h` uses. Despite the "FCC" in the filename, this fragment's
+ * actual (and only) real use is `test_orowan_px.cxx`'s `KIN_BCC_NS` branch, which
+ * builds `matModelEvptn_BCC_E` (`Kin_OroD_Aniso_BCC_NS`, the anisotropic non-Schmid BCC
+ * Orowan model -- hence the `_ns` suffix); the parameter *values* below were simply
+ * reused from the isotropic FCC example rather than re-derived, since this fragment
+ * exists to exercise the full-matrix code path's plumbing, not to be a physically fit
+ * non-Schmid BCC material.
+ *
+ * `inter_mat` here is a 144-entry (`12 × 12`) matrix with every entry `1.0` -- i.e.
+ * numerically isotropic, so results using this fragment should match
+ * `setup_kin_OroD_Iso_FCC.h`'s even though the code path differs. Note that
+ * `KineticsOrowanD::setParams` also consumes its own trailing copy of
+ * `SlipGeom::nParams` values (to build a temporary `SlipGeom` for the default
+ * forest-matrix computation -- see the `@note` on `getParams` in
+ * `kinetics/ECMech_kinetics_OrowanD.h`); for the non-Schmid slip geometry
+ * (`SlipGeom::nParams == 3`) that means the including test file must append 3 more
+ * values after this fragment's own `paramsThese` in `STACK_PARAMS` mode (see
+ * `test_orowan_px.cxx`'s `KIN_BCC_NS` branch).
+ *
+ * See `setup_kin_OroD_Iso_FCC.h`'s doc for what each parameter name physically means.
+ */
 {
    double
       shear_modulus_ref = 1.0, //MBar

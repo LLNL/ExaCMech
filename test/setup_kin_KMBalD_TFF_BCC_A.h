@@ -1,3 +1,20 @@
+/**
+ * @file setup_kin_KMBalD_TFF_BCC_A.h
+ *
+ * @brief Fragment (see `setup_base.h` for the general `setup_*.h` inclusion pattern)
+ * that sets parameters for `Kin_KMBalD_TFF` (`KineticsKMBalD<true, false, false, false,
+ * 1>`, see `ECMech_cases.h` / `kinetics/ECMech_kinetics_KMBalD.h`), used by
+ * `matModelEvptn_BCC_B` (`"evptn_BCC_B"`). The "TFF" name is the three leading template
+ * bools: `withGAthermal = true` (CRSS ĝ and the MTS-normalizing stress `τ_a` are split
+ * -- see `setup_kin_KMBalD_TTT_HCP_A.h`'s doc for how that changes the parameter list),
+ * `pOne = false`, `qOne = false` (general `p`/`q` exponents, same values as the FFF
+ * variant). `perSS = false` as well, so `c_1`/`go`/`s` remain single crystal-wide
+ * values even though `SlipGeom_BCC_A` has 12 slip systems.
+ *
+ * Same parameter meanings and order as `setup_kin_KMBalD_FFF.h` (this file is
+ * numerically identical to it, just grouped slightly differently in the initializer
+ * list); see that file's doc for the full per-parameter breakdown.
+ */
 {
    double
       shear_modulus = 1.0,

@@ -1,3 +1,26 @@
+/**
+ * @file setup_kin_OroD_Iso_FCC.h
+ *
+ * @brief Fragment (see `setup_base.h` for the general `setup_*.h` inclusion pattern)
+ * that sets parameters for `Kin_OroD_Iso_FCC` (`KineticsOrowanD<false, false, false,
+ * true, false, 1, SlipGeomFCC, true>`, see `ECMech_cases_fcc_defs.h` /
+ * `kinetics/ECMech_kinetics_OrowanD.h`), used by `matModelEvptn_FCC_C`
+ * (`"evptn_FCC_C"`). The 4th template argument, `isotropic = true`, is why `inter_mat`
+ * below is a single scalar rather than the full `nslip × nslip` forest-interaction
+ * matrix -- contrast `setup_kin_OroD_Iso_FCC_ns.h`, which supplies the full matrix (with
+ * every entry equal, so numerically equivalent to this file, but exercising the
+ * `isotropic = false` code path instead).
+ *
+ * See `KineticsOrowanD::setParams`'s doc for the full parameter list; briefly:
+ * `shear_modulus_ref`/`tkelv_ref` (MTS reference shear modulus/temperature),
+ * `berg_mag`/`lbar` (Burgers-vector magnitude and mean free path), `fD` (phonon-drag
+ * reference frequency), `c_1` (thermal-energy prefactor scale), `tau_a`/`p`/`q` (MTS
+ * athermal reference stress and activation-energy exponents), `c2` (drag-stress
+ * scale), `gam_ro`/`wrD` (reverse reference shear rate and phonon-drag weighting),
+ * `inter_mat` (forest-interaction coefficient), `c_ann`/`d_ann`/`c_trap`/`c_mult`
+ * (dislocation annihilation/trapping/multiplication coefficients), and `qM`/`qT`
+ * (initial mobile/total dislocation densities, one pair per slip system).
+ */
 {
    double
       shear_modulus_ref = 1.0, //MBar
