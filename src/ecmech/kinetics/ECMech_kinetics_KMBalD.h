@@ -1,3 +1,126 @@
+/**
+ * @file ECMech_kinetics_KMBalD.h
+ * @brief Kocks-Mecking single-dislocation-density hardening law, paired with balanced
+ * (bidirectional) thermally-activated MTS-like slip kinetics and phonon drag.
+ *
+ * Model form follows Barton, Winter, and Reaugh, "Defect evolution and pore collapse in
+ * crystalline energetic materials," Modelling Simul. Mater. Sci. Eng. 17, 035003 (2009)
+ * @cite hmx.
+ *
+ * "Balanced" means the slip-rate law explicitly evaluates and subtracts a
+ * reverse-direction thermally-activated jump rate from the forward one (see "Slip-rate
+ * law" below), so the net rate goes to zero continuously as the resolved shear stress
+ * goes to zero, rather than having an artificial threshold/discontinuity there.
+ *
+ * The single hardening state variable ρ tracked by this model is a **relative/
+ * normalized dislocation density** (dimensionless, order-unity), not an absolute
+ * density with physical units -- notice there is no Burgers-vector parameter anywhere
+ * in this class. This is different from KineticsBCCMD and KineticsOrowanD, which track
+ * absolute dislocation densities and use an explicit Burgers-vector-scaled Orowan
+ * relation (γ̇ = ρ·b·v) in their slip-rate laws. Consistent with that, `updateH` solves
+ * for ρ implicitly in log space with the comment "h treated as a normalized (unitless)
+ * dislocation density".
+ *
+ * **Template parameters**:
+ * - `withGAthermal`: selects which of the per-group hardening-dependent stress ĝ and
+ *   the reference stress τ_a plays the role of the athermal stress floor vs. the MTS
+ *   normalizing stress in the slip-rate law (see below) -- i.e. which one is treated as
+ *   "the (possibly Peierls-related) thermally activated part" vs. "the athermal part".
+ * - `pOne` / `qOne`: when `true`, the MTS activation-energy exponents p / q (`m_p` /
+ *   `m_q`) are assumed to be exactly 1, skipping a `pow()` call.
+ * - `perSS`: when `true`, the per-group MTS parameters (`m_c_1`, `m_go`, `m_s` below)
+ *   are given one-per-slip-system (`nVPer` must equal the slip system count) rather
+ *   than shared across all slip systems (`nVPer` must be 1) -- useful for e.g. HCP
+ *   materials where slip families (basal/prismatic/pyramidal) have very different
+ *   characteristics.
+ * - `nVPer`: number of parameter groups; 1 if `!perSS`, else the slip system count.
+ *
+ * **Kinetic values** (see KineticsKMBalD::getVals), computed from the current
+ * (relative/normalized, dimensionless) dislocation density ρ = `h_state[0]`:
+ *
+ *   γ̇_w = γ̇_w0 / √ρ
+ *   γ̇_r = γ̇_r0 · ρ
+ *   ĝᵢ = g0ᵢ + sᵢ · √ρ
+ *   c_tᵢ = C1ᵢ / T
+ *
+ * where γ̇_w = `vals[0]` (reference rate for the thermally-activated branch), γ̇_w0 =
+ * `m_gam_wo`, γ̇_r = `vals[1]` (reference rate for the drag-limited branch), γ̇_r0 =
+ * `m_gam_ro`, ĝᵢ = `vals[2+i]` (per-group reference stress -- plays the role of either
+ * the athermal floor or the MTS-normalizing stress in the slip-rate law below,
+ * depending on `withGAthermal`), g0ᵢ = `m_go[i]`, sᵢ = `m_s[i]`, c_tᵢ =
+ * `vals[2+nVPer+i]` (thermal energy scale), C1ᵢ = `m_c_1[i]`, and T = `tkelv`
+ * (temperature).
+ *
+ * **MTS thermal-activation energy function** (see KineticsKMBalD::get_mts_dG), a
+ * Kocks-Argon-Ashby-style activation-energy profile:
+ *
+ *   E(t) = -c_e · [1 - sign(t)·|t|^p]^q
+ *
+ * so that a thermally-activated rate is `(reference rate) · exp(E(t))` -- `E` pegs to 0
+ * once `t ≥ 1` (barrier fully overcome by stress) and grows more negative (stronger
+ * suppression) as `t` decreases. Here E = `exp_arg`, c_e = `c_e` (= c_t·μ, a thermal
+ * energy prefactor), p = `m_p`, q = `m_q`, and `t` is the dimensionless MTS argument
+ * passed in as `t_frac`.
+ *
+ * **Slip-rate law** (see KineticsKMBalD::evalGdot): depending on `withGAthermal`, the
+ * athermal stress floor g_ath and MTS-normalizing stress g_MTS are assigned from the
+ * per-group reference stress ĝ and τ_a (`m_tau_a`) in one of two ways:
+ *
+ *   withGAthermal:   g_ath = ĝ,     g_MTS = τ_a
+ *   !withGAthermal:  g_ath = τ_a,   g_MTS = ĝ
+ *
+ * The thermally-activated (balanced/bidirectional) rate and the drag-limited rate are
+ *
+ *   γ̇_th = γ̇_w · [exp(E(t_fwd)) - exp(E(t_rev))]
+ *   t_fwd = (|τ| - g_ath) / g_MTS,   t_rev = -(|τ| + g_ath) / g_MTS
+ *
+ *   γ̇_drag = γ̇_r · (1 - exp(-(|τ| - g_ath)/w_rD))
+ *
+ * (the reverse-hop term is dropped once negligible), plus a high-stress power-law tail
+ * once the clamped forward argument `max(0, t_fwd)` exceeds an underflow threshold
+ * t_min (mirroring #gam_ratio_min/#gam_ratio_ovf, via an effective rate-sensitivity
+ * exponent derived below):
+ *
+ *   γ̇_pl = 10 · γ̇_w · max(0, t_fwd)^xnn
+ *
+ * and finally the thermal and drag branches are combined by harmonic mean (as
+ * resistances combine in series), since either mechanism being much slower than the
+ * other dominates the net rate:
+ *
+ *   γ̇ = 1 / (1/(γ̇_th + γ̇_pl) + 1/γ̇_drag) · sign(τ)
+ *
+ * where τ = `tau`, w_rD = `m_wrD` (drag stress scale), and τ_a = `m_tau_a`. Once the
+ * clamped forward argument exceeds an overflow threshold t_max, the thermally-activated
+ * part is treated as having overflowed and the rate is purely drag-limited (γ̇ =
+ * γ̇_drag).
+ *
+ * An effective power-law rate-sensitivity exponent is derived once, at `setParams`
+ * time, from the reference MTS parameters, so the power-law tail is asymptotically
+ * consistent with the MTS thermal part at high stress ratios (`xnn = 1/xm`, `xn = xnn -
+ * 1`, matching the `t_min`/`t_max` convention used by the other kinetics models):
+ *
+ *   xmᵢ = 1 / (2 · (C1ᵢ/T_ref) · μ_ref · p · q)
+ *
+ * where T_ref = `m_tkelv_ref` and μ_ref = `m_mu_ref` (reference temperature and shear
+ * modulus).
+ *
+ * **Hardening law** (see KineticsKMBalD::getEvolVals / KineticsKMBalD::getSdot1): a
+ * Kocks-Mecking single-dislocation-density law, solved implicitly in log space (so ρ
+ * cannot be driven negative by the nonlinear solve; see #updateH1):
+ *
+ *   d(ln ρ)/dt = (k1/√ρ - k2) · γ̇_eff
+ *   k2 = k2_0 · (γ̇_0/γ̇_eff)^(1/n)
+ *
+ * where k1 = `m_k1` (multiplication-rate coefficient), k2 = the rate-dependent
+ * recovery-rate coefficient, k2_0 = `m_k2o`, γ̇_0 = `m_gamma_o` (reference shear rate),
+ * 1/n = `m_ninv` (recovery rate-sensitivity exponent), and γ̇_eff = `shrate_eff` (the
+ * effective, sum-of-absolute-value, shear rate across all slip systems).
+ *
+ * @see ECMech_kinetics.h for the kinetics model interface contract this class
+ * implements, and KineticsVocePL/KineticsOrowanD/KineticsBCCMD for the other available
+ * kinetics models
+ */
+
 // -*-c++-*-
 
 #ifndef ECMECH_KINETICS_KMBALD_H
@@ -11,28 +134,20 @@
 
 namespace ecmech {
    /**
-    * slip and hardening kinetics
-    * based on a single Kocks-Mecking dislocation density
-    * balanced thermally activated MTS-like slip kinetics with phonon drag effects
+    * @brief Kocks-Mecking single-dislocation-density hardening law with balanced,
+    * thermally-activated MTS-like slip kinetics and phonon drag.
     *
-    * see \cite{hmx}
+    * See the file-level documentation in ECMech_kinetics_KMBalD.h for the governing
+    * equations and template-parameter meanings.
     *
-    * if withGAthermal then
-    *  see subroutine kinetics_mtspwr_d in mdef : (l_mts, l_mtsp, l_plwr)
-    *    ! like kinetics_mtswr_d, but with pl%tau_a (possible associated
-    *    ! with the Peierls barrier) being the thermally activated part and
-    *    ! g being athermal
-    *       ! use balanced and pegged MTS model;
-    *       ! add to it a low rate sensitivity power law model to take over for high stresses;
-    *       ! and combine with drag limited kinetics
-    * else then see subroutine kinetics_mtswr_d in mdef
+    * @tparam withGAthermal Selects which of the per-group hardening-dependent stress or
+    * the reference stress `m_tau_a` is the athermal floor vs. the MTS-normalizing stress.
+    * @tparam pOne When `true`, the MTS exponent p is fixed at 1.
+    * @tparam qOne When `true`, the MTS exponent q is fixed at 1.
+    * @tparam perSS When `true`, the per-group MTS parameters vary per slip system.
+    * @tparam nVPer Number of parameter groups (1 if `!perSS`, else the slip system count).
     *
-    *   ! note: gdot_w, gdot_r are always positive by definition
-    *   !
-    *   ! tkelv should only be used for derivative calculations
-    *
-    * templated on p and q being 1 or not;
-    * might eventually template on number of slip systems, but do not do so just yet
+    * @ingroup ECMech_kinetics
     */
    template<bool withGAthermal,
             bool pOne, // l_p_1
@@ -42,11 +157,20 @@ namespace ecmech {
    class KineticsKMBalD
    {
       public:
+         /** @brief Number of hardening state variables: 1 (a single dislocation density). */
          static constexpr int nH = 1;
+         /** @brief Number of parameters: 8 MTS/power-law + 3 per group + 4 Kocks-Mecking + nH initial-state. */
          static constexpr int nParams = 8 + 3 * nVPer + 4 + nH;
+         /** @brief Number of kinetic values precomputed by getVals and reused by evalGdots: γ̇_w, γ̇_r, plus 2 per group (ĝ and c_t). */
          static constexpr int nVals = 2 + nVPer + nVPer;
+         /** @brief Number of intermediate values precomputed by getEvolVals and reused by getSdot1: 2 (effective shear rate and recovery coefficient k2). */
          static constexpr int nEvolVals = 2;
-         // constructor
+         /**
+          * @brief Construct with a given number of slip systems; parameters must be set
+          * separately via setParams.
+          * @param _nslip Number of slip systems; must equal `nVPer` if `perSS`,
+          * otherwise `nVPer` must be 1.
+          */
          __ecmech_hdev__
          KineticsKMBalD(int _nslip) : nslip(_nslip) {
             if (perSS) {
@@ -56,10 +180,16 @@ namespace ecmech {
                assert(nVPer == 1);
             }
          }
-         // deconstructor
+         /** @brief Destructor (default; no owned resources). */
          ~KineticsKMBalD() = default;
 
-         // constructor
+         /**
+          * @brief Construct with a given number of slip systems and immediately set
+          * parameters.
+          * @param params Parameter array; see setParams for the expected order.
+          * @param _nslip Number of slip systems; must equal `nVPer` if `perSS`,
+          * otherwise `nVPer` must be 1.
+          */
          __ecmech_hdev__
          KineticsKMBalD(const double* const params, int _nslip) :
          nslip(_nslip)
@@ -73,12 +203,30 @@ namespace ecmech {
             setParams(params);
          }
 
+         /**
+          * @brief Set parameters from a `std::vector` (host-side convenience wrapper
+          * around the array-based overload).
+          * @param params Parameter vector; see the array overload for the expected order.
+          */
          __ecmech_host__
          inline void setParams(const std::vector<double> & params)
          {
             setParams(params.data());
          }
 
+         /**
+          * @brief Set parameters from a flat array.
+          *
+          * Expected order: `mu_ref` (μ_ref), `tkelv_ref` (T_ref), `c_1[nVPer]` (C1ᵢ),
+          * `tau_a` (τ_a), `p`, `q`, `gam_wo` (γ̇_w0), `gam_ro` (γ̇_r0), `wrD` (w_rD),
+          * `go[nVPer]` (g0ᵢ), `s[nVPer]` (sᵢ) -- then `k1`, `k2o` (k2_0), `ninv` (1/n),
+          * `gamma_o` (γ̇_0) -- then `hdn_init` (initial dislocation density). Also
+          * derives, per group, the effective power-law rate-sensitivity exponent and the
+          * overflow/underflow stress-ratio thresholds `m_xnn`/`m_xn`/`m_t_min`/`m_t_max`
+          * (see the file-level documentation in ECMech_kinetics_KMBalD.h), and the
+          * dislocation-density floor `m_hdn_min = 1e-4 * hdn_init`.
+          * @param params Flat parameter array of length #nParams.
+          */
          __ecmech_hdev__
          inline
          void setParams(const double* const params) {
@@ -156,6 +304,11 @@ namespace ecmech {
 #endif
          }
 
+         /**
+          * @brief Append this model's current parameters to `params`, in the same order
+          * setParams expects them.
+          * @param[in,out] params Parameter vector to append to (not cleared first).
+          */
          __ecmech_host__
          void getParams(std::vector<double> & params
                         ) const {
@@ -206,6 +359,14 @@ namespace ecmech {
 #endif
          }
 
+         /**
+          * @brief Describe the single hardening history variable ("rho_dd", the
+          * dislocation density) for history-array bookkeeping.
+          * @param[out] names Appended with `"rho_dd"`.
+          * @param[out] init Appended with #m_hdn_init.
+          * @param[out] plot Appended with `true`.
+          * @param[out] state Appended with `true`.
+          */
          __ecmech_host__
          void getHistInfo(std::vector<std::string> & names,
                           std::vector<double>       & init,
@@ -219,37 +380,59 @@ namespace ecmech {
 
       private:
 
+         /** @brief Number of slip systems handled by this instance. */
          const int nslip; // could template on this if there were call to do so
 
          //////////////////////////////
          // MTS-like stuff
 
          // parameters
+         /** @brief Shear modulus at reference conditions, μ_ref [stress units]; not currently varied for current conditions. */
          double m_mu_ref; // may evetually set for current conditions
+         /** @brief Reference temperature, T_ref [Kelvin]. */
          double m_tkelv_ref;
+         /** @brief Reference stress τ_a; plays the role of either the athermal stress floor or the MTS-normalizing stress in the slip-rate law, depending on `withGAthermal` (see the file-level documentation). */
          double m_tau_a; // if withGAthermal then is Peierls barrier
+         /** @brief MTS activation-energy exponent p; only used if `pOne` is false (otherwise p is taken to be exactly 1). */
          double m_p; // only used if pOne is false
+         /** @brief MTS activation-energy exponent q; only used if `qOne` is false (otherwise q is taken to be exactly 1). */
          double m_q; // only used if qOne is false
+         /** @brief Reference-rate coefficient γ̇_r0 for the drag-limited branch. */
          double m_gam_ro;
+         /** @brief Reference-rate coefficient γ̇_w0 for the thermally-activated branch. */
          double m_gam_wo; // adots0
+         /** @brief Per-group thermal-activation energy scale numerator C1ᵢ. */
          double m_c_1[nVPer];
+         /** @brief Drag stress scale w_rD. */
          double m_wrD;
+         /** @brief Per-group base stress g0ᵢ and dislocation-density sensitivity coefficient sᵢ, combining to form the per-group reference stress ĝᵢ = g0ᵢ + sᵢ·√ρ (see getVals). */
          double m_go[nVPer], m_s[nVPer];
 
          // derived from parameters
+         /** @brief Per-group overflow/underflow stress-ratio thresholds (mirroring #gam_ratio_min, #gam_ratio_ovf) and power-law exponent helpers `xnn = 1/xm`, `xn = xnn - 1`, where the effective rate-sensitivity exponent xm is derived from the reference MTS parameters (see the file-level documentation). */
          double m_t_max[nVPer], m_t_min[nVPer], m_xn[nVPer], m_xnn[nVPer];
 
          //////////////////////////////
          // Kocks-Mecking stuff
 
+         /** @brief Kocks-Mecking hardening parameters: multiplication-rate coefficient k1, reference recovery-rate coefficient k2_0, recovery rate-sensitivity exponent 1/n (`m_ninv`), and reference shear rate γ̇_0 for the recovery term. */
          double m_k1, m_k2o, m_ninv, m_gamma_o;
 
          //////////////////////////////
 
+         /** @brief Initial dislocation density and its floor (`m_hdn_min = 1e-4 * m_hdn_init`). */
          double m_hdn_init, m_hdn_min;
 
       public:
 
+         /**
+          * @brief Reference slip rate used for scaling elsewhere in the solve (e.g. by
+          * the evptn elastic-strain/rotation solver): the harmonic mean of the
+          * thermally-activated and drag-limited reference rates, matching the same
+          * combination rule used for the actual slip rate in evalGdot.
+          * @param vals Kinetic values from getVals; `vals[0]` = γ̇_w, `vals[1]` = γ̇_r.
+          * @return `1 / (1/γ̇_w + 1/γ̇_r)`.
+          */
          __ecmech_hdev__
          inline
          double
@@ -259,10 +442,20 @@ namespace ecmech {
          }
 
          /**
-          * @brief Akin to hs_to_gss, power_law_tdep_vals, and plaw_from_hs
+          * @brief Precompute the kinetic values used by evalGdots: the thermal and
+          * drag-limited reference rates, and the per-group reference stress and thermal
+          * energy scale -- see the "Kinetic values" equations in the file-level
+          * documentation in ECMech_kinetics_KMBalD.h.
           *
-          * Could eventually bring in additional pressure and temperature dependence through the dependence of _mu on such ;
-          * see use of mu_factors in Fortran code
+          * Could eventually bring in additional pressure and temperature dependence
+          * through the dependence of `m_mu_ref` on such conditions.
+          * @param[out] vals Kinetic values, length #nVals: `vals[0]` = γ̇_w, `vals[1]` =
+          * γ̇_r, `vals[2+i]` = ĝᵢ, `vals[2+nVPer+i]` = c_tᵢ.
+          * @param p Pressure; not currently used by this model.
+          * @param tkelv Temperature [Kelvin], T.
+          * @param[in] h_state Current hardening state: `h_state[0]` = relative/
+          * normalized (dimensionless) dislocation density ρ.
+          * @return The average per-group reference stress ĝ across all groups.
           */
          __ecmech_hdev__
          inline
@@ -301,6 +494,15 @@ namespace ecmech {
             return hdnScale;
          }
 
+         /**
+          * @brief Evaluate the slip rate and its derivative w.r.t. resolved shear stress
+          * on every slip system.
+          * @param[out] gdot Slip rate on each slip system γ̇ [1/time].
+          * @param[out] dgdot_dtau Derivative of slip rate w.r.t. resolved shear stress on
+          * each slip system.
+          * @param[in] tau Resolved shear stress on each slip system τ [stress units].
+          * @param[in] vals Kinetic values from getVals.
+          */
          __ecmech_hdev__
          inline
          void
@@ -321,7 +523,21 @@ namespace ecmech {
          }
 
          /**
-          * like mts_dG, but with output args first
+          * @brief Evaluate the MTS activation-energy function E(t) and its derivative
+          * factor, for a single (signed) dimensionless MTS argument -- see the "MTS
+          * thermal-activation energy function" equation in the file-level documentation
+          * in ECMech_kinetics_KMBalD.h.
+          *
+          * Handles three regimes: `t` near zero (linearizes to avoid a 0/0 in the
+          * derivative when `pOne` is false), `q_arg = 1 - p_func` at or below zero
+          * (barrier fully overcome -- "pegged" to `E = 0`), and the general case.
+          * @param[out] exp_arg E(t), the log of the thermal-activation rate factor.
+          * @param[out] mts_dfac Derivative helper factor; combined with the caller's own
+          * chain-rule terms to get `d(exp(E))/dτ`.
+          * @param c_e Thermal energy prefactor c_e (= c_t·μ).
+          * @param denom_i 1/g_MTS (see the file-level documentation), the reciprocal of
+          * whichever stress is currently playing the MTS-normalizing role.
+          * @param t_frac The dimensionless MTS argument t.
           */
          __ecmech_hdev__
          inline
@@ -378,7 +594,27 @@ namespace ecmech {
          }
 
          /**
-          * see subroutine kinetics_mtspwr_d in mdef
+          * @brief Evaluate the balanced thermally-activated + power-law-tail slip rate,
+          * combined by harmonic mean with the drag-limited rate, for a single slip
+          * system -- see the "Slip-rate law" equations and symbol table in the
+          * file-level documentation in ECMech_kinetics_KMBalD.h.
+          *
+          * Assigns the athermal floor and MTS-normalizing stress from `withGAthermal`,
+          * then: if the drag-limited argument is negligible, the system is inactive; if
+          * the (clamped) forward MTS argument exceeds the overflow threshold `t_max`,
+          * the rate is purely drag-limited; otherwise the forward (and, unless
+          * negligible, reverse) thermally-activated rate is evaluated via get_mts_dG,
+          * the power-law tail is added once the forward argument exceeds the underflow
+          * threshold `t_min`, and the thermal+power-law rate is combined with the
+          * drag-limited rate by harmonic mean.
+          * @param[out] gdot Slip rate γ̇ [1/time].
+          * @param[out] l_act `true` if the slip system is active.
+          * @param[out] dgdot_dtau Derivative of `gdot` w.r.t. resolved shear stress.
+          * @param[in] vals Kinetic values from getVals.
+          * @param iSlip Slip system index (selects which parameter group to use when
+          * `perSS`).
+          * @param tau Resolved shear stress τ [stress units].
+          * @param mu Shear modulus, used to form the thermal energy prefactor c_e.
           */
          __ecmech_hdev__
          inline
@@ -539,6 +775,23 @@ namespace ecmech {
             gdot = copysign(gdot, tau);
          } // evalGdot
 
+         /**
+          * @brief Advance the single relative/normalized dislocation-density hardening
+          * state one time step by delegating to the shared scalar-hardness SNLS solve,
+          * solving in log space so the density cannot go negative.
+          * @param[out] hs_u End-of-step relative dislocation density, `hs_u[0]`.
+          * @param[in] hs_o Start-of-step dislocation density, `hs_o[0]`; floored at
+          * #m_hdn_min before taking the log.
+          * @param dt Time step size.
+          * @param[in] gdot Slip rates on all slip systems, used to compute the evolution
+          * inputs via getEvolVals.
+          * @param hvals Unused by this model.
+          * @param tkelv Temperature [Kelvin].
+          * @param outputLevel Verbosity passed through to the SNLS solver.
+          * @return Function-evaluation count from updateH1, or a negative value if the
+          * solve failed to converge.
+          * @see updateH1 in ECMech_kinetics.h
+          */
          __ecmech_hdev__
          inline
          int
@@ -563,6 +816,15 @@ namespace ecmech {
             return nFEvals;
          }
 
+         /**
+          * @brief Precompute the effective shear rate γ̇_eff and rate-dependent
+          * recovery coefficient k2 used by getSdot1 (see the "Hardening law" equations
+          * in the file-level documentation in ECMech_kinetics_KMBalD.h).
+          * @param[out] evolVals `evolVals[0]` = γ̇_eff (sum of absolute slip rates
+          * across all slip systems); `evolVals[1]` = k2 (`m_k2o` if the effective shear
+          * rate is negligible).
+          * @param[in] gdot Slip rates on all slip systems [1/time].
+          */
          __ecmech_hdev__
          inline
          void
@@ -582,6 +844,22 @@ namespace ecmech {
             evolVals[1] = k2;
          }
 
+         /**
+          * @brief Evaluate the Kocks-Mecking hardening rate (in log space) and its
+          * derivative w.r.t. the hardening state, for the scalar-hardness SNLS solve:
+          *
+          *   d(ln ρ)/dt = (k1/√ρ - k2) · γ̇_eff
+          *
+          * where ρ = exp(h) (h being the log-space hardening state actually solved
+          * for). See the file-level documentation in ECMech_kinetics_KMBalD.h for the
+          * full symbol-to-code mapping.
+          * @param[out] sdot Hardening rate d(ln ρ)/dt.
+          * @param[out] dsdot_ds Derivative of `sdot` w.r.t. `h`.
+          * @param h Current hardening state, in log space (ln ρ).
+          * @param[in] evolVals Values from getEvolVals: `evolVals[0]` = γ̇_eff
+          * (effective shear rate), `evolVals[1]` = k2 (recovery-rate coefficient).
+          * @param tkelv Temperature [Kelvin]; not currently used by this model.
+          */
          __ecmech_hdev__
          inline
          void
