@@ -58,9 +58,17 @@
  *
  * so that a thermally-activated rate is `(reference rate) · exp(E(t))` -- `E` pegs to 0
  * once `t ≥ 1` (barrier fully overcome by stress) and grows more negative (stronger
- * suppression) as `t` decreases. Here E = `exp_arg`, c_e = `c_e` (= c_t·μ, a thermal
- * energy prefactor), p = `m_p`, q = `m_q`, and `t` is the dimensionless MTS argument
- * passed in as `t_frac`.
+ * suppression) as `t` decreases. `t` itself is where the resolved shear stress and CRSS
+ * actually enter the thermal-activation rate:
+ *
+ *   t = (σ - g_ath) / g_MTS
+ *
+ * for a signed driving-stress term σ (the forward evaluation uses σ = |τ|; the
+ * reverse/balancing evaluation uses σ = -|τ|; see "Slip-rate law" below) and the
+ * athermal-floor/MTS-normalizing-stress pair g_ath/g_MTS (assigned from ĝ and τ_a
+ * depending on `withGAthermal`, also in "Slip-rate law" below). Here E = `exp_arg`,
+ * c_e = `c_e` (= c_t·μ, a thermal energy prefactor), p = `m_p`, q = `m_q`, and t =
+ * `t_frac`.
  *
  * **Slip-rate law** (see KineticsKMBalD::evalGdot): depending on `withGAthermal`, the
  * athermal stress floor g_ath and MTS-normalizing stress g_MTS are assigned from the
