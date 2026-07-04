@@ -1,10 +1,23 @@
+"""
+Minimal end-to-end usage example for pyecmech.
+
+Builds a linear-Voce FCC model ("voce_fcc_norm") with example OFHC copper parameters,
+drives it through a simple monotonic uniaxial-tension deformation history over 41
+explicit time steps, and prints the resulting axial Cauchy stress at each step.
+
+See ECMechProb.solve() below for the array shapes pyECMech.solve() expects, and
+ecmechpy.hpp / ecmech_pybind11.cpp for the full documentation of the underlying C++
+binding.
+"""
+
 import pyecmech as m
 import numpy as np
 
 assert m.__version__ == 'dev'
 
 
-# Helper class for things
+# Thin convenience wrapper pairing a pyecmech.pyECMech instance with the dimension
+# constants needed to correctly shape the numpy arrays passed to solve().
 class ECMechProb:
     def __init__(self, model_name, var):
         self.myecmech = m.pyECMech(model_name, var)
@@ -55,26 +68,32 @@ class ECMechProb:
 # Prints out function documentation of the module
 # help(m)
 
-# OFHC copper parameters
-# Taken from parameters in the ExaConstit test suite
+# OFHC copper parameters for "voce_fcc_norm" ("evptn_FCC_A": FCC slip geometry (0 of its
+# own params) + linear-Voce power-law kinetics + cubic elastic constants + simple EOS).
+# Taken from parameters in the ExaConstit test suite. Order below follows
+# matModel::initFromParams() in ECMech_evptnWrap.h: density0, cvav, tolerance, then
+# SlipGeom params (none for FCC), then ThermoElastN, Kinetics, and finally the remaining
+# EOS params -- see ECMech_eosSimple.h / ECMech_elastic.h / kinetics/ECMech_kinetics_VocePL.h
+# for what each model's own slice means.
 var = np.asarray([
-8.920e-6,
-0.003435984,
-1.0e-10,
-168.4e0,
-121.4e0,
-75.2e0,
-44.0e0,
-0.02e0,
-1.0e0,
-400.0e-3,
-17.0e-3,
-122.4e-3,
-0.0,
-5.0e9,
-17.0e-3,
-0.0,
--1.0307952
+8.920e-6,    # rho0    -- reference density
+0.003435984, # cvav    -- specific heat
+1.0e-10,     # tolerance -- solver tolerance
+168.4e0,     # C11     -- cubic elastic constant
+121.4e0,     # C12     -- cubic elastic constant
+75.2e0,      # C44     -- cubic elastic constant
+44.0e0,      # mu      -- shear modulus used by the power-law slip kinetics
+0.02e0,      # xm      -- rate-sensitivity exponent (power-law slip kinetics)
+1.0e0,       # gam_w   -- reference/normalizing shear rate (power-law slip kinetics)
+400.0e-3,    # h0      -- initial (linear) Voce hardening rate
+17.0e-3,     # tausi   -- initial CRSS (Voce hardening)
+122.4e-3,    # taus0   -- Voce saturation-stress reference value
+0.0,         # xms     -- Voce saturation-stress rate-sensitivity exponent
+5.0e9,       # gamss0  -- reference shear rate for the saturation stress
+17.0e-3,     # hdn_init -- initial hardening state (matches tausi here)
+0.0,         # Gamma   -- EOS Gruneisen parameter (remaining EOS params; rho0/K0/cvav are
+             #            supplied to the EOS internally from the values above)
+-1.0307952   # e0      -- EOS reference/offset energy
 ])
 
 prob = ECMechProb("voce_fcc_norm", var)
@@ -83,7 +102,13 @@ prob = ECMechProb("voce_fcc_norm", var)
 dt = 0.1
 tolerance = 1e-10
 def_rate_dev6_vol_sample = np.zeros(7)
-# Just a simple monotonic tension example in the x direction
+# Just a simple monotonic tension example in the x direction. def_rate_dev6_vol_sample is
+# laid out as [deviatoric 6-vector, volumetric rate] (pyecmech.constants.nsvp == 7 wide;
+# see matModelBase::getResponseECM's def_rate_d6vV doc). Indices 0-2 encode the traceless
+# (deviatoric) part of a uniaxial stretch along x (-1/3 on the two transverse directions
+# for every +1 on x), while index 6 carries the accompanying volumetric strain-rate
+# component (nonzero here, so volRatio below does drift away from 1.0 over the run); both
+# are then scaled down to a small strain rate.
 d_tr = 1.0 / 3.0
 def_rate_dev6_vol_sample[0] = 1.0 - d_tr
 def_rate_dev6_vol_sample[1] = -d_tr
@@ -92,9 +117,12 @@ def_rate_dev6_vol_sample[6] = 3.0 * d_tr
 def_rate_dev6_vol_sample[:] *= 0.001
 
 cauchy_stress_dev6_pressure = np.zeros(7)
-# This would control the spin of the problem if we wanted to 
+# This would control the spin of the problem if we wanted to
 spin_vec_sample = np.zeros(3)
 internal_energy = np.zeros(1)
+# [rel_vol_n, rel_vol_n+1, rate, delta] -- see ECMech_const.h's `nvr` doc. Both start at
+# 1.0 (undeformed reference state); the loop below advances rel_vol_n+1 each step by
+# integrating the volumetric-rate component (index 6) of def_rate_dev6_vol_sample.
 volRatio = np.asarray([1.0, 1.0, 0.0, 0.0])
 
 temp_k = 300.
@@ -110,7 +138,10 @@ histNames, histVals, histPlot, histState = prob.getHistInfo()
 hist = np.copy(histVals)
 # How to iterate over multiple time steps
 for i in range(41):
-    # This is pulled from how the test_px does things
+    # This is pulled from how the test_px does things. Roll last step's rel_vol_n+1 into
+    # this step's rel_vol_n, integrate the (constant) volumetric strain rate to get the
+    # new rel_vol_n+1, then recompute the derived rate/delta slots -- see volRatio's
+    # [rel_vol_n, rel_vol_n+1, rate, delta] layout noted above.
     volRatio[0] = volRatio[1]
     volRatio[1] = volRatio[0] * np.exp(def_rate_dev6_vol_sample[6] * dt)
     volRatio[3] = volRatio[1] - volRatio[0]
