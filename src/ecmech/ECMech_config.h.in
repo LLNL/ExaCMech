@@ -1,9 +1,21 @@
+// ECMech_config.h.in is processed by CMake's configure_file() into the generated
+// ECMech_config.h, substituting the version numbers and toggling the #cmakedefine
+// macros below based on the CMake options that were enabled at configure time.
+
+/** @brief Major version number of this ExaCMech build. */
 #define ECMECH_VERSION_MAJOR @ECMech_VERSION_MAJOR@
+/** @brief Minor version number of this ExaCMech build. */
 #define ECMECH_VERSION_MINOR @ECMech_VERSION_MINOR@
+/** @brief Patch version number of this ExaCMech build. */
 #define ECMECH_VERSION_PATCH @ECMech_VERSION_PATCH@
 
+/** @brief Defined whenever ExaCMech has been configured/built (always set); can be used by dependent codes to detect that ExaCMech is available. */
 #cmakedefine HAVE_ECMECH
+/** @brief When defined, history slot iHistA_shrateEff/iHistA_shrEff store the tensorial effective plastic strain rate/strain ("dplas_eff"/"eps") instead of the sum-of-absolute-slip-rates form ("shrate_eff"/"shr_eff"). Set via the CMake option of the same name. */
 #cmakedefine ECMECH_USE_DPEFF
+/** @brief Enables additional runtime consistency checks (e.g. parameter-count assertions in each kinetics model's setParams/getParams) that are skipped in release builds for performance. Set via the CMake option of the same name. */
 #cmakedefine ECMECH_DEBUG
+/** @brief Defined when the optional Python bindings (pyecmech) are being built. */
 #cmakedefine ECMECH_PY
+/** @brief Enables the alternate evptn nonlinear-solve formulations (elastic-strain-only and rotation-only sub-problems in evptn/ECMech_evptn.h) that are not needed by the primary combined strain+rotation solve. Set via the CMake option of the same name. */
 #cmakedefine ECMECH_EXTRA_SOLVERS
