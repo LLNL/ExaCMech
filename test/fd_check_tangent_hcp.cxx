@@ -97,7 +97,8 @@ int main(int argc, char* argv[])
 
    double mtan[ecmech::nsvec2];
    double sig0[ecmech::nsvec];
-   runModel(def_rate_base, 0.0, sig0, mtan);
+   const double vol0 = (argc > 3) ? atof(argv[3]) : 0.0;
+   runModel(def_rate_base, vol0, sig0, mtan);
 
    // finite differences: columns are svec strain-increment directions,
    // engineering shear convention for columns 3-5
@@ -106,13 +107,13 @@ int main(int argc, char* argv[])
    for (int j = 0; j < ecmech::nsvec; ++j) {
       double def_rate[ecmech::nsvp];
       std::copy(def_rate_base, def_rate_base + ecmech::nsvp, def_rate);
-      double vol_incr = 0.0;
+      double vol_incr = vol0;
       if (j < 3) {
          // normal strain increment h e_j x e_j : deviatoric part + trace part
          for (int k = 0; k < 3; ++k) {
             def_rate[k] += (((k == j) ? 1.0 : 0.0) - onethird) * h / dt;
          }
-         vol_incr = h;
+         vol_incr = vol0 + h;
       }
       else {
          // engineering shear increment gamma = h -> tensor component h/2

@@ -528,6 +528,31 @@ namespace evptn {
          * 
          * @see elast_strain_to_cauchy_stress() for direct Cauchy stress evaluation
          */
+        /**
+         * @brief Build the scaled deviatoric+spherical elastic strain vector.
+         *
+         * Produces the vecds strain vector that the elasticity model's eval()
+         * consumes: the stored deviatoric strain scaled by 1/a_vol in the first
+         * ntvec slots, and the spherical logarithmic strain √3·ln(a_vol) in the
+         * iSvecS slot. Also needed by the consistent-tangent assembly, where the
+         * J-scaling (geometric) contributions to the volumetric column are built
+         * from these same components.
+         *
+         * @param[out] elast_d5v Scaled strain vector [nsvec]
+         * @param[in] elast_d5 Stored deviatoric elastic strain [ntvec]
+         */
+        __ecmech_hdev__
+        inline
+        void get_scaled_elast_strain_vec(double* const elast_d5v, // nsvec
+                                        const double* const elast_d5 // ntvec
+                                        ) const
+        {
+        vecsVxa<ntvec>(elast_d5v, m_inv_a_vol, elast_d5);
+        //// tr_Ee = three * DLOG(a_V%r)
+        //// CALL trace_to_vecds_s(s_meas%elast_dev_press_vec(SVEC), tr_Ee)
+        elast_d5v[iSvecS] = sqr3 * log(m_a_vol); // could go into constructor
+        }
+
         __ecmech_hdev__
         inline
         void elast_strain_to_kirchoff_stress(double* const kirchoff_stress, // nsvec
@@ -541,10 +566,7 @@ namespace evptn {
         // & pressure_EOS, energy_vol_ref, crys%i_eos_model, crys%eos_const &
         // &)
         double elast_d5v[ecmech::nsvec];
-        vecsVxa<ntvec>(elast_d5v, m_inv_a_vol, elast_d5);
-        //// tr_Ee = three * DLOG(a_V%r)
-        //// CALL trace_to_vecds_s(s_meas%elast_dev_press_vec(SVEC), tr_Ee)
-        elast_d5v[iSvecS] = sqr3 * log(m_a_vol); // could go into constructor
+        this->get_scaled_elast_strain_vec(elast_d5v, elast_d5);
         //
         //// Kirchhoff stress from elast_d5v
         // CALL elawn_lin_op(s_meas%kirchoff, s_meas%elast_dev_press_vec, cem, tkelv, &
