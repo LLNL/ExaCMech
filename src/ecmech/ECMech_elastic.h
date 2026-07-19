@@ -415,36 +415,63 @@ namespace evptn {
         }
 
         /**
+         * @brief Derivative of deviatoric Kirchhoff stress w.r.t. spherical elastic strain.
+         *
+         * Fills dT_deps_sph[0:ntvec) with ∂τ'_i/∂ε_s, where ε_s is the spherical
+         * (vecds) component of the elastic strain passed to eval(). For cubic
+         * symmetry there is no deviatoric-volumetric elastic coupling, so the
+         * vector is identically zero.
+         *
+         * @param[out] dT_deps_sph Coupling vector [ntvec], zero-filled here
+         * @return false, indicating no coupling (callers may skip dependent work)
+         */
+        __ecmech_hdev__
+        inline
+        bool getDTDepsSph(double* const dT_deps_sph) const {
+            for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
+                dT_deps_sph[iTvec] = 0.0;
+            }
+            return false;
+        }
+
+        /**
          * @brief Compute tangent stiffness contribution for implicit integration.
-         * 
+         *
          * Calculates the material tangent operator needed for Newton-Raphson iteration
          * in implicit finite element analysis. For the elastic part, this is:
          *   ∂σ/∂ε_rate = (1/det(V^e)) · (1/a_vol) · C
-         * 
+         *
          * The tangent includes scaling factors accounting for:
          * - Finite deformation kinematics (inv_det_v_e)
          * - Volume normalization (inv_a_vol)
          * - Transformation to appropriate rate form
-         * 
-         * Template parameters enable compile-time optimization for different matrix sizes
-         * typical in finite element formulations.
-         * 
-         * @tparam N Row dimension of input matrix A
-         * @tparam M Column dimension of input matrix A
-         * 
-         * @param[out] M6 Tangent stiffness matrix (nsvec×nsvec)
-         * @param[in] A Input transformation matrix (N×M)
+         *
+         * A holds the converged sensitivities of the deviatoric lattice strain with
+         * respect to all nsvec vecds components of the sample-frame deformation
+         * rate: A[i,j] = ∂(elast_d5)_i / ∂(def_rate_vecds)_j, i < ntvec, j < nsvec.
+         * The final (spherical) column of A comes from the volumetric right-hand
+         * side of the tangent solve; for cubic symmetry that column is zero because
+         * there is no deviatoric-volumetric elastic coupling.
+         *
+         * @tparam N Row dimension of input matrix A (ntvec)
+         * @tparam M Column dimension of input matrix A (nsvec)
+         *
+         * @param[out] M6 Tangent stiffness matrix (nsvec×nsvec), crystal-frame rows
+         * @param[in] A Strain sensitivity matrix (N×M), see above
+         * @param[in] deps_sph_ddef_rate_sph ∂ε_s/∂(def_rate_vecds)_s over the step
+         *            (Δt at the current level of EOS decoupling); unused for cubic
          * @param[in] inv_det_v_e Inverse elastic deformation determinant
          * @param[in] inv_a_vol Inverse volume scaling factor
-         * 
-         * @note The resulting tangent is in deviatoric form; volumetric contributions
-         *       come from the equation of state and are handled separately
+         *
+         * @note The volumetric (S,S) pressure stiffness comes from the equation of
+         *       state and is added separately by the caller
          */
-        template<size_t N=ecmech::ntvec, size_t M=ecmech::ntvec>
+        template<size_t N=ecmech::ntvec, size_t M=ecmech::nsvec>
         __ecmech_hdev__
         inline
         void multCauchyDif(double* const M6,
                             const double* const A,
+                            double, // deps_sph_ddef_rate_sph -- no coupling for cubic
                             double inv_det_v_e,
                             double inv_a_vol
                             ) const {
@@ -459,17 +486,15 @@ namespace evptn {
             // where ⊙ represents element-wise multiplication in the tangent structure
             for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
                 double vFact = inv_det_v_e * inv_a_vol * m_K_diag[iTvec];
-                for (int jTvec = 0; jTvec < ecmech::ntvec; ++jTvec) {
-                    M6[ECMECH_NN_INDX(iTvec, jTvec, ecmech::nsvec)] = vFact * A[ECMECH_NM_INDX(iTvec, jTvec, N, M)];
+                for (int jSvec = 0; jSvec < ecmech::nsvec; ++jSvec) {
+                    M6[ECMECH_NN_INDX(iTvec, jSvec, ecmech::nsvec)] = vFact * A[ECMECH_NM_INDX(iTvec, jSvec, N, M)];
                 }
             }
 
-            for (int jTvec = 0; jTvec < ecmech::ntvec; ++jTvec) {
-                M6[ECMECH_NN_INDX(iSvecS, jTvec, ecmech::nsvec)] = 0.0;
-            }
-
-            for (int iSvec = 0; iSvec < ecmech::nsvec; ++iSvec) {
-                M6[ECMECH_NN_INDX(iSvec, iSvecS, ecmech::nsvec)] = 0.0;
+            // no deviatoric-volumetric elastic coupling for cubic: the pressure row
+            // is entirely the equation-of-state's business
+            for (int jSvec = 0; jSvec < ecmech::nsvec; ++jSvec) {
+                M6[ECMECH_NN_INDX(iSvecS, jSvec, ecmech::nsvec)] = 0.0;
             }
         }
 
@@ -825,56 +850,85 @@ namespace evptn {
             }
         }
 
+        /**
+         * @brief Derivative of deviatoric Kirchhoff stress w.r.t. spherical elastic strain.
+         *
+         * Fills dT_deps_sph[0:ntvec) with ∂τ'_i/∂ε_s, where ε_s is the spherical
+         * (vecds) component of the elastic strain passed to eval(). For hexagonal
+         * symmetry the coupling is a single entry:
+         *   ∂τ'_{iTvecHex}/∂ε_s = K_sdax3 = √2(-c₁₁ - c₁₂ + c₁₃ + c₃₃)/3 .
+         * Note eval() applies no a_vol scaling to the spherical strain slot, so no
+         * inv_a_vol factor belongs here either.
+         *
+         * @param[out] dT_deps_sph Coupling vector [ntvec]
+         * @return true, indicating coupling is present
+         */
+        __ecmech_hdev__
+        inline
+        bool getDTDepsSph(double* const dT_deps_sph) const {
+            for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
+                dT_deps_sph[iTvec] = 0.0;
+            }
+            dT_deps_sph[iTvecHex] = m_K_sdax3;
+            return true;
+        }
+
          /**
           * @brief Compute tangent stiffness for hexagonal symmetry.
-          * 
-          * Similar to cubic case but includes the additional off-diagonal coupling
-          * terms characteristic of hexagonal crystal structure.
-          * 
-          * @tparam N Row dimension
-          * @tparam M Column dimension
-          * @param[out] M6 Tangent stiffness (nsvec×nsvec)
-          * @param[in] A Transformation matrix (NxM)
+          *
+          * Similar to cubic case but includes the off-diagonal deviatoric-volumetric
+          * coupling K_sdax3 characteristic of hexagonal symmetry:
+          * - the pressure row: ∂σ_s/∂D_j = K_sdax3 · ∂ε'_{iTvecHex}/∂D_j for all
+          *   nsvec columns of A (including the spherical column, which carries the
+          *   plastic feedback of pressure-induced deviatoric stress);
+          * - the direct deviatoric-from-volumetric term
+          *   ∂σ'_{iTvecHex}/∂D_s = K_sdax3 · ∂ε_s/∂D_s, placed in crystal-frame rows
+          *   BEFORE the caller's crystal-to-sample row rotation so that it transforms
+          *   like every other deviatoric row. (An earlier version filled the whole
+          *   spherical column with the pressure-row values pre-rotation, which
+          *   after the row rotation produced the coupling along the doubly-rotated
+          *   axis Q²e₁ instead of Qe₁ — wrong at any general orientation.)
+          *
+          * @tparam N Row dimension of A (ntvec)
+          * @tparam M Column dimension of A (nsvec)
+          * @param[out] M6 Tangent stiffness (nsvec×nsvec), crystal-frame rows
+          * @param[in] A Strain sensitivities ∂(elast_d5)_i/∂(def_rate_vecds)_j (N×M)
+          * @param[in] deps_sph_ddef_rate_sph ∂ε_s/∂(def_rate_vecds)_s over the step
+          *            (Δt at the current level of EOS decoupling)
           * @param[in] inv_det_v_e Inverse elastic deformation determinant
           * @param[in] inv_a_vol Inverse volume factor
           */
-        template<size_t N=ecmech::ntvec, size_t M=ecmech::ntvec>
+        template<size_t N=ecmech::ntvec, size_t M=ecmech::nsvec>
         __ecmech_hdev__
         inline
         void multCauchyDif(double* const M6,
                             const double* const A,
+                            double deps_sph_ddef_rate_sph,
                             double inv_det_v_e,
                             double inv_a_vol
                             ) const {
-            // Diagonal contributions
+            // Diagonal contributions, all nsvec columns
             for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
                 double vFact = inv_det_v_e * inv_a_vol * m_K_diag[iTvec];
-                for (int jTvec = 0; jTvec < ecmech::ntvec; ++jTvec) {
-                    M6[ECMECH_NN_INDX(iTvec, jTvec, ecmech::nsvec)] = vFact * A[ECMECH_NM_INDX(iTvec, jTvec, N, M)];
+                for (int jSvec = 0; jSvec < ecmech::nsvec; ++jSvec) {
+                    M6[ECMECH_NN_INDX(iTvec, jSvec, ecmech::nsvec)] = vFact * A[ECMECH_NM_INDX(iTvec, jSvec, N, M)];
                 }
             }
 
-            // M6[iSvecS,:] = dsigC_de[iSvecS, iTvecHex] * A[iTvecHex,:] // for hexagonal specifically
-            // dsigC_de[iTvecHex, iSvecS] does not end up getting used
-            // Zero out most cross-terms
-            for (int iSvec = 0; iSvec < ecmech::nsvec; ++iSvec) {
-                M6[ECMECH_NN_INDX(iSvec, iSvecS, ecmech::nsvec)] = 0.0;
-                M6[ECMECH_NN_INDX(iSvecS, iSvec, ecmech::nsvec)] = 0.0;
+            // Pressure row: dsigC_de[iSvecS, iTvecHex] * A[iTvecHex, :]
+            // (the EOS part of the pressure stiffness is added by the caller)
+            {
+                double vFact = inv_det_v_e * inv_a_vol * m_K_sdax3;
+                for (int jSvec = 0; jSvec < ecmech::nsvec; ++jSvec) {
+                    M6[ECMECH_NN_INDX(iSvecS, jSvec, ecmech::nsvec)] = vFact * A[ECMECH_NM_INDX(iTvecHex, jSvec, N, M)];
+                }
             }
 
-            // Add hexagonal off-diagonal coupling terms
-            {
-                double vFact = inv_det_v_e * inv_a_vol * m_K_sdax3;
-                for (int jTvec = 0; jTvec < ecmech::ntvec; ++jTvec) {
-                    M6[ECMECH_NN_INDX(iSvecS, jTvec, ecmech::nsvec)] = vFact * A[ECMECH_NM_INDX(iTvecHex, jTvec, N, M)];
-                }
-            }
-            {
-                double vFact = inv_det_v_e * inv_a_vol * m_K_sdax3;
-                for (int jTvec = 0; jTvec < ecmech::ntvec; ++jTvec) {
-                    M6[ECMECH_NN_INDX(jTvec, iSvecS, ecmech::nsvec)] = vFact * A[ECMECH_NM_INDX(iTvecHex, jTvec, N, M)];
-                }
-            }
+            // Direct deviatoric response to volumetric loading, crystal frame:
+            // dsigC_de[iTvecHex, iSvecS] * deps_sph/dD_s. No inv_a_vol: eval()
+            // applies none to the spherical strain slot.
+            M6[ECMECH_NN_INDX(iTvecHex, iSvecS, ecmech::nsvec)] +=
+                inv_det_v_e * m_K_sdax3 * deps_sph_ddef_rate_sph;
         }
 
         /**

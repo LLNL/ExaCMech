@@ -410,9 +410,12 @@ void computeTangentStiffness(Problem& prob,
 
     // contribution to stiffness from EOS
     // this is a bit crude, but should do the trick for now;
-    // neglects effect of pressure_EOS and rel_vol_new on workings of evptn
+    // neglects effect of pressure_EOS and rel_vol_new on J-dependent scalings in evptn
     //
-    mtanSD_vecds[ECMECH_NN_INDX(iSvecS, iSvecS, ecmech::nsvec)] = three * prob_state.bulk_modulus_new;
+    // ADD to (not overwrite) the (S,S) entry: for elasticity models with
+    // deviatoric-volumetric coupling (hexagonal) the solve contributes a
+    // K_sdax3-driven plastic correction to the pressure-volume stiffness there
+    mtanSD_vecds[ECMECH_NN_INDX(iSvecS, iSvecS, ecmech::nsvec)] += three * prob_state.bulk_modulus_new;
 
     // convert from vecds notation to svec notation
     //

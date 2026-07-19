@@ -276,6 +276,68 @@ namespace evptn {
     }
 
     /**
+     * @brief Derivatives of plastic rates w.r.t. the spherical elastic strain.
+     *
+     * For elasticity models with deviatoric-volumetric coupling (e.g. hexagonal
+     * symmetry, where ∂τ'/∂ε_s = K_sdax3 e_{iTvecHex}), the plastic rates respond
+     * to the spherical elastic strain through the resolved shear stresses:
+     * ```
+     * ∂γ̇^α/∂ε_s = (∂γ̇/∂τ)^α · P^α : (∂τ'/∂ε_s)
+     * ∂D_p/∂ε_s = Σ_α P^α ∂γ̇^α/∂ε_s ,   ∂W_p/∂ε_s = Σ_α Q^α ∂γ̇^α/∂ε_s
+     * ```
+     * These feed the volumetric right-hand side of the consistent-tangent solve in
+     * get_material_tangent_stiffness(); without them the material tangent misses
+     * the plastic feedback of pressure-induced deviatoric stress, degrading host
+     * Newton convergence for anisotropic materials.
+     *
+     * For cubic symmetry (ThermoElastN::getDTDepsSph() returns false) the outputs
+     * are zero and the function returns immediately.
+     *
+     * @param[out] dDp_hat_deps_sph Derivative ∂D_p/∂ε_s [ntvec]
+     * @param[out] dWp_hat_deps_sph Derivative ∂W_p/∂ε_s [nwvec]
+     * @param[in] dgdot_dtau Slip rate derivatives ∂γ̇^α/∂τ^α [nslip]
+     * @param[in] slip_geom Slip geometry (Schmid/spin tensors)
+     * @param[in] thermoElastN Thermoelastic model (provides getDTDepsSph)
+     *
+     * @see get_slip_rate_deriv_terms() for the deviatoric analogue
+     * @see ThermoElastNHexag::getDTDepsSph() for the coupling vector
+     */
+    template<class SlipGeom, class ThermoElastN>
+    __ecmech_hdev__
+    inline
+    void get_slip_rate_deriv_sph_terms(double* const dDp_hat_deps_sph,
+                                       double* const dWp_hat_deps_sph,
+                                       const double* const dgdot_dtau,
+                                       const SlipGeom& slip_geom,
+                                       const ThermoElastN& thermoElastN
+                                    )
+    {
+        for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
+            dDp_hat_deps_sph[iTvec] = 0.0;
+        }
+        for (int iWvec = 0; iWvec < ecmech::nwvec; ++iWvec) {
+            dWp_hat_deps_sph[iWvec] = 0.0;
+        }
+        double dT_deps_sph[ecmech::ntvec];
+        if (!thermoElastN.getDTDepsSph(dT_deps_sph)) {
+            return;
+        }
+        if constexpr (SlipGeom::nslip > 0) {
+        double dgdot_deps_sph[SlipGeom::nslip];
+        const double* const slipP = slip_geom.getP();
+        for (int iSlip = 0; iSlip < SlipGeom::nslip; ++iSlip) {
+            double dtaua_deps_sph = 0.0;
+            for (int iTvec = 0; iTvec < ecmech::ntvec; ++iTvec) {
+                dtaua_deps_sph += slipP[ECMECH_NM_INDX(iTvec, iSlip, ecmech::ntvec, SlipGeom::nslip)] * dT_deps_sph[iTvec];
+            }
+            dgdot_deps_sph[iSlip] = dgdot_dtau[iSlip] * dtaua_deps_sph;
+        }
+        vecsVMa<ntvec, SlipGeom::nslip>(dDp_hat_deps_sph, slip_geom.getP(), dgdot_deps_sph);
+        vecsVMa<nwvec, SlipGeom::nslip>(dWp_hat_deps_sph, slip_geom.getQ(), dgdot_deps_sph);
+        }
+    }
+
+    /**
      * @brief Calculate slip-related post-processing quantities.
      * 
      * This function computes diagnostic/output quantities derived from the current
@@ -555,19 +617,23 @@ namespace evptn {
      * **Implementation steps**:
      * 
      * 1. **Set up RHS**: dR/dD = rotation matrix (frame transform derivative)
-     *    - nRHS = ntvec = 5 (only deviatoric DOFs)
-     * 2. **Solve linear system**: J · [dε_e/dD; dω/dD] = -[dR/dD; 0]
-     *    - Uses SNLS_LUP_SolveX for multiple RHS (ntvec = 5 columns)
+     *    - nRHS = nsvec = 6: five deviatoric columns plus the spherical
+     *      (volumetric) column, whose RHS is the plastic-rate sensitivity to the
+     *      spherical elastic strain (nonzero only with deviatoric-volumetric
+     *      elastic coupling, e.g. hexagonal symmetry)
+     * 2. **Solve linear system**: J · [dε_e/dD; dω/dD] = -[dR/dD; ...]
+     *    - Uses SNLS_LUP_SolveX for multiple RHS (nsvec = 6 columns)
      *    - Jacobian already factored during nonlinear solve
      * 3. **Apply elastic stiffness**: temp = C · (dε_e/dD)
      *    - Via ThermoElastN::multCauchyDif
-     *    - Produces 6×5 intermediate result
+     *    - Produces 6×6 intermediate result including the pressure row and the
+     *      crystal-frame direct deviatoric-from-volumetric coupling term
      * 4. **Rotate to sample frame**: result = Q · temp · Q^T
      *    - Via qr6x6_pre_mul
      *    - Extends to 6×6 (with 6th row/column handled appropriately)
      * 5. **Add rotation contribution**: result += ∂(Qσ)/∂ω · (dω/dD)
      *    - Derivative of rotated stress w.r.t. rotation
-     *    - Only affects 5×5 deviatoric block
+     *    - Affects rows 0-4 across all 6 columns
      * 
      * **Template parameters**:
      * @tparam ThermoElastN Thermoelastic model class (e.g., ThermoElastNCubic)
@@ -580,8 +646,10 @@ namespace evptn {
      * @param[out] material_tangent Material tangent stiffness [nsvec × nsvec = 6×6 = 36 components]
      *                              Row-major storage: element (i,j) at index i*nsvec + j
      *                              Units: [stress/strain_rate] or [stress·time]
-     *                              **Note**: Only the deviatoric 5×5 block is populated by this function
-     *                              The 6th row and column (pressure/volumetric) are left for EOS contributions
+     *                              **Note**: All entries populated except the EOS part of the
+     *                              (S,S) pressure-volume stiffness, which the caller adds
+     *                              (computeTangentStiffness). For cubic symmetry the 6th row
+     *                              and column are zero, as before.
      * 
      * @param[in] jacobian Converged Jacobian matrix from implicit solve [JAC_SIZE × JAC_SIZE]
      *                     Must be the Jacobian at the converged solution
@@ -605,7 +673,14 @@ namespace evptn {
      * 
      * @param[in] cauchy_stress Converged Cauchy stress in crystal frame [nsvec = 6]
      *                          Used in rotation derivative ∂(Qσ)/∂Q
-     * 
+     *
+     * @param[in] dDp_hat_deps_sph Derivative ∂D_p/∂ε_s [ntvec], from
+     *                             get_slip_rate_deriv_sph_terms(); zero for cubic
+     *
+     * @param[in] dWp_hat_deps_sph Derivative ∂W_p/∂ε_s [nwvec], likewise
+     *
+     * @param[in] dt Time step Δt; sets ∂ε_s/∂D_s = Δt for the volumetric column
+     *
      * @param[in] inv_det_v_e Inverse elastic deformation determinant J_e^(-1) [dimensionless]
      *                        Scaling factor for Kirchhoff→Cauchy conversion
      * 
@@ -633,8 +708,9 @@ namespace evptn {
      * **Limitations**:
      * - Tangent w.r.t. deformation rate D, not strain increment ε
      * - Scaling by time step Δt needed for dσ/dε (done in computeTangentStiffness wrapper)
-     * - Only computes deviatoric 5×5 block; volumetric/EOS contribution added separately
-     * - 6th row and column (pressure derivatives) must be populated from EOS tangent
+     * - EOS part of the (S,S) pressure-volume stiffness added separately by the caller
+     * - Volumetric column neglects derivatives of the J-dependent scaling factors
+     *   (inv_det_v_e, inv_a_vol) and of pressure_EOS/Grüneisen terms, O(σ/B) relative
      * - Assumes small perturbations (linear approximation)
      * 
      * @warning Jacobian must be from converged solution for accurate tangent
@@ -651,26 +727,33 @@ namespace evptn {
     inline
     void get_material_tangent_stiffness(double* const material_tangent,
                                         const double* const jacobian,
-                                        const double* const dquat_domega_t, 
+                                        const double* const dquat_domega_t,
                                         const double* const rmat_5x5_sample2xtal,
                                         const double* const quat,
                                         const double* const rmat,
                                         const double* const cauchy_stress,
+                                        const double* const dDp_hat_deps_sph,
+                                        const double* const dWp_hat_deps_sph,
+                                        const double dt,
                                         const double inv_det_v_e,
                                         const double inv_a_vol,
                                         const ThermoElastN& thermo_elast_n
                                         )
     {
-        // Only concerned with the dCauchy/dDefRate at this point in time
-        // and more specifically only considering the deviatoric portion 
-        constexpr int nRHS = ecmech::ntvec;
+        // dCauchy/dDefRate over all nsvec vecds components of the deformation
+        // rate: five deviatoric columns plus the spherical (volumetric) column.
+        // The spherical column is nonzero whenever the elasticity model couples
+        // deviatoric stress to volumetric strain (hexagonal K_sdax3): it carries
+        // both the direct elastic term and the plastic feedback obtained from the
+        // extra right-hand side below.
+        constexpr int nRHS = ecmech::nsvec;
 
         // mtan_sample_frame
-        // = d/dDefRate_sample(Cauchy) = d/dDefRate(Q * alpha * (C_{elas} : lattice_strain)) 
-        // Q is the 5x5 rotation oper from crystal to sample 
+        // = d/dDefRate_sample(Cauchy) = d/dDefRate(Q * alpha * (C_{elas} : lattice_strain))
+        // Q is the 5x5 rotation oper from crystal to sample
         // alpha is necessary scaling from Kirchoff to Cauchy
         // C_{elas} is the elasticity tensor (deviatoric contributions)
-        // = d/dDefRate_s (Cauchy) = d(Q Cauchy) / dOmega_c * dOmega / dDefRate_s 
+        // = d/dDefRate_s (Cauchy) = d(Q Cauchy) / dOmega_c * dOmega / dDefRate_s
         //   + Q * d(Cauchy)/delast_strain * delast_strain / dDefRate_s
         // From our Jacobian we can calculate the dOmega / dDefRate_s and delast_strain / dDefRate_s terms
         // The other ones are either simple to calculate or require some math...
@@ -685,10 +768,25 @@ namespace evptn {
         {
             // negatives cancel
             // dstrainomega_ddef_rate_t[0:ind_omega_vec,:] = qr5x5_c2s
-            for (int jE = 0; jE < nRHS; ++jE) {
-                for (int iE = 0; iE < ntvec; ++iE) { // ntvec, _not_ nDimSys // iE is same as index 
+            for (int jE = 0; jE < ecmech::ntvec; ++jE) {
+                for (int iE = 0; iE < ntvec; ++iE) { // ntvec, _not_ nDimSys // iE is same as index
                     dstrainomega_ddef_rate_t[ECMECH_NM_INDX(jE, iE, nRHS, JAC_SIZE)] = rmat_5x5_sample2xtal[ECMECH_NN_INDX(jE, iE, ntvec)];
                 }
+            }
+            // Spherical (volumetric) RHS: the residuals depend on the spherical
+            // deformation rate only through the spherical elastic strain,
+            // d(eps_sph)/d(D_s) = dt, which enters the stress via the elasticity
+            // model's deviatoric-volumetric coupling and from there the slip
+            // kinetics. In the unscaled Jacobian's units:
+            //   strain rows: dR_eps/dD_s =  dt * dDp/deps_sph
+            //   omega rows:  dR_omega/dD_s =  dt * ( dt * dWp/deps_sph )
+            // and the tangent solve needs -dR/dD_s (no sign cancellation here,
+            // unlike the deviatoric columns). Zero for cubic symmetry.
+            for (int iE = 0; iE < ecmech::ntvec; ++iE) {
+                dstrainomega_ddef_rate_t[ECMECH_NM_INDX(iSvecS, iE, nRHS, JAC_SIZE)] = -dt * dDp_hat_deps_sph[iE];
+            }
+            for (int iW = 0; iW < ecmech::nwvec; ++iW) {
+                dstrainomega_ddef_rate_t[ECMECH_NM_INDX(iSvecS, ind_sub_omega + iW, nRHS, JAC_SIZE)] = -dt * dt * dWp_hat_deps_sph[iW];
             }
             // If we had hardening terms then we'd add those here as well...
             // dRhard_ddef_rate but typically we can but for most problems safe to treat that
@@ -702,18 +800,20 @@ namespace evptn {
         }
 
         {
-        double temp_M6[ ecmech::nsvec2 ];
+        // Gather the strain sensitivities into [ntvec x nsvec] layout,
+        // dstrain_ddef_rate[i][j] = d(elast_d5)_i / d(def_rate_vecds)_j, leaving
+        // the solution array untouched (its omega entries are read below).
+        double dstrain_ddef_rate[ ecmech::ntvec * ecmech::nsvec ];
         for (int iTvec = 0; iTvec<ecmech::ntvec; ++iTvec) {
-            for (int jTvec = iTvec; jTvec<nRHS; ++jTvec) {
-                const int offset1 = ECMECH_NM_INDX(iTvec, jTvec, nRHS, JAC_SIZE);
-                const int offset2 = ECMECH_NM_INDX(jTvec, iTvec, nRHS, JAC_SIZE);
-                const double tmp = dstrainomega_ddef_rate_t[offset1];
-                dstrainomega_ddef_rate_t[offset1] = dstrainomega_ddef_rate_t[offset2];
-                dstrainomega_ddef_rate_t[offset2] = tmp;
+            for (int jSvec = 0; jSvec<ecmech::nsvec; ++jSvec) {
+                dstrain_ddef_rate[ECMECH_NM_INDX(iTvec, jSvec, ecmech::ntvec, ecmech::nsvec)] =
+                    dstrainomega_ddef_rate_t[ECMECH_NM_INDX(jSvec, iTvec, nRHS, JAC_SIZE)];
             }
         }
-        thermo_elast_n.template multCauchyDif<nRHS, JAC_SIZE>(temp_M6, dstrainomega_ddef_rate_t, inv_det_v_e, inv_a_vol);
-        // Apply final rotation
+        double temp_M6[ ecmech::nsvec2 ];
+        thermo_elast_n.template multCauchyDif<ecmech::ntvec, ecmech::nsvec>(temp_M6, dstrain_ddef_rate, dt, inv_det_v_e, inv_a_vol);
+        // Apply final rotation; the crystal-frame direct coupling term placed by
+        // multCauchyDif in the spherical column rotates with the other rows here
         qr6x6_pre_mul<ecmech::nsvec, false>(material_tangent, temp_M6, rmat_5x5_sample2xtal);
         }
 

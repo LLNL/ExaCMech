@@ -486,11 +486,20 @@ namespace ecmech {
                   if (m_mtan_sI) {
                      double cauchy_stress_lattice[ ecmech::nsvec ];
                      m_lattice_strain_prob.m_thermo_elast_n.getCauchy(cauchy_stress_lattice, kirchoff, m_lattice_strain_prob.m_inv_det_v_e);
+                     // plastic-rate sensitivities to the spherical elastic strain,
+                     // for the volumetric column of the consistent tangent
+                     // (identically zero for cubic symmetry)
+                     double dDp_hat_deps_sph[ ecmech::ntvec ];
+                     double dWp_hat_deps_sph[ ecmech::nwvec ];
+                     get_slip_rate_deriv_sph_terms(dDp_hat_deps_sph, dWp_hat_deps_sph, dgdot_dtau,
+                                                   m_slipGeom, m_lattice_strain_prob.m_thermo_elast_n);
                      get_material_tangent_stiffness<ThermoElastN, nDimSys, m_i_sub_r>
                      (m_mtan_sI, Jacobian,
                      dxtal_ori_quat_dxi_T, rmat_5x5_sample2xtal,
                      xtal_ori_quat, xtal_rmat,
                      cauchy_stress_lattice,
+                     dDp_hat_deps_sph, dWp_hat_deps_sph,
+                     m_lattice_strain_prob.m_dt,
                      m_lattice_strain_prob.m_inv_det_v_e,
                      m_lattice_strain_prob.m_inv_a_vol,
                      m_lattice_strain_prob.m_thermo_elast_n);
@@ -1539,10 +1548,19 @@ namespace ecmech {
 
                      double cauchy_stress_lattice[ ecmech::nsvec ];
                      m_lattice_strain_prob.m_thermo_elast_n.getCauchy(cauchy_stress_lattice, kirchoff, m_lattice_strain_prob.m_inv_det_v_e);
+                     // plastic-rate sensitivities to the spherical elastic strain,
+                     // for the volumetric column of the consistent tangent
+                     // (identically zero for cubic symmetry)
+                     double dDp_hat_deps_sph[ ecmech::ntvec ];
+                     double dWp_hat_deps_sph[ ecmech::nwvec ];
+                     get_slip_rate_deriv_sph_terms(dDp_hat_deps_sph, dWp_hat_deps_sph, dgdot_dtau,
+                                                   m_slipGeom, m_lattice_strain_prob.m_thermo_elast_n);
                      get_material_tangent_stiffness<ThermoElastN, nDimSolve, m_i_sub_r>(m_mtan_sI, Jacobian2,
                      dxtal_ori_quat_dxi_T, rmat_5x5_sample2xtal,
                      m_xtal_ori_quat, xtal_rmat,
                      cauchy_stress_lattice,
+                     dDp_hat_deps_sph, dWp_hat_deps_sph,
+                     m_lattice_strain_prob.m_dt,
                      m_lattice_strain_prob.m_inv_det_v_e,
                      m_lattice_strain_prob.m_inv_a_vol,
                      m_lattice_strain_prob.m_thermo_elast_n);
